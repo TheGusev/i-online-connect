@@ -15,7 +15,7 @@ export function ProfileActionBar({ name }: { name: string }) {
         <Button asChild size="lg" className="flex-1">
           <Link to="/chat">
             <MessageCircle aria-hidden="true" />
-            Написать {name}
+            Написать
           </Link>
         </Button>
 

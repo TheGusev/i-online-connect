@@ -70,11 +70,23 @@ function MyProfilePage() {
               saving={update.isPending}
               onSave={(name) => patch({ name })}
               renderValue={(name) => (
-                <h1 className="text-4xl font-bold tracking-tight">
-                  {name}, {data.age}
-                </h1>
+                <h1 className="text-4xl font-bold tracking-tight">{name}</h1>
               )}
             />
+            <div className="mt-1">
+              <InlineTextField
+                label="Возраст"
+                value={String(data.age)}
+                saving={update.isPending}
+                onSave={(age) => {
+                  const parsed = Number.parseInt(age, 10);
+                  if (Number.isFinite(parsed) && parsed >= 18) patch({ age: parsed });
+                }}
+                renderValue={(age) => (
+                  <p className="text-base text-muted-foreground">{age} лет</p>
+                )}
+              />
+            </div>
             <div className="mt-2">
               <InlineTextField
                 label="Город"
