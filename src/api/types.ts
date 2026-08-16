@@ -88,9 +88,9 @@ export interface SpaceEvent {
 export interface SpaceMember {
   id: string;
   name: string;
-  avatarUrl?: string;
+  avatarUrl?: string | undefined;
   /** Организатор сообщества. */
-  host?: boolean;
+  host?: boolean | undefined;
 }
 
 export interface SpaceMessage {
@@ -119,12 +119,12 @@ export interface Space {
   verifiedCommunity: boolean;
   joinPolicy: SpaceJoinPolicy;
   /** Вопрос организатора при входе, если joinPolicy = question. */
-  joinQuestion?: string;
+  joinQuestion?: string | undefined;
   interests: string[];
   isMember: boolean;
   /** Заявка отправлена организатору и ждёт ответа. */
-  pendingRequest?: boolean;
-  nextEvent?: SpaceEvent;
+  pendingRequest?: boolean | undefined;
+  nextEvent?: SpaceEvent | undefined;
 }
 
 /** Отдельное пространство: описание, участники, события, групповой чат. */
@@ -142,7 +142,7 @@ export interface SpaceDraft {
   format: SpaceFormat;
   cadence: SpaceCadence;
   city: string;
-  coverUrl?: string;
+  coverUrl?: string | undefined;
 }
 
 export interface Session {
