@@ -151,6 +151,11 @@ function OnboardingPage() {
                   <Card
                     key={intent}
                     interactive
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") event.currentTarget.click();
+                    }}
                     onClick={() => {
                       patchDraft({ intent });
                       answerStep({ stepId: "intent", answer: t(`onboarding.s2.${intent}`) });
