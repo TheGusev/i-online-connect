@@ -17,13 +17,27 @@ export interface MatchCandidate extends User {
   reasons: string[];
 }
 
+export interface ConversationParticipant extends Pick<User, "id" | "name" | "online"> {
+  avatarUrl?: string;
+  trustLevel: TrustLevel;
+  city?: string;
+}
+
 export interface Conversation {
   id: string;
-  participant: Pick<User, "id" | "name" | "online">;
+  participant: ConversationParticipant;
   lastMessage: string;
   lastMessageAt: string;
   unreadCount: number;
+  /** Собеседник написал, а ответа от вас ещё не было. */
+  awaitingReply: boolean;
+  /** Совпадающие интересы — основа для подсказок первой фразы. */
+  sharedInterests: string[];
+  /** Последнее сообщение отправлено вами. */
+  lastMessageFromMe: boolean;
 }
+
+export type MessageStatus = "sending" | "sent" | "read";
 
 export interface Message {
   id: string;
@@ -31,7 +45,13 @@ export interface Message {
   authorId: string;
   text: string;
   createdAt: string;
+  status?: MessageStatus;
+  /** Системное сообщение: приглашение на встречу и подобное. */
+  kind?: "text" | "meeting";
 }
+
+/** Тип встречи в мини-форме «Предложить встречу». */
+export type MeetingKind = "coffee" | "walk" | "event";
 
 export interface Space {
   id: string;
