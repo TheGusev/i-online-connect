@@ -4,8 +4,8 @@ export interface ToggleProps {
   checked: boolean;
   onChange: (next: boolean) => void;
   label: string;
-  disabled?: boolean;
-  className?: string;
+  disabled?: boolean | undefined;
+  className?: string | undefined;
 }
 
 /** Переключатель: единый вид для настроек приватности и уведомлений. */
@@ -43,10 +43,10 @@ export function ToggleRow({
   disabled,
 }: {
   title: string;
-  description?: string;
+  description?: string | undefined;
   checked: boolean;
   onChange: (next: boolean) => void;
-  disabled?: boolean;
+  disabled?: boolean | undefined;
 }) {
   return (
     <div className="flex items-start justify-between gap-4 py-4">
