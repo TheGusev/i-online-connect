@@ -48,7 +48,9 @@ export function MatchCard({
                 {match.city}
               </p>
             </div>
-            <TrustBadge level={match.trustLevel} score={match.trustScore} />
+            <span className="rounded-full bg-card/95 shadow-soft backdrop-blur">
+              <TrustBadge level={match.trustLevel} score={match.trustScore} />
+            </span>
           </div>
         </div>
         {match.hasVideo ? (
