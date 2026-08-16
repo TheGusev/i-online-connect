@@ -10,6 +10,9 @@ import type {
   ProfileDetail,
   Session,
   Space,
+  SpaceDetail,
+  SpaceDraft,
+  SpaceMessage,
   TrustSummary,
   User,
 } from "../types";
@@ -19,14 +22,18 @@ import {
   mockDailyFeed,
   mockCurrentUser,
   mockMessages,
-  mockSpaces,
   mockTrust,
   mockUsers,
 } from "./data";
 import { mockMyProfile, mockProfileDetails } from "./profiles";
+import { mockSpaceDetails, mockSpaceMessages } from "./spaces";
 
 /** Локальная копия своего профиля: правки сохраняются в рамках сессии. */
 let myProfile: MyProfile = { ...mockMyProfile };
+
+/** Сообщества и групповые чаты живут в памяти: вступление и «Пойду» сохраняются. */
+let spaces: SpaceDetail[] = mockSpaceDetails.map((space) => ({ ...space }));
+let spaceMessages: SpaceMessage[] = mockSpaceMessages.map((item) => ({ ...item }));
 
 /** Диалоги и сообщения живут в памяти, чтобы отправка выглядела правдоподобно. */
 let conversations: Conversation[] = mockConversations.map((item) => ({ ...item }));
