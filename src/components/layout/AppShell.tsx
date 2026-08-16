@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import { BottomNav } from "./BottomNav";
 import { SideNav } from "./SideNav";
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
   const { t } = useTranslation();
 
   return (
@@ -22,10 +22,13 @@ export function AppShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
-        <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-24 pt-6 lg:px-8 lg:pb-12">
+        <main
+          className={`mx-auto w-full flex-1 px-4 pb-24 pt-6 lg:px-8 lg:pb-12 ${wide ? "max-w-6xl" : "max-w-3xl"}`}
+        >
           {children}
         </main>
       </div>
+
       <BottomNav />
     </div>
   );
