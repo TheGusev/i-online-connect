@@ -29,7 +29,7 @@ export function ConversationCard({ conversation }: { conversation: Conversation 
     >
       <Avatar
         name={conversation.participant.name}
-        src={conversation.participant.avatarUrl}
+        src={conversation.participant.avatarUrl ?? null}
         size="lg"
         online={conversation.participant.online}
       />
