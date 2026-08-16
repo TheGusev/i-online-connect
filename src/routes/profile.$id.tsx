@@ -102,7 +102,7 @@ function ProfileViewPage() {
             </ul>
           </ProfileSection>
 
-          <ProfileActionBar name={data.name} />
+          <ProfileActionBar id={data.id} name={data.name} />
         </div>
       ) : null}
     </AppShell>
