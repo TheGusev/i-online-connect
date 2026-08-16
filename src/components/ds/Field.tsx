@@ -41,8 +41,8 @@ function Wrapper({
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "placeholder"> {
   label: string;
-  hint?: string;
-  error?: string;
+  hint?: string | undefined;
+  error?: string | undefined;
 }
 
 export function Input({ label, hint, error, className, id, ...props }: InputProps) {
@@ -66,8 +66,8 @@ export function Input({ label, hint, error, className, id, ...props }: InputProp
 export interface TextAreaProps
   extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "placeholder"> {
   label: string;
-  hint?: string;
-  error?: string;
+  hint?: string | undefined;
+  error?: string | undefined;
 }
 
 export function TextArea({ label, hint, error, className, id, rows = 4, ...props }: TextAreaProps) {
@@ -96,8 +96,8 @@ export function TextArea({ label, hint, error, className, id, rows = 4, ...props
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label: string;
-  hint?: string;
-  error?: string;
+  hint?: string | undefined;
+  error?: string | undefined;
   options: { value: string; label: string }[];
 }
 

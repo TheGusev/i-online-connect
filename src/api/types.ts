@@ -51,3 +51,19 @@ export interface TrustSummary {
   score: number;
   checks: { id: string; label: string; done: boolean }[];
 }
+
+export type OnboardingIntent = "serious" | "friends" | "projects" | "unsure";
+
+export interface OnboardingDraft {
+  name: string;
+  age: number | null;
+  intent: OnboardingIntent | null;
+  about: string;
+  photoName: string | null;
+  videoName: string | null;
+  videoSkipped: boolean;
+  interests: string[];
+  values: { values: string; joy: string; dealbreakers: string };
+  city: string;
+  hideExactLocation: boolean;
+}

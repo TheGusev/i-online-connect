@@ -2,6 +2,7 @@ import type {
   Conversation,
   MatchCandidate,
   Message,
+  OnboardingDraft,
   Session,
   Space,
   TrustSummary,
@@ -21,6 +22,18 @@ import {
 const delay = (ms = 250) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export const mockApi = {
+  async submitOnboarding(draft: OnboardingDraft): Promise<User> {
+    await delay(1600);
+    return {
+      ...mockCurrentUser,
+      name: draft.name || mockCurrentUser.name,
+      age: draft.age ?? mockCurrentUser.age,
+      city: draft.city || mockCurrentUser.city,
+      bio: draft.about || mockCurrentUser.bio,
+      interests: draft.interests.length ? draft.interests : mockCurrentUser.interests,
+      trustLevel: draft.videoSkipped ? "new" : "verified",
+    };
+  },
   async login(email: string): Promise<Session> {
     await delay();
     return { token: "mock-token", user: { ...mockCurrentUser, bio: `${email}` } };
