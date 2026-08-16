@@ -197,29 +197,7 @@ export const mockMessages: Message[] = [
   },
 ];
 
-export const mockSpaces: Space[] = [
-  {
-    id: "s1",
-    title: "Утренние прогулки",
-    description: "Собираемся по выходным и гуляем по городу без спешки.",
-    membersCount: 128,
-    topic: "активность",
-  },
-  {
-    id: "s2",
-    title: "Книжный клуб «Тихо»",
-    description: "Читаем одну книгу в месяц и обсуждаем без снобизма.",
-    membersCount: 342,
-    topic: "книги",
-  },
-  {
-    id: "s3",
-    title: "Новые в городе",
-    description: "Пространство для тех, кто недавно переехал.",
-    membersCount: 87,
-    topic: "знакомства",
-  },
-];
+export { mockSpaceDetails as mockSpaces } from "./spaces";
 
 export const mockTrust: TrustSummary = {
   level: "verified",
