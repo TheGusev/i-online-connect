@@ -2,5 +2,60 @@
   "app": {
     "name": "I Online",
     "tagline": "Dating and social connections platform"
+  },
+  "landing": {
+    "nav": {
+      "how": "How it works",
+      "trust": "Trust & safety",
+      "signIn": "Sign in"
+    },
+    "hero": {
+      "eyebrow": "Verified profiles only",
+      "title": "Find real people, not an endless feed of profiles",
+      "subtitle": "Every profile passes video verification. AI helps you put into words who you are looking for and brings 3–5 meaningful matches a day — instead of endless swiping.",
+      "cta": "Get started",
+      "secondary": "See how it works",
+      "note": "Free to start. Video verification takes about a minute.",
+      "imageAlt": "Two people laughing together in a warm cafe light"
+    },
+    "why": {
+      "title": "Why it is not like everywhere else",
+      "subtitle": "Three principles we build the product around.",
+      "real": {
+        "title": "Real people only",
+        "text": "Mandatory video verification. No bots, no stolen photos, no empty profiles."
+      },
+      "ai": {
+        "title": "AI that listens, not swipes",
+        "text": "It helps you state your intent precisely and matches by meaning, not by an endless card stack."
+      },
+      "meet": {
+        "title": "From chatting to meeting",
+        "text": "Events and shared activities move you from a chat window to real life."
+      }
+    },
+    "how": {
+      "title": "How it works",
+      "subtitle": "Four steps from sign-up to a real conversation.",
+      "step": "Step",
+      "s1": { "title": "Verification", "text": "A short video check confirms you are you." },
+      "s2": { "title": "Tell the AI about yourself", "text": "A calm dialogue instead of a long form." },
+      "s3": { "title": "Get 3–5 matches a day", "text": "Few options, each one explained." },
+      "s4": { "title": "Move to real communication", "text": "Chat, a call, an event — at your pace." }
+    },
+    "trust": {
+      "title": "Trust and safety",
+      "subtitle": "Openness is a feature, not a setting hidden in a menu.",
+      "moderation": { "title": "Live moderation", "text": "People and automation review reports around the clock." },
+      "privacy": { "title": "Your data stays yours", "text": "We never sell data and never share it with advertisers." },
+      "visibility": { "title": "You control visibility", "text": "Decide who sees your profile, photos and city." },
+      "imageAlt": "A small group of people meeting outdoors at golden hour"
+    },
+    "footer": {
+      "about": "About",
+      "rules": "Rules",
+      "support": "Support",
+      "rights": "All rights reserved."
+    }
   }
 }
