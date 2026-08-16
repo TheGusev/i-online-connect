@@ -1,13 +1,15 @@
 import { Link } from "@tanstack/react-router";
-import { Ban, Flag, MessageCircle, MoreHorizontal } from "lucide-react";
+import { Ban, Flag, MessageCircle, MoreHorizontal, ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ds";
+import { ReportModal } from "@/features/trust/components/ReportModal";
 
 /** Фиксированная панель действий: «Написать» + ненавязчивая жалоба/блокировка. */
-export function ProfileActionBar({ name }: { name: string }) {
+export function ProfileActionBar({ id, name }: { id: string; name: string }) {
   const [open, setOpen] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   return (
     <div className="fixed inset-x-0 bottom-14 z-30 border-t border-border bg-background/92 backdrop-blur lg:bottom-0">
@@ -31,11 +33,11 @@ export function ProfileActionBar({ name }: { name: string }) {
           </Button>
 
           {open ? (
-            <div className="absolute bottom-full right-0 mb-2 w-56 overflow-hidden rounded-2xl border border-border bg-card shadow-lift">
+            <div className="absolute bottom-full right-0 mb-2 w-60 overflow-hidden rounded-2xl border border-border bg-card shadow-lift">
               <button
                 type="button"
                 onClick={() => {
-                  setNotice("Жалоба отправлена модерации");
+                  setReportOpen(true);
                   setOpen(false);
                 }}
                 className="flex w-full items-center gap-2 px-4 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
@@ -43,11 +45,21 @@ export function ProfileActionBar({ name }: { name: string }) {
                 <Flag className="size-4" aria-hidden="true" />
                 Пожаловаться
               </button>
+              <Link
+                to="/safety-center"
+                onClick={() => setOpen(false)}
+                className="flex w-full items-center gap-2 border-t border-border px-4 py-3 text-sm text-foreground transition-colors hover:bg-secondary"
+              >
+                <ShieldCheck className="size-4" aria-hidden="true" />
+                Центр безопасности
+              </Link>
               <button
                 type="button"
                 onClick={() => {
-                  setNotice(`${name} больше не увидит твой профиль`);
                   setOpen(false);
+                  toast.success(`${name} заблокирован`, {
+                    description: "Профиль больше не появится в подборках, писать он не сможет.",
+                  });
                 }}
                 className="flex w-full items-center gap-2 border-t border-border px-4 py-3 text-sm text-destructive transition-colors hover:bg-destructive/10"
               >
@@ -59,11 +71,13 @@ export function ProfileActionBar({ name }: { name: string }) {
         </div>
       </div>
 
-      {notice ? (
-        <p className="pb-3 text-center text-xs text-muted-foreground" role="status">
-          {notice}
-        </p>
-      ) : null}
+      <ReportModal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        subjectId={id}
+        subjectName={name}
+        source="profile"
+      />
     </div>
   );
 }

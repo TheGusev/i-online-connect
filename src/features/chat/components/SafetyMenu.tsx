@@ -1,13 +1,22 @@
+import { Link } from "@tanstack/react-router";
 import { Ban, Flag, ShieldCheck, Info } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button, Modal } from "@/components/ds";
+import { ReportModal } from "@/features/trust/components/ReportModal";
 
 /** Иконка щита в шапке диалога: жалоба, блокировка и памятка по безопасности. */
-export function SafetyMenu({ participantName }: { participantName: string }) {
+export function SafetyMenu({
+  participantName,
+  participantId = "unknown",
+}: {
+  participantName: string;
+  participantId?: string;
+}) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
-  const [actionDone, setActionDone] = useState<"report" | "block" | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
 
   return (
     <div className="relative">
@@ -32,7 +41,7 @@ export function SafetyMenu({ participantName }: { participantName: string }) {
             <button
               type="button"
               onClick={() => {
-                setActionDone("report");
+                setReportOpen(true);
                 setMenuOpen(false);
               }}
               className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-secondary"
@@ -43,8 +52,10 @@ export function SafetyMenu({ participantName }: { participantName: string }) {
             <button
               type="button"
               onClick={() => {
-                setActionDone("block");
                 setMenuOpen(false);
+                toast.success(`${participantName} заблокирован`, {
+                  description: "Диалог скрыт из списка, новые сообщения приходить не будут.",
+                });
               }}
               className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-secondary"
             >
@@ -71,7 +82,14 @@ export function SafetyMenu({ participantName }: { participantName: string }) {
         onClose={() => setInfoOpen(false)}
         title="Как обеспечивается безопасность"
         description="Коротко о модерации и о том, как сделать встречу спокойной."
-        footer={<Button onClick={() => setInfoOpen(false)}>Понятно</Button>}
+        footer={
+          <>
+            <Button variant="ghost" asChild>
+              <Link to="/safety-center">Центр безопасности</Link>
+            </Button>
+            <Button onClick={() => setInfoOpen(false)}>Понятно</Button>
+          </>
+        }
       >
         <ul className="space-y-3 text-sm leading-relaxed text-muted-foreground">
           <li>
@@ -93,16 +111,12 @@ export function SafetyMenu({ participantName }: { participantName: string }) {
         </ul>
       </Modal>
 
-      <Modal
-        open={actionDone !== null}
-        onClose={() => setActionDone(null)}
-        title={actionDone === "block" ? "Собеседник заблокирован" : "Жалоба отправлена"}
-        description={
-          actionDone === "block"
-            ? `${participantName} больше не сможет вам писать. Диалог скрыт из списка.`
-            : "Команда модерации посмотрит переписку и вернётся с ответом. Спасибо, что сообщили."
-        }
-        footer={<Button onClick={() => setActionDone(null)}>Закрыть</Button>}
+      <ReportModal
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+        subjectId={participantId}
+        subjectName={participantName}
+        source="chat"
       />
     </div>
   );

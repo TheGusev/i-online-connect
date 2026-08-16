@@ -1,6 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { MapPin } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import type { MyProfile, PrivacySettings, ProfileIntent } from "@/api";
 import { Card, Chip, Select } from "@/components/ds";
@@ -41,6 +42,7 @@ export const Route = createFileRoute("/profile/me")({
 function MyProfilePage() {
   const { data, isPending, isError } = useMyProfile();
   const update = useUpdateMyProfile();
+  const navigate = useNavigate();
 
   const [editingIntent, setEditingIntent] = useState(false);
   const [intentDraft, setIntentDraft] = useState<ProfileIntent>("serious");
@@ -50,6 +52,14 @@ function MyProfilePage() {
   const patchPrivacy = (next: Partial<PrivacySettings>) => {
     if (!data) return;
     patch({ privacy: { ...data.privacy, ...next } });
+    if (next.visibleInFeed === false) {
+      toast("Твой профиль временно скрыт из ленты", {
+        description: "Тебя не будет в дневных подборках. Диалоги и Spaces работают как обычно.",
+      });
+    }
+    if (next.visibleInFeed === true) {
+      toast.success("Профиль снова в подборках");
+    }
   };
 
   return (
@@ -187,7 +197,7 @@ function MyProfilePage() {
           >
             <VerificationSection
               status={data.verification}
-              onStart={() => patch({ verification: "pending" })}
+              onStart={() => void navigate({ to: "/verification" })}
             />
           </ProfileSection>
 

@@ -1,6 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { trustApi } from "@/api";
+import { trustApi, type ReportDraft, type VerificationDraft } from "@/api";
 
 export const trustQueryOptions = {
   queryKey: ["trust", "summary"] as const,
@@ -9,4 +9,16 @@ export const trustQueryOptions = {
 
 export function useTrustSummary() {
   return useQuery(trustQueryOptions);
+}
+
+export function useSubmitReport() {
+  return useMutation({
+    mutationFn: (draft: ReportDraft) => trustApi.submitReport(draft),
+  });
+}
+
+export function useSubmitVerification() {
+  return useMutation({
+    mutationFn: (draft: VerificationDraft) => trustApi.submitVerification(draft),
+  });
 }

@@ -8,6 +8,8 @@ import type {
   MyProfile,
   OnboardingDraft,
   ProfileDetail,
+  ReportDraft,
+  ReportReceipt,
   Session,
   Space,
   SpaceDetail,
@@ -15,6 +17,8 @@ import type {
   SpaceMessage,
   TrustSummary,
   User,
+  VerificationDraft,
+  VerificationTicket,
 } from "../types";
 import {
   mockCandidates,
@@ -60,6 +64,9 @@ function starterTemplates(participant: ConversationParticipant, shared: string[]
 
 /** Небольшая задержка, чтобы состояния загрузки были заметны в интерфейсе. */
 const delay = (ms = 250) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+let reports: ReportDraft[] = [];
+let lastVerification: VerificationDraft | null = null;
 
 export const mockApi = {
   async submitOnboarding(draft: OnboardingDraft): Promise<User> {
@@ -292,5 +299,26 @@ export const mockApi = {
   async trust(): Promise<TrustSummary> {
     await delay();
     return mockTrust;
+  },
+  async submitReport(draft: ReportDraft): Promise<ReportReceipt> {
+    await delay(320);
+    reports = [...reports, draft];
+    return {
+      id: `rep-${reports.length}-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      reviewHours: 24,
+    };
+  },
+  async submitVerification(draft: VerificationDraft): Promise<VerificationTicket> {
+    await delay(900);
+    // Повторная отправка проверяется быстрее — фото уже в очереди у модерации.
+    const repeat = lastVerification !== null;
+    lastVerification = draft;
+    return {
+      id: `ver-${Date.now()}`,
+      status: "pending",
+      submittedAt: new Date().toISOString(),
+      etaMinutes: repeat ? 10 : 15,
+    };
   },
 };

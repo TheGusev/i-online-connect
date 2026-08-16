@@ -248,9 +248,9 @@ function LandingPage() {
             <a href="#trust" className="transition-colors hover:text-foreground">
               {t("landing.footer.about")}
             </a>
-            <a href="#how" className="transition-colors hover:text-foreground">
+            <Link to="/safety-center" className="transition-colors hover:text-foreground">
               {t("landing.footer.rules")}
-            </a>
+            </Link>
             <Link to="/settings" className="transition-colors hover:text-foreground">
               {t("landing.footer.support")}
             </Link>

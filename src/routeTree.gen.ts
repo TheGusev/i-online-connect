@@ -14,8 +14,10 @@ import { Route as ChatRouteImport } from './routes/chat'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as SafetyCenterRouteImport } from './routes/safety-center'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SpacesRouteImport } from './routes/spaces'
+import { Route as VerificationRouteImport } from './routes/verification'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ChatIdRouteImport } from './routes/chat.$id'
 import { Route as ProfileIdRouteImport } from './routes/profile.$id'
@@ -48,6 +50,11 @@ const OnboardingRoute = OnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SafetyCenterRoute = SafetyCenterRouteImport.update({
+  id: '/safety-center',
+  path: '/safety-center',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -56,6 +63,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const SpacesRoute = SpacesRouteImport.update({
   id: '/spaces',
   path: '/spaces',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerificationRoute = VerificationRouteImport.update({
+  id: '/verification',
+  path: '/verification',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
@@ -95,8 +107,10 @@ export interface FileRoutesByFullPath {
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
   '/onboarding': typeof OnboardingRoute
+  '/safety-center': typeof SafetyCenterRoute
   '/settings': typeof SettingsRoute
   '/spaces': typeof SpacesRouteWithChildren
+  '/verification': typeof VerificationRoute
   '/chat/$id': typeof ChatIdRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
@@ -109,7 +123,9 @@ export interface FileRoutesByTo {
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
   '/onboarding': typeof OnboardingRoute
+  '/safety-center': typeof SafetyCenterRoute
   '/settings': typeof SettingsRoute
+  '/verification': typeof VerificationRoute
   '/chat/$id': typeof ChatIdRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
@@ -124,8 +140,10 @@ export interface FileRoutesById {
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
   '/onboarding': typeof OnboardingRoute
+  '/safety-center': typeof SafetyCenterRoute
   '/settings': typeof SettingsRoute
   '/spaces': typeof SpacesRouteWithChildren
+  '/verification': typeof VerificationRoute
   '/chat/$id': typeof ChatIdRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
@@ -141,8 +159,10 @@ export interface FileRouteTypes {
     | '/design-system'
     | '/feed'
     | '/onboarding'
+    | '/safety-center'
     | '/settings'
     | '/spaces'
+    | '/verification'
     | '/chat/$id'
     | '/profile/$id'
     | '/profile/me'
@@ -155,7 +175,9 @@ export interface FileRouteTypes {
     | '/design-system'
     | '/feed'
     | '/onboarding'
+    | '/safety-center'
     | '/settings'
+    | '/verification'
     | '/chat/$id'
     | '/profile/$id'
     | '/profile/me'
@@ -169,8 +191,10 @@ export interface FileRouteTypes {
     | '/design-system'
     | '/feed'
     | '/onboarding'
+    | '/safety-center'
     | '/settings'
     | '/spaces'
+    | '/verification'
     | '/chat/$id'
     | '/profile/$id'
     | '/profile/me'
@@ -185,8 +209,10 @@ export interface RootRouteChildren {
   DesignSystemRoute: typeof DesignSystemRoute
   FeedRoute: typeof FeedRoute
   OnboardingRoute: typeof OnboardingRoute
+  SafetyCenterRoute: typeof SafetyCenterRoute
   SettingsRoute: typeof SettingsRoute
   SpacesRoute: typeof SpacesRouteWithChildren
+  VerificationRoute: typeof VerificationRoute
   ProfileIdRoute: typeof ProfileIdRoute
   ProfileMeRoute: typeof ProfileMeRoute
 }
@@ -228,6 +254,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/safety-center': {
+      id: '/safety-center'
+      path: '/safety-center'
+      fullPath: '/safety-center'
+      preLoaderRoute: typeof SafetyCenterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings': {
       id: '/settings'
       path: '/settings'
@@ -240,6 +273,13 @@ declare module '@tanstack/react-router' {
       path: '/spaces'
       fullPath: '/spaces'
       preLoaderRoute: typeof SpacesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verification': {
+      id: '/verification'
+      path: '/verification'
+      fullPath: '/verification'
+      preLoaderRoute: typeof VerificationRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/chat/': {
@@ -318,8 +358,10 @@ const rootRouteChildren: RootRouteChildren = {
   DesignSystemRoute: DesignSystemRoute,
   FeedRoute: FeedRoute,
   OnboardingRoute: OnboardingRoute,
+  SafetyCenterRoute: SafetyCenterRoute,
   SettingsRoute: SettingsRoute,
   SpacesRoute: SpacesRouteWithChildren,
+  VerificationRoute: VerificationRoute,
   ProfileIdRoute: ProfileIdRoute,
   ProfileMeRoute: ProfileMeRoute,
 }
