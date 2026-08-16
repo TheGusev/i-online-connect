@@ -239,3 +239,38 @@ export interface MyProfile extends ProfileDetail {
   verification: VerificationStatus;
   stats: OwnerTrustStats;
 }
+
+export type ReportCategory = "fake" | "behavior" | "scam" | "other";
+
+export interface ReportDraft {
+  category: ReportCategory;
+  details: string;
+  /** Кого или что обжалуют. */
+  subjectId: string;
+  subjectName?: string;
+  /** Откуда пришла жалоба — из чата или из профиля. */
+  source: "chat" | "profile";
+  blockToo?: boolean;
+}
+
+export interface ReportReceipt {
+  id: string;
+  createdAt: string;
+  /** Ожидаемое время ответа модерации в часах. */
+  reviewHours: number;
+}
+
+export interface VerificationDraft {
+  /** data URL live-селфи. */
+  selfie: string;
+  /** Фото профиля, с которым сверяем. */
+  referencePhotoUrl: string;
+}
+
+export interface VerificationTicket {
+  id: string;
+  status: VerificationStatus;
+  submittedAt: string;
+  /** Сколько обычно занимает проверка, в минутах. */
+  etaMinutes: number;
+}
