@@ -11,7 +11,7 @@ export function EventList({
 }: {
   events: SpaceEvent[];
   onToggleGoing: (event: SpaceEvent) => void;
-  pending?: boolean;
+  pending?: boolean | undefined;
 }) {
   if (events.length === 0) {
     return (
