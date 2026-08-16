@@ -195,7 +195,7 @@ function ContactRow({
         </div>
       </div>
       {verified ? (
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-3 py-1 text-xs font-medium text-success-foreground">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-3 py-1 text-xs font-medium text-foreground">
           <BadgeCheck className="size-3.5" aria-hidden="true" />
           Подтверждён
         </span>
