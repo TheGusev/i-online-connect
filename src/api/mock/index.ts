@@ -8,6 +8,8 @@ import type {
   MyProfile,
   OnboardingDraft,
   ProfileDetail,
+  ReportDraft,
+  ReportReceipt,
   Session,
   Space,
   SpaceDetail,
@@ -15,6 +17,8 @@ import type {
   SpaceMessage,
   TrustSummary,
   User,
+  VerificationDraft,
+  VerificationTicket,
 } from "../types";
 import {
   mockCandidates,
@@ -60,6 +64,9 @@ function starterTemplates(participant: ConversationParticipant, shared: string[]
 
 /** Небольшая задержка, чтобы состояния загрузки были заметны в интерфейсе. */
 const delay = (ms = 250) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+let reports: ReportDraft[] = [];
+let lastVerification: VerificationDraft | null = null;
 
 export const mockApi = {
   async submitOnboarding(draft: OnboardingDraft): Promise<User> {
