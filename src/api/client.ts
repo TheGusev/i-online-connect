@@ -1,15 +1,26 @@
 /**
  * Единый API-клиент. Все обращения к данным идут только через этот слой.
  *
- * Пока внешний backend не готов, работает мок-адаптер (src/api/mock).
- * Чтобы перейти на реальный REST API — достаточно задать VITE_API_URL
- * и VITE_USE_MOCK=false: тогда все вызовы уйдут в реальный fetch.
+ * Мок-адаптер (src/api/mocks) включается ровно одним флагом: VITE_USE_MOCKS=true.
+ * В продакшене достаточно задать VITE_API_URL и VITE_USE_MOCKS=false —
+ * все вызовы уйдут в реальный REST API.
  */
 
 export const API_URL = (import.meta.env["VITE_API_URL"] as string | undefined) ?? "";
 
-export const USE_MOCK =
-  (import.meta.env["VITE_USE_MOCK"] as string | undefined) === "true" || API_URL === "";
+export const WS_URL = (import.meta.env["VITE_WS_URL"] as string | undefined) ?? "";
+
+export const APP_NAME = (import.meta.env["VITE_APP_NAME"] as string | undefined) ?? "Я Онлайн";
+
+/** Единственный переключатель мок-данных. */
+export const USE_MOCKS = (import.meta.env["VITE_USE_MOCKS"] as string | undefined) === "true";
+
+if (!USE_MOCKS && API_URL === "" && typeof window !== "undefined") {
+  console.error(
+    "[api] VITE_API_URL не задан, а VITE_USE_MOCKS выключен — запросы к backend невозможны. " +
+      "Укажите VITE_API_URL при сборке (см. .env.example и DEPLOY.md).",
+  );
+}
 
 const TOKEN_STORAGE_KEY = "ya-online.token";
 

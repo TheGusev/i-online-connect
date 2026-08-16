@@ -15,6 +15,9 @@ if (!i18n.isInitialized) {
       en: { translation: en },
     },
     lng: defaultLanguage,
+    // Синхронная инициализация: иначе первый рендер (и пререндеренный
+    // SPA-шелл) показывает ключи вместо текста.
+    initImmediate: false,
     fallbackLng: defaultLanguage,
     interpolation: { escapeValue: false },
     react: { useSuspense: false },

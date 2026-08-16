@@ -12,4 +12,11 @@ export default defineConfig({
     // nitro/vite builds from this
     server: { entry: "server" },
   },
+  vite: {
+    build: {
+      // Манифест нужен скрипту scripts/build-static.mjs, который собирает
+      // статический SPA-шелл (dist/static/index.html) для раздачи через Nginx.
+      manifest: true,
+    },
+  },
 });

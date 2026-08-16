@@ -1,9 +1,9 @@
-import { USE_MOCK, request, setToken } from "../client";
-import { mockApi } from "../mock";
+import { USE_MOCKS, request, setToken } from "../client";
+import { mockApi } from "../mocks";
 import type { Session, User } from "../types";
 
 export async function login(email: string, password: string): Promise<Session> {
-  const session = USE_MOCK
+  const session = USE_MOCKS
     ? await mockApi.login(email)
     : await request<Session>("/auth/login", { method: "POST", body: { email, password } });
   setToken(session.token);
@@ -11,10 +11,10 @@ export async function login(email: string, password: string): Promise<Session> {
 }
 
 export async function logout(): Promise<void> {
-  if (!USE_MOCK) await request<void>("/auth/logout", { method: "POST" });
+  if (!USE_MOCKS) await request<void>("/auth/logout", { method: "POST" });
   setToken(null);
 }
 
 export async function getCurrentUser(): Promise<User> {
-  return USE_MOCK ? mockApi.currentUser() : request<User>("/auth/me");
+  return USE_MOCKS ? mockApi.currentUser() : request<User>("/auth/me");
 }
