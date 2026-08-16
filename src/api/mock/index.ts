@@ -293,4 +293,23 @@ export const mockApi = {
     await delay();
     return mockTrust;
   },
+  async submitReport(draft: ReportDraft): Promise<ReportReceipt> {
+    await delay(320);
+    reports = [...reports, draft];
+    return {
+      id: `rep-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      reviewHours: 24,
+    };
+  },
+  async submitVerification(draft: VerificationDraft): Promise<VerificationTicket> {
+    await delay(900);
+    lastVerification = draft;
+    return {
+      id: `ver-${Date.now()}`,
+      status: "pending",
+      submittedAt: new Date().toISOString(),
+      etaMinutes: 15,
+    };
+  },
 };
