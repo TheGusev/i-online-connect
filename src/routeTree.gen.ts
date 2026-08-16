@@ -20,6 +20,8 @@ import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ChatIdRouteImport } from './routes/chat.$id'
 import { Route as ProfileIdRouteImport } from './routes/profile.$id'
 import { Route as ProfileMeRouteImport } from './routes/profile.me'
+import { Route as SpacesIndexRouteImport } from './routes/spaces.index'
+import { Route as SpacesIdRouteImport } from './routes/spaces.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -76,6 +78,16 @@ const ProfileMeRoute = ProfileMeRouteImport.update({
   path: '/profile/me',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SpacesIndexRoute = SpacesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SpacesRoute,
+} as any)
+const SpacesIdRoute = SpacesIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => SpacesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -84,11 +96,13 @@ export interface FileRoutesByFullPath {
   '/feed': typeof FeedRoute
   '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
-  '/spaces': typeof SpacesRoute
+  '/spaces': typeof SpacesRouteWithChildren
   '/chat/$id': typeof ChatIdRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
+  '/spaces/$id': typeof SpacesIdRoute
   '/chat/': typeof ChatIndexRoute
+  '/spaces/': typeof SpacesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -96,11 +110,12 @@ export interface FileRoutesByTo {
   '/feed': typeof FeedRoute
   '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
-  '/spaces': typeof SpacesRoute
   '/chat/$id': typeof ChatIdRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
+  '/spaces/$id': typeof SpacesIdRoute
   '/chat': typeof ChatIndexRoute
+  '/spaces': typeof SpacesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -110,11 +125,13 @@ export interface FileRoutesById {
   '/feed': typeof FeedRoute
   '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
-  '/spaces': typeof SpacesRoute
+  '/spaces': typeof SpacesRouteWithChildren
   '/chat/$id': typeof ChatIdRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
+  '/spaces/$id': typeof SpacesIdRoute
   '/chat/': typeof ChatIndexRoute
+  '/spaces/': typeof SpacesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -129,7 +146,9 @@ export interface FileRouteTypes {
     | '/chat/$id'
     | '/profile/$id'
     | '/profile/me'
+    | '/spaces/$id'
     | '/chat/'
+    | '/spaces/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -137,11 +156,12 @@ export interface FileRouteTypes {
     | '/feed'
     | '/onboarding'
     | '/settings'
-    | '/spaces'
     | '/chat/$id'
     | '/profile/$id'
     | '/profile/me'
+    | '/spaces/$id'
     | '/chat'
+    | '/spaces'
   id:
     | '__root__'
     | '/'
@@ -154,7 +174,9 @@ export interface FileRouteTypes {
     | '/chat/$id'
     | '/profile/$id'
     | '/profile/me'
+    | '/spaces/$id'
     | '/chat/'
+    | '/spaces/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -164,7 +186,7 @@ export interface RootRouteChildren {
   FeedRoute: typeof FeedRoute
   OnboardingRoute: typeof OnboardingRoute
   SettingsRoute: typeof SettingsRoute
-  SpacesRoute: typeof SpacesRoute
+  SpacesRoute: typeof SpacesRouteWithChildren
   ProfileIdRoute: typeof ProfileIdRoute
   ProfileMeRoute: typeof ProfileMeRoute
 }
@@ -248,6 +270,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileMeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/spaces/': {
+      id: '/spaces/'
+      path: '/'
+      fullPath: '/spaces/'
+      preLoaderRoute: typeof SpacesIndexRouteImport
+      parentRoute: typeof SpacesRoute
+    }
+    '/spaces/$id': {
+      id: '/spaces/$id'
+      path: '/$id'
+      fullPath: '/spaces/$id'
+      preLoaderRoute: typeof SpacesIdRouteImport
+      parentRoute: typeof SpacesRoute
+    }
   }
 }
 
@@ -263,6 +299,19 @@ const ChatRouteChildren: ChatRouteChildren = {
 
 const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
+interface SpacesRouteChildren {
+  SpacesIdRoute: typeof SpacesIdRoute
+  SpacesIndexRoute: typeof SpacesIndexRoute
+}
+
+const SpacesRouteChildren: SpacesRouteChildren = {
+  SpacesIdRoute: SpacesIdRoute,
+  SpacesIndexRoute: SpacesIndexRoute,
+}
+
+const SpacesRouteWithChildren =
+  SpacesRoute._addFileChildren(SpacesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChatRoute: ChatRouteWithChildren,
@@ -270,7 +319,7 @@ const rootRouteChildren: RootRouteChildren = {
   FeedRoute: FeedRoute,
   OnboardingRoute: OnboardingRoute,
   SettingsRoute: SettingsRoute,
-  SpacesRoute: SpacesRoute,
+  SpacesRoute: SpacesRouteWithChildren,
   ProfileIdRoute: ProfileIdRoute,
   ProfileMeRoute: ProfileMeRoute,
 }

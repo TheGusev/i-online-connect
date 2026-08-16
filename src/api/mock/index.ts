@@ -10,6 +10,9 @@ import type {
   ProfileDetail,
   Session,
   Space,
+  SpaceDetail,
+  SpaceDraft,
+  SpaceMessage,
   TrustSummary,
   User,
 } from "../types";
@@ -19,14 +22,18 @@ import {
   mockDailyFeed,
   mockCurrentUser,
   mockMessages,
-  mockSpaces,
   mockTrust,
   mockUsers,
 } from "./data";
 import { mockMyProfile, mockProfileDetails } from "./profiles";
+import { mockSpaceDetails, mockSpaceMessages } from "./spaces";
 
 /** Локальная копия своего профиля: правки сохраняются в рамках сессии. */
 let myProfile: MyProfile = { ...mockMyProfile };
+
+/** Сообщества и групповые чаты живут в памяти: вступление и «Пойду» сохраняются. */
+let spaces: SpaceDetail[] = mockSpaceDetails.map((space) => ({ ...space }));
+let spaceMessages: SpaceMessage[] = mockSpaceMessages.map((item) => ({ ...item }));
 
 /** Диалоги и сообщения живут в памяти, чтобы отправка выглядела правдоподобно. */
 let conversations: Conversation[] = mockConversations.map((item) => ({ ...item }));
@@ -174,7 +181,113 @@ export const mockApi = {
   },
   async spaces(): Promise<Space[]> {
     await delay();
-    return mockSpaces;
+    return spaces.map(({ members: _members, events, hostName: _hostName, ...space }) => ({
+      ...space,
+      nextEvent: [...events].sort(
+        (a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt),
+      )[0],
+    }));
+  },
+  async space(id: string): Promise<SpaceDetail> {
+    await delay(250);
+    const found = spaces.find((space) => space.id === id);
+    if (!found) throw new Error("Пространство не найдено");
+    return {
+      ...found,
+      nextEvent: [...found.events].sort(
+        (a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt),
+      )[0],
+    };
+  },
+  /** Открытые сообщества пускают сразу, приватные — после вопроса организатору. */
+  async joinSpace(id: string, answer?: string): Promise<SpaceDetail> {
+    await delay(400);
+    spaces = spaces.map((space) => {
+      if (space.id !== id) return space;
+      if (space.joinPolicy === "question" && !space.isMember) {
+        return { ...space, pendingRequest: Boolean(answer) };
+      }
+      return { ...space, isMember: true, membersCount: space.membersCount + 1 };
+    });
+    return mockApi.space(id);
+  },
+  async leaveSpace(id: string): Promise<SpaceDetail> {
+    await delay(250);
+    spaces = spaces.map((space) =>
+      space.id === id
+        ? {
+            ...space,
+            isMember: false,
+            pendingRequest: false,
+            membersCount: Math.max(0, space.membersCount - 1),
+          }
+        : space,
+    );
+    return mockApi.space(id);
+  },
+  async rsvpEvent(spaceId: string, eventId: string, going: boolean): Promise<SpaceDetail> {
+    await delay(200);
+    spaces = spaces.map((space) =>
+      space.id === spaceId
+        ? {
+            ...space,
+            events: space.events.map((item) =>
+              item.id === eventId
+                ? {
+                    ...item,
+                    going,
+                    goingCount: Math.max(0, item.goingCount + (going ? 1 : -1)),
+                  }
+                : item,
+            ),
+          }
+        : space,
+    );
+    return mockApi.space(spaceId);
+  },
+  async createSpace(draft: SpaceDraft): Promise<SpaceDetail> {
+    await delay(700);
+    const created: SpaceDetail = {
+      id: `s-${Date.now()}`,
+      title: draft.title,
+      description: draft.description,
+      membersCount: 1,
+      topic: draft.category,
+      coverUrl: draft.coverUrl || mockSpaceDetails[0]!.coverUrl,
+      category: draft.category,
+      format: draft.format,
+      cadence: draft.cadence,
+      city: draft.city || mockCurrentUser.city,
+      distanceKm: 0,
+      verifiedCommunity: false,
+      joinPolicy: "open",
+      interests: [],
+      isMember: true,
+      hostName: mockCurrentUser.name,
+      members: [{ id: mockCurrentUser.id, name: mockCurrentUser.name, host: true }],
+      events: [],
+    };
+    spaces = [created, ...spaces];
+    return created;
+  },
+  async spaceMessages(spaceId: string): Promise<SpaceMessage[]> {
+    await delay();
+    return spaceMessages
+      .filter((message) => message.spaceId === spaceId)
+      .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+  },
+  async sendSpaceMessage(spaceId: string, text: string): Promise<SpaceMessage> {
+    await delay(180);
+    const message: SpaceMessage = {
+      id: `sms-${Date.now()}`,
+      spaceId,
+      authorId: "me",
+      authorName: mockCurrentUser.name,
+      text,
+      createdAt: new Date().toISOString(),
+    };
+    spaceMessages = [...spaceMessages, message];
+    return message;
   },
   async trust(): Promise<TrustSummary> {
     await delay();
