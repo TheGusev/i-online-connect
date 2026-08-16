@@ -3,7 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import type { DeleteReason } from "@/api";
-import { Button, Card, Modal, Select, Textarea } from "@/components/ds";
+import { Button, Card, Modal, Select, TextArea } from "@/components/ds";
 import { useDeleteAccount } from "@/features/settings/hooks";
 
 const reasons: { value: DeleteReason | ""; label: string }[] = [
@@ -106,7 +106,7 @@ export function DangerZoneSection({ onPause }: { onPause: () => void }) {
           options={reasons}
           onChange={(event) => setReason(event.target.value as DeleteReason | "")}
         />
-        <Textarea
+        <TextArea
           label="Что можно было сделать лучше?"
           value={comment}
           rows={3}
