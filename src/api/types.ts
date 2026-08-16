@@ -53,12 +53,96 @@ export interface Message {
 /** Тип встречи в мини-форме «Предложить встречу». */
 export type MeetingKind = "coffee" | "walk" | "event";
 
+/** Категория сообщества. */
+export type SpaceCategory =
+  | "sport"
+  | "games"
+  | "professional"
+  | "culture"
+  | "food"
+  | "city";
+
+/** Формат встреч сообщества. */
+export type SpaceFormat = "offline" | "online" | "mixed";
+
+/** Как часто сообщество собирается. */
+export type SpaceCadence = "weekly" | "biweekly" | "monthly" | "occasional";
+
+/**
+ * Мягкая модерация входа: открытые сообщества по интересам пускают сразу,
+ * более приватные — после короткого вопроса организатора.
+ */
+export type SpaceJoinPolicy = "open" | "question";
+
+export interface SpaceEvent {
+  id: string;
+  spaceId: string;
+  title: string;
+  /** ISO-дата начала. */
+  startsAt: string;
+  place: string;
+  goingCount: number;
+  going: boolean;
+}
+
+export interface SpaceMember {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+  /** Организатор сообщества. */
+  host?: boolean;
+}
+
+export interface SpaceMessage {
+  id: string;
+  spaceId: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface Space {
   id: string;
   title: string;
   description: string;
   membersCount: number;
   topic: string;
+  coverUrl: string;
+  category: SpaceCategory;
+  format: SpaceFormat;
+  cadence: SpaceCadence;
+  city: string;
+  /** Расстояние до места встреч, км — для таба «Рядом». */
+  distanceKm: number;
+  /** Модерация подтвердила, что сообщество живое. */
+  verifiedCommunity: boolean;
+  joinPolicy: SpaceJoinPolicy;
+  /** Вопрос организатора при входе, если joinPolicy = question. */
+  joinQuestion?: string;
+  interests: string[];
+  isMember: boolean;
+  /** Заявка отправлена организатору и ждёт ответа. */
+  pendingRequest?: boolean;
+  nextEvent?: SpaceEvent;
+}
+
+/** Отдельное пространство: описание, участники, события, групповой чат. */
+export interface SpaceDetail extends Space {
+  hostName: string;
+  members: SpaceMember[];
+  events: SpaceEvent[];
+}
+
+/** Черновик нового сообщества из формы «Создать пространство». */
+export interface SpaceDraft {
+  title: string;
+  description: string;
+  category: SpaceCategory;
+  format: SpaceFormat;
+  cadence: SpaceCadence;
+  city: string;
+  coverUrl?: string;
 }
 
 export interface Session {
