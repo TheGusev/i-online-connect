@@ -1,15 +1,15 @@
-import { Home, Compass, MessageCircle, Users, Settings } from "lucide-react";
+import { Compass, MessageCircle, Users, User } from "lucide-react";
 
 export interface NavItem {
-  to: "/" | "/feed" | "/chat" | "/spaces" | "/settings";
+  to: "/feed" | "/chat" | "/spaces" | "/profile/$id";
+  params?: Record<string, string>;
   labelKey: string;
-  icon: typeof Home;
+  icon: typeof Compass;
 }
 
 export const navItems: NavItem[] = [
-  { to: "/", labelKey: "nav.home", icon: Home },
   { to: "/feed", labelKey: "nav.feed", icon: Compass },
-  { to: "/chat", labelKey: "nav.chat", icon: MessageCircle },
   { to: "/spaces", labelKey: "nav.spaces", icon: Users },
-  { to: "/settings", labelKey: "nav.settings", icon: Settings },
+  { to: "/chat", labelKey: "nav.chat", icon: MessageCircle },
+  { to: "/profile/$id", params: { id: "me" }, labelKey: "nav.profile", icon: User },
 ];
