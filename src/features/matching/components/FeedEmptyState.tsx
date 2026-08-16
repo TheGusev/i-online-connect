@@ -29,7 +29,7 @@ export function FeedEmptyState({ nextRefreshAt }: { nextRefreshAt: string }) {
           </Link>
         </Button>
         <Button asChild variant="secondary">
-          <Link to="/profile/$id" params={{ id: "me" }}>
+          <Link to="/profile/me">
             {t("feed.empty.improve")}
           </Link>
         </Button>

@@ -85,3 +85,53 @@ export interface DailyFeed {
   /** ISO-время следующего обновления подборки. */
   nextRefreshAt: string;
 }
+
+/** Намерение, с которым человек пришёл на платформу. */
+export type ProfileIntent = "serious" | "friends" | "projects";
+
+export interface ProfileMedia {
+  id: string;
+  kind: "photo" | "video";
+  url: string;
+}
+
+/** Расшифровка бейджа доверия — то, что видно другим людям (без баллов). */
+export interface TrustDetails {
+  videoVerified: boolean;
+  monthsOnPlatform: number;
+  safeMeetings: number;
+}
+
+/** Публичный профиль человека. */
+export interface ProfileDetail extends User {
+  media: ProfileMedia[];
+  intent: ProfileIntent;
+  intentNote: string;
+  values: string[];
+  trust: TrustDetails;
+}
+
+export type VerificationStatus = "none" | "pending" | "verified";
+
+export interface PrivacySettings {
+  /** Кто видит точную геолокацию. */
+  exactLocation: "nobody" | "matches" | "everyone";
+  /** Профиль участвует в дневных подборках. */
+  visibleInFeed: boolean;
+  /** Кто может написать первым. */
+  whoCanMessage: "everyone" | "verified" | "matches";
+}
+
+/** Приватная статистика доверия: видна только владельцу профиля. */
+export interface OwnerTrustStats {
+  cleanConversations: number;
+  safeMeetings: number;
+  joinedAt: string;
+}
+
+/** Свой профиль: публичная часть + приватные настройки и статистика. */
+export interface MyProfile extends ProfileDetail {
+  privacy: PrivacySettings;
+  verification: VerificationStatus;
+  stats: OwnerTrustStats;
+}

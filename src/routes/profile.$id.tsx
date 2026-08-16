@@ -1,9 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
+import { MapPin } from "lucide-react";
 
-import { AppShell, PageHeader } from "@/components/layout/AppShell";
-import { useProfile } from "@/features/profile/hooks";
-import { TrustBadge } from "@/features/trust/components/TrustBadge";
+import { Card, Chip } from "@/components/ds";
+import { Reveal } from "@/components/landing/Reveal";
+import { AppShell } from "@/components/layout/AppShell";
+import { IntentCard } from "@/features/profile/components/IntentCard";
+import { MediaCarousel } from "@/features/profile/components/MediaCarousel";
+import { ProfileActionBar } from "@/features/profile/components/ProfileActionBar";
+import { ProfileSection } from "@/features/profile/components/ProfileSection";
+import { TrustBadgeExplained } from "@/features/profile/components/TrustBadgeExplained";
+import { useProfileDetail } from "@/features/profile/hooks";
 
 export const Route = createFileRoute("/profile/$id")({
   head: () => ({
@@ -11,64 +17,93 @@ export const Route = createFileRoute("/profile/$id")({
       { title: "Профиль участника — Я Онлайн" },
       {
         name: "description",
-        content: "Профиль участника «Я Онлайн»: интересы, город и уровень доверия.",
+        content:
+          "Личная страница участника «Я Онлайн»: о себе, намерение, интересы, ценности и подтверждённый бейдж доверия.",
       },
       { property: "og:title", content: "Профиль участника — Я Онлайн" },
       {
         property: "og:description",
-        content: "Что человек рассказал о себе и насколько подтверждён его профиль.",
+        content: "Что человек рассказал о себе и чем подтверждён его профиль.",
       },
+      { property: "og:type", content: "profile" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: ProfilePage,
+  component: ProfileViewPage,
 });
 
-function ProfilePage() {
+function ProfileViewPage() {
   const { id } = Route.useParams();
-  const { t } = useTranslation();
-  const { data, isPending, isError } = useProfile(id);
+  const { data, isPending, isError } = useProfileDetail(id);
+
+  if (id === "me") {
+    return (
+      <AppShell>
+        <p className="text-sm text-muted-foreground">
+          Свой профиль открывается по адресу{" "}
+          <Link to="/profile/me" className="font-semibold text-primary underline">
+            /profile/me
+          </Link>
+          .
+        </p>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
-      {isPending ? <p className="text-sm text-muted-foreground">{t("app.loading")}</p> : null}
-      {isError ? <p className="text-sm text-destructive">{t("profile.notFound")}</p> : null}
+      {isPending ? <p className="text-sm text-muted-foreground">Загружаем профиль…</p> : null}
+      {isError ? <p className="text-sm text-destructive">Профиль не найден</p> : null}
+
       {data ? (
-        <>
-          <PageHeader
-            title={`${data.name}, ${data.age}`}
-            description={data.online ? t("profile.online") : t("profile.offline")}
-          />
-          <TrustBadge level={data.trustLevel} score={data.trustScore} />
-          <section className="mt-6 space-y-4">
-            <div>
-              <h2 className="text-sm font-medium">{t("profile.city")}</h2>
-              <p className="text-sm text-muted-foreground">{data.city}</p>
+        <div className="pb-24">
+          <Reveal>
+            <MediaCarousel media={data.media} name={data.name} />
+          </Reveal>
+
+          <Reveal delay={80} as="header" className="mt-7">
+            <h1 className="text-4xl font-bold tracking-tight">
+              {data.name}, {data.age}
+            </h1>
+            <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <MapPin className="size-4" aria-hidden="true" />
+              {data.city}
+            </p>
+            <div className="mt-4">
+              <TrustBadgeExplained level={data.trustLevel} details={data.trust} />
             </div>
-            <div>
-              <h2 className="text-sm font-medium">{t("profile.about")}</h2>
-              <p className="text-sm text-muted-foreground">{data.bio}</p>
-            </div>
-            <div>
-              <h2 className="text-sm font-medium">{t("profile.interests")}</h2>
-              <ul className="mt-1 flex flex-wrap gap-2">
-                {data.interests.map((interest) => (
-                  <li
-                    key={interest}
-                    className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground"
-                  >
-                    {interest}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </section>
-          <Link
-            to="/chat"
-            className="mt-6 inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground"
-          >
-            {t("profile.message")}
-          </Link>
-        </>
+          </Reveal>
+
+          <ProfileSection title="О себе" delay={60}>
+            <p className="max-w-2xl text-base leading-loose text-muted-foreground">{data.bio}</p>
+          </ProfileSection>
+
+          <ProfileSection title="Ищу" delay={60}>
+            <IntentCard intent={data.intent} note={data.intentNote} />
+          </ProfileSection>
+
+          <ProfileSection title="Интересы" delay={60}>
+            <ul className="flex flex-wrap gap-2">
+              {data.interests.map((interest) => (
+                <li key={interest}>
+                  <Chip>{interest}</Chip>
+                </li>
+              ))}
+            </ul>
+          </ProfileSection>
+
+          <ProfileSection title="Что важно" delay={60}>
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {data.values.map((value) => (
+                <li key={value}>
+                  <Card className="h-full p-5 text-base leading-relaxed">{value}</Card>
+                </li>
+              ))}
+            </ul>
+          </ProfileSection>
+
+          <ProfileActionBar name={data.name} />
+        </div>
       ) : null}
     </AppShell>
   );

@@ -3,7 +3,9 @@ import type {
   DailyFeed,
   MatchCandidate,
   Message,
+  MyProfile,
   OnboardingDraft,
+  ProfileDetail,
   Session,
   Space,
   TrustSummary,
@@ -19,6 +21,10 @@ import {
   mockTrust,
   mockUsers,
 } from "./data";
+import { mockMyProfile, mockProfileDetails } from "./profiles";
+
+/** Локальная копия своего профиля: правки сохраняются в рамках сессии. */
+let myProfile: MyProfile = { ...mockMyProfile };
 
 /** Небольшая задержка, чтобы состояния загрузки были заметны в интерфейсе. */
 const delay = (ms = 250) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -49,6 +55,22 @@ export const mockApi = {
     const found = [mockCurrentUser, ...mockUsers].find((user) => user.id === id);
     if (!found) throw new Error("Профиль не найден");
     return found;
+  },
+  async profileDetail(id: string): Promise<ProfileDetail> {
+    await delay(300);
+    if (id === "me") return myProfile;
+    const found = mockProfileDetails.find((profile) => profile.id === id);
+    if (!found) throw new Error("Профиль не найден");
+    return found;
+  },
+  async myProfile(): Promise<MyProfile> {
+    await delay(300);
+    return myProfile;
+  },
+  async updateMyProfile(patch: Partial<MyProfile>): Promise<MyProfile> {
+    await delay(200);
+    myProfile = { ...myProfile, ...patch };
+    return myProfile;
   },
   async candidates(): Promise<MatchCandidate[]> {
     await delay();
