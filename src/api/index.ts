@@ -7,3 +7,4 @@ export * as chatApi from "./endpoints/chat";
 export * as spacesApi from "./endpoints/spaces";
 export * as onboardingApi from "./endpoints/onboarding";
 export * as trustApi from "./endpoints/trust";
+export * as settingsApi from "./endpoints/settings";

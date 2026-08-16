@@ -8,8 +8,14 @@ import type {
   MyProfile,
   OnboardingDraft,
   ProfileDetail,
+  AccountSettings,
+  DeleteAccountReceipt,
+  DeleteAccountRequest,
+  NotificationSettings,
+  PasswordChange,
   ReportDraft,
   ReportReceipt,
+  SettingsBundle,
   Session,
   Space,
   SpaceDetail,
@@ -66,6 +72,42 @@ function starterTemplates(participant: ConversationParticipant, shared: string[]
 const delay = (ms = 250) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 let reports: ReportDraft[] = [];
+
+/** Настройки живут в памяти: переключатели сохраняются в рамках сессии. */
+let settingsState: SettingsBundle = {
+  account: {
+    email: "maksim@yaonline.app",
+    phone: "+7 913 000-11-22",
+    language: "ru",
+    emailVerified: true,
+    phoneVerified: false,
+  },
+  notifications: { matches: true, messages: true, spaces: true, safety: true },
+  subscription: {
+    plan: "basic",
+    planName: "Базовый",
+    priceLabel: "Бесплатно",
+    since: "2026-02-14",
+    premiumFeatures: [
+      {
+        title: "Больше совпадений в день",
+        description: "До 10 осмысленных вариантов вместо 5 — без бесконечной ленты.",
+      },
+      {
+        title: "Точная настройка намерения",
+        description: "AI глубже разбирает запрос и подбирает людей по ценностям, а не по фильтрам.",
+      },
+      {
+        title: "Приоритет в Spaces",
+        description: "Раннее место в списке участников на события с ограниченным числом мест.",
+      },
+      {
+        title: "Расширенная приватность",
+        description: "Режим «только по приглашению»: профиль видят лишь те, кому ты открыл доступ.",
+      },
+    ],
+  },
+};
 let lastVerification: VerificationDraft | null = null;
 
 export const mockApi = {
@@ -299,6 +341,34 @@ export const mockApi = {
   async trust(): Promise<TrustSummary> {
     await delay();
     return mockTrust;
+  },
+  async settings(): Promise<SettingsBundle> {
+    await delay();
+    return settingsState;
+  },
+  async updateAccount(patch: Partial<AccountSettings>): Promise<AccountSettings> {
+    await delay(200);
+    settingsState = { ...settingsState, account: { ...settingsState.account, ...patch } };
+    return settingsState.account;
+  },
+  async updateNotifications(patch: Partial<NotificationSettings>): Promise<NotificationSettings> {
+    await delay(180);
+    settingsState = {
+      ...settingsState,
+      notifications: { ...settingsState.notifications, ...patch },
+    };
+    return settingsState.notifications;
+  },
+  async changePassword(payload: PasswordChange): Promise<{ ok: true }> {
+    await delay(400);
+    if (payload.current === payload.next) {
+      throw new Error("Новый пароль совпадает с текущим");
+    }
+    return { ok: true };
+  },
+  async deleteAccount(payload: DeleteAccountRequest): Promise<DeleteAccountReceipt> {
+    await delay(600);
+    return { id: `del-${payload.reason ?? "silent"}-${Date.now()}`, restoreDays: 30 };
   },
   async submitReport(draft: ReportDraft): Promise<ReportReceipt> {
     await delay(320);
