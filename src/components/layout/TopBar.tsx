@@ -41,8 +41,7 @@ export function TopBar({ notifications = 3 }: { notifications?: number }) {
             ) : null}
           </Link>
           <Link
-            to="/profile/$id"
-            params={{ id: "me" }}
+            to="/profile/me"
             aria-label={t("nav.profile")}
             className={`rounded-full ring-2 ring-offset-2 ring-offset-background transition-transform hover:scale-[1.03] ${trustRing[level]}`}
           >
