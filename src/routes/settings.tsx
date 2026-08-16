@@ -1,10 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useTranslation } from "react-i18next";
+import { Bell, CreditCard, ShieldCheck, TriangleAlert, UserRound } from "lucide-react";
+import { useState } from "react";
 
-import { USE_MOCK } from "@/api";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
-import { useTrustSummary } from "@/features/trust/hooks";
-import { supportedLanguages } from "@/i18n";
+import { Card } from "@/components/ds";
+import { AccountSection } from "@/features/settings/components/AccountSection";
+import { DangerZoneSection } from "@/features/settings/components/DangerZoneSection";
+import { NotificationsSection } from "@/features/settings/components/NotificationsSection";
+import { PrivacyPanel } from "@/features/settings/components/PrivacyPanel";
+import { SettingsNav, type SettingsSectionMeta } from "@/features/settings/components/SettingsNav";
+import { SubscriptionSection } from "@/features/settings/components/SubscriptionSection";
+import { useSettings } from "@/features/settings/hooks";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -12,80 +18,74 @@ export const Route = createFileRoute("/settings")({
       { title: "Настройки — Я Онлайн" },
       {
         name: "description",
-        content: "Язык интерфейса, приватность, уведомления и уровень доверия профиля.",
+        content:
+          "Аккаунт и язык интерфейса, приватность и пауза профиля, уведомления, тариф и удаление аккаунта.",
       },
       { property: "og:title", content: "Настройки — Я Онлайн" },
-      { property: "og:description", content: "Управление профилем и уровнем доверия." },
+      {
+        property: "og:description",
+        content: "Управляй контактами, приватностью, уведомлениями и тарифом в одном месте.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: SettingsPage,
 });
 
+const sections: SettingsSectionMeta[] = [
+  { id: "account", label: "Аккаунт", icon: UserRound },
+  { id: "privacy", label: "Приватность", icon: ShieldCheck },
+  { id: "notifications", label: "Уведомления", icon: Bell },
+  { id: "subscription", label: "Тариф", icon: CreditCard },
+  { id: "danger", label: "Удаление аккаунта", icon: TriangleAlert },
+];
+
+const sectionHints: Record<string, string> = {
+  account: "Контакты для входа, пароль и язык интерфейса.",
+  privacy: "Кто видит профиль и геолокацию, кто может написать первым.",
+  notifications: "Выбери, о чём сообщать, а о чём — молчать.",
+  subscription: "Сейчас всё главное бесплатно. Премиум в работе.",
+  danger: "Необратимое действие — сначала предложим паузу.",
+};
+
 function SettingsPage() {
-  const { t, i18n } = useTranslation();
-  const { data: trust } = useTrustSummary();
+  const [active, setActive] = useState("account");
+  const { data, isLoading } = useSettings();
+  const activeMeta = sections.find((section) => section.id === active) ?? sections[0]!;
 
   return (
     <AppShell>
-      <PageHeader title={t("settings.title")} />
-      <section className="space-y-6">
-        <div className="rounded-lg border border-border p-4">
-          <h2 className="text-sm font-medium">{t("settings.language")}</h2>
-          <div className="mt-2 flex gap-2">
-            {supportedLanguages.map((language) => (
-              <button
-                key={language}
-                onClick={() => void i18n.changeLanguage(language)}
-                className={`rounded-md border border-border px-3 py-1.5 text-sm ${
-                  i18n.language === language ? "bg-accent" : ""
-                }`}
-              >
-                {language.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        </div>
+      <PageHeader title="Настройки" />
 
-        <div className="rounded-lg border border-border p-4">
-          <h2 className="text-sm font-medium">{t("settings.trust")}</h2>
-          {trust ? (
-            <>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {t("trust.score")}: {trust.score} — {t(`trust.levels.${trust.level}`)}
-              </p>
-              <ul className="mt-3 space-y-1 text-sm">
-                {trust.checks.map((check) => (
-                  <li key={check.id} className="flex justify-between gap-3">
-                    <span>{check.label}</span>
-                    <span className="text-muted-foreground">
-                      {check.done ? t("trust.done") : t("trust.pending")}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
+      <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
+        <SettingsNav sections={sections} active={active} onSelect={setActive} />
+
+        <section aria-label={activeMeta.label} className="min-w-0 space-y-5">
+          <header>
+            <h2 className="text-xl font-semibold">{activeMeta.label}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{sectionHints[active]}</p>
+          </header>
+
+          {isLoading || !data ? (
+            <Card className="p-6 text-sm text-muted-foreground">Загружаем настройки…</Card>
           ) : (
-            <p className="mt-1 text-sm text-muted-foreground">{t("app.loading")}</p>
+            <>
+              {active === "account" ? <AccountSection account={data.account} /> : null}
+              {active === "privacy" ? <PrivacyPanel /> : null}
+              {active === "notifications" ? (
+                <NotificationsSection notifications={data.notifications} />
+              ) : null}
+              {active === "subscription" ? (
+                <SubscriptionSection subscription={data.subscription} />
+              ) : null}
+              {active === "danger" ? (
+                <DangerZoneSection onPause={() => setActive("privacy")} />
+              ) : null}
+            </>
           )}
-        </div>
-
-        <div className="rounded-lg border border-border p-4">
-          <h2 className="text-sm font-medium">{t("settings.apiMode")}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {USE_MOCK ? t("settings.apiModeMock") : t("settings.apiModeLive")}
-          </p>
-        </div>
-
-        <div className="rounded-lg border border-border p-4">
-          <h2 className="text-sm font-medium">{t("settings.notifications")}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t("app.empty")}</p>
-        </div>
-
-        <div className="rounded-lg border border-border p-4">
-          <h2 className="text-sm font-medium">{t("settings.privacy")}</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{t("app.empty")}</p>
-        </div>
-      </section>
+        </section>
+      </div>
     </AppShell>
   );
 }

@@ -1,7 +1,7 @@
 import { EyeOff, MapPin, MessageSquareLock } from "lucide-react";
 
 import type { PrivacySettings } from "@/api";
-import { Card, Select } from "@/components/ds";
+import { Card, Select, Toggle } from "@/components/ds";
 
 const locationOptions = [
   { value: "nobody", label: "Никто — только город" },
@@ -54,22 +54,12 @@ export function PrivacySection({
               Можно временно скрыться: профиль не попадёт в чужие подборки, переписки сохранятся.
             </p>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={privacy.visibleInFeed}
-            aria-label="Видимость профиля в ленте"
-            onClick={() => onChange({ visibleInFeed: !privacy.visibleInFeed })}
-            className={`relative mt-0.5 h-7 w-12 shrink-0 rounded-full transition-colors ${
-              privacy.visibleInFeed ? "bg-primary" : "bg-muted"
-            }`}
-          >
-            <span
-              className={`absolute top-1 size-5 rounded-full bg-card shadow-soft transition-all ${
-                privacy.visibleInFeed ? "left-6" : "left-1"
-              }`}
-            />
-          </button>
+          <Toggle
+            className="mt-0.5"
+            checked={privacy.visibleInFeed}
+            label="Видимость профиля в ленте"
+            onChange={(next) => onChange({ visibleInFeed: next })}
+          />
         </div>
         <p className="mt-3 text-xs font-medium text-muted-foreground">
           {privacy.visibleInFeed ? "Профиль показывается в подборках" : "Профиль временно скрыт"}

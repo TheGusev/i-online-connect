@@ -274,3 +274,54 @@ export interface VerificationTicket {
   /** Сколько обычно занимает проверка, в минутах. */
   etaMinutes: number;
 }
+
+/** Контактные данные и язык интерфейса. */
+export interface AccountSettings {
+  email: string;
+  phone: string;
+  /** Язык интерфейса: код i18n. */
+  language: string;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+}
+
+export type NotificationChannel = "matches" | "messages" | "spaces" | "safety";
+
+/** Переключатели уведомлений по типам событий. */
+export type NotificationSettings = Record<NotificationChannel, boolean>;
+
+export type PlanId = "basic" | "premium";
+
+/** Текущий тариф. Оплата появится позже — сейчас только UI. */
+export interface SubscriptionInfo {
+  plan: PlanId;
+  planName: string;
+  priceLabel: string;
+  since: string;
+  premiumFeatures: { title: string; description: string }[];
+}
+
+/** Все настройки одним запросом. */
+export interface SettingsBundle {
+  account: AccountSettings;
+  notifications: NotificationSettings;
+  subscription: SubscriptionInfo;
+}
+
+export type DeleteReason = "found-someone" | "too-few-matches" | "privacy" | "break" | "other";
+
+export interface DeleteAccountRequest {
+  reason?: DeleteReason;
+  comment?: string;
+}
+
+export interface DeleteAccountReceipt {
+  id: string;
+  /** Сколько дней аккаунт можно восстановить. */
+  restoreDays: number;
+}
+
+export interface PasswordChange {
+  current: string;
+  next: string;
+}
