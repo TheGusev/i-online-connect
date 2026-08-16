@@ -1,5 +1,6 @@
 import type {
   Conversation,
+  DailyFeed,
   MatchCandidate,
   Message,
   OnboardingDraft,
@@ -11,6 +12,7 @@ import type {
 import {
   mockCandidates,
   mockConversations,
+  mockDailyFeed,
   mockCurrentUser,
   mockMessages,
   mockSpaces,
@@ -51,6 +53,12 @@ export const mockApi = {
   async candidates(): Promise<MatchCandidate[]> {
     await delay();
     return mockCandidates;
+  },
+  async dailyFeed(): Promise<DailyFeed> {
+    await delay(400);
+    const next = new Date();
+    next.setUTCHours(next.getUTCHours() + 14, 0, 0, 0);
+    return { ...mockDailyFeed, nextRefreshAt: next.toISOString() };
   },
   async conversations(): Promise<Conversation[]> {
     await delay();

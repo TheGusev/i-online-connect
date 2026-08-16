@@ -9,6 +9,12 @@ import type {
   User,
 } from "../types";
 
+import match1 from "@/assets/match-1.jpg";
+import match2 from "@/assets/match-2.jpg";
+import match3 from "@/assets/match-3.jpg";
+import match4 from "@/assets/match-4.jpg";
+import match5 from "@/assets/match-5.jpg";
+
 export const mockUsers: User[] = [
   {
     id: "u1",
@@ -166,12 +172,6 @@ export const mockTrust: TrustSummary = {
     { id: "document", label: "Проверка документа", done: false },
   ],
 };
-
-import match1 from "@/assets/match-1.jpg";
-import match2 from "@/assets/match-2.jpg";
-import match3 from "@/assets/match-3.jpg";
-import match4 from "@/assets/match-4.jpg";
-import match5 from "@/assets/match-5.jpg";
 
 /** Дневная подборка: 5 человек в день, с объяснением совпадения от AI. */
 export const mockDailyMatches: DailyMatch[] = [
