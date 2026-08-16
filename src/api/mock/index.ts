@@ -1,7 +1,9 @@
 import type {
   Conversation,
+  ConversationParticipant,
   DailyFeed,
   MatchCandidate,
+  MeetingKind,
   Message,
   MyProfile,
   OnboardingDraft,
@@ -25,6 +27,29 @@ import { mockMyProfile, mockProfileDetails } from "./profiles";
 
 /** Локальная копия своего профиля: правки сохраняются в рамках сессии. */
 let myProfile: MyProfile = { ...mockMyProfile };
+
+/** Диалоги и сообщения живут в памяти, чтобы отправка выглядела правдоподобно. */
+let conversations: Conversation[] = mockConversations.map((item) => ({ ...item }));
+let messages: Message[] = mockMessages.map((item) => ({ ...item }));
+
+function starterTemplates(participant: ConversationParticipant, shared: string[]): string[] {
+  const [first, second] = shared;
+  const options: string[] = [];
+  if (first) {
+    options.push(
+      `Привет, ${participant.name}! Увидел, что у нас общее — ${first}. Как ты к этому пришла?`,
+    );
+  }
+  if (second) {
+    options.push(
+      `Привет! Заметил, что мы оба любим ${second}. Расскажи, что тебя в этом держит?`,
+    );
+  }
+  options.push(
+    `Привет, ${participant.name}! Не хочу писать шаблонно: что за последнее время тебя по-настоящему обрадовало?`,
+  );
+  return options.slice(0, 3);
+}
 
 /** Небольшая задержка, чтобы состояния загрузки были заметны в интерфейсе. */
 const delay = (ms = 250) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -84,11 +109,68 @@ export const mockApi = {
   },
   async conversations(): Promise<Conversation[]> {
     await delay();
-    return mockConversations;
+    return [...conversations].sort(
+      (a, b) => Date.parse(b.lastMessageAt) - Date.parse(a.lastMessageAt),
+    );
+  },
+  async conversation(id: string): Promise<Conversation> {
+    await delay(200);
+    const found = conversations.find((item) => item.id === id);
+    if (!found) throw new Error("Диалог не найден");
+    return found;
   },
   async messages(conversationId: string): Promise<Message[]> {
     await delay();
-    return mockMessages.filter((message) => message.conversationId === conversationId);
+    return messages.filter((message) => message.conversationId === conversationId);
+  },
+  async messageStarters(conversationId: string): Promise<string[]> {
+    await delay(350);
+    const conversation = conversations.find((item) => item.id === conversationId);
+    if (!conversation) return [];
+    return starterTemplates(conversation.participant, conversation.sharedInterests);
+  },
+  async sendMessage(
+    conversationId: string,
+    text: string,
+    kind: "text" | "meeting" = "text",
+  ): Promise<Message> {
+    await delay(200);
+    const message: Message = {
+      id: `m-${Date.now()}`,
+      conversationId,
+      authorId: "me",
+      text,
+      createdAt: new Date().toISOString(),
+      status: "sent",
+      kind,
+    };
+    messages = [...messages, message];
+    conversations = conversations.map((item) =>
+      item.id === conversationId
+        ? {
+            ...item,
+            lastMessage: text,
+            lastMessageAt: message.createdAt,
+            unreadCount: 0,
+            awaitingReply: false,
+            lastMessageFromMe: true,
+          }
+        : item,
+    );
+    return message;
+  },
+  async markConversationRead(conversationId: string): Promise<void> {
+    await delay(120);
+    conversations = conversations.map((item) =>
+      item.id === conversationId ? { ...item, unreadCount: 0 } : item,
+    );
+  },
+  async suggestMeeting(
+    conversationId: string,
+    kind: MeetingKind,
+    text: string,
+  ): Promise<Message> {
+    return mockApi.sendMessage(conversationId, text, "meeting");
   },
   async spaces(): Promise<Space[]> {
     await delay();

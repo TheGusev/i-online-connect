@@ -16,6 +16,8 @@ import { Route as FeedRouteImport } from './routes/feed'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SpacesRouteImport } from './routes/spaces'
+import { Route as ChatIndexRouteImport } from './routes/chat.index'
+import { Route as ChatIdRouteImport } from './routes/chat.$id'
 import { Route as ProfileIdRouteImport } from './routes/profile.$id'
 import { Route as ProfileMeRouteImport } from './routes/profile.me'
 
@@ -54,6 +56,16 @@ const SpacesRoute = SpacesRouteImport.update({
   path: '/spaces',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatIndexRoute = ChatIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ChatRoute,
+} as any)
+const ChatIdRoute = ChatIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ChatRoute,
+} as any)
 const ProfileIdRoute = ProfileIdRouteImport.update({
   id: '/profile/$id',
   path: '/profile/$id',
@@ -67,37 +79,42 @@ const ProfileMeRoute = ProfileMeRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/chat': typeof ChatRoute
+  '/chat': typeof ChatRouteWithChildren
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
   '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
   '/spaces': typeof SpacesRoute
+  '/chat/$id': typeof ChatIdRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
+  '/chat/': typeof ChatIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/chat': typeof ChatRoute
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
   '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
   '/spaces': typeof SpacesRoute
+  '/chat/$id': typeof ChatIdRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
+  '/chat': typeof ChatIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/chat': typeof ChatRoute
+  '/chat': typeof ChatRouteWithChildren
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
   '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
   '/spaces': typeof SpacesRoute
+  '/chat/$id': typeof ChatIdRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
+  '/chat/': typeof ChatIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -109,19 +126,22 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/settings'
     | '/spaces'
+    | '/chat/$id'
     | '/profile/$id'
     | '/profile/me'
+    | '/chat/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/chat'
     | '/design-system'
     | '/feed'
     | '/onboarding'
     | '/settings'
     | '/spaces'
+    | '/chat/$id'
     | '/profile/$id'
     | '/profile/me'
+    | '/chat'
   id:
     | '__root__'
     | '/'
@@ -131,13 +151,15 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/settings'
     | '/spaces'
+    | '/chat/$id'
     | '/profile/$id'
     | '/profile/me'
+    | '/chat/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ChatRoute: typeof ChatRoute
+  ChatRoute: typeof ChatRouteWithChildren
   DesignSystemRoute: typeof DesignSystemRoute
   FeedRoute: typeof FeedRoute
   OnboardingRoute: typeof OnboardingRoute
@@ -198,6 +220,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SpacesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/chat/': {
+      id: '/chat/'
+      path: '/'
+      fullPath: '/chat/'
+      preLoaderRoute: typeof ChatIndexRouteImport
+      parentRoute: typeof ChatRoute
+    }
+    '/chat/$id': {
+      id: '/chat/$id'
+      path: '/$id'
+      fullPath: '/chat/$id'
+      preLoaderRoute: typeof ChatIdRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/profile/$id': {
       id: '/profile/$id'
       path: '/profile/$id'
@@ -215,9 +251,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ChatRouteChildren {
+  ChatIdRoute: typeof ChatIdRoute
+  ChatIndexRoute: typeof ChatIndexRoute
+}
+
+const ChatRouteChildren: ChatRouteChildren = {
+  ChatIdRoute: ChatIdRoute,
+  ChatIndexRoute: ChatIndexRoute,
+}
+
+const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ChatRoute: ChatRoute,
+  ChatRoute: ChatRouteWithChildren,
   DesignSystemRoute: DesignSystemRoute,
   FeedRoute: FeedRoute,
   OnboardingRoute: OnboardingRoute,
