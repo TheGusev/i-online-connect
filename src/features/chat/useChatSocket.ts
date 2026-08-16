@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { WS_URL } from "@/api";
 import type { Message } from "@/api";
 
 export type ChatSocketStatus = "connecting" | "open" | "closed";
@@ -25,7 +26,7 @@ interface UseChatSocketOptions {
  * набора текста. Когда появится реальный сервер, достаточно передать `url` —
  * ветка с настоящим WebSocket уже подготовлена и повторяет тот же контракт.
  */
-export function useChatSocket({ conversationId, onEvent, url }: UseChatSocketOptions) {
+export function useChatSocket({ conversationId, onEvent, url = WS_URL }: UseChatSocketOptions) {
   const [status, setStatus] = useState<ChatSocketStatus>("connecting");
   const [typing, setTyping] = useState(false);
   const handlerRef = useRef(onEvent);

@@ -8,7 +8,14 @@ export const defaultLanguage = "ru";
 export const supportedLanguages = ["ru", "en"] as const;
 export type SupportedLanguage = (typeof supportedLanguages)[number];
 
-if (!i18n.isInitialized) {
+/**
+ * Инициализирует i18next. Вызывается явно из src/router.tsx, а не как
+ * side-effect импорта: side-effect может попасть в ленивый чанк, и тогда
+ * страницы показывают ключи вместо текста.
+ */
+export function initI18n() {
+  if (i18n.isInitialized) return i18n;
+
   void i18n.use(initReactI18next).init({
     resources: {
       ru: { translation: ru },
@@ -19,6 +26,8 @@ if (!i18n.isInitialized) {
     interpolation: { escapeValue: false },
     react: { useSuspense: false },
   });
+
+  return i18n;
 }
 
 export default i18n;
