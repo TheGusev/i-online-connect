@@ -123,6 +123,12 @@
   --sidebar-accent-foreground: oklch(0.42 0.15 27);
   --sidebar-border: oklch(0.912 0.012 70);
   --sidebar-ring: oklch(0.7 0.163 27);
+
+  /* Spaces: спокойнее и «дружелюбнее» ленты знакомств — шалфейно-бирюзовая интонация. */
+  --community: oklch(0.56 0.06 195);
+  --community-foreground: oklch(0.995 0.005 80);
+  --community-soft: oklch(0.955 0.024 195);
+  --community-ink: oklch(0.38 0.055 200);
 }
 
 .dark {
