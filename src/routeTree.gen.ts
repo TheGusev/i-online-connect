@@ -17,6 +17,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SpacesRouteImport } from './routes/spaces'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
+import { Route as ChatIdRouteImport } from './routes/chat.$id'
 import { Route as ProfileIdRouteImport } from './routes/profile.$id'
 import { Route as ProfileMeRouteImport } from './routes/profile.me'
 
@@ -60,6 +61,11 @@ const ChatIndexRoute = ChatIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ChatRoute,
 } as any)
+const ChatIdRoute = ChatIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ChatRoute,
+} as any)
 const ProfileIdRoute = ProfileIdRouteImport.update({
   id: '/profile/$id',
   path: '/profile/$id',
@@ -79,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
   '/spaces': typeof SpacesRoute
+  '/chat/$id': typeof ChatIdRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
   '/chat/': typeof ChatIndexRoute
@@ -90,6 +97,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
   '/spaces': typeof SpacesRoute
+  '/chat/$id': typeof ChatIdRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
   '/chat': typeof ChatIndexRoute
@@ -103,6 +111,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/settings': typeof SettingsRoute
   '/spaces': typeof SpacesRoute
+  '/chat/$id': typeof ChatIdRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
   '/chat/': typeof ChatIndexRoute
@@ -117,6 +126,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/settings'
     | '/spaces'
+    | '/chat/$id'
     | '/profile/$id'
     | '/profile/me'
     | '/chat/'
@@ -128,6 +138,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/settings'
     | '/spaces'
+    | '/chat/$id'
     | '/profile/$id'
     | '/profile/me'
     | '/chat'
@@ -140,6 +151,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/settings'
     | '/spaces'
+    | '/chat/$id'
     | '/profile/$id'
     | '/profile/me'
     | '/chat/'
@@ -215,6 +227,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatIndexRouteImport
       parentRoute: typeof ChatRoute
     }
+    '/chat/$id': {
+      id: '/chat/$id'
+      path: '/$id'
+      fullPath: '/chat/$id'
+      preLoaderRoute: typeof ChatIdRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/profile/$id': {
       id: '/profile/$id'
       path: '/profile/$id'
@@ -233,10 +252,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface ChatRouteChildren {
+  ChatIdRoute: typeof ChatIdRoute
   ChatIndexRoute: typeof ChatIndexRoute
 }
 
 const ChatRouteChildren: ChatRouteChildren = {
+  ChatIdRoute: ChatIdRoute,
   ChatIndexRoute: ChatIndexRoute,
 }
 
