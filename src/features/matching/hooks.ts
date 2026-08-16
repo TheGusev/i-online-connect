@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { matchingApi } from "@/api";
 
@@ -9,4 +9,20 @@ export const candidatesQueryOptions = {
 
 export function useCandidates() {
   return useQuery(candidatesQueryOptions);
+}
+
+export const dailyFeedQueryOptions = {
+  queryKey: ["matching", "daily"] as const,
+  queryFn: () => matchingApi.getDailyFeed(),
+};
+
+export function useDailyFeed() {
+  return useQuery(dailyFeedQueryOptions);
+}
+
+export function useCandidateReaction() {
+  return useMutation({
+    mutationFn: ({ id, reaction }: { id: string; reaction: "like" | "skip" | "save" }) =>
+      matchingApi.reactToCandidate(id, reaction),
+  });
 }
