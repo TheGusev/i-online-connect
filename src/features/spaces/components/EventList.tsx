@@ -47,7 +47,7 @@ export function EventList({
             <Button
               variant={event.going ? "secondary" : "primary"}
               size="sm"
-              loading={pending}
+              loading={pending ?? false}
               onClick={() => onToggleGoing(event)}
               className={
                 event.going
