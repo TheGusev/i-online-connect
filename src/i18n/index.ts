@@ -22,9 +22,6 @@ export function initI18n() {
       en: { translation: en },
     },
     lng: defaultLanguage,
-    // Синхронная инициализация: иначе первый рендер (и пререндеренный
-    // SPA-шелл) показывает ключи вместо текста.
-    initImmediate: false,
     fallbackLng: defaultLanguage,
     interpolation: { escapeValue: false },
     react: { useSuspense: false },
