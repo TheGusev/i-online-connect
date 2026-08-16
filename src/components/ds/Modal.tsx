@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 import { cn } from "@/lib/utils";
 
@@ -32,9 +33,9 @@ export function Modal({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         aria-label="Закрыть"
@@ -62,7 +63,8 @@ export function Modal({
         {children && <div className="mt-4 space-y-4 text-sm">{children}</div>}
         {footer && <div className="mt-6 flex flex-wrap justify-end gap-2">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -86,9 +88,9 @@ export function BottomSheet({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-end justify-center">
       <button
         aria-label="Закрыть"
@@ -109,6 +111,7 @@ export function BottomSheet({
         {children && <div className="mt-4 space-y-4 text-sm">{children}</div>}
         {footer && <div className="mt-6 flex flex-col gap-2">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
