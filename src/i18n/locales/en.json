@@ -38,17 +38,38 @@
       "title": "How it works",
       "subtitle": "Four steps from sign-up to a real conversation.",
       "step": "Step",
-      "s1": { "title": "Verification", "text": "A short video check confirms you are you." },
-      "s2": { "title": "Tell the AI about yourself", "text": "A calm dialogue instead of a long form." },
-      "s3": { "title": "Get 3–5 matches a day", "text": "Few options, each one explained." },
-      "s4": { "title": "Move to real communication", "text": "Chat, a call, an event — at your pace." }
+      "s1": {
+        "title": "Verification",
+        "text": "A short video check confirms you are you."
+      },
+      "s2": {
+        "title": "Tell the AI about yourself",
+        "text": "A calm dialogue instead of a long form."
+      },
+      "s3": {
+        "title": "Get 3–5 matches a day",
+        "text": "Few options, each one explained."
+      },
+      "s4": {
+        "title": "Move to real communication",
+        "text": "Chat, a call, an event — at your pace."
+      }
     },
     "trust": {
       "title": "Trust and safety",
       "subtitle": "Openness is a feature, not a setting hidden in a menu.",
-      "moderation": { "title": "Live moderation", "text": "People and automation review reports around the clock." },
-      "privacy": { "title": "Your data stays yours", "text": "We never sell data and never share it with advertisers." },
-      "visibility": { "title": "You control visibility", "text": "Decide who sees your profile, photos and city." },
+      "moderation": {
+        "title": "Live moderation",
+        "text": "People and automation review reports around the clock."
+      },
+      "privacy": {
+        "title": "Your data stays yours",
+        "text": "We never sell data and never share it with advertisers."
+      },
+      "visibility": {
+        "title": "You control visibility",
+        "text": "Decide who sees your profile, photos and city."
+      },
       "imageAlt": "A small group of people meeting outdoors at golden hour"
     },
     "footer": {
@@ -56,6 +77,20 @@
       "rules": "Rules",
       "support": "Support",
       "rights": "All rights reserved."
+    }
+  },
+  "onboarding": {
+    "title": "Onboarding",
+    "chat": {
+      "progress": "Step {{current}} of {{total}}",
+      "assistant": "AI assistant",
+      "typing": "typing…",
+      "you": "You",
+      "back": "Back",
+      "next": "Next",
+      "send": "Send",
+      "skip": "Skip",
+      "restart": "Start over"
     }
   }
 }
