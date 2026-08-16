@@ -30,7 +30,7 @@ export function ProfilePreview({ draft }: { draft: OnboardingDraft }) {
 
       <div className="space-y-5 p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <TrustBadge level={hasVideo ? "verified" : "new"} />
+          <TrustBadge level={hasVideo ? "confirmed" : "new"} />
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {hasVideo ? (
               <Video className="size-3.5" aria-hidden="true" />
