@@ -45,7 +45,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         className={cn(
-          "relative z-10 w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-lift animate-in fade-in zoom-in-95",
+          "relative z-10 max-h-[88vh] w-full max-w-md overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-lift animate-in fade-in zoom-in-95",
           className,
         )}
       >
@@ -99,7 +99,7 @@ export function BottomSheet({
         role="dialog"
         aria-modal="true"
         className={cn(
-          "relative z-10 w-full max-w-lg rounded-t-4xl border border-border bg-card px-5 pb-8 pt-3 shadow-lift animate-in slide-in-from-bottom",
+          "relative z-10 max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-t-4xl border border-border bg-card px-5 pb-8 pt-3 shadow-lift animate-in slide-in-from-bottom",
           className,
         )}
       >
