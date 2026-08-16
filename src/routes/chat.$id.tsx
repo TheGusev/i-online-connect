@@ -124,7 +124,10 @@ function ConversationPage() {
             <span className="flex-1 text-sm text-muted-foreground">Загружаем диалог…</span>
           )}
 
-          <SafetyMenu participantName={participant?.name ?? "Собеседник"} />
+          <SafetyMenu
+            participantName={participant?.name ?? "Собеседник"}
+            participantId={participant?.id ?? "unknown"}
+          />
         </div>
       </header>
 
