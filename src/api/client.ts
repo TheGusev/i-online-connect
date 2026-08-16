@@ -60,7 +60,7 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
   const response = await fetch(buildUrl(path, query), {
     method,
-    signal,
+    signal: signal ?? null,
     headers: {
       Accept: "application/json",
       ...(body ? { "Content-Type": "application/json" } : {}),
