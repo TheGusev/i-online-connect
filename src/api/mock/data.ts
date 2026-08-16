@@ -1,11 +1,19 @@
 import type {
   Conversation,
+  DailyFeed,
+  DailyMatch,
   MatchCandidate,
   Message,
   Space,
   TrustSummary,
   User,
 } from "../types";
+
+import match1 from "@/assets/match-1.jpg";
+import match2 from "@/assets/match-2.jpg";
+import match3 from "@/assets/match-3.jpg";
+import match4 from "@/assets/match-4.jpg";
+import match5 from "@/assets/match-5.jpg";
 
 export const mockUsers: User[] = [
   {
@@ -163,4 +171,116 @@ export const mockTrust: TrustSummary = {
     { id: "photo", label: "Проверка фотографии", done: false },
     { id: "document", label: "Проверка документа", done: false },
   ],
+};
+
+/** Дневная подборка: 5 человек в день, с объяснением совпадения от AI. */
+export const mockDailyMatches: DailyMatch[] = [
+  {
+    id: "u1",
+    name: "Анна",
+    age: 27,
+    city: "Новосибирск",
+    bio: "Люблю горы, кофе и длинные разговоры о смысле.",
+    interests: ["походы", "кофе", "фотография", "музыка"],
+    trustLevel: "verified",
+    trustScore: 68,
+    online: true,
+    compatibility: 92,
+    reasons: ["походы", "тот же город"],
+    quote: "Лучший разговор у меня случился на подъёме к перевалу, без связи и спешки.",
+    photoUrl: match1,
+    hasVideo: true,
+    sharedInterests: ["походы", "кофе", "музыка"],
+    aiExplanation:
+      "Совпадение по интересу к походам и похожему взгляду на отношения: вы оба пишете, что хотите неспешного начала без гонки.",
+    firstMessageHint:
+      "Спроси про её последний маршрут — она сама начала разговор с истории про перевал.",
+  },
+  {
+    id: "u2",
+    name: "Дмитрий",
+    age: 31,
+    city: "Новосибирск",
+    bio: "Инженер, играю в настольные игры, ищу спокойного человека рядом.",
+    interests: ["настолки", "велосипед", "музыка", "технологии"],
+    trustLevel: "trusted",
+    trustScore: 84,
+    online: false,
+    compatibility: 88,
+    reasons: ["музыка", "технологии"],
+    quote: "Мне важно, чтобы рядом было тихо и понятно, без игр в угадайку.",
+    photoUrl: match2,
+    hasVideo: true,
+    sharedInterests: ["музыка", "технологии"],
+    aiExplanation:
+      "Вы оба ищете спокойный темп общения и оба отметили музыку и технологии — есть о чём говорить дальше первого сообщения.",
+    firstMessageHint:
+      "Он ценит прямоту: напиши без вступлений, что тебя зацепило в его словах про «без угадайки».",
+  },
+  {
+    id: "u3",
+    name: "Мария",
+    age: 24,
+    city: "Новосибирск",
+    bio: "Иллюстратор. Верю, что честный разговор важнее идеальной анкеты.",
+    interests: ["рисование", "театр", "книги", "музыка"],
+    trustLevel: "verified",
+    trustScore: 57,
+    online: true,
+    compatibility: 81,
+    reasons: ["творчество", "музыка"],
+    quote: "Рисую людей в метро — почти каждый выглядит интереснее, чем думает о себе.",
+    photoUrl: match3,
+    hasVideo: false,
+    sharedInterests: ["музыка", "театр"],
+    aiExplanation:
+      "Похожая мысль в ваших профилях: живой разговор важнее красивой анкеты. Плюс общий интерес к музыке и театру.",
+    firstMessageHint: "Начни с вопроса про её наблюдения в метро — это её собственная фраза.",
+  },
+  {
+    id: "u4",
+    name: "Игорь",
+    age: 35,
+    city: "Новосибирск",
+    bio: "Бегаю марафоны, готовлю плов, ценю прямоту.",
+    interests: ["бег", "кулинария", "путешествия", "технологии"],
+    trustLevel: "ambassador",
+    trustScore: 95,
+    online: false,
+    compatibility: 76,
+    reasons: ["бег", "путешествия"],
+    quote: "Утро начинается с 10 километров, вечер — с большой кастрюли и гостей.",
+    photoUrl: match4,
+    hasVideo: true,
+    sharedInterests: ["бег", "технологии"],
+    aiExplanation:
+      "Совпадение по утренним пробежкам и общему желанию встречаться офлайн, а не переписываться месяцами.",
+    firstMessageHint: "Он часто зовёт на совместные пробежки — предложи конкретное утро.",
+  },
+  {
+    id: "u5",
+    name: "Ольга",
+    age: 30,
+    city: "Новосибирск",
+    bio: "Читаю по книге в неделю, веду книжный клуб «Тихо».",
+    interests: ["книги", "кофе", "театр", "прогулки"],
+    trustLevel: "trusted",
+    trustScore: 79,
+    online: true,
+    compatibility: 73,
+    reasons: ["книги", "кофе"],
+    quote: "Больше всего люблю разговоры, после которых хочется что-то перечитать.",
+    photoUrl: match5,
+    hasVideo: false,
+    sharedInterests: ["книги", "кофе"],
+    aiExplanation:
+      "Вы оба отметили книги и спокойные вечера, и оба пришли в пространство «Книжный клуб «Тихо»».",
+    firstMessageHint: "Спроси, что она читает сейчас — и что стоит перечитать тебе.",
+  },
+];
+
+export const mockDailyFeed: DailyFeed = {
+  matches: mockDailyMatches,
+  dailyLimit: 5,
+  nextRefreshAt: "",
 };

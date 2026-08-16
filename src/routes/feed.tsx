@@ -1,23 +1,33 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { AppShell, PageHeader } from "@/components/layout/AppShell";
-import { useCandidates } from "@/features/matching/hooks";
-import { TrustBadge } from "@/features/trust/components/TrustBadge";
+import type { DailyMatch } from "@/api";
+import { AppShell } from "@/components/layout/AppShell";
+import { ProfileCardSkeleton } from "@/components/ds";
+import { Reveal } from "@/components/landing/Reveal";
+import { FeedEmptyState } from "@/features/matching/components/FeedEmptyState";
+import { FirstMessageSheet } from "@/features/matching/components/FirstMessageSheet";
+import { MatchCard } from "@/features/matching/components/MatchCard";
+import { RefreshCountdown } from "@/features/matching/components/RefreshCountdown";
+import { useCandidateReaction, useDailyFeed } from "@/features/matching/hooks";
 
 export const Route = createFileRoute("/feed")({
   head: () => ({
     meta: [
-      { title: "Лента знакомств — Я Онлайн" },
+      { title: "Твои совпадения на сегодня — Я Онлайн" },
       {
         name: "description",
-        content: "Подборка людей с совпадением по интересам, городу и уровню доверия.",
+        content:
+          "Ограниченная дневная подборка людей с объяснением совпадения от AI — без бесконечного свайпа.",
       },
-      { property: "og:title", content: "Лента знакомств — Я Онлайн" },
+      { property: "og:title", content: "Твои совпадения на сегодня — Я Онлайн" },
       {
         property: "og:description",
-        content: "Люди, которые могут вам подойти, с объяснением совпадения.",
+        content: "Пять осмысленных совпадений в день и подсказка для первого сообщения.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: FeedPage,
@@ -25,44 +35,80 @@ export const Route = createFileRoute("/feed")({
 
 function FeedPage() {
   const { t } = useTranslation();
-  const { data, isPending, isError } = useCandidates();
+  const { data, isPending, isError } = useDailyFeed();
+  const reaction = useCandidateReaction();
+
+  const [skipped, setSkipped] = useState<string[]>([]);
+  const [saved, setSaved] = useState<string[]>([]);
+  const [active, setActive] = useState<DailyMatch | null>(null);
+
+  const matches = (data?.matches ?? []).filter((match) => !skipped.includes(match.id));
+  const nextRefreshAt = data?.nextRefreshAt ?? new Date().toISOString();
+
+  const handleSkip = (match: DailyMatch) => {
+    setSkipped((prev) => [...prev, match.id]);
+    reaction.mutate({ id: match.id, reaction: "skip" });
+  };
+
+  const handleSave = (match: DailyMatch) => {
+    setSaved((prev) => (prev.includes(match.id) ? prev : [...prev, match.id]));
+    reaction.mutate({ id: match.id, reaction: "save" });
+  };
+
+  const handleWrite = (match: DailyMatch) => {
+    setActive(match);
+    reaction.mutate({ id: match.id, reaction: "like" });
+  };
 
   return (
     <AppShell>
-      <PageHeader title={t("feed.title")} description={t("feed.description")} />
-      {isPending ? <p className="text-sm text-muted-foreground">{t("app.loading")}</p> : null}
+      <header className="mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-3xl font-bold tracking-tight">
+            {t("feed.dailyTitle", { count: data?.dailyLimit ?? 5 })}
+          </h1>
+          <RefreshCountdown nextRefreshAt={nextRefreshAt} />
+        </div>
+        <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
+          {t("feed.dailyDescription")}
+        </p>
+      </header>
+
       {isError ? <p className="text-sm text-destructive">{t("app.error")}</p> : null}
-      <ul className="space-y-3">
-        {data?.map((candidate) => (
-          <li key={candidate.id} className="rounded-lg border border-border p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <Link
-                  to="/profile/$id"
-                  params={{ id: candidate.id }}
-                  className="font-medium underline-offset-4 hover:underline"
-                >
-                  {candidate.name}, {candidate.age}
-                </Link>
-                <p className="text-sm text-muted-foreground">{candidate.city}</p>
-              </div>
-              <TrustBadge level={candidate.trustLevel} score={candidate.trustScore} />
-            </div>
-            <p className="mt-2 text-sm">{candidate.bio}</p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              {t("feed.compatibility")}: {candidate.compatibility}% — {candidate.reasons.join(", ")}
+
+      {isPending ? (
+        <div className="space-y-6">
+          <ProfileCardSkeleton />
+          <ProfileCardSkeleton />
+        </div>
+      ) : null}
+
+      {!isPending && matches.length === 0 ? (
+        <FeedEmptyState nextRefreshAt={nextRefreshAt} />
+      ) : null}
+
+      <ul className="space-y-8">
+        {matches.map((match, index) => (
+          <Reveal as="li" key={match.id} delay={index === 0 ? 0 : 80}>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("feed.position", { current: index + 1, total: matches.length })}
             </p>
-            <div className="mt-3 flex gap-2">
-              <button className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground">
-                {t("feed.like")}
-              </button>
-              <button className="rounded-md border border-border px-3 py-1.5 text-sm">
-                {t("feed.skip")}
-              </button>
-            </div>
-          </li>
+            <MatchCard
+              match={match}
+              saved={saved.includes(match.id)}
+              onSkip={() => handleSkip(match)}
+              onSave={() => handleSave(match)}
+              onWrite={() => handleWrite(match)}
+            />
+          </Reveal>
         ))}
       </ul>
+
+      {matches.length > 0 ? (
+        <p className="mt-8 text-center text-sm text-muted-foreground">{t("feed.endOfDay")}</p>
+      ) : null}
+
+      <FirstMessageSheet match={active} open={Boolean(active)} onClose={() => setActive(null)} />
     </AppShell>
   );
 }

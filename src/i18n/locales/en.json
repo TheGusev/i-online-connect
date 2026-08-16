@@ -1,7 +1,9 @@
 {
   "app": {
     "name": "I Online",
-    "tagline": "Dating and social connections platform"
+    "tagline": "Dating and social connections platform",
+    "notifications": "Notifications",
+    "you": "You"
   },
   "landing": {
     "nav": {
@@ -92,5 +94,43 @@
       "skip": "Skip",
       "restart": "Start over"
     }
+  },
+  "feed": {
+    "title": "Feed",
+    "dailyTitle": "Your {{count}} matches for today",
+    "dailyDescription": "No endless feed. Every day you get a small selection so there is attention left for each person.",
+    "refreshInHours": "New in {{hours}}h",
+    "refreshInMinutes": "New in {{minutes}}m",
+    "position": "{{current}} of {{total}}",
+    "endOfDay": "That is today's selection. New people tomorrow.",
+    "videoIntro": "Video intro",
+    "aiExplanation": "Why AI picked this person",
+    "write": "Write",
+    "save": "Save for later",
+    "saved": "Saved",
+    "skip": "Skip",
+    "empty": {
+      "title": "That's it for today",
+      "description": "The selection is done. While you wait, explore Spaces or improve your profile — the more AI knows, the better the matches.",
+      "spaces": "Open Spaces",
+      "improve": "Improve profile"
+    },
+    "firstMessage": {
+      "title": "First message for {{name}}",
+      "description": "Send as is or rewrite it your way.",
+      "hint": "AI suggestion",
+      "label": "Your message",
+      "draft": "Hi {{name}}! Feels like we have something to talk about — how was your day?",
+      "send": "Send and open chat",
+      "later": "Later"
+    }
+  },
+  "nav": {
+    "feed": "Feed",
+    "spaces": "Spaces",
+    "chat": "Chats",
+    "profile": "Profile",
+    "settings": "Settings",
+    "home": "Home"
   }
 }

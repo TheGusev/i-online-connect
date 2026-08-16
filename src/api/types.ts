@@ -67,3 +67,21 @@ export interface OnboardingDraft {
   city: string;
   hideExactLocation: boolean;
 }
+
+/** Кандидат из дневной подборки: с медиа, цитатой и объяснением от AI. */
+export interface DailyMatch extends MatchCandidate {
+  quote: string;
+  photoUrl: string;
+  hasVideo: boolean;
+  sharedInterests: string[];
+  aiExplanation: string;
+  firstMessageHint: string;
+}
+
+/** Ограниченная дневная подборка вместо бесконечной ленты. */
+export interface DailyFeed {
+  matches: DailyMatch[];
+  dailyLimit: number;
+  /** ISO-время следующего обновления подборки. */
+  nextRefreshAt: string;
+}
