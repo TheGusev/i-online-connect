@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 
 import type { DailyMatch } from "@/api";
 import { Button, Chip } from "@/components/ds";
-import { TrustBadge } from "@/features/trust/components/TrustBadge";
+import { TrustBadge } from "@/components/ds";
+import { badgeLevel } from "@/features/chat/trust";
 
 export function MatchCard({
   match,
@@ -49,7 +50,7 @@ export function MatchCard({
               </p>
             </div>
             <span className="rounded-full bg-card/95 shadow-soft backdrop-blur">
-              <TrustBadge level={match.trustLevel} score={match.trustScore} />
+              <TrustBadge level={badgeLevel(match.trustLevel)} size="sm" withTooltip />
             </span>
           </div>
         </div>

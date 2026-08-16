@@ -164,6 +164,7 @@ function DesignSystemPage() {
             <TrustBadge level="new" size="sm" />
             <TrustBadge level="confirmed" size="sm" />
             <TrustBadge level="trusted" size="sm" />
+            <TrustBadge level="confirmed" withTooltip />
           </div>
         </Section>
 
