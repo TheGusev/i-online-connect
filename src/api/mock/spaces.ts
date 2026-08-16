@@ -38,7 +38,7 @@ function members(names: string[]): SpaceDetail["members"] {
   return names.map((name, index) => ({
     id: `sm-${name}-${index}`,
     name,
-    avatarUrl: avatars[index % avatars.length],
+    avatarUrl: avatars[index % avatars.length] ?? avatars[0]!,
     host: index === 0,
   }));
 }
