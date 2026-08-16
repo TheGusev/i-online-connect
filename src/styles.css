@@ -216,3 +216,12 @@
 @utility bg-gradient-warm {
   background-image: var(--gradient-warm);
 }
+
+@keyframes loading {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
