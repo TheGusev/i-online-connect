@@ -304,19 +304,21 @@ export const mockApi = {
     await delay(320);
     reports = [...reports, draft];
     return {
-      id: `rep-${Date.now()}`,
+      id: `rep-${reports.length}-${Date.now()}`,
       createdAt: new Date().toISOString(),
       reviewHours: 24,
     };
   },
   async submitVerification(draft: VerificationDraft): Promise<VerificationTicket> {
     await delay(900);
+    // Повторная отправка проверяется быстрее — фото уже в очереди у модерации.
+    const repeat = lastVerification !== null;
     lastVerification = draft;
     return {
       id: `ver-${Date.now()}`,
       status: "pending",
       submittedAt: new Date().toISOString(),
-      etaMinutes: 15,
+      etaMinutes: repeat ? 10 : 15,
     };
   },
 };
