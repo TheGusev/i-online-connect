@@ -82,7 +82,7 @@ function DesignSystemPage() {
   const [selected, setSelected] = useState("Серьёзные отношения");
 
   return (
-    <AppShell>
+    <AppShell wide>
       <div className="space-y-10 pb-16">
         <header className="rounded-3xl bg-gradient-warm p-6 shadow-soft">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-card/70 px-3 py-1 text-xs font-semibold text-accent-foreground">
