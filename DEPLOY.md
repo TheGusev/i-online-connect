@@ -3,6 +3,14 @@
 Фронтенд — чистое SPA. В рантайме **не требуется Node.js**: Nginx раздаёт статику
 из `dist/static`, а все данные приходят по HTTP/WebSocket с вашего backend.
 
+Смежные документы:
+
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — как устроен проект и куда что добавлять
+- [API.md](./API.md) — контракт эндпоинтов и WebSocket
+- [DATABASE.md](./DATABASE.md) — схема PostgreSQL и бэкапы
+- [SERVER-SETUP.md](./SERVER-SETUP.md) — установка сервера с нуля: БД, TLS, фаервол, PM2, бэкапы
+- [server/README.md](./server/README.md) — каркас backend и что в нём дописать
+
 ---
 
 ## 1. Переменные окружения

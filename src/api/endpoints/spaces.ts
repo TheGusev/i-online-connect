@@ -15,7 +15,7 @@ export async function joinSpace(id: string, answer?: string): Promise<SpaceDetai
   if (USE_MOCKS) return mockApi.joinSpace(id, answer);
   return request<SpaceDetail>(`/spaces/${id}/join`, {
     method: "POST",
-    body: JSON.stringify({ answer }),
+    body: { answer },
   });
 }
 
@@ -32,13 +32,13 @@ export async function rsvpEvent(
   if (USE_MOCKS) return mockApi.rsvpEvent(spaceId, eventId, going);
   return request<SpaceDetail>(`/spaces/${spaceId}/events/${eventId}/rsvp`, {
     method: "POST",
-    body: JSON.stringify({ going }),
+    body: { going },
   });
 }
 
 export async function createSpace(draft: SpaceDraft): Promise<SpaceDetail> {
   if (USE_MOCKS) return mockApi.createSpace(draft);
-  return request<SpaceDetail>("/spaces", { method: "POST", body: JSON.stringify(draft) });
+  return request<SpaceDetail>("/spaces", { method: "POST", body: draft });
 }
 
 export async function getSpaceMessages(spaceId: string): Promise<SpaceMessage[]> {
@@ -50,6 +50,6 @@ export async function sendSpaceMessage(spaceId: string, text: string): Promise<S
   if (USE_MOCKS) return mockApi.sendSpaceMessage(spaceId, text);
   return request<SpaceMessage>(`/spaces/${spaceId}/messages`, {
     method: "POST",
-    body: JSON.stringify({ text }),
+    body: { text },
   });
 }
