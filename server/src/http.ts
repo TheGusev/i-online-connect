@@ -30,10 +30,20 @@ export function registerErrorHandler(app: FastifyInstance) {
       return reply.status(error.statusCode).send({ message: error.message });
     }
 
-    // Ошибки валидации Fastify/zod.
+    // Ошибки валидации zod (schema.parse в роутах) — это ошибка клиента, а не сервера.
+    if (error instanceof ZodError) {
+      const issue = error.issues[0];
+      const field = issue?.path.join(".");
+      return reply.status(400).send({
+        message: field ? `Проверьте поле «${field}»: ${issue?.message}` : "Проверьте заполненные поля",
+      });
+    }
+
+    // Ошибки валидации схем Fastify.
     if ((error as { validation?: unknown }).validation) {
       return reply.status(400).send({ message: "Проверьте заполненные поля" });
     }
+
 
     const status = (error as { statusCode?: number }).statusCode ?? 500;
     if (status < 500) {
