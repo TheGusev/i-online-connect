@@ -33,9 +33,9 @@ export function registerErrorHandler(app: FastifyInstance) {
       return reply.status(400).send({ message: "Проверьте заполненные поля" });
     }
 
-    const status = error.statusCode ?? 500;
+    const status = (error as { statusCode?: number }).statusCode ?? 500;
     if (status < 500) {
-      return reply.status(status).send({ message: error.message });
+      return reply.status(status).send({ message: (error as Error).message });
     }
 
     request.log.error({ err: error }, "Необработанная ошибка");
