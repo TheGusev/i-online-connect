@@ -5,6 +5,8 @@
  * поэтому все ошибки отдаём как { "message": "..." } с нужным HTTP-кодом.
  */
 import type { FastifyInstance } from "fastify";
+import { ZodError } from "zod";
+
 
 export class HttpError extends Error {
   statusCode: number;
