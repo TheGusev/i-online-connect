@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { WS_URL } from "@/api";
+import { WS_URL, getToken } from "@/api";
 import type { Message } from "@/api";
 
 export type ChatSocketStatus = "connecting" | "open" | "closed";
@@ -43,7 +43,12 @@ export function useChatSocket({ conversationId, onEvent, url = WS_URL }: UseChat
 
     // Реальный сервер: тот же контракт событий, что и у мока.
     if (url) {
-      const socket = new WebSocket(`${url}/chat/${conversationId}`);
+      // Браузерный WebSocket не умеет заголовки, поэтому access-токен
+      // передаётся в query — соединение идёт по wss, токен короткоживущий.
+      const token = getToken();
+      const socket = new WebSocket(
+        `${url}/chat/${conversationId}${token ? `?token=${encodeURIComponent(token)}` : ""}`,
+      );
       socket.onopen = () => setStatus("open");
       socket.onclose = () => setStatus("closed");
       socket.onerror = () => setStatus("closed");
