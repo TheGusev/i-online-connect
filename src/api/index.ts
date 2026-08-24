@@ -1,5 +1,5 @@
 export * from "./types";
-export { API_URL, WS_URL, APP_NAME, USE_MOCKS, ApiError, getToken, setToken, request } from "./client";
+export { API_URL, WS_URL, APP_NAME, ApiError, getToken, setToken, request } from "./client";
 export * as authApi from "./endpoints/auth";
 export * as profileApi from "./endpoints/profile";
 export * as matchingApi from "./endpoints/matching";

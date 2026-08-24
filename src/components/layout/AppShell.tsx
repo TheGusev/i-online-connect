@@ -1,12 +1,27 @@
 import type { ReactNode } from "react";
 
+import { RequireSession } from "@/features/auth/session";
+
 import { BottomNav } from "./BottomNav";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
 
-export function AppShell({ children, wide = false }: { children: ReactNode; wide?: boolean }) {
-  return (
-    <div className="flex min-h-screen bg-background text-foreground">
+/**
+ * Каркас приватных экранов. Без активной сессии уводит на /auth —
+ * так после регистрации и при возврате в приложение не видно лендинга.
+ * public=true — для экранов, доступных гостям (например, гайды безопасности).
+ */
+export function AppShell({
+  children,
+  wide = false,
+  public: isPublic = false,
+}: {
+  children: ReactNode;
+  wide?: boolean;
+  public?: boolean;
+}) {
+  const content = (
+    <div className="flex min-h-dvh bg-background text-foreground">
       <SideNav />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
@@ -20,6 +35,8 @@ export function AppShell({ children, wide = false }: { children: ReactNode; wide
       <BottomNav />
     </div>
   );
+
+  return isPublic ? content : <RequireSession>{content}</RequireSession>;
 }
 
 export function PageHeader({ title, description }: { title: string; description?: string }) {

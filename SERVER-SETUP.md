@@ -238,7 +238,6 @@ pm2 install pm2-logrotate  # ротация логов
 cp .env.example .env.production
 # VITE_API_URL=/api
 # VITE_WS_URL=wss://example.com/ws
-# VITE_USE_MOCKS=false
 # VITE_APP_NAME=Я Онлайн
 
 npm ci
@@ -462,7 +461,7 @@ ssh deploy@example.com '
 - [ ] PM2: `pm2 save` + `pm2 startup` выполнены (после перезагрузки поднимается)
 - [ ] Сертификат Let's Encrypt выдан, `certbot.timer` активен
 - [ ] `https://example.com/feed` открывается напрямую (F5 не даёт 404)
-- [ ] Фронтенд собран с `VITE_USE_MOCKS=false` — в интерфейсе реальные данные
+- [ ] `VITE_API_URL` в `.env.production` указывает на боевой `/api`
 - [ ] Заголовки проверены: `curl -sI https://example.com | grep -i strict`
 - [ ] Бэкап отработал хотя бы раз, файл на месте, копия увезена с сервера
 - [ ] Каталог `/var/lib/ya-online/verification` в режиме `700`
@@ -476,7 +475,7 @@ ssh deploy@example.com '
 | --- | --- |
 | Белый экран, в консоли 404 на `/assets/*` | статика не докопирована, проверьте `rsync` и `root` в Nginx |
 | 404 при F5 на `/feed` | нет `try_files … /index.html` |
-| Интерфейс с фейковыми людьми | бандл собран с `VITE_USE_MOCKS=true` — пересоберите |
+| Пустые списки в интерфейсе | база пустая или `VITE_API_URL` не тот: `pm2 logs ya-online-api` |
 | `502 Bad Gateway` на `/api/` | процесс упал: `pm2 logs ya-online-api` |
 | `503` от `/api/health` | API жив, база нет: `systemctl status postgresql` |
 | Чат не обновляется в реальном времени | блок `location /ws/` без `Upgrade`, или `VITE_WS_URL` не тот |

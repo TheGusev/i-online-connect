@@ -122,7 +122,7 @@ function SectionTitle({
 
 function SafetyCenterPage() {
   return (
-    <AppShell wide>
+    <AppShell wide public>
       <Reveal as="header" className="overflow-hidden rounded-4xl border border-border bg-card shadow-soft">
         <div className="grid gap-0 md:grid-cols-[1.05fr_1fr]">
           <div className="p-7 sm:p-10">

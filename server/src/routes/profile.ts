@@ -10,7 +10,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
-import { query, queryOne } from "../db.ts";
+import { query, queryOne, transaction } from "../db.ts";
 import { forbidden, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { toUserDto, type ProfileRow } from "../types.ts";
@@ -153,8 +153,42 @@ export async function profileRoutes(app: FastifyInstance) {
       );
     }
 
-    // TODO: синхронизация interests/values — вставка новых в справочник
-    // interests и пересборка user_interests / profile_values в транзакции.
+    // Интересы и ценности пересобираем целиком: пришёл массив — он и есть
+    // актуальный набор. Недостающие метки добавляем в общий справочник.
+    if (patch.interests) {
+      await transaction(async (client) => {
+        await client.query("DELETE FROM user_interests WHERE user_id = $1", [userId]);
+        for (const label of patch.interests ?? []) {
+          const slug = label.trim().toLowerCase().replace(/\s+/g, "-");
+          const { rows } = await client.query<{ id: string }>(
+            `INSERT INTO interests (slug, label) VALUES ($1, $2)
+             ON CONFLICT (slug) DO UPDATE SET label = EXCLUDED.label
+             RETURNING id`,
+            [slug, label.trim()],
+          );
+          const interestId = rows[0]?.id;
+          if (interestId) {
+            await client.query(
+              `INSERT INTO user_interests (user_id, interest_id) VALUES ($1, $2)
+               ON CONFLICT DO NOTHING`,
+              [userId, interestId],
+            );
+          }
+        }
+      });
+    }
+
+    if (patch.values) {
+      await transaction(async (client) => {
+        await client.query("DELETE FROM profile_values WHERE user_id = $1", [userId]);
+        for (const value of patch.values ?? []) {
+          await client.query(
+            "INSERT INTO profile_values (user_id, value) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            [userId, value.trim().slice(0, 60)],
+          );
+        }
+      });
+    }
 
     return loadMyProfile(userId);
   });

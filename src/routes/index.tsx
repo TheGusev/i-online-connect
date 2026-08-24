@@ -1,8 +1,10 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { BadgeCheck, MessageSquareHeart, Sparkles, EyeOff, ShieldCheck, Lock } from "lucide-react";
 
 import { Button } from "@/components/ds";
+import { SessionLoading } from "@/features/auth/session";
+import { useSessionStore } from "@/store/useSessionStore";
 import { Reveal } from "@/components/landing/Reveal";
 import { WaveHeading } from "@/components/landing/WaveHeading";
 import heroImage from "@/assets/landing-hero.jpg";
@@ -31,6 +33,7 @@ export const Route = createFileRoute("/")({
 
 function LandingPage() {
   const { t } = useTranslation();
+  const status = useSessionStore((state) => state.status);
 
   const why = [
     { icon: BadgeCheck, key: "real", tone: "text-success" },
@@ -46,8 +49,12 @@ function LandingPage() {
     { icon: EyeOff, key: "visibility" },
   ] as const;
 
+  // Авторизованный человек не должен снова видеть приветственный экран.
+  if (status === "loading") return <SessionLoading />;
+  if (status === "authed") return <Navigate to="/feed" replace />;
+
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-dvh bg-background text-foreground">
       <header className="sticky top-0 z-20 border-b border-border/60 bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 lg:px-8">
           <Link to="/" className="text-lg font-extrabold tracking-tight">
