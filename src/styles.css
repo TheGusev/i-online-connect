@@ -271,20 +271,18 @@
 
 @utility wave-word {
   display: inline-block;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   opacity: 0;
-  transform: translateY(0.45em);
-  filter: blur(6px);
+  transform: translateY(0.4em);
 }
 
 @utility wave-word-in {
-  animation: word-rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: word-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
     opacity: 1;
     transform: none;
-    filter: none;
   }
 }
 
@@ -300,16 +298,11 @@
 @keyframes word-rise {
   0% {
     opacity: 0;
-    transform: translateY(0.45em);
-    filter: blur(6px);
-  }
-  60% {
-    filter: blur(0);
+    transform: translateY(0.4em);
   }
   100% {
     opacity: 1;
     transform: translateY(0);
-    filter: blur(0);
   }
 }
 
