@@ -13,7 +13,7 @@ npm run migrate             # создаст схему в PostgreSQL
 npm run dev                 # http://127.0.0.1:4000/api/health
 ```
 
-Затем во фронтенде: `VITE_USE_MOCKS=false`, `VITE_API_URL=http://localhost:4000/api`,
+Затем во фронтенде: `VITE_API_URL=http://localhost:4000/api`,
 `VITE_WS_URL=ws://localhost:4000/ws` — и `npm run dev` в корне проекта.
 
 ## Что уже готово

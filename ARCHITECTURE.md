@@ -58,7 +58,6 @@
 │   │   ├── client.ts        # fetch, токен, ошибки, чтение VITE_*
 │   │   ├── types.ts         # модели данных (DTO)
 │   │   ├── endpoints/       # по одному файлу на домен
-│   │   └── mocks/           # мок-адаптер, включается VITE_USE_MOCKS
 │   ├── store/               # Zustand: сессия, черновик онбординга, UI
 │   ├── i18n/                # RU/EN, initI18n() вызывается в router.tsx
 │   ├── styles.css           # ВСЕ токены дизайна (цвета, тени, радиусы)
@@ -87,7 +86,6 @@
          └── React Query (кеш, повторы, инвалидация)
                └── src/api/endpoints/matching.ts
                      └── src/api/client.ts  ──►  VITE_API_URL + Bearer-токен
-                          или (VITE_USE_MOCKS=true) src/api/mocks
 ```
 
 Правила, на которых держится проект:
@@ -149,32 +147,24 @@ Backend всегда отвечает `{ "message": "текст для чело�
 
 ---
 
-## 6. Мок-данные
+## 6. Источник данных
 
-Один флаг: `VITE_USE_MOCKS`.
-
-- `true` — данные из `src/api/mocks`, сеть не используется. Так работает
-  локальная разработка без backend.
-- `false` — все запросы уходят на `VITE_API_URL`.
-
-Каждый эндпоинт устроен одинаково:
+Мок-данных в проекте нет: каждый эндпоинт ходит в реальный API по
+`VITE_API_URL`. Без запущенного backend интерфейс покажет ошибку загрузки —
+это намеренно, чтобы фейковые люди никогда не попали в прод.
 
 ```ts
 export async function getDailyFeed(): Promise<DailyFeed> {
-  return USE_MOCKS ? mockApi.dailyFeed() : request<DailyFeed>("/matching/daily");
+  return request<DailyFeed>("/matching/daily");
 }
 ```
-
-Чтобы убрать моки из прод-бандла навсегда: удалить `src/api/mocks/`,
-убрать `USE_MOCKS ? … :` в восьми файлах `src/api/endpoints/*` — остальной
-код не меняется.
 
 ---
 
 ## 7. Переменные окружения
 
 Фронтенд (вшиваются в бандл при сборке, секретов быть не может):
-`VITE_API_URL`, `VITE_WS_URL`, `VITE_USE_MOCKS`, `VITE_APP_NAME` — см. `.env.example`.
+`VITE_API_URL`, `VITE_WS_URL`, `VITE_APP_NAME` — см. `.env.example`.
 
 Backend (только на сервере, `chmod 600`): `DATABASE_URL`, `JWT_ACCESS_SECRET`,
 `JWT_REFRESH_SECRET`, `CORS_ORIGINS` и другие — см. `server/.env.example`.
@@ -186,6 +176,6 @@ Backend (только на сервере, `chmod 600`): `DATABASE_URL`, `JWT_AC
 1. Модель данных — в `src/api/types.ts` и, зеркально, в `server/src/types.ts`.
 2. Таблицы — новой миграцией `server/migrations/00X_*.sql` (старые не правим).
 3. Эндпоинт — в `server/src/routes/*` c `requireAuth` и валидацией zod.
-4. Клиентский вызов — в `src/api/endpoints/*`, при необходимости мок.
+4. Клиентский вызов — в `src/api/endpoints/*`.
 5. Хук домена в `src/features/*/hooks.ts`, экран в `src/routes/*`.
 6. Документацию — в `API.md` и `DATABASE.md`.

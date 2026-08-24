@@ -22,7 +22,6 @@
 | ----------------- | ------------------------------------------------ | --------------------- |
 | `VITE_API_URL`    | базовый адрес REST API                           | `/api`                |
 | `VITE_WS_URL`     | адрес WebSocket-сервера чата                     | `wss://example.com/ws`|
-| `VITE_USE_MOCKS`  | единственный переключатель мок-данных            | `false`               |
 | `VITE_APP_NAME`   | отображаемое имя приложения                      | `Я Онлайн`            |
 
 Полный список с комментариями — в `.env.example`.
@@ -32,7 +31,8 @@ cp .env.example .env.production
 # отредактируйте значения под свой сервер
 ```
 
-Локальная разработка с моками: `.env` c `VITE_USE_MOCKS=true` (уже есть в проекте).
+Для локальной разработки в `.env` укажите адрес локального backend:
+`VITE_API_URL=http://localhost:4000/api`.
 
 ---
 
@@ -56,7 +56,7 @@ dist/static/
 Переменные можно передать и прямо в команду (CI-friendly):
 
 ```bash
-VITE_API_URL=/api VITE_WS_URL=wss://example.com/ws VITE_USE_MOCKS=false \
+VITE_API_URL=/api VITE_WS_URL=wss://example.com/ws \
   npm run build:static
 ```
 
@@ -169,15 +169,11 @@ pm2 startup
 
 ---
 
-## 6. Мок-данные
+## 6. Источник данных
 
-Моки полностью изолированы в `src/api/mocks/` и включаются одним флагом:
-
-- `VITE_USE_MOCKS=true` — данные из моков, сеть не используется;
-- `VITE_USE_MOCKS=false` (прод) — все запросы уходят на `VITE_API_URL`.
-
-Чтобы убрать моки из прод-бандла навсегда, достаточно удалить `src/api/mocks/`
-и ветки `if (USE_MOCKS)` в `src/api/endpoints/*` — остальной код не меняется.
+Мок-данных нет: все запросы всегда уходят на `VITE_API_URL`. Если интерфейс
+показывает ошибки загрузки — проверяйте backend и прокси `/api`, а не флаги
+сборки.
 
 ---
 
