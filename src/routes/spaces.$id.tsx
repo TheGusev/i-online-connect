@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, BadgeCheck, CalendarDays, MapPin, MessagesSquare } from "lucide-react";
 
+import { WaveHeading } from "@/components/landing/WaveHeading";
 import { AppShell } from "@/components/layout/AppShell";
 import { Chip, ProfileCardSkeleton } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
@@ -100,7 +101,9 @@ function SpaceDetailPage() {
 
         <div className="space-y-5 p-6">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{space.title}</h1>
+            <WaveHeading as="h1" className="text-2xl font-bold tracking-tight sm:text-3xl">
+              {space.title}
+            </WaveHeading>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="size-3.5" aria-hidden="true" />
