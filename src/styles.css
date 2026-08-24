@@ -252,14 +252,14 @@
 
 @utility text-gradient-wave {
   background-image: var(--gradient-heading);
-  background-size: 260% 100%;
+  background-size: 300% 100%;
   background-position: 0% 50%;
   background-repeat: no-repeat;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
-  animation: heading-wave 9s linear infinite;
+  animation: heading-wave 6s linear infinite;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -276,8 +276,11 @@
   transform: translateY(0.4em);
 }
 
+/* Слово: всплывает волной и одновременно переливается градиентом. */
 @utility wave-word-in {
-  animation: word-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation:
+    word-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both,
+    heading-wave 6s linear infinite;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
@@ -291,7 +294,7 @@
     background-position: 0% 50%;
   }
   100% {
-    background-position: 200% 50%;
+    background-position: -200% 50%;
   }
 }
 
