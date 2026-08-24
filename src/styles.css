@@ -254,7 +254,7 @@
   background-image: var(--gradient-heading);
   background-size: 300% 100%;
   background-position: 0% 50%;
-  background-repeat: no-repeat;
+  background-repeat: repeat;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -294,7 +294,7 @@
     background-position: 0% 50%;
   }
   100% {
-    background-position: -200% 50%;
+    background-position: 100% 50%;
   }
 }
 
