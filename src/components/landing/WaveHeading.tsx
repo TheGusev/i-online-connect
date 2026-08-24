@@ -56,12 +56,10 @@ export function WaveHeading({
     return () => observer.disconnect();
   }, []);
 
-  const classes = cn(className, gradient && "text-gradient-wave");
-
   // Не строка (например, JSX с иконкой) — отдаём как есть, только с градиентом.
   if (!text) {
     return (
-      <Tag ref={ref} id={id} className={classes}>
+      <Tag ref={ref} id={id} className={cn(className, gradient && "text-gradient-wave")}>
         {children}
       </Tag>
     );
@@ -70,7 +68,7 @@ export function WaveHeading({
   let wordIndex = 0;
 
   return (
-    <Tag ref={ref} id={id} className={classes} aria-label={text}>
+    <Tag ref={ref} id={id} className={className} aria-label={text}>
       <span aria-hidden="true">
         {words.map((part, i) => {
           if (/^\s+$/.test(part)) {
@@ -81,8 +79,8 @@ export function WaveHeading({
           return (
             <span
               key={`w-${i}`}
-              className={cn("wave-word", visible && "wave-word-in")}
-              style={{ animationDelay: `${currentDelay}ms` }}
+              className={cn("wave-word", gradient && "text-gradient-wave", visible && "wave-word-in")}
+              style={{ animationDelay: `${currentDelay}ms, ${currentDelay}ms` }}
             >
               {part}
             </span>
