@@ -127,6 +127,13 @@ export const mockApi = {
     await delay();
     return { token: "mock-token", user: { ...mockCurrentUser, bio: `${email}` } };
   },
+  async register(email: string, name: string): Promise<Session> {
+    await delay();
+    return {
+      token: "mock-token",
+      user: { ...mockCurrentUser, name: name || mockCurrentUser.name, bio: `${email}` },
+    };
+  },
   async currentUser(): Promise<User> {
     await delay();
     return mockCurrentUser;

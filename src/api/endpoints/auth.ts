@@ -10,6 +10,18 @@ export async function login(email: string, password: string): Promise<Session> {
   return session;
 }
 
+/** Регистрация в конце онбординга: сразу выдаёт access-токен. */
+export async function register(email: string, password: string, name: string): Promise<Session> {
+  const session = USE_MOCKS
+    ? await mockApi.register(email, name)
+    : await request<Session>("/auth/register", {
+        method: "POST",
+        body: { email, password, name },
+      });
+  setToken(session.token);
+  return session;
+}
+
 export async function logout(): Promise<void> {
   if (!USE_MOCKS) await request<void>("/auth/logout", { method: "POST" });
   setToken(null);

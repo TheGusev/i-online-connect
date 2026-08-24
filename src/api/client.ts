@@ -64,14 +64,13 @@ function buildUrl(path: string, query?: RequestOptions["query"]) {
   return url.toString();
 }
 
-/** Реальный HTTP-запрос к внешнему REST API. */
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+async function send(path: string, options: RequestOptions, token: string | null) {
   const { method = "GET", body, query, signal } = options;
-  const token = getToken();
-
-  const response = await fetch(buildUrl(path, query), {
+  return fetch(buildUrl(path, query), {
     method,
     signal: signal ?? null,
+    // Нужно для httpOnly refresh-cookie: без include она не отправляется.
+    credentials: "include",
     headers: {
       Accept: "application/json",
       ...(body ? { "Content-Type": "application/json" } : {}),
@@ -79,17 +78,53 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     },
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
+}
 
-  if (!response.ok) {
-    let message = `HTTP ${response.status}`;
-    try {
-      const data = (await response.json()) as { message?: string };
-      if (data?.message) message = data.message;
-    } catch {
-      /* тело ответа не JSON — оставляем код статуса */
-    }
-    throw new ApiError(response.status, message);
+/** Обновление access-токена по httpOnly-cookie. Возвращает новый токен или null. */
+async function refreshAccessToken(): Promise<string | null> {
+  try {
+    const response = await fetch(buildUrl("/auth/refresh"), {
+      method: "POST",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { token?: string };
+    return data?.token ?? null;
+  } catch (error) {
+    console.error("[api] refresh не удался:", error);
+    return null;
   }
+}
+
+async function toApiError(response: Response) {
+  let message = `HTTP ${response.status}`;
+  try {
+    const data = (await response.json()) as { message?: string };
+    if (data?.message) message = data.message;
+  } catch {
+    /* тело ответа не JSON — оставляем код статуса */
+  }
+  return new ApiError(response.status, message);
+}
+
+/** Реальный HTTP-запрос к внешнему REST API. */
+export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
+  const token = getToken();
+  let response = await send(path, options, token);
+
+  // Access-токен живёт 15 минут: один раз пробуем обновить его и повторить запрос.
+  if (response.status === 401 && token && !path.includes("/auth/refresh")) {
+    const next = await refreshAccessToken();
+    if (next) {
+      setToken(next);
+      response = await send(path, options, next);
+    } else {
+      setToken(null);
+    }
+  }
+
+  if (!response.ok) throw await toApiError(response);
 
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
