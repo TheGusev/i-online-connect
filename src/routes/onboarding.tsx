@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Sparkles } from "lucide-react";
 
-import { onboardingApi, type OnboardingIntent, type User } from "@/api";
+import { authApi, onboardingApi, type OnboardingIntent, type User } from "@/api";
 import { Button, Card, Input, TextArea } from "@/components/ds";
 import { AiBubble, TypingBubble, UserBubble } from "@/features/onboarding/ChatBubble";
 import { InterestsPicker } from "@/features/onboarding/InterestsPicker";
@@ -43,6 +43,7 @@ function OnboardingPage() {
   const [typing, setTyping] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitState, setSubmitState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [result, setResult] = useState<User | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -71,7 +72,12 @@ function OnboardingPage() {
         setResult(user);
         setSubmitState("ready");
       })
-      .catch(() => setSubmitState("error"));
+      .catch((cause: unknown) => {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        console.error("[onboarding] не удалось сохранить профиль:", message);
+        setSubmitError(message);
+        setSubmitState("error");
+      });
   }, [stepId, typing, submitState, draft]);
 
   const retry = () => {
