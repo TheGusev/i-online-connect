@@ -59,7 +59,7 @@ export function WaveHeading({
   // Не строка (например, JSX с иконкой) — отдаём как есть, только с градиентом.
   if (!text) {
     return (
-      <Tag ref={ref} id={id} className={cn(className, gradient && "text-gradient-wave")}>
+      <Tag ref={ref} id={id} className={cn(className, gradient && "text-gradient-wave wave-shimmer")}>
         {children}
       </Tag>
     );
