@@ -16,6 +16,7 @@ import {
 
 import { Button, Card, TrustBadge } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
+import { WaveHeading } from "@/components/landing/WaveHeading";
 import { AppShell } from "@/components/layout/AppShell";
 import safetyIllustration from "@/assets/safety-center.jpg";
 
@@ -129,9 +130,9 @@ function SafetyCenterPage() {
               <ShieldCheck className="size-3.5" aria-hidden="true" />
               Центр безопасности
             </p>
-            <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
+            <WaveHeading as="h1" className="mt-4 text-3xl font-bold leading-tight tracking-tight sm:text-4xl">
               Спокойные знакомства — это навык, и он несложный
-            </h1>
+            </WaveHeading>
             <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
               Здесь нет длинных правил и страшилок. Только то, что реально помогает: как устроить
               первую встречу, как заметить неладное, как работает верификация и куда написать, если

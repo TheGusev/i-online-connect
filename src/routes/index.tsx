@@ -4,6 +4,7 @@ import { BadgeCheck, MessageSquareHeart, Sparkles, EyeOff, ShieldCheck, Lock } f
 
 import { Button } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
+import { WaveHeading } from "@/components/landing/WaveHeading";
 import heroImage from "@/assets/landing-hero.jpg";
 import meetImage from "@/assets/landing-meet.jpg";
 
@@ -83,9 +84,13 @@ function LandingPage() {
                 />
                 {t("landing.hero.eyebrow")}
               </span>
-              <h1 className="mt-6 text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl">
+              <WaveHeading
+                as="h1"
+                className="mt-6 text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-6xl"
+                delay={120}
+              >
                 {t("landing.hero.title")}
-              </h1>
+              </WaveHeading>
               <p className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground">
                 {t("landing.hero.subtitle")}
               </p>
@@ -130,9 +135,9 @@ function LandingPage() {
         {/* Why */}
         <section className="mx-auto max-w-6xl px-5 py-20 lg:px-8 lg:py-28">
           <Reveal className="max-w-2xl">
-            <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+            <WaveHeading className="text-3xl font-extrabold tracking-tight sm:text-4xl">
               {t("landing.why.title")}
-            </h2>
+            </WaveHeading>
             <p className="mt-4 text-lg text-muted-foreground">{t("landing.why.subtitle")}</p>
           </Reveal>
 
@@ -160,9 +165,9 @@ function LandingPage() {
         <section id="how" className="border-y border-border bg-secondary/40 py-20 lg:py-28">
           <div className="mx-auto max-w-6xl px-5 lg:px-8">
             <Reveal className="max-w-2xl">
-              <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+              <WaveHeading className="text-3xl font-extrabold tracking-tight sm:text-4xl">
                 {t("landing.how.title")}
-              </h2>
+              </WaveHeading>
               <p className="mt-4 text-lg text-muted-foreground">{t("landing.how.subtitle")}</p>
             </Reveal>
 
@@ -206,9 +211,9 @@ function LandingPage() {
 
             <div>
               <Reveal>
-                <h2 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+                <WaveHeading className="text-3xl font-extrabold tracking-tight sm:text-4xl">
                   {t("landing.trust.title")}
-                </h2>
+                </WaveHeading>
                 <p className="mt-4 text-lg text-muted-foreground">{t("landing.trust.subtitle")}</p>
               </Reveal>
 

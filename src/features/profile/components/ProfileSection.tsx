@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { Reveal } from "@/components/landing/Reveal";
+import { WaveHeading } from "@/components/landing/WaveHeading";
 import { cn } from "@/lib/utils";
 
 /** Секция личной страницы: много воздуха, спокойная типографика. */
@@ -23,7 +24,7 @@ export function ProfileSection({
     <Reveal as="section" delay={delay} className={cn("mt-12", className)}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">{title}</h2>
+          <WaveHeading className="text-xl font-bold tracking-tight">{title}</WaveHeading>
           {description ? (
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{description}</p>
           ) : null}

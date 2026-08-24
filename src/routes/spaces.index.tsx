@@ -65,7 +65,9 @@ function SpacesPage() {
           <Users className="size-3.5" aria-hidden="true" />
           Spaces
         </p>
-        <h1 className="mt-3 text-3xl font-bold tracking-tight">Общие дела, а не переписка</h1>
+        <WaveHeading as="h1" className="mt-3 text-3xl font-bold tracking-tight">
+          Общие дела, а не переписка
+        </WaveHeading>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           Здесь люди собираются вокруг занятий: пробежки, настолки, прогулки, профессиональные
           круги. Это не лента знакомств — знакомства случаются сами, по ходу дела.
