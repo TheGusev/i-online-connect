@@ -1,9 +1,7 @@
 /**
  * Единый API-клиент. Все обращения к данным идут только через этот слой.
  *
- * Мок-адаптер (src/api/mocks) включается ровно одним флагом: VITE_USE_MOCKS=true.
- * В продакшене достаточно задать VITE_API_URL и VITE_USE_MOCKS=false —
- * все вызовы уйдут в реальный REST API.
+ * Мок-данных больше нет: единственный источник — REST API по VITE_API_URL.
  */
 
 export const API_URL = (import.meta.env["VITE_API_URL"] as string | undefined) ?? "";
@@ -12,12 +10,9 @@ export const WS_URL = (import.meta.env["VITE_WS_URL"] as string | undefined) ?? 
 
 export const APP_NAME = (import.meta.env["VITE_APP_NAME"] as string | undefined) ?? "Я Онлайн";
 
-/** Единственный переключатель мок-данных. */
-export const USE_MOCKS = (import.meta.env["VITE_USE_MOCKS"] as string | undefined) === "true";
-
-if (!USE_MOCKS && API_URL === "" && typeof window !== "undefined") {
+if (API_URL === "" && typeof window !== "undefined") {
   console.error(
-    "[api] VITE_API_URL не задан, а VITE_USE_MOCKS выключен — запросы к backend невозможны. " +
+    "[api] VITE_API_URL не задан — запросы к backend невозможны. " +
       "Укажите VITE_API_URL при сборке (см. .env.example и DEPLOY.md).",
   );
 }
