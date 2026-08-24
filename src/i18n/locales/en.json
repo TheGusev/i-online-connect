@@ -132,5 +132,17 @@
     "profile": "Profile",
     "settings": "Settings",
     "home": "Home"
+  },
+  "auth": {
+    "title": "Sign in",
+    "subtitle": "Use the email and password from your profile setup.",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "loading": "Checking…",
+    "error": "Wrong email or password",
+    "noAccount": "No profile yet?",
+    "start": "Start onboarding",
+    "logout": "Sign out"
   }
 }
