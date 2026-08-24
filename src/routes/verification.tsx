@@ -1,23 +1,29 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Link, createFileRoute } from "@tanstack/react-router";
 import {
   ArrowLeft,
   BadgeCheck,
   Check,
   Clock,
-  Eye,
-  MessageCircleHeart,
+  ListChecks,
   ScanFace,
+  ShieldAlert,
   ShieldCheck,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { Button, Card, TrustBadge } from "@/components/ds";
+import type { VerificationChallenge, VerificationTicket } from "@/api";
+import { ApiError } from "@/api";
+import { Button, Card } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { AppShell } from "@/components/layout/AppShell";
-import { useMyProfile, useUpdateMyProfile } from "@/features/profile/hooks";
-import { SelfieCapture } from "@/features/trust/components/SelfieCapture";
-import { useSubmitVerification } from "@/features/trust/hooks";
+import { useMyProfile } from "@/features/profile/hooks";
+import { LiveVideoCapture } from "@/features/trust/components/LiveVideoCapture";
+import {
+  useSubmitVerificationVideo,
+  useVerificationChallenge,
+  useVerificationStatus,
+} from "@/features/trust/hooks";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/verification")({
@@ -27,12 +33,12 @@ export const Route = createFileRoute("/verification")({
       {
         name: "description",
         content:
-          "Пройди верификацию за пару минут: live-селфи, сверка с фото профиля и понятный статус проверки.",
+          "Живое видео на 4–8 секунд, задание от сервера и автоматическая сверка с фото профиля — так в «Я Онлайн» не остаётся фейковых анкет.",
       },
       { property: "og:title", content: "Видео-верификация профиля — Я Онлайн" },
       {
         property: "og:description",
-        content: "Живое селфи, спокойное объяснение каждого шага и бейдж «Подтверждён» в профиле.",
+        content: "Живое видео, задание от сервера и понятный результат проверки.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -41,13 +47,12 @@ export const Route = createFileRoute("/verification")({
   component: VerificationPage,
 });
 
-type Stage = "selfie" | "compare" | "waiting" | "done";
+type Stage = "intro" | "record" | "result";
 
 const steps: { id: Stage; label: string }[] = [
-  { id: "selfie", label: "Живое селфи" },
-  { id: "compare", label: "Сверка с фото" },
-  { id: "waiting", label: "Проверка" },
-  { id: "done", label: "Готово" },
+  { id: "intro", label: "Задание" },
+  { id: "record", label: "Живое видео" },
+  { id: "result", label: "Результат" },
 ];
 
 function StepRail({ stage }: { stage: Stage }) {
@@ -71,7 +76,9 @@ function StepRail({ stage }: { stage: Stage }) {
             >
               {passed ? <Check className="size-3.5" aria-hidden="true" /> : index + 1}
             </span>
-            <span className={cn(active ? "font-semibold text-foreground" : "text-muted-foreground")}>
+            <span
+              className={cn(active ? "font-semibold text-foreground" : "text-muted-foreground")}
+            >
               {step.label}
             </span>
             {index < steps.length - 1 ? (
@@ -84,45 +91,167 @@ function StepRail({ stage }: { stage: Stage }) {
   );
 }
 
-function VerificationPage() {
-  const { data } = useMyProfile();
-  const update = useUpdateMyProfile();
-  const submit = useSubmitVerification();
-  const navigate = useNavigate();
+/** Осталось времени у задания: оно одноразовое и живёт 5 минут. */
+function useChallengeCountdown(challenge: VerificationChallenge | null) {
+  const [left, setLeft] = useState(0);
 
-  const [stage, setStage] = useState<Stage>("selfie");
-  const [shot, setShot] = useState<string | null>(null);
-  const [eta, setEta] = useState(15);
-
-  const referencePhoto = data?.media.find((item) => item.kind === "photo")?.url ?? "";
-
-  // Экран ожидания: понятный тайминг вместо бесконечного спиннера.
   useEffect(() => {
-    if (stage !== "waiting") return;
-    const timer = setTimeout(() => setStage("done"), 3200);
-    return () => clearTimeout(timer);
-  }, [stage]);
+    if (!challenge) return;
+    const tick = () =>
+      setLeft(Math.max(0, Math.round((Date.parse(challenge.expiresAt) - Date.now()) / 1000)));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [challenge]);
+
+  return left;
+}
+
+function ResultCard({
+  ticket,
+  onRetry,
+}: {
+  ticket: VerificationTicket;
+  onRetry: () => void;
+}) {
+  if (ticket.status === "verified") {
+    return (
+      <Card className="p-8 text-center">
+        <span className="mx-auto grid size-14 place-items-center rounded-full bg-success-soft">
+          <BadgeCheck className="size-6 text-foreground" aria-hidden="true" />
+        </span>
+        <h2 className="mt-4 text-xl font-bold">Профиль подтверждён</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+          {ticket.reason || "Лицо на видео совпало с фото профиля."} Бейдж «Подтверждён» уже виден
+          другим людям, а запись мы храним только для разбора спорных ситуаций.
+        </p>
+        <Button className="mt-5" asChild>
+          <Link to="/profile/me">Вернуться в профиль</Link>
+        </Button>
+      </Card>
+    );
+  }
+
+  if (ticket.status === "rejected") {
+    return (
+      <Card className="p-8 text-center">
+        <span className="mx-auto grid size-14 place-items-center rounded-full bg-warning-soft">
+          <ShieldAlert className="size-6 text-warning-foreground" aria-hidden="true" />
+        </span>
+        <h2 className="mt-4 text-xl font-bold">Пока не сходится</h2>
+        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+          {ticket.reason || "Не удалось сопоставить видео с фото профиля."} Это не приговор:
+          проверь свет, сними шапку и очки, при необходимости обнови фото в профиле — и попробуй
+          снова.
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          <Button onClick={onRetry}>Записать заново</Button>
+          <Button variant="ghost" asChild>
+            <Link to="/profile/me">Обновить фото профиля</Link>
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="p-8 text-center">
+      <span className="mx-auto grid size-14 place-items-center rounded-full bg-secondary">
+        <Clock className="size-6 animate-pulse text-primary" aria-hidden="true" />
+      </span>
+      <h2 className="mt-4 text-xl font-bold">Смотрим твоё видео</h2>
+      <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+        {ticket.reason || "Автоматическая сверка не приняла решение сама."} Заявку смотрит живой
+        человек из команды доверия — обычно это занимает до{" "}
+        {Math.max(1, Math.round(ticket.etaMinutes / 60))} ч. Приложением можно пользоваться как
+        обычно, мы напишем, когда закончим.
+      </p>
+      <Button className="mt-5" variant="secondary" asChild>
+        <Link to="/profile/me">Вернуться в профиль</Link>
+      </Button>
+    </Card>
+  );
+}
+
+function VerificationPage() {
+  const { data: profile } = useMyProfile();
+  const status = useVerificationStatus();
+  const challengeMutation = useVerificationChallenge();
+  const submit = useSubmitVerificationVideo();
+
+  const [stage, setStage] = useState<Stage>("intro");
+  const [challenge, setChallenge] = useState<VerificationChallenge | null>(null);
+  const [video, setVideo] = useState<Blob | null>(null);
+  const [ticket, setTicket] = useState<VerificationTicket | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const secondsLeft = useChallengeCountdown(challenge);
+  const hasPhoto = (profile?.media ?? []).some((item) => item.kind === "photo");
+
+  // Заявка уже в работе — показываем её статус, а не новую запись.
+  useEffect(() => {
+    if (stage !== "intro" || !status.data) return;
+    if (status.data.status === "pending" || status.data.status === "verified") {
+      setTicket(status.data);
+      setStage("result");
+    }
+  }, [stage, status.data]);
+
+  const requestChallenge = () => {
+    setError(null);
+    challengeMutation.mutate(undefined, {
+      onSuccess: (next) => {
+        setChallenge(next);
+        setVideo(null);
+        setStage("record");
+      },
+      onError: (cause) => {
+        setError(
+          cause instanceof ApiError
+            ? cause.message
+            : "Не удалось получить задание. Проверь связь и попробуй ещё раз.",
+        );
+      },
+    });
+  };
 
   const send = () => {
-    if (!shot) return;
+    if (!challenge || !video) return;
+    setError(null);
     submit.mutate(
-      { selfie: shot, referencePhotoUrl: referencePhoto },
+      { challengeId: challenge.id, video },
       {
-        onSuccess: (ticket) => {
-          setEta(ticket.etaMinutes);
-          update.mutate({ verification: "pending" });
-          setStage("waiting");
-          toast.success("Профиль отправлен на верификацию", {
-            description: `Обычно проверка занимает около ${ticket.etaMinutes} минут — мы напишем, как только закончим.`,
-          });
+        onSuccess: (result) => {
+          setTicket(result);
+          setStage("result");
+          void status.refetch();
+          if (result.status === "verified") {
+            toast.success("Профиль подтверждён", {
+              description: "Бейдж «Подтверждён» уже виден другим людям.",
+            });
+          } else if (result.status === "rejected") {
+            toast.error("Видео не подтвердило профиль", { description: result.reason });
+          } else {
+            toast("Заявку смотрит команда доверия", { description: result.reason });
+          }
         },
-        onError: () => {
-          toast.error("Не удалось отправить селфи", {
-            description: "Похоже, связь подвела. Попробуй ещё раз — кадр сохранён.",
-          });
+        onError: (cause) => {
+          const message =
+            cause instanceof ApiError
+              ? cause.message
+              : "Не удалось загрузить видео. Проверь связь — запись сохранена.";
+          setError(message);
+          toast.error("Видео не отправилось", { description: message });
         },
       },
     );
+  };
+
+  const retry = () => {
+    setTicket(null);
+    setVideo(null);
+    setChallenge(null);
+    setStage("intro");
   };
 
   return (
@@ -142,159 +271,124 @@ function VerificationPage() {
         </p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight">Подтвердим, что это правда ты</h1>
         <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">
-          Два спокойных шага: живое селфи и сверка с фото из профиля. Никаких документов, никаких
-          публикаций — кадр видит только модерация.
+          Сервер даст короткое задание, ты запишешь живое видео на 4–8 секунд, а мы сверим кадры с
+          фото из профиля. Никаких документов и публикаций — запись видит только проверка.
         </p>
       </header>
 
       <StepRail stage={stage} />
 
-      {stage === "selfie" ? (
+      {error ? (
+        <p className="mb-4 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+
+      {stage === "intro" ? (
         <Reveal>
           <Card className="p-6">
             <h2 className="inline-flex items-center gap-2 text-lg font-bold">
               <ScanFace className="size-4 text-primary" aria-hidden="true" />
-              Шаг 1. Живое селфи
+              Как это работает
             </h2>
-            <p className="mb-5 mt-1 text-sm leading-relaxed text-muted-foreground">
-              Найди ровный свет и посмотри в камеру. Улыбаться необязательно — это не фото на
-              паспорт.
-            </p>
-            <SelfieCapture shot={shot} onShot={setShot} onRetake={() => setShot(null)} />
-            <Button className="mt-5" fullWidth disabled={!shot} onClick={() => setStage("compare")}>
-              Дальше — сверка
-            </Button>
+            <ol className="mt-4 space-y-3 text-sm leading-relaxed text-muted-foreground">
+              <li>
+                <b className="text-foreground">1.</b> Сервер сгенерирует задание: повернуть голову,
+                показать жест и произнести код. Оно одноразовое и живёт 5 минут — заранее записанное
+                видео не подойдёт.
+              </li>
+              <li>
+                <b className="text-foreground">2.</b> Ты запишешь видео на 4–8 секунд с фронтальной
+                камеры.
+              </li>
+              <li>
+                <b className="text-foreground">3.</b> Мы сравним кадры с главным фото профиля. Если
+                уверенности мало — заявку посмотрит живой модератор.
+              </li>
+            </ol>
+
+            {!hasPhoto ? (
+              <p className="mt-5 rounded-2xl border border-warning/35 bg-warning-soft px-4 py-3 text-sm text-warning-foreground">
+                Сначала добавь фото в профиль — с ним мы будем сверять видео.
+              </p>
+            ) : null}
+
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button
+                loading={challengeMutation.isPending}
+                disabled={!hasPhoto}
+                onClick={requestChallenge}
+              >
+                Получить задание
+              </Button>
+              {status.data?.status === "rejected" ? (
+                <span className="self-center text-xs text-muted-foreground">
+                  Прошлая попытка: {status.data.reason}
+                </span>
+              ) : null}
+            </div>
           </Card>
         </Reveal>
       ) : null}
 
-      {stage === "compare" ? (
+      {stage === "record" && challenge ? (
         <Reveal>
           <Card className="p-6">
             <h2 className="inline-flex items-center gap-2 text-lg font-bold">
-              <BadgeCheck className="size-4 text-primary" aria-hidden="true" />
-              Шаг 2. Сверка с фото профиля
+              <ListChecks className="size-4 text-primary" aria-hidden="true" />
+              Твоё задание
             </h2>
-            <p className="mb-5 mt-1 text-sm leading-relaxed text-muted-foreground">
-              Посмотри, как это увидит модерация. Если фото профиля устарело — можно вернуться и
-              заменить его, так проверка пройдёт быстрее.
+            <ul className="mt-3 space-y-2 text-sm leading-relaxed text-foreground">
+              {challenge.instructions.map((instruction) => (
+                <li key={instruction} className="flex gap-2">
+                  <span className="text-primary" aria-hidden="true">
+                    •
+                  </span>
+                  {instruction}
+                </li>
+              ))}
+              <li className="flex gap-2">
+                <span className="text-primary" aria-hidden="true">
+                  •
+                </span>
+                произнесите вслух код{" "}
+                <b className="tracking-widest text-foreground">{challenge.spokenCode}</b>
+              </li>
+            </ul>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {secondsLeft > 0
+                ? `Задание действует ещё ${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, "0")}`
+                : "Задание истекло — получи новое."}
             </p>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <figure>
-                <img
-                  src={shot ?? ""}
-                  alt="Живое селфи"
-                  className="aspect-square w-full rounded-3xl border border-border object-cover"
-                />
-                <figcaption className="mt-2 text-xs text-muted-foreground">
-                  Живое селфи, снято сейчас
-                </figcaption>
-              </figure>
-              <figure>
-                {referencePhoto ? (
-                  <img
-                    src={referencePhoto}
-                    alt="Фото из профиля"
-                    className="aspect-square w-full rounded-3xl border border-border object-cover"
-                  />
-                ) : (
-                  <div className="grid aspect-square w-full place-items-center rounded-3xl border border-dashed border-border text-xs text-muted-foreground">
-                    В профиле пока нет фото
-                  </div>
-                )}
-                <figcaption className="mt-2 text-xs text-muted-foreground">
-                  Фото из профиля
-                </figcaption>
-              </figure>
+            <div className="mt-5">
+              <LiveVideoCapture
+                video={video}
+                onRecorded={setVideo}
+                onRetake={() => setVideo(null)}
+                disabled={submit.isPending}
+              />
             </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
-              <Button loading={submit.isPending} onClick={send}>
-                Отправить на проверку
-              </Button>
-              <Button variant="ghost" onClick={() => setStage("selfie")}>
-                Пересняться
-              </Button>
-            </div>
-          </Card>
-        </Reveal>
-      ) : null}
-
-      {stage === "waiting" ? (
-        <Reveal>
-          <Card className="p-8 text-center">
-            <span className="mx-auto grid size-14 place-items-center rounded-full bg-secondary">
-              <Clock className="size-6 animate-pulse text-primary" aria-hidden="true" />
-            </span>
-            <h2 className="mt-4 text-xl font-bold">Смотрим твоё селфи</h2>
-            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-              Обычно это занимает около {eta} минут, в редкие часы пик — до двух часов. Приложение
-              можно закрыть: мы пришлём уведомление, когда закончим.
-            </p>
-            <p className="mx-auto mt-4 max-w-md rounded-2xl bg-secondary px-4 py-3 text-xs leading-relaxed text-secondary-foreground">
-              Пока идёт проверка, профиль работает как обычно — с бейджем «Новый участник».
-            </p>
-          </Card>
-        </Reveal>
-      ) : null}
-
-      {stage === "done" ? (
-        <Reveal>
-          <Card className="p-8">
-            <span className="grid size-14 place-items-center rounded-full bg-success-soft">
-              <ShieldCheck className="size-6 text-success" aria-hidden="true" />
-            </span>
-            <h2 className="mt-4 text-2xl font-bold tracking-tight">Готово, ты подтверждён</h2>
-            <p className="mt-2 max-w-lg text-sm leading-relaxed text-muted-foreground">
-              Селфи совпало с фото профиля. Вот что изменилось:
-            </p>
-
-            <ul className="mt-5 space-y-3 text-sm">
-              <li className="flex items-start gap-3">
-                <BadgeCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
-                <span>
-                  В профиле появился бейдж <TrustBadge level="confirmed" size="sm" /> — его видят
-                  все, кому ты пишешь.
-                </span>
-              </li>
-              <li className="flex items-start gap-3">
-                <Eye className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-                <span>
-                  Ты попадаешь в подборки к другим подтверждённым людям — и видишь их в своей.
-                </span>
-              </li>
-              <li className="flex items-start gap-3">
-                <MessageCircleHeart
-                  className="mt-0.5 size-4 shrink-0 text-primary"
-                  aria-hidden="true"
-                />
-                <span>
-                  Первые сообщения от тебя доходят до тех, кто разрешил писать только
-                  верифицированным.
-                </span>
-              </li>
-            </ul>
-
-            <div className="mt-6 flex flex-wrap gap-2">
               <Button
-                onClick={() => {
-                  update.mutate({ verification: "verified" });
-                  void navigate({ to: "/profile/me" });
-                }}
+                loading={submit.isPending}
+                disabled={!video || secondsLeft === 0}
+                onClick={send}
               >
-                Посмотреть профиль
+                Отправить на сверку
               </Button>
-              <Button variant="secondary" asChild>
-                <Link to="/safety-center">Центр безопасности</Link>
+              <Button variant="ghost" onClick={requestChallenge} disabled={submit.isPending}>
+                Новое задание
               </Button>
             </div>
-
-            <p className="mt-5 text-xs leading-relaxed text-muted-foreground">
-              Селфи удаляется сразу после проверки. Уровень «Проверенный участник» придёт сам —
-              после месяца общения без жалоб и первых встреч.
-            </p>
           </Card>
+        </Reveal>
+      ) : null}
+
+      {stage === "result" && ticket ? (
+        <Reveal>
+          <ResultCard ticket={ticket} onRetry={retry} />
         </Reveal>
       ) : null}
     </AppShell>
