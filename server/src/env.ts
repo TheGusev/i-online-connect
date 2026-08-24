@@ -21,10 +21,21 @@ const schema = z.object({
   CORS_ORIGINS: z.string().default(""),
 
   MEDIA_DIR: z.string().default("/var/lib/ya-online/media"),
+  // Публичный префикс, по которому Nginx раздаёт MEDIA_DIR.
+  MEDIA_BASE_URL: z.string().default("/media"),
   VERIFICATION_DIR: z.string().default("/var/lib/ya-online/verification"),
 
   ACCOUNT_RESTORE_DAYS: z.coerce.number().int().positive().default(14),
   DAILY_MATCH_LIMIT: z.coerce.number().int().positive().default(5),
+
+  // Автосверка лица на верификации. Без AI_API_KEY заявки уходят в ручную
+  // очередь модерации — сервер при этом работает как обычно.
+  AI_API_URL: z.string().default("https://ai.gateway.lovable.dev/v1"),
+  AI_API_KEY: z.string().default(""),
+  AI_VISION_MODEL: z.string().default("openai/gpt-5.6-sol"),
+  // Порог уверенности, с которого доверяем автоматическому решению.
+  FACE_MATCH_MIN_CONFIDENCE: z.coerce.number().int().min(50).max(100).default(80),
+  FFMPEG_PATH: z.string().default("ffmpeg"),
 });
 
 const parsed = schema.safeParse(process.env);
