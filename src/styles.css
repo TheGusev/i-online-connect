@@ -259,13 +259,20 @@
   background-clip: text;
   color: transparent;
   -webkit-text-fill-color: transparent;
+
+  @media (prefers-reduced-motion: reduce) {
+    background-image: none;
+    color: var(--foreground);
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+/* Бесконечный перелив градиента (для цельных заголовков). */
+@utility wave-shimmer {
   animation: heading-wave 6s linear infinite;
 
   @media (prefers-reduced-motion: reduce) {
     animation: none;
-    background-image: none;
-    color: var(--foreground);
-    -webkit-text-fill-color: currentColor;
   }
 }
 
@@ -288,6 +295,7 @@
     transform: none;
   }
 }
+
 
 @keyframes heading-wave {
   0% {
