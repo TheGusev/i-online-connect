@@ -10,6 +10,7 @@
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import Fastify from "fastify";
@@ -20,6 +21,7 @@ import { registerErrorHandler } from "./http.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { chatRoutes } from "./routes/chat.ts";
 import { matchingRoutes } from "./routes/matching.ts";
+import { mediaRoutes } from "./routes/media.ts";
 import { onboardingRoutes } from "./routes/onboarding.ts";
 import { profileRoutes } from "./routes/profile.ts";
 import { settingsRoutes } from "./routes/settings.ts";
@@ -54,6 +56,12 @@ await app.register(cors, {
 
 await app.register(cookie, {});
 
+// Загрузка фото/видео профиля и видео-селфи верификации.
+await app.register(multipart, {
+  attachFieldsToBody: false,
+  limits: { fileSize: 40 * 1024 * 1024, files: 1, fields: 5 },
+});
+
 await app.register(rateLimit, {
   max: 300,
   timeWindow: "1 minute",
@@ -75,6 +83,7 @@ await app.register(chatRoutes, { prefix: "/api/chat" });
 await app.register(spaceRoutes, { prefix: "/api/spaces" });
 await app.register(onboardingRoutes, { prefix: "/api/onboarding" });
 await app.register(trustRoutes, { prefix: "/api/trust" });
+await app.register(mediaRoutes, { prefix: "/api/media" });
 await app.register(settingsRoutes, { prefix: "/api/settings" });
 await app.register(chatSocketRoutes, { prefix: "/ws" });
 
