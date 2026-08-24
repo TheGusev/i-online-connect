@@ -82,6 +82,7 @@ function OnboardingPage() {
 
   const retry = () => {
     setSubmitState("idle");
+    setSubmitError(null);
     setResult(null);
   };
 
@@ -458,6 +459,77 @@ function AboutStep({
     </div>
   );
 }
+
+/**
+ * Предпоследний шаг: создаём аккаунт, чтобы профиль можно было сохранить
+ * (POST /api/onboarding требует Bearer-токен).
+ */
+function AccountStep({ name, onDone }: { name: string; onDone: (email: string) => void }) {
+  const { t } = useTranslation();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    const value = email.trim();
+    // Требования совпадают с backend (server/src/auth/passwords.ts).
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
+    const passwordOk =
+      password.length >= 10 && /[a-zA-Zа-яА-Я]/.test(password) && /\d/.test(password);
+    setEmailError(emailOk ? null : t("onboarding.s8.emailError"));
+    setPasswordError(passwordOk ? null : t("onboarding.s8.passwordError"));
+    setFormError(null);
+    if (!emailOk || !passwordOk) return;
+
+    setLoading(true);
+    try {
+      await authApi.register(value, password, name);
+      onDone(t("onboarding.s8.answer", { email: value }));
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      console.error("[onboarding] регистрация не удалась:", message);
+      setFormError(message || t("onboarding.s8.error"));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Input
+        label={t("onboarding.s8.email")}
+        type="email"
+        autoComplete="email"
+        inputMode="email"
+        value={email}
+        error={emailError ?? undefined}
+        onChange={(event) => setEmail(event.target.value)}
+      />
+      <Input
+        label={t("onboarding.s8.password")}
+        type="password"
+        autoComplete="new-password"
+        value={password}
+        hint={t("onboarding.s8.passwordHint")}
+        error={passwordError ?? undefined}
+        onChange={(event) => setPassword(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") void submit();
+        }}
+      />
+      {formError && <p className="px-1 text-xs text-destructive">{formError}</p>}
+      <div className="flex justify-end">
+        <Button disabled={loading} onClick={() => void submit()}>
+          {loading ? t("onboarding.s8.loading") : t("onboarding.s8.submit")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 
 function BuildingLoader() {
   const { t } = useTranslation();
