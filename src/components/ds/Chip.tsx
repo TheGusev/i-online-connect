@@ -28,6 +28,7 @@ export interface ChipProps extends VariantProps<typeof chipVariants> {
   className?: string;
   onClick?: () => void;
   onRemove?: () => void;
+  disabled?: boolean;
 }
 
 export function Chip({
@@ -38,15 +39,18 @@ export function Chip({
   selected,
   onClick,
   onRemove,
+  disabled = false,
 }: ChipProps) {
   const Comp = onClick ? "button" : "span";
   return (
     <Comp
       type={onClick ? "button" : undefined}
       onClick={onClick}
+      {...(Comp === "button" ? { disabled } : {})}
       className={cn(
         chipVariants({ variant, size, selected }),
         onClick && "cursor-pointer hover:border-primary/50",
+        disabled && "cursor-not-allowed opacity-50",
         className,
       )}
     >
