@@ -215,7 +215,7 @@ export interface ProfileDetail extends User {
   trust: TrustDetails;
 }
 
-export type VerificationStatus = "none" | "pending" | "verified";
+export type VerificationStatus = "none" | "pending" | "verified" | "rejected";
 
 export interface PrivacySettings {
   /** Кто видит точную геолокацию. */
@@ -260,17 +260,24 @@ export interface ReportReceipt {
   reviewHours: number;
 }
 
-export interface VerificationDraft {
-  /** data URL live-селфи. */
-  selfie: string;
+/** Одноразовое задание для живого видео: генерирует сервер. */
+export interface VerificationChallenge {
+  id: string;
+  /** Что нужно сделать перед камерой. */
+  instructions: string[];
+  /** Код, который нужно произнести вслух. */
+  spokenCode: string;
+  expiresAt: string;
   /** Фото профиля, с которым сверяем. */
   referencePhotoUrl: string;
 }
 
 export interface VerificationTicket {
-  id: string;
+  id: string | null;
   status: VerificationStatus;
-  submittedAt: string;
+  submittedAt: string | null;
+  /** Человеческое объяснение результата или причины отказа. */
+  reason: string;
   /** Сколько обычно занимает проверка, в минутах. */
   etaMinutes: number;
 }
