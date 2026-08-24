@@ -5,10 +5,6 @@ export async function getProfile(id: string): Promise<User> {
   return request<User>(`/profiles/${id}`);
 }
 
-export async function updateProfile(id: string, patch: Partial<User>): Promise<User> {
-  return request<User>(`/profiles/${id}`, { method: "PATCH", body: patch });
-}
-
 export async function getProfileDetail(id: string): Promise<ProfileDetail> {
   return request<ProfileDetail>(`/profiles/${id}/detail`);
 }
