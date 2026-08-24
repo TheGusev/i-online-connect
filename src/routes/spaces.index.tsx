@@ -6,6 +6,7 @@ import type { SpaceDraft } from "@/api";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button, SpaceCardSkeleton } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
+import { WaveHeading } from "@/components/landing/WaveHeading";
 import { CreateSpaceForm } from "@/features/spaces/components/CreateSpaceForm";
 import { SpaceCard } from "@/features/spaces/components/SpaceCard";
 import { SpacesTabs, type SpacesTab } from "@/features/spaces/components/SpacesTabs";
