@@ -9,7 +9,9 @@ import { AiBubble, TypingBubble, UserBubble } from "@/features/onboarding/ChatBu
 import { InterestsPicker } from "@/features/onboarding/InterestsPicker";
 import { MediaStep } from "@/features/onboarding/MediaStep";
 import { ProfilePreview } from "@/features/onboarding/ProfilePreview";
+import { ValuesPicker, VALUE_OPTIONS, type ValuesKey } from "@/features/onboarding/ValuesPicker";
 import { ONBOARDING_STEPS, useOnboardingStore } from "@/store/useOnboardingStore";
+import { useSessionStore } from "@/store/useSessionStore";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -46,6 +48,7 @@ function OnboardingPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [result, setResult] = useState<User | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const setUser = useSessionStore((state) => state.setUser);
 
   const stepId = ONBOARDING_STEPS[stepIndex]!;
   const total = ONBOARDING_STEPS.length;
@@ -58,9 +61,11 @@ function OnboardingPage() {
     return () => window.clearTimeout(id);
   }, [stepIndex]);
 
+  // Скроллим только при смене шага: на мобильных автоскролл во время ввода
+  // (когда открыта клавиатура) дёргает экран.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [stepIndex, typing, submitState]);
+    bottomRef.current?.scrollIntoView({ block: "nearest" });
+  }, [stepIndex]);
 
   // Финальный шаг: отправляем весь черновик одним объектом через API-клиент.
   useEffect(() => {
@@ -69,6 +74,7 @@ function OnboardingPage() {
     onboardingApi
       .submitOnboarding(draft)
       .then((user) => {
+        setUser(user);
         setResult(user);
         setSubmitState("ready");
       })
@@ -87,7 +93,7 @@ function OnboardingPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto w-full max-w-2xl px-4 py-3 lg:px-6">
           <div className="flex items-center gap-3">
@@ -120,7 +126,10 @@ function OnboardingPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 lg:px-6">
+      <main
+        className="mx-auto w-full max-w-2xl flex-1 px-4 py-6 lg:px-6"
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 2rem)" }}
+      >
         <div className="space-y-5">
           {ONBOARDING_STEPS.slice(0, stepIndex).map((id) => {
             const answer = answers.find((entry) => entry.stepId === id);
@@ -240,36 +249,14 @@ function OnboardingPage() {
             )}
 
             {stepId === "values" && (
-              <div className="space-y-4">
-                {(["values", "joy", "dealbreakers"] as const).map((key) => (
-                  <TextArea
-                    key={key}
-                    label={t(`onboarding.s6.${key}`)}
-                    rows={2}
-                    value={draft.values[key]}
-                    onChange={(event) =>
-                      patchDraft({ values: { ...draft.values, [key]: event.target.value } })
-                    }
-                  />
-                ))}
-                {error && <p className="px-1 text-xs text-destructive">{error}</p>}
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => {
-                      const filled = (["values", "joy", "dealbreakers"] as const).every((key) =>
-                        draft.values[key].trim(),
-                      );
-                      if (!filled) {
-                        setError(t("onboarding.s6.error"));
-                        return;
-                      }
-                      answerStep({ stepId: "values", answer: t("onboarding.s6.answer") });
-                    }}
-                  >
-                    {t("onboarding.chat.next")}
-                  </Button>
-                </div>
-              </div>
+              <ValuesStep
+                error={error}
+                onError={setError}
+                onSubmit={(values, answer) => {
+                  patchDraft({ values });
+                  answerStep({ stepId: "values", answer });
+                }}
+              />
             )}
 
             {stepId === "location" && (
@@ -466,6 +453,7 @@ function AboutStep({
  */
 function AccountStep({ name, onDone }: { name: string; onDone: (email: string) => void }) {
   const { t } = useTranslation();
+  const setSession = useSessionStore((state) => state.setSession);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState<string | null>(null);
@@ -486,7 +474,8 @@ function AccountStep({ name, onDone }: { name: string; onDone: (email: string) =
 
     setLoading(true);
     try {
-      await authApi.register(value, password, name);
+      const session = await authApi.register(value, password, name);
+      setSession(session);
       onDone(t("onboarding.s8.answer", { email: value }));
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
@@ -559,5 +548,61 @@ function BuildingLoader() {
         />
       </div>
     </div>
+  );
+}
+
+/** Шаг «ценности»: выбор из готовых вариантов вместо трёх текстовых полей. */
+function ValuesStep({
+  error,
+  onError,
+  onSubmit,
+}: {
+  error: string | null;
+  onError: (message: string | null) => void;
+  onSubmit: (values: { values: string; joy: string; dealbreakers: string }, answer: string) => void;
+}) {
+  const { t } = useTranslation();
+  const draft = useOnboardingStore((state) => state.draft);
+  const [selection, setSelection] = useState<Record<ValuesKey, string[]>>(() => ({
+    values: draft.values.values ? draft.values.values.split(" · ") : [],
+    joy: draft.values.joy ? draft.values.joy.split(" · ") : [],
+    dealbreakers: draft.values.dealbreakers ? draft.values.dealbreakers.split(" · ") : [],
+  }));
+
+  const toggle = (groupKey: ValuesKey, value: string) => {
+    onError(null);
+    setSelection((prev) => {
+      const current = prev[groupKey];
+      const next = current.includes(value)
+        ? current.filter((item) => item !== value)
+        : [...current, value];
+      return { ...prev, [groupKey]: next };
+    });
+  };
+
+  const submit = () => {
+    const keys = Object.keys(VALUE_OPTIONS) as ValuesKey[];
+    if (keys.some((key) => selection[key].length === 0)) {
+      onError(t("onboarding.s6.error"));
+      return;
+    }
+    onError(null);
+    onSubmit(
+      {
+        values: selection.values.join(" · "),
+        joy: selection.joy.join(" · "),
+        dealbreakers: selection.dealbreakers.join(" · "),
+      },
+      keys.map((key) => selection[key].join(" · ")).join(" | "),
+    );
+  };
+
+  return (
+    <ValuesPicker
+      selection={selection}
+      onToggle={toggle}
+      onSubmit={submit}
+      error={error ?? undefined}
+    />
   );
 }
