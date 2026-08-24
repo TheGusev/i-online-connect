@@ -250,6 +250,69 @@
   background-image: var(--gradient-warm);
 }
 
+@utility text-gradient-wave {
+  background-image: var(--gradient-heading);
+  background-size: 260% 100%;
+  background-position: 0% 50%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: heading-wave 9s linear infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    background-image: none;
+    color: var(--foreground);
+    -webkit-text-fill-color: currentColor;
+  }
+}
+
+@utility wave-word {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+  opacity: 0;
+  transform: translateY(0.45em);
+  filter: blur(6px);
+}
+
+@utility wave-word-in {
+  animation: word-rise 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+@keyframes heading-wave {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes word-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(0.45em);
+    filter: blur(6px);
+  }
+  60% {
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
 @keyframes loading {
   0% {
     transform: translateX(-100%);
