@@ -315,6 +315,13 @@ function OnboardingPage() {
               </div>
             )}
 
+            {stepId === "account" && (
+              <AccountStep
+                name={draft.name}
+                onDone={(email) => answerStep({ stepId: "account", answer: email })}
+              />
+            )}
+
             {stepId === "summary" && (
               <div className="space-y-5">
                 {submitState === "loading" && <BuildingLoader />}
@@ -322,11 +329,15 @@ function OnboardingPage() {
                 {submitState === "error" && (
                   <div className="rounded-3xl border border-border bg-card p-5">
                     <p className="text-sm text-destructive">{t("onboarding.s9.error")}</p>
+                    {submitError && (
+                      <p className="mt-2 text-xs text-muted-foreground">{submitError}</p>
+                    )}
                     <Button className="mt-4" onClick={retry}>
                       {t("onboarding.s9.retry")}
                     </Button>
                   </div>
                 )}
+
 
                 {submitState === "ready" && result && (
                   <div className="space-y-5 animate-in fade-in duration-700">
