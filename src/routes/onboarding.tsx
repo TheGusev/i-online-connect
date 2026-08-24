@@ -321,16 +321,16 @@ function OnboardingPage() {
 
                 {submitState === "error" && (
                   <div className="rounded-3xl border border-border bg-card p-5">
-                    <p className="text-sm text-destructive">{t("onboarding.s8.error")}</p>
+                    <p className="text-sm text-destructive">{t("onboarding.s9.error")}</p>
                     <Button className="mt-4" onClick={retry}>
-                      {t("onboarding.s8.retry")}
+                      {t("onboarding.s9.retry")}
                     </Button>
                   </div>
                 )}
 
                 {submitState === "ready" && result && (
                   <div className="space-y-5 animate-in fade-in duration-700">
-                    <p className="text-sm text-muted-foreground">{t("onboarding.s8.ready")}</p>
+                    <p className="text-sm text-muted-foreground">{t("onboarding.s9.ready")}</p>
                     <ProfilePreview draft={draft} />
                     <div className="flex flex-wrap gap-3">
                       <Button
@@ -340,10 +340,10 @@ function OnboardingPage() {
                           void navigate({ to: "/feed" });
                         }}
                       >
-                        {t("onboarding.s8.confirm")}
+                        {t("onboarding.s9.confirm")}
                       </Button>
                       <Button variant="secondary" size="lg" onClick={goBack}>
-                        {t("onboarding.s8.edit")}
+                        {t("onboarding.s9.edit")}
                       </Button>
                     </div>
                   </div>
@@ -467,8 +467,8 @@ function BuildingLoader() {
           <Sparkles className="size-6 animate-pulse" aria-hidden="true" />
         </span>
       </span>
-      <p className="text-lg font-extrabold">{t("onboarding.s8.loading")}</p>
-      <p className="text-sm text-muted-foreground">{t("onboarding.s8.loadingHint")}</p>
+      <p className="text-lg font-extrabold">{t("onboarding.s9.loading")}</p>
+      <p className="text-sm text-muted-foreground">{t("onboarding.s9.loadingHint")}</p>
       <div className="mt-2 h-1.5 w-48 overflow-hidden rounded-full bg-secondary">
         <div
           className="h-full w-1/3 animate-[loading_1.4s_ease-in-out_infinite] rounded-full"
