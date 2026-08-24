@@ -191,8 +191,19 @@ sudo install -d -o deploy -g deploy /var/log/ya-online
 sudo install -d -o deploy -g deploy -m 700 /var/backups/ya-online
 ```
 
-Каталог `verification` — режим `700`: селфи не должны быть доступны ни
-Nginx, ни другим пользователям системы.
+Каталог `verification` — режим `700`: видео-селфи и кадры не должны быть
+доступны ни Nginx, ни другим пользователям системы. Каталог `media` (режим
+`750`) наоборот раздаётся Nginx — там лежат фото и видео профилей.
+
+Для нарезки кадров из видео-селфи нужен `ffmpeg`:
+
+```bash
+sudo apt install -y ffmpeg
+ffmpeg -version | head -1
+```
+
+Без него автосверка не сможет получить кадры и все заявки будут уходить в
+ручную очередь модерации.
 
 ---
 
@@ -301,7 +312,18 @@ server {
     add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' wss://example.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
     server_tokens off;
 
-    client_max_body_size 8m;   # data URL селфи
+    client_max_body_size 45m;  # видео-селфи (до 40 МБ) и видео профиля
+
+    # Фото и видео профилей: приватный каталог verification здесь НЕ раздаётся.
+    location /media/ {
+        alias /var/lib/ya-online/media/;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+        add_header X-Content-Type-Options "nosniff" always;
+        # Никакого выполнения содержимого: только отдача файлом.
+        types { image/jpeg jpg jpeg; image/png png; image/webp webp; video/webm webm; video/mp4 mp4; }
+        default_type application/octet-stream;
+        try_files $uri =404;
+    }
 
     gzip on;
     gzip_vary on;
@@ -465,6 +487,9 @@ ssh deploy@example.com '
 - [ ] Заголовки проверены: `curl -sI https://example.com | grep -i strict`
 - [ ] Бэкап отработал хотя бы раз, файл на месте, копия увезена с сервера
 - [ ] Каталог `/var/lib/ya-online/verification` в режиме `700`
+- [ ] `ffmpeg` установлен (`ffmpeg -version`) — нужен для нарезки кадров
+- [ ] `AI_API_KEY` в `server/.env` задан, иначе верификация только ручная
+- [ ] `location /media/` в Nginx раздаёт `/var/lib/ya-online/media`
 - [ ] Внешний монитор смотрит на `/api/health`
 
 ---
@@ -481,3 +506,5 @@ ssh deploy@example.com '
 | Чат не обновляется в реальном времени | блок `location /ws/` без `Upgrade`, или `VITE_WS_URL` не тот |
 | `401` сразу после входа | разошлись секреты JWT (пересобирали `.env` — перезапустите PM2) |
 | Камера не включается на `/verification` | нет HTTPS или `Permissions-Policy` запрещает `camera` |
+| Все заявки верификации висят в `pending` | не установлен `ffmpeg` или пуст `AI_API_KEY` |
+| Загрузка видео падает с `413` | мало `client_max_body_size` в Nginx |

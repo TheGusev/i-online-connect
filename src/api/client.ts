@@ -41,6 +41,7 @@ export class ApiError extends Error {
 
 export interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+  /** Объект уходит как JSON, FormData — как multipart (файлы). */
   body?: unknown;
   query?: Record<string, string | number | boolean | undefined>;
   signal?: AbortSignal;
@@ -61,6 +62,8 @@ function buildUrl(path: string, query?: RequestOptions["query"]) {
 
 async function send(path: string, options: RequestOptions, token: string | null) {
   const { method = "GET", body, query, signal } = options;
+  // Content-Type для FormData ставит браузер сам — вместе с boundary.
+  const isForm = typeof FormData !== "undefined" && body instanceof FormData;
   return fetch(buildUrl(path, query), {
     method,
     signal: signal ?? null,
@@ -68,10 +71,10 @@ async function send(path: string, options: RequestOptions, token: string | null)
     credentials: "include",
     headers: {
       Accept: "application/json",
-      ...(body ? { "Content-Type": "application/json" } : {}),
+      ...(body && !isForm ? { "Content-Type": "application/json" } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
     },
-    ...(body ? { body: JSON.stringify(body) } : {}),
+    ...(body ? { body: isForm ? (body as FormData) : JSON.stringify(body) } : {}),
   });
 }
 

@@ -62,8 +62,11 @@ GRANT USAGE, CREATE ON SCHEMA public TO ya_online;
 платёжного провайдера), `deletion_requests` (причина + окно восстановления).
 
 ### Верификация
-`verifications` — статус (`none/pending/verified/rejected`), путь к файлу
-селфи в приватном каталоге, кто и когда проверил.
+`verifications` — статус (`none/pending/verified/rejected`), приватные пути к
+видео и контрольному кадру, текст задания, вердикт автосверки (`verdict` JSON,
+`confidence`, `reason`), кто и когда проверил вручную.
+`verification_challenges` — одноразовые задания для живого видео: инструкции,
+произносимый код, срок жизни (5 минут) и отметка об использовании.
 
 ### Подбор
 | Таблица | Назначение |

@@ -114,12 +114,43 @@ Refresh-токен ставится в httpOnly-cookie `ya_refresh` (path `/api/
 | --- | --- | --- | --- |
 | GET | `/trust/summary` | — | `TrustSummary` = `{ level, score, checks[] }` |
 | POST | `/trust/reports` | `ReportDraft` | `ReportReceipt` |
-| POST | `/trust/verification` | `{ selfie, referencePhotoUrl }` | `VerificationTicket` |
+| GET | `/trust/verification/challenge` | — | `VerificationChallenge` |
+| GET | `/trust/verification/status` | — | `VerificationTicket` |
+| POST | `/trust/verification` | multipart: `challengeId`, `file` (видео) | `VerificationTicket` |
 
-`selfie` — data URL (`data:image/jpeg;base64,…`), максимум ~5 МБ.
-Лимит: 3 заявки в час. Файл сохраняется в приватный каталог, который Nginx
-не раздаёт; в БД попадает только путь. `blockToo: true` в жалобе сразу
-блокирует человека.
+`blockToo: true` в жалобе сразу блокирует человека.
+
+### Видео-верификация
+
+1. `GET /trust/verification/challenge` — сервер выдаёт одноразовое задание
+   (`instructions[]`, `spokenCode`) и главное фото профиля для сверки.
+   Задание живёт 5 минут и сгорает после использования, поэтому заранее
+   записанное видео не проходит. Без фото в профиле — `400`.
+2. `POST /trust/verification` — живое видео (WebM или MP4, до 40 МБ) вместе с
+   `challengeId`. Сервер режет кадры через `ffmpeg` и сравнивает их с фото
+   профиля моделью зрения.
+3. Результат в `status`: `verified` (сверка уверена), `rejected` (уверенно не
+   совпало или признаки подделки), `pending` (уверенности мало — смотрит
+   модератор). В `reason` — человеческое объяснение.
+
+Лимит: 3 заявки в час. Видео и кадр лежат в приватном каталоге, который Nginx
+не раздаёт; в БД попадает только путь, вердикт и уверенность. Если `AI_API_KEY`
+не задан, отказов не бывает — все заявки уходят в ручную очередь.
+
+---
+
+## Медиа профиля
+
+| Метод | Путь | Тело | Ответ |
+| --- | --- | --- | --- |
+| POST | `/media` | multipart: `file` | `ProfileMedia` |
+| DELETE | `/media/:id` | — | `204` |
+
+Тип файла определяется по подписи содержимого, а не по имени: фото —
+JPEG/PNG/WebP до 8 МБ, видео — WebM/MP4 до 40 МБ. Файлы попадают в
+`MEDIA_DIR/<userId>/` и раздаются Nginx по `MEDIA_BASE_URL`. Первое фото
+автоматически становится главным — именно с ним сверяется верификация.
+Лимит: 30 загрузок в час.
 
 ---
 

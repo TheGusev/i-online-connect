@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 
-import { trustApi, type ReportDraft, type VerificationDraft } from "@/api";
+import { trustApi, type ReportDraft } from "@/api";
 
 export const trustQueryOptions = {
   queryKey: ["trust", "summary"] as const,
@@ -17,8 +17,25 @@ export function useSubmitReport() {
   });
 }
 
-export function useSubmitVerification() {
+/** Задание запрашиваем вручную: оно одноразовое и живёт 5 минут. */
+export function useVerificationChallenge() {
   return useMutation({
-    mutationFn: (draft: VerificationDraft) => trustApi.submitVerification(draft),
+    mutationFn: () => trustApi.getVerificationChallenge(),
+  });
+}
+
+export const verificationStatusQueryOptions = {
+  queryKey: ["trust", "verification", "status"] as const,
+  queryFn: () => trustApi.getVerificationStatus(),
+};
+
+export function useVerificationStatus() {
+  return useQuery(verificationStatusQueryOptions);
+}
+
+export function useSubmitVerificationVideo() {
+  return useMutation({
+    mutationFn: (input: { challengeId: string; video: Blob }) =>
+      trustApi.submitVerificationVideo(input.challengeId, input.video),
   });
 }

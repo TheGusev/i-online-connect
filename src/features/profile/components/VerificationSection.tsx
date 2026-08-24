@@ -1,4 +1,4 @@
-import { Clock, ShieldCheck, Video } from "lucide-react";
+import { Clock, ShieldAlert, ShieldCheck, Video } from "lucide-react";
 
 import type { VerificationStatus } from "@/api";
 import { Button, Card } from "@/components/ds";
@@ -21,6 +21,11 @@ const statusConfig: Record<
     label: "Пройдена",
     tone: "border-success/35 bg-success-soft text-foreground",
     icon: ShieldCheck,
+  },
+  rejected: {
+    label: "Не подтвердилась",
+    tone: "border-warning/35 bg-warning-soft text-warning-foreground",
+    icon: ShieldAlert,
   },
 };
 
@@ -53,7 +58,11 @@ export function VerificationSection({
       {status !== "verified" ? (
         <Button className="mt-5" onClick={onStart} disabled={status === "pending"}>
           <Video aria-hidden="true" />
-          {status === "pending" ? "Проверяем запись" : "Пройти видео-верификацию"}
+          {status === "pending"
+            ? "Проверяем запись"
+            : status === "rejected"
+              ? "Записать видео ещё раз"
+              : "Пройти видео-верификацию"}
         </Button>
       ) : (
         <Button className="mt-5" variant="secondary" onClick={onStart}>
