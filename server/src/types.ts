@@ -73,6 +73,8 @@ export interface ProfileRow {
   trust_score: number;
   last_seen_at: Date | null;
   interests: string[] | null;
+  /** Главное фото профиля, если оно уже загружено. */
+  avatar_url?: string | null;
 }
 
 const ONLINE_WINDOW_MS = 5 * 60 * 1000;
@@ -88,5 +90,7 @@ export function toUserDto(row: ProfileRow): UserDto {
     trustLevel: row.trust_level,
     trustScore: row.trust_score,
     online: row.last_seen_at ? Date.now() - row.last_seen_at.getTime() < ONLINE_WINDOW_MS : false,
+    ...(row.avatar_url ? { avatarUrl: row.avatar_url } : {}),
   };
 }
+
