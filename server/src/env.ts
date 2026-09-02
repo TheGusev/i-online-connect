@@ -50,7 +50,10 @@ const schema = z.object({
 
 
   MEDIA_DIR: z.string().default("/var/lib/ya-online/media"),
-  // Публичный префикс, по которому Nginx раздаёт MEDIA_DIR.
+  // Публичный адрес MEDIA_DIR. Относительный путь («/media») — когда сайт и API
+  // на одном домене. Если API живёт отдельно, укажите абсолютный URL
+  // («https://api.example.com/media»), иначе браузер будет искать файлы на
+  // домене сайта. Сам каталог отдаёт и backend, и (быстрее) Nginx.
   MEDIA_BASE_URL: z.string().default("/media"),
   VERIFICATION_DIR: z.string().default("/var/lib/ya-online/verification"),
 

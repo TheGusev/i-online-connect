@@ -17,6 +17,25 @@ if (API_URL === "" && typeof window !== "undefined") {
   );
 }
 
+/**
+ * Абсолютный адрес пользовательского файла.
+ *
+ * Сервер отдаёт относительные пути вида `/media/<id>/<file>.jpg`. Если сайт и
+ * API живут на одном домене (прод за Nginx) — путь рабочий как есть. Если нет
+ * (разработка, отдельный домен API) — относительный путь ушёл бы на домен
+ * сайта, где файла нет, и фото «не грузилось». Поэтому приклеиваем origin API.
+ */
+export function mediaUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  if (/^(https?:|data:|blob:)/i.test(url)) return url;
+  if (!url.startsWith("/media/") || API_URL === "") return url;
+  try {
+    return new URL(url, API_URL).toString();
+  } catch {
+    return url;
+  }
+}
+
 const TOKEN_STORAGE_KEY = "ya-online.token";
 
 export function getToken(): string | null {

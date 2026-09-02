@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { mediaUrl } from "@/api";
 
 const sizeMap = {
   sm: "size-9 text-xs",
@@ -51,7 +52,7 @@ export function Avatar({
         )}
       >
         {src ? (
-          <img src={src} alt={name} className="size-full object-cover" loading="lazy" />
+          <img src={mediaUrl(src)} alt={name} className="size-full object-cover" loading="lazy" />
         ) : (
           <span aria-hidden="true">{initials(name)}</span>
         )}

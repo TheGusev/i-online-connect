@@ -33,6 +33,13 @@ export async function createSpace(draft: SpaceDraft): Promise<SpaceDetail> {
   return request<SpaceDetail>("/spaces", { method: "POST", body: draft });
 }
 
+/** Загрузка своей обложки для сообщества. Возвращает URL готового файла. */
+export async function uploadSpaceCover(file: File): Promise<{ url: string }> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  return request<{ url: string }>("/spaces/cover", { method: "POST", body: form });
+}
+
 export async function getSpaceMessages(spaceId: string): Promise<SpaceMessage[]> {
   return request<SpaceMessage[]>(`/spaces/${spaceId}/messages`);
 }

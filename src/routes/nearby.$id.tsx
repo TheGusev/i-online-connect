@@ -14,6 +14,7 @@ import {
   useUpdateListing,
 } from "@/features/nearby/hooks";
 import { categoryLabel, formatDate, formatPrice, priceApplies } from "@/features/nearby/labels";
+import { mediaUrl } from "@/api";
 
 export const Route = createFileRoute("/nearby/$id")({
   head: () => ({
@@ -179,7 +180,7 @@ function ListingPage() {
             {listing.photos.map((url) => (
               <li key={url}>
                 <img
-                  src={url}
+                  src={mediaUrl(url)}
                   alt={listing.title}
                   loading="lazy"
                   className="aspect-[4/3] w-full rounded-3xl border border-border object-cover"
