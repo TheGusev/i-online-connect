@@ -158,3 +158,21 @@ pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" 2026-08-17.du
 - Данные для удаления по запросу пользователя: `users`, `profiles`,
   `profile_media`, `profile_values`, `user_interests`, `messages`,
   `space_messages`, `verifications` (плюс файлы селфи).
+
+## Миграция 005_listings.sql — раздел «Рядом»
+
+| Таблица | Назначение |
+| --- | --- |
+| `user_needs (user_id, category)` | Что человек ищет/предлагает по жизни. Отдельно от `interests` — там хобби для знакомств |
+| `listings` | Объявление: категория, город (снимок на момент публикации), заголовок, описание, `price_minor`, `state`, `expires_at` |
+| `listing_media (listing_id, media_id)` | Фото объявления — ссылки на уже загруженные `profile_media` |
+| `listing_responses (listing_id, user_id, conversation_id)` | Отклик ↔ обычный диалог; отдельного чата объявлений нет |
+| `notifications (user_id, kind, payload, read_at)` | In-app уведомления; уникальный индекс по `(user_id, kind, payload->>'listingId')` защищает от дублей |
+
+Новые enum: `need_category` (`sale, service, leisure, travel, help`),
+`listing_state` (`active, closed, expired`). В `report_source` добавлено
+значение `listing` — модерация объявлений идёт через ту же очередь `reports`.
+В `notification_prefs` добавлена колонка `listings boolean DEFAULT true`.
+
+Ничего из знакомств (`matches`, `daily_feed`), онбординга, чата и верификации
+миграция не меняет: все изменения additive.

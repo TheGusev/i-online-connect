@@ -207,3 +207,49 @@ refresh-токены (выход на других устройствах). Уд
 > Масштабирование: комнаты живут в памяти процесса. При `instances > 1` в PM2
 > нужен общий канал (Redis pub/sub или `LISTEN/NOTIFY` в PostgreSQL), иначе
 > событие не дойдёт до клиента на другом процессе.
+
+## Совместимость версий (обязательное правило)
+
+Фронтенд у пользователя может быть старее backend: вкладку держат открытой
+часами. Поэтому:
+
+1. Изменения DTO — только additive: новые поля добавляются **опциональными**.
+2. Удаление/переименование поля — через deprecation: минимум один релиз поле
+   отдаётся под старым и новым именем, только потом старое убирается.
+3. Новые поля в теле запроса — optional, и без них эндпоинт сохраняет прежнее
+   поведение по умолчанию (например `expiresInDays` у `/api/listings`).
+4. Каждая сборка кладёт `dist/static/version.json` (`{ version, builtAt }`).
+   Открытые вкладки опрашивают его раз в 3 минуты и показывают баннер
+   «Вышло обновление» — перезагрузка только по клику пользователя.
+
+## Раздел «Рядом» — объявления (`/api/listings`)
+
+Все методы требуют авторизации. Город наследуется из профиля, доверие автора —
+тот же `trustLevel`, фото — id из `/api/media`, отклик открывает обычный диалог
+`conversations`, жалобы идут в общий `reports` (`source: "listing"`).
+
+| Метод | Путь | Описание |
+| --- | --- | --- |
+| GET | `/api/listings?city=&category=&q=&limit=&onlyMyNeeds=` | Поиск активных объявлений (по умолчанию — свой город) |
+| GET | `/api/listings/mine` | Свои объявления в любом статусе |
+| GET | `/api/listings/:id` | Карточка |
+| POST | `/api/listings` | `{ category, title, description?, priceMinor?, city?, mediaIds?, expiresInDays? }` |
+| PATCH | `/api/listings/:id` | Правка своего: `title?`, `description?`, `priceMinor?`, `state?`, `mediaIds?` |
+| POST | `/api/listings/:id/close` | Закрыть |
+| POST | `/api/listings/:id/respond` | `{ text? }` → `{ conversationId, created }` |
+| GET | `/api/listings/needs` | Свои категории жизненных задач |
+| PUT | `/api/listings/needs` | `{ categories: NeedCategory[] }` — заменяет набор |
+
+`NeedCategory`: `sale | service | leisure | travel | help`.
+
+## Уведомления (`/api/notifications`)
+
+| Метод | Путь | Описание |
+| --- | --- | --- |
+| GET | `/api/notifications?unread=&limit=` | `{ unreadCount, items }` |
+| POST | `/api/notifications/read` | `{ ids? }`; без `ids` — прочитать все |
+
+Реальное время: `wss://<host>/ws/notifications?token=<access>` →
+`{ type: "notification", notification }`. Если пользователь офлайн, запись
+остаётся в БД (придёт при следующем заходе) и уходит письмо, если включён
+тумблер `notification_prefs.listings`.

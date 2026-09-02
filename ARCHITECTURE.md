@@ -179,3 +179,29 @@ Backend (только на сервере, `chmod 600`): `DATABASE_URL`, `JWT_AC
 4. Клиентский вызов — в `src/api/endpoints/*`.
 5. Хук домена в `src/features/*/hooks.ts`, экран в `src/routes/*`.
 6. Документацию — в `API.md` и `DATABASE.md`.
+
+## Второй столп продукта: «Рядом»
+
+Знакомства и бытовые задачи используют одни примитивы, а не две параллельные
+подсистемы:
+
+```text
+город (profiles.city) ─┐
+доверие (trust_level) ─┼─► знакомства: matching → daily_feed → conversations
+медиа (profile_media) ─┤
+чат (conversations)   ─┼─► «Рядом»: user_needs → listings → notifications → conversations
+жалобы (reports)      ─┘
+```
+
+Подбор при публикации объявления: тот же город + совпадение категории в
+`user_needs` + включённый тумблер уведомлений + отсутствие блокировок.
+Доставка — WebSocket `/ws/notifications`, если человек онлайн, иначе запись в
+`notifications` плюс письмо.
+
+## Обновление фронтенда без поломки сессий
+
+`scripts/build-static.mjs` пишет `dist/static/version.json` (git-хэш или
+timestamp; можно задать `APP_VERSION`). `useAppVersion` в `__root.tsx`
+опрашивает файл раз в 3 минуты только при видимой вкладке и показывает
+`UpdateBanner`. Перезагрузка — исключительно по клику пользователя, чтобы не
+терять недописанное сообщение или заполненную форму.
