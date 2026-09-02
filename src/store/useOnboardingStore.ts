@@ -35,13 +35,28 @@ const emptyDraft: OnboardingDraft = {
   hideExactLocation: true,
 };
 
+/**
+ * Файлы держим отдельно от draft: draft уходит на сервер как JSON,
+ * а фото и видео загружаются отдельным multipart-запросом после регистрации.
+ */
+interface OnboardingFiles {
+  photo: File | null;
+  video: File | Blob | null;
+  videoName: string | null;
+}
+
+const emptyFiles: OnboardingFiles = { photo: null, video: null, videoName: null };
+
 interface OnboardingState {
   stepIndex: number;
   draft: OnboardingDraft;
+  files: OnboardingFiles;
   answers: ChatEntry[];
   setStepIndex: (index: number) => void;
   goBack: () => void;
   patchDraft: (patch: Partial<OnboardingDraft>) => void;
+  setPhotoFile: (file: File | null) => void;
+  setVideoFile: (file: File | Blob | null, filename: string | null) => void;
   setIntent: (intent: OnboardingIntent) => void;
   toggleInterest: (interest: string) => void;
   answerStep: (entry: ChatEntry) => void;
@@ -51,6 +66,7 @@ interface OnboardingState {
 export const useOnboardingStore = create<OnboardingState>((set) => ({
   stepIndex: 0,
   draft: emptyDraft,
+  files: emptyFiles,
   answers: [],
   setStepIndex: (stepIndex) => set({ stepIndex }),
   goBack: () =>
@@ -59,6 +75,16 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
       answers: state.answers.slice(0, Math.max(0, state.stepIndex - 1)),
     })),
   patchDraft: (patch) => set((state) => ({ draft: { ...state.draft, ...patch } })),
+  setPhotoFile: (file) =>
+    set((state) => ({
+      files: { ...state.files, photo: file },
+      draft: { ...state.draft, photoName: file ? file.name : null },
+    })),
+  setVideoFile: (file, filename) =>
+    set((state) => ({
+      files: { ...state.files, video: file, videoName: filename },
+      draft: { ...state.draft, videoName: filename, videoSkipped: file === null },
+    })),
   setIntent: (intent) => set((state) => ({ draft: { ...state.draft, intent } })),
   toggleInterest: (interest) =>
     set((state) => {
@@ -77,5 +103,6 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
       answers: [...state.answers.filter((item) => item.stepId !== entry.stepId), entry],
       stepIndex: Math.min(state.stepIndex + 1, ONBOARDING_STEPS.length - 1),
     })),
-  reset: () => set({ stepIndex: 0, draft: emptyDraft, answers: [] }),
+  reset: () => set({ stepIndex: 0, draft: emptyDraft, files: emptyFiles, answers: [] }),
 }));
+

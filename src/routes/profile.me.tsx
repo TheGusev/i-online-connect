@@ -10,6 +10,8 @@ import { AppShell } from "@/components/layout/AppShell";
 import { IntentCard, intentOptions } from "@/features/profile/components/IntentCard";
 import { InlineEditable, InlineTextField } from "@/features/profile/components/InlineEdit";
 import { MediaCarousel } from "@/features/profile/components/MediaCarousel";
+import { MediaManager } from "@/features/profile/components/MediaManager";
+
 import { PrivacySection } from "@/features/profile/components/PrivacySection";
 import { ProfileSection } from "@/features/profile/components/ProfileSection";
 import { TagEditor } from "@/features/profile/components/TagEditor";
@@ -72,6 +74,11 @@ function MyProfilePage() {
           <Reveal>
             <MediaCarousel media={data.media} name={data.name} />
           </Reveal>
+
+          <Reveal delay={40} className="mt-5">
+            <MediaManager media={data.media} />
+          </Reveal>
+
 
           <Reveal delay={80} as="header" className="mt-7">
             <InlineTextField

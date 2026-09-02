@@ -40,6 +40,26 @@ export function currentUserId(request: FastifyRequest): string {
   return request.userId;
 }
 
+/**
+ * userId для публичных эндпоинтов: если токен есть и он валиден — вернём id,
+ * иначе null. Ничего не бросает: гость тоже имеет право на запрос.
+ */
+export async function optionalUserId(request: FastifyRequest): Promise<string | null> {
+  const header = request.headers.authorization;
+  if (!header?.startsWith("Bearer ")) return null;
+  try {
+    const claims = await verifyAccessToken(header.slice("Bearer ".length).trim());
+    const user = await queryOne<{ id: string; deleted_at: Date | null }>(
+      "SELECT id, deleted_at FROM users WHERE id = $1",
+      [claims.sub],
+    );
+    return user && !user.deleted_at ? user.id : null;
+  } catch {
+    return null;
+  }
+}
+
+
 /** Участвует ли пользователь в диалоге. Вызывать перед любым чтением чата. */
 export async function assertConversationAccess(
   userId: string,

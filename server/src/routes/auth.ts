@@ -33,6 +33,9 @@ const credentials = z.object({
 
 const PROFILE_SELECT = `
   SELECT u.id, p.name, p.age, p.city, p.bio, p.trust_level, p.trust_score, u.last_seen_at,
+         (SELECT url FROM profile_media
+           WHERE user_id = u.id AND kind = 'photo'
+           ORDER BY is_primary DESC, position LIMIT 1) AS avatar_url,
          ARRAY(
            SELECT i.label FROM user_interests ui
              JOIN interests i ON i.id = ui.interest_id
@@ -42,6 +45,7 @@ const PROFILE_SELECT = `
     JOIN profiles p ON p.user_id = u.id
    WHERE u.id = $1 AND u.deleted_at IS NULL
 `;
+
 
 export async function authRoutes(app: FastifyInstance) {
   function setRefreshCookie(reply: FastifyReply, token: string) {

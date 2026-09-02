@@ -3,7 +3,7 @@ import { Bell } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { TrustLevel } from "@/api";
-import { Avatar } from "@/components/ds";
+import { Avatar, Button } from "@/components/ds";
 import { useSessionStore } from "@/store/useSessionStore";
 
 const trustRing: Record<TrustLevel, string> = {
@@ -13,12 +13,18 @@ const trustRing: Record<TrustLevel, string> = {
   ambassador: "ring-primary",
 };
 
-/** Верхняя панель приложения: логотип, уведомления, аватар с уровнем доверия. */
-export function TopBar({ notifications = 3 }: { notifications?: number }) {
+/**
+ * Верхняя панель. Гостю не показываем ни аватар, ни колокольчик:
+ * пока нет аккаунта — нечему быть «непрочитанным».
+ */
+export function TopBar({ notifications = 0 }: { notifications?: number }) {
   const { t } = useTranslation();
   const user = useSessionStore((state) => state.user);
+  const status = useSessionStore((state) => state.status);
+  const isAuthed = status === "authed" && user !== null;
+
   const name = user?.name ?? t("app.you");
-  const level: TrustLevel = user?.trustLevel ?? "verified";
+  const level: TrustLevel = user?.trustLevel ?? "new";
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
@@ -27,32 +33,40 @@ export function TopBar({ notifications = 3 }: { notifications?: number }) {
           {t("app.name")}
         </Link>
         <span className="hidden text-sm text-muted-foreground lg:block">{t("app.tagline")}</span>
-        <div className="flex items-center gap-3">
-          <Link
-            to="/settings"
-            aria-label={t("app.notifications")}
-            className="relative grid size-10 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            <Bell className="size-5" aria-hidden="true" />
-            {notifications > 0 ? (
-              <span className="absolute right-1.5 top-1.5 grid size-4 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
-                {notifications}
-              </span>
-            ) : null}
-          </Link>
-          <Link
-            to="/profile/me"
-            aria-label={t("nav.profile")}
-            className={`rounded-full ring-2 ring-offset-2 ring-offset-background transition-transform hover:scale-[1.03] ${trustRing[level]}`}
-          >
-            <Avatar
-              name={name}
-              size="sm"
-              verified={level !== "new"}
-              online={level === "new"}
-            />
-          </Link>
-        </div>
+
+        {isAuthed ? (
+          <div className="flex items-center gap-3">
+            <Link
+              to="/settings"
+              aria-label={t("app.notifications")}
+              className="relative grid size-10 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <Bell className="size-5" aria-hidden="true" />
+              {notifications > 0 ? (
+                <span className="absolute right-1.5 top-1.5 grid size-4 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                  {notifications}
+                </span>
+              ) : null}
+            </Link>
+            <Link
+              to="/profile/me"
+              aria-label={t("nav.profile")}
+              className={`rounded-full ring-2 ring-offset-2 ring-offset-background transition-transform hover:scale-[1.03] ${trustRing[level]}`}
+            >
+              <Avatar
+                name={name}
+                src={user.avatarUrl ?? null}
+                size="sm"
+                verified={level !== "new"}
+                online={user.online}
+              />
+            </Link>
+          </div>
+        ) : (
+          <Button size="sm" asChild>
+            <Link to="/onboarding">{t("landing.hero.cta")}</Link>
+          </Button>
+        )}
       </div>
     </header>
   );

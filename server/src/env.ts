@@ -28,6 +28,17 @@ const schema = z.object({
   ACCOUNT_RESTORE_DAYS: z.coerce.number().int().positive().default(14),
   DAILY_MATCH_LIMIT: z.coerce.number().int().positive().default(5),
 
+  // Почта: SMTP собственного сервера. Пусто — письма не уходят, код
+  // подтверждения пишется в лог (удобно для локальной разработки).
+  SMTP_HOST: z.string().default(""),
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().default(""),
+  SMTP_PASSWORD: z.string().default(""),
+  MAIL_FROM: z.string().default("Я Онлайн <noreply@localhost>"),
+  // Куда приходят обращения из формы поддержки.
+  SUPPORT_EMAIL: z.string().default(""),
+
+
   // Автосверка лица на верификации. Без AI_API_KEY заявки уходят в ручную
   // очередь модерации — сервер при этом работает как обычно.
   AI_API_URL: z.string().default("https://ai.gateway.lovable.dev/v1"),

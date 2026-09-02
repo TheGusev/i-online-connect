@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Sparkles } from "lucide-react";
 
-import { authApi, onboardingApi, type OnboardingIntent, type User } from "@/api";
+import { authApi, mediaApi, onboardingApi, type OnboardingIntent, type User } from "@/api";
 import { Button, Card, Input, TextArea } from "@/components/ds";
 import { AiBubble, TypingBubble, UserBubble } from "@/features/onboarding/ChatBubble";
 import { InterestsPicker } from "@/features/onboarding/InterestsPicker";
@@ -39,8 +39,20 @@ const INTENTS: OnboardingIntent[] = ["serious", "friends", "projects", "unsure"]
 function OnboardingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { stepIndex, draft, answers, patchDraft, toggleInterest, answerStep, goBack, reset } =
-    useOnboardingStore();
+  const {
+    stepIndex,
+    draft,
+    files,
+    answers,
+    patchDraft,
+    setPhotoFile,
+    setVideoFile,
+    toggleInterest,
+    answerStep,
+    goBack,
+    reset,
+  } = useOnboardingStore();
+
 
   const [typing, setTyping] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,24 +79,35 @@ function OnboardingPage() {
     bottomRef.current?.scrollIntoView({ block: "nearest" });
   }, [stepIndex]);
 
-  // Финальный шаг: отправляем весь черновик одним объектом через API-клиент.
+  // Финальный шаг: сохраняем черновик, затем загружаем фото и видео —
+  // после загрузки перезапрашиваем профиль, чтобы аватар появился сразу.
   useEffect(() => {
     if (stepId !== "summary" || typing || submitState !== "idle") return;
     setSubmitState("loading");
-    onboardingApi
-      .submitOnboarding(draft)
-      .then((user) => {
-        setUser(user);
-        setResult(user);
-        setSubmitState("ready");
-      })
-      .catch((cause: unknown) => {
-        const message = cause instanceof Error ? cause.message : String(cause);
-        console.error("[onboarding] не удалось сохранить профиль:", message);
-        setSubmitError(message);
-        setSubmitState("error");
-      });
-  }, [stepId, typing, submitState, draft]);
+    (async () => {
+      let user = await onboardingApi.submitOnboarding(draft);
+
+      if (files.photo) {
+        await mediaApi.uploadMedia(files.photo, files.photo.name);
+      }
+      if (files.video) {
+        await mediaApi.uploadMedia(files.video, files.videoName ?? "video-intro.webm");
+      }
+      if (files.photo || files.video) {
+        user = await authApi.getCurrentUser();
+      }
+
+      setUser(user);
+      setResult(user);
+      setSubmitState("ready");
+    })().catch((cause: unknown) => {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      console.error("[onboarding] не удалось сохранить профиль:", message);
+      setSubmitError(message);
+      setSubmitState("error");
+    });
+  }, [stepId, typing, submitState, draft, files]);
+
 
   const retry = () => {
     setSubmitState("idle");
@@ -206,10 +229,11 @@ function OnboardingPage() {
               <MediaStep
                 photoName={draft.photoName}
                 videoName={draft.videoName}
-                onPhoto={(photoName) => patchDraft({ photoName })}
-                onVideo={(videoName) => patchDraft({ videoName, videoSkipped: false })}
+                onPhoto={setPhotoFile}
+                onVideo={(file, filename) => setVideoFile(file, filename)}
                 onSkipVideo={() => {
-                  patchDraft({ videoName: null, videoSkipped: true });
+                  setVideoFile(null, null);
+
                   answerStep({
                     stepId: "media",
                     answer: draft.photoName
@@ -330,7 +354,7 @@ function OnboardingPage() {
                 {submitState === "ready" && result && (
                   <div className="space-y-5 animate-in fade-in duration-700">
                     <p className="text-sm text-muted-foreground">{t("onboarding.s9.ready")}</p>
-                    <ProfilePreview draft={draft} />
+                    <ProfilePreview draft={draft} photoUrl={result.avatarUrl ?? null} />
                     <div className="flex flex-wrap gap-3">
                       <Button
                         size="lg"

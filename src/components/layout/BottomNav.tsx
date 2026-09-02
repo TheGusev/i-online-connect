@@ -1,10 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
+import { useSessionStore } from "@/store/useSessionStore";
+
 import { navItems } from "./nav-items";
 
 export function BottomNav() {
   const { t } = useTranslation();
+  // Гостю приватная навигация не нужна: за ней всё равно стоит вход.
+  const authed = useSessionStore((state) => state.status === "authed");
+  if (!authed) return null;
+
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card/95 backdrop-blur lg:hidden">

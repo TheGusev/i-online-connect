@@ -10,7 +10,10 @@ export interface User {
   trustLevel: TrustLevel;
   trustScore: number;
   online: boolean;
+  /** Главное фото профиля: аватар в шапке и в списках. */
+  avatarUrl?: string;
 }
+
 
 export interface MatchCandidate extends User {
   compatibility: number;
@@ -197,7 +200,10 @@ export interface ProfileMedia {
   id: string;
   kind: "photo" | "video";
   url: string;
+  /** Главное фото: аватар профиля и основа для видео-верификации. */
+  isPrimary?: boolean;
 }
+
 
 /** Расшифровка бейджа доверия — то, что видно другим людям (без баллов). */
 export interface TrustDetails {
