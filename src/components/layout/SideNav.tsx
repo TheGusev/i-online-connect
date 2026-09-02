@@ -2,10 +2,16 @@ import { Link } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { useSessionStore } from "@/store/useSessionStore";
+
 import { navItems } from "./nav-items";
 
 export function SideNav() {
   const { t } = useTranslation();
+  // Гостю приватная навигация не нужна: за ней всё равно стоит вход.
+  const authed = useSessionStore((state) => state.status === "authed");
+  if (!authed) return null;
+
 
   return (
     <aside className="hidden w-64 shrink-0 border-r border-border lg:block">
