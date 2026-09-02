@@ -79,24 +79,35 @@ function OnboardingPage() {
     bottomRef.current?.scrollIntoView({ block: "nearest" });
   }, [stepIndex]);
 
-  // Финальный шаг: отправляем весь черновик одним объектом через API-клиент.
+  // Финальный шаг: сохраняем черновик, затем загружаем фото и видео —
+  // после загрузки перезапрашиваем профиль, чтобы аватар появился сразу.
   useEffect(() => {
     if (stepId !== "summary" || typing || submitState !== "idle") return;
     setSubmitState("loading");
-    onboardingApi
-      .submitOnboarding(draft)
-      .then((user) => {
-        setUser(user);
-        setResult(user);
-        setSubmitState("ready");
-      })
-      .catch((cause: unknown) => {
-        const message = cause instanceof Error ? cause.message : String(cause);
-        console.error("[onboarding] не удалось сохранить профиль:", message);
-        setSubmitError(message);
-        setSubmitState("error");
-      });
-  }, [stepId, typing, submitState, draft]);
+    (async () => {
+      let user = await onboardingApi.submitOnboarding(draft);
+
+      if (files.photo) {
+        await mediaApi.uploadMedia(files.photo, files.photo.name);
+      }
+      if (files.video) {
+        await mediaApi.uploadMedia(files.video, files.videoName ?? "video-intro.webm");
+      }
+      if (files.photo || files.video) {
+        user = await authApi.getCurrentUser();
+      }
+
+      setUser(user);
+      setResult(user);
+      setSubmitState("ready");
+    })().catch((cause: unknown) => {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      console.error("[onboarding] не удалось сохранить профиль:", message);
+      setSubmitError(message);
+      setSubmitState("error");
+    });
+  }, [stepId, typing, submitState, draft, files]);
+
 
   const retry = () => {
     setSubmitState("idle");
