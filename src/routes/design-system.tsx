@@ -97,7 +97,10 @@ function DesignSystemPage() {
           </p>
         </header>
 
-        <Section title="Цвета" description="Тёплая база, коралловый акцент, зелёный маркер доверия.">
+        <Section
+          title="Цвета"
+          description="Тёплая база, коралловый акцент, зелёный маркер доверия."
+        >
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {swatches.map((swatch) => (
               <div
@@ -110,20 +113,26 @@ function DesignSystemPage() {
           </div>
         </Section>
 
-        <Section title="Типографика" description="Manrope, крупные заголовки, свободный line-height.">
+        <Section
+          title="Типографика"
+          description="Manrope, крупные заголовки, свободный line-height."
+        >
           <div className="space-y-3 rounded-3xl border border-border bg-card p-5">
             <p className="text-4xl font-extrabold">Найди настоящих людей</p>
             <p className="text-2xl font-bold">Заголовок раздела</p>
             <p className="text-lg font-semibold">Подзаголовок карточки</p>
             <p className="max-w-2xl text-sm text-muted-foreground">
-              Основной текст профиля: люблю длинные прогулки по набережной, готовлю неприлично
-              много пасты и ищу человека, с которым можно молчать без неловкости. AI подсказывает
+              Основной текст профиля: люблю длинные прогулки по набережной, готовлю неприлично много
+              пасты и ищу человека, с которым можно молчать без неловкости. AI подсказывает
               совпадения, но общение — всегда живое.
             </p>
           </div>
         </Section>
 
-        <Section title="Кнопки" description="primary, secondary, ghost, danger + размеры и состояния.">
+        <Section
+          title="Кнопки"
+          description="primary, secondary, ghost, danger + размеры и состояния."
+        >
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="primary">Познакомиться</Button>
             <Button variant="secondary">Позже</Button>
@@ -156,7 +165,10 @@ function DesignSystemPage() {
           </div>
         </Section>
 
-        <Section title="Бейджи доверия" description="Три уровня: Новый, Подтверждён, Проверенный участник.">
+        <Section
+          title="Бейджи доверия"
+          description="Три уровня: Новый, Подтверждён, Проверенный участник."
+        >
           <div className="flex flex-wrap items-center gap-3">
             <TrustBadge level="new" />
             <TrustBadge level="confirmed" />
@@ -298,7 +310,10 @@ function DesignSystemPage() {
           </div>
         </Section>
 
-        <Section title="Модальные окна" description="Modal для desktop, Bottom Sheet для мобильных.">
+        <Section
+          title="Модальные окна"
+          description="Modal для desktop, Bottom Sheet для мобильных."
+        >
           <div className="flex flex-wrap gap-3">
             <Button onClick={() => setModalOpen(true)}>Открыть Modal</Button>
             <Button variant="secondary" onClick={() => setSheetOpen(true)}>

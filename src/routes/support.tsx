@@ -96,7 +96,11 @@ function SupportPage() {
 
             <div>
               <p className="text-sm font-medium">Тема обращения</p>
-              <div role="radiogroup" aria-label="Тема обращения" className="mt-2 flex flex-wrap gap-2">
+              <div
+                role="radiogroup"
+                aria-label="Тема обращения"
+                className="mt-2 flex flex-wrap gap-2"
+              >
                 {topics.map((item) => {
                   const active = topic === item.id;
                   return (

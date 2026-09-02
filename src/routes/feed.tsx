@@ -83,9 +83,7 @@ function FeedPage() {
         </div>
       ) : null}
 
-      {!isPending && matches.length === 0 ? (
-        <FeedEmptyState nextRefreshAt={nextRefreshAt} />
-      ) : null}
+      {!isPending && matches.length === 0 ? <FeedEmptyState nextRefreshAt={nextRefreshAt} /> : null}
 
       <ul className="space-y-8">
         {matches.map((match, index) => (

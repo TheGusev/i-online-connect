@@ -3,7 +3,11 @@ import { Check, Sparkles } from "lucide-react";
 import type { SubscriptionInfo } from "@/api";
 import { Button, Card } from "@/components/ds";
 
-const dateFormat = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+const dateFormat = new Intl.DateTimeFormat("ru-RU", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
 
 /** Тариф: текущий план и превью будущих премиум-возможностей (без оплаты). */
 export function SubscriptionSection({ subscription }: { subscription: SubscriptionInfo }) {
@@ -53,7 +57,9 @@ export function SubscriptionSection({ subscription }: { subscription: Subscripti
           <Button disabled title="Оплата появится позже">
             Оформить — скоро
           </Button>
-          <p className="text-xs text-muted-foreground">Кнопка неактивна: платежи ещё не подключены.</p>
+          <p className="text-xs text-muted-foreground">
+            Кнопка неактивна: платежи ещё не подключены.
+          </p>
         </div>
       </Card>
     </div>

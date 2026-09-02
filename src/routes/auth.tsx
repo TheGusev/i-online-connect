@@ -105,7 +105,10 @@ function AuthPage() {
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {t("auth.noAccount")}{" "}
-          <Link to="/onboarding" className="font-semibold text-primary underline-offset-4 hover:underline">
+          <Link
+            to="/onboarding"
+            className="font-semibold text-primary underline-offset-4 hover:underline"
+          >
             {t("auth.start")}
           </Link>
         </p>

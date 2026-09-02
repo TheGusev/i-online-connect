@@ -29,8 +29,7 @@ export const dsButtonVariants = cva(
 );
 
 export interface ButtonProps
-  extends ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof dsButtonVariants> {
+  extends ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof dsButtonVariants> {
   asChild?: boolean;
   loading?: boolean;
 }

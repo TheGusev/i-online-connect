@@ -4,7 +4,13 @@ import { useTranslation } from "react-i18next";
 import { Avatar, Chip, TrustBadge } from "@/components/ds";
 import type { OnboardingDraft } from "@/api";
 
-export function ProfilePreview({ draft, photoUrl }: { draft: OnboardingDraft; photoUrl?: string | null }) {
+export function ProfilePreview({
+  draft,
+  photoUrl,
+}: {
+  draft: OnboardingDraft;
+  photoUrl?: string | null;
+}) {
   const { t } = useTranslation();
   const hasVideo = Boolean(draft.videoName);
 

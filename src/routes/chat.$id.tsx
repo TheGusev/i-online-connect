@@ -148,7 +148,9 @@ function ConversationPage() {
           </div>
         ) : (
           <ul className="flex-1 space-y-3">
-            {messages?.map((message) => <MessageBubble key={message.id} message={message} />)}
+            {messages?.map((message) => (
+              <MessageBubble key={message.id} message={message} />
+            ))}
             {typing ? (
               <li className="flex justify-start">
                 <span className="rounded-3xl rounded-bl-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">

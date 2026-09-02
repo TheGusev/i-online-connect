@@ -17,8 +17,7 @@ const cardVariants = cva("rounded-3xl transition-shadow duration-200", {
 });
 
 export interface CardProps
-  extends HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof cardVariants> {}
+  extends HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {}
 
 export function Card({ className, variant, interactive, ...props }: CardProps) {
   return <div className={cn(cardVariants({ variant, interactive }), className)} {...props} />;
@@ -40,8 +39,12 @@ export function CardFooter({ className, ...props }: HTMLAttributes<HTMLDivElemen
   return <div className={cn("mt-4 flex flex-wrap items-center gap-2", className)} {...props} />;
 }
 
-export function CardHeaderRow({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn("flex items-start justify-between gap-3", className)}>{children}</div>
-  );
+export function CardHeaderRow({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <div className={cn("flex items-start justify-between gap-3", className)}>{children}</div>;
 }
