@@ -325,7 +325,7 @@ export async function listingRoutes(app: FastifyInstance) {
 
 
   // ── Правка / закрытие ────────────────────────────────────────────────────
-  app.patch<{ Params: { id: string } }>("/:id", async (request) => {
+  app.patch<{ Params: { id: string } }>("/:id", { config: PATCH_LIMIT }, async (request) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
     await assertOwnListing(id, userId);
