@@ -22,6 +22,7 @@ import { query, queryOne, transaction } from "../db.ts";
 import { badRequest, forbidden, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { notifyListingMatches } from "../listings/notify.ts";
+import { publishUserEvent } from "../ws/notifications.ts";
 
 const NEED_CATEGORIES = ["sale", "service", "leisure", "travel", "help"] as const;
 const categorySchema = z.enum(NEED_CATEGORIES);
@@ -389,15 +390,33 @@ export async function listingRoutes(app: FastifyInstance) {
       return newId;
     });
 
-    // Автору — уведомление об отклике (или письмо, если он офлайн).
-    await query(
-      `INSERT INTO notifications (user_id, kind, payload)
-       VALUES ($1, 'listing_response', $2::jsonb)`,
-      [
-        listing.author_id,
-        JSON.stringify({ listingId: id, conversationId, title: listing.title }),
-      ],
-    ).catch((error) => console.error("[listings] уведомление об отклике", error));
+    // Автору — уведомление об отклике. ON CONFLICT: уникальный индекс по
+    // (user_id, kind, listingId) не должен ломать сам отклик.
+    try {
+      const payload = { listingId: id, conversationId, title: listing.title };
+      const rows = await query<{ id: string; created_at: Date }>(
+        `INSERT INTO notifications (user_id, kind, payload)
+         VALUES ($1, 'listing_response', $2::jsonb)
+         ON CONFLICT DO NOTHING
+         RETURNING id, created_at`,
+        [listing.author_id, JSON.stringify(payload)],
+      );
+      const created = rows[0];
+      if (created) {
+        publishUserEvent(listing.author_id, {
+          type: "notification",
+          notification: {
+            id: created.id,
+            kind: "listing_response",
+            payload,
+            readAt: null,
+            createdAt: created.created_at.toISOString(),
+          },
+        });
+      }
+    } catch (error) {
+      console.error("[listings] уведомление об отклике", error);
+    }
 
     return { conversationId, created: true as const };
   });
