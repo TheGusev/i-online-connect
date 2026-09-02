@@ -5,12 +5,12 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-const { pool, query, queryOne } = await import("./src/db.ts");
-const { hashPassword } = await import("./src/auth/passwords.ts");
-const { signAccessToken } = await import("./src/auth/tokens.ts");
-const { adminRoutes } = await import("./src/routes/admin.ts");
-const { listingRoutes } = await import("./src/routes/listings.ts");
-const { registerErrorHandler } = await import("./src/http.ts");
+const { pool, query, queryOne } = await import("../src/db.ts");
+const { hashPassword } = await import("../src/auth/passwords.ts");
+const { signAccessToken } = await import("../src/auth/tokens.ts");
+const { adminRoutes } = await import("../src/routes/admin.ts");
+const { listingRoutes } = await import("../src/routes/listings.ts");
+const { registerErrorHandler } = await import("../src/http.ts");
 const Fastify = (await import("fastify")).default;
 
 const app = Fastify();
