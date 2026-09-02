@@ -71,14 +71,23 @@ export function AccountSection({ account }: { account: AccountSettings }) {
           label="Email"
           value={account.email}
           verified={account.emailVerified}
+          action={
+            account.emailVerified ? null : <ContactConfirm channel="email" value={account.email} />
+          }
         />
         <ContactRow
           icon={<Phone className="size-4" aria-hidden="true" />}
           label="Телефон"
           value={account.phone}
           verified={account.phoneVerified}
+          action={
+            account.phoneVerified ? null : (
+              <ContactConfirm channel="phone" value={account.phone} disabled={!account.phone} />
+            )
+          }
         />
       </Card>
+
 
       <Card className="p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
