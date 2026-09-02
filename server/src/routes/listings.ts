@@ -365,7 +365,10 @@ export async function listingRoutes(app: FastifyInstance) {
   });
 
   // ── Отклик: открываем обычный диалог ─────────────────────────────────────
-  app.post<{ Params: { id: string } }>("/:id/respond", async (request) => {
+  app.post<{ Params: { id: string } }>(
+    "/:id/respond",
+    { config: RESPOND_LIMIT },
+    async (request) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
     const body = z
