@@ -9,4 +9,6 @@ export * as onboardingApi from "./endpoints/onboarding";
 export * as trustApi from "./endpoints/trust";
 export * as settingsApi from "./endpoints/settings";
 export * as mediaApi from "./endpoints/media";
-
+export * as confirmApi from "./endpoints/confirm";
+export * as supportApi from "./endpoints/support";
+export type { SupportTopic, SupportRequestPayload } from "./endpoints/support";

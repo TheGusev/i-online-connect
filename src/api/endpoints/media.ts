@@ -11,6 +11,11 @@ export async function uploadMedia(file: File | Blob, filename = "upload"): Promi
   return request<ProfileMedia>("/media", { method: "POST", body: form });
 }
 
+/** Сделать фото главным: оно становится аватаром и основой верификации. */
+export async function setPrimaryMedia(id: string): Promise<ProfileMedia> {
+  return request<ProfileMedia>(`/media/${id}/primary`, { method: "PATCH" });
+}
+
 /** Удаление своего файла из профиля. */
 export async function deleteMedia(id: string): Promise<void> {
   await request<void>(`/media/${id}`, { method: "DELETE" });
