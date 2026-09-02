@@ -15,9 +15,11 @@ import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import Fastify from "fastify";
 
+import { rateLimitSubject } from "./auth/tokens.ts";
 import { healthcheck, pool } from "./db.ts";
 import { env } from "./env.ts";
 import { registerErrorHandler } from "./http.ts";
+
 import { authRoutes } from "./routes/auth.ts";
 import { chatRoutes } from "./routes/chat.ts";
 import { confirmRoutes } from "./routes/confirm.ts";
