@@ -8,7 +8,7 @@
  * Адрес не захардкожен: REDIS_HOST / REDIS_PORT / REDIS_PASSWORD / REDIS_DB.
  * Пока REDIS_HOST пуст — работаем на счётчиках в памяти и предупреждаем в лог.
  */
-import Redis from "ioredis";
+import { Redis } from "ioredis";
 import type { FastifyBaseLogger } from "fastify";
 
 import { env } from "../env.ts";
