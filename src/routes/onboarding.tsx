@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, Sparkles } from "lucide-react";
 
-import { authApi, onboardingApi, type OnboardingIntent, type User } from "@/api";
+import { authApi, mediaApi, onboardingApi, type OnboardingIntent, type User } from "@/api";
 import { Button, Card, Input, TextArea } from "@/components/ds";
 import { AiBubble, TypingBubble, UserBubble } from "@/features/onboarding/ChatBubble";
 import { InterestsPicker } from "@/features/onboarding/InterestsPicker";
