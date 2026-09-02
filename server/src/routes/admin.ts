@@ -43,7 +43,10 @@ export async function adminRoutes(app: FastifyInstance) {
   // Кто я: админка вызывает это при загрузке, чтобы проверить, жив ли токен.
   app.get("/session", async (request) => {
     const admin = await queryOne<{ id: string; email: string; display_name: string | null }>(
-      "SELECT id, email, display_name FROM users WHERE id = $1",
+      `SELECT u.id, u.email, p.name AS display_name
+         FROM users u
+         LEFT JOIN profiles p ON p.user_id = u.id
+        WHERE u.id = $1`,
       [currentAdminId(request)],
     );
     if (!admin) throw notFound("Администратор не найден");
