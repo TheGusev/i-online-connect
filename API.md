@@ -268,3 +268,48 @@ refresh-токены (выход на других устройствах). Уд
 `{ type: "notification", notification }`. Если пользователь офлайн, запись
 остаётся в БД (придёт при следующем заходе) и уходит письмо, если включён
 тумблер `notification_prefs.listings`.
+
+## Админка (`/api/admin/*`)
+
+Доступ: `Authorization: Bearer <access>` **и** `users.role = 'admin'`. Обычный
+пользователь получает `403` без каких-либо подсказок о существовании раздела,
+гость — `401`. Роль выдаётся только на сервере командой
+`npm run grant-admin -- admin@example.com` (в `server/`), публичная регистрация
+роль не выдаёт никогда.
+
+DTO-правило: наружу не уходят `password_hash`, `token_hash`, коды подтверждения
+и пути к файлам селфи/видео верификации — даже администратору.
+
+| Метод | Путь | Описание |
+| --- | --- | --- |
+| GET | `/api/admin/users?q=&verified=yes\|no&blocked=yes\|no&page=&limit=` | Список: поиск по email/имени, пагинация (`limit` ≤ 100) |
+| GET | `/api/admin/users/:id` | Карточка: профиль, медиа, статус верификации, 20 последних `login_attempts`, счётчики жалоб, число активных сессий |
+| POST | `/api/admin/users/:id/block` | `{ reason }` — блокировка + отзыв всех сессий |
+| POST | `/api/admin/users/:id/unblock` | Снять блокировку |
+| DELETE | `/api/admin/users/:id` | `{ reason? }` — мягкое удаление с окном восстановления |
+| GET | `/api/admin/reports?state=` | Очередь жалоб |
+| PATCH | `/api/admin/reports/:id` | `{ state, note? }` — решение модератора |
+| GET | `/api/admin/verifications?status=pending` | Очередь видео-верификаций |
+| PATCH | `/api/admin/verifications/:id` | `{ status: verified\|rejected, note? }` — синхронизирует `video_verified` и уровень доверия |
+| GET | `/api/admin/support?status=` | Обращения из формы поддержки |
+| PATCH | `/api/admin/support/:id` | `{ status?, reply? }` — ответ уходит письмом через SMTP |
+| GET | `/api/admin/listings?state=&q=` | Объявления «Рядом» |
+| PATCH | `/api/admin/listings/:id` | `{ state: closed\|active, note? }` — снять с публикации / вернуть |
+| GET | `/api/admin/spaces?q=` | Сообщества с числом участников и будущих событий |
+| DELETE | `/api/admin/spaces/:id` | `{ reason? }` — удаление |
+| GET | `/api/admin/stats?days=30` | Регистрации по дням, активные сессии, матчи/сообщения/объявления за период, размеры очередей |
+| GET | `/api/admin/actions` | Журнал действий администраторов |
+
+Списки отвечают в одной форме: `{ items, total, page, limit, hasMore }`.
+
+### Безопасность админки
+
+- Отдельный лимит: 60 запросов в минуту на аккаунт; изменяющие действия —
+  30 в час; `DELETE /users/:id` и `DELETE /spaces/:id` — 10 в час.
+- Каждое изменяющее действие пишется в таблицу `admin_actions`
+  (кто, что, над каким объектом, когда, с какого IP).
+- Каждый запрос к `/api/admin/*` пишется строкой JSON в отдельный файл
+  `ADMIN_LOG_FILE` (по умолчанию `logs/admin-audit.log`): время, метод, путь,
+  статус, `userId`, IP, длительность. Тела запросов и заголовки не логируются.
+- Блокировка действует мгновенно: `requireAuth` отдаёт `403` заблокированному
+  аккаунту, а его refresh-токены отозваны.
