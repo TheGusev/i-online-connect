@@ -87,7 +87,9 @@ function ProfileViewPage() {
               </Reveal>
 
               <ProfileSection title="О себе" delay={60}>
-                <p className="max-w-2xl text-base leading-loose text-muted-foreground">{data.bio}</p>
+                <p className="max-w-2xl text-base leading-loose text-muted-foreground">
+                  {data.bio}
+                </p>
               </ProfileSection>
 
               <ProfileSection title="Ищу" delay={60}>
