@@ -68,11 +68,10 @@ function AboutPage() {
 
       <Reveal>
         <Card className="p-7">
-          <WaveHeading
-            as="h2"
-            text="Мы делаем знакомства спокойными и настоящими"
-            className="text-2xl font-extrabold tracking-tight sm:text-3xl"
-          />
+          <WaveHeading as="h2" className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+            Мы делаем знакомства спокойными и настоящими
+          </WaveHeading>
+
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             Идея проекта простая: убрать всё, что превращает знакомства в конвейер. Никаких
             бесконечных свайпов и анонимных профилей без подтверждения. Вместо этого — небольшая
