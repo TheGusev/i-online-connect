@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Compass, Plus, Users } from "lucide-react";
@@ -55,6 +56,10 @@ function SpacesPage() {
     createSpace.mutate(draft, {
       onSuccess: (space) => {
         void navigate({ to: "/spaces/$id", params: { id: space.id } });
+      },
+      // Раньше ошибка сервера уходила в пустоту: форма просто «не работала».
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : "Не удалось создать пространство");
       },
     });
   };

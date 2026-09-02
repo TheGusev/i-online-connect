@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { mediaApi, type ProfileMedia } from "@/api";
 import { Card } from "@/components/ds";
+import { mediaUrl } from "@/api";
 
 /**
  * Управление своими фото и видео: загрузка, выбор главного, удаление.
@@ -99,7 +100,7 @@ export function MediaManager({ media }: { media: ProfileMedia[] }) {
                   <Play className="size-6" aria-hidden="true" />
                 </div>
               ) : (
-                <img src={item.url} alt="" className="aspect-square w-full object-cover" />
+                <img src={mediaUrl(item.url)} alt="" className="aspect-square w-full object-cover" />
               )}
 
               {item.isPrimary ? (

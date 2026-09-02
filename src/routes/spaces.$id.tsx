@@ -18,6 +18,7 @@ import {
   useSpaceMessages,
 } from "@/features/spaces/hooks";
 import { cadenceLabels, categoryLabels, formatLabels } from "@/features/spaces/labels";
+import { mediaUrl } from "@/api";
 
 export const Route = createFileRoute("/spaces/$id")({
   head: () => ({
@@ -84,7 +85,7 @@ function SpaceDetailPage() {
       <Reveal className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
         <div className="relative aspect-[16/6]">
           <img
-            src={space.coverUrl}
+            src={mediaUrl(space.coverUrl)}
             alt={space.title}
             width={1024}
             height={640}

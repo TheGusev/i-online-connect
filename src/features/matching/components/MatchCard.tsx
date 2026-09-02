@@ -6,6 +6,7 @@ import type { DailyMatch } from "@/api";
 import { Button, Chip } from "@/components/ds";
 import { TrustBadge } from "@/components/ds";
 import { badgeLevel } from "@/features/chat/trust";
+import { mediaUrl } from "@/api";
 
 export function MatchCard({
   match,
@@ -27,7 +28,7 @@ export function MatchCard({
     <article className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft transition-shadow duration-300 hover:shadow-lift">
       <div className="relative">
         <img
-          src={match.photoUrl}
+          src={mediaUrl(match.photoUrl)}
           alt={match.name}
           width={640}
           height={800}

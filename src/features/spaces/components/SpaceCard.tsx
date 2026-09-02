@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { BadgeCheck, CalendarDays, MapPin, Users } from "lucide-react";
 
-import type { Space } from "@/api";
+import { mediaUrl, type Space } from "@/api";
 import { Chip } from "@/components/ds";
 import {
   cadenceLabels,
@@ -19,7 +19,7 @@ export function SpaceCard({ space }: { space: Space }) {
     >
       <div className="relative aspect-[16/7] overflow-hidden bg-muted">
         <img
-          src={space.coverUrl}
+          src={mediaUrl(space.coverUrl)}
           alt={space.title}
           loading="lazy"
           width={1024}

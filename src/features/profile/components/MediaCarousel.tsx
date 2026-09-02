@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import type { ProfileMedia } from "@/api";
 import { cn } from "@/lib/utils";
+import { mediaUrl } from "@/api";
 
 /** Крупный блок медиа с прокруткой нескольких фото/видео. */
 export function MediaCarousel({
@@ -26,7 +27,7 @@ export function MediaCarousel({
     <div className={cn("relative overflow-hidden rounded-[2rem] bg-secondary", className)}>
       <div className="aspect-[4/5] w-full sm:aspect-[16/10]">
         <img
-          src={current.url}
+          src={mediaUrl(current.url)}
           alt={`${name} — медиа ${index + 1} из ${total}`}
           className="size-full object-cover transition-opacity duration-500"
         />

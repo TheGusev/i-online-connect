@@ -16,8 +16,29 @@ import { z } from "zod";
 import { query, queryOne, transaction } from "../db.ts";
 import { badRequest, forbidden, notFound } from "../http.ts";
 import { assertSpaceMembership, currentUserId, requireAuth } from "../auth/middleware.ts";
+import {
+  MAX_PHOTO_BYTES,
+  assertSize,
+  detectMediaType,
+  saveProfileFile,
+} from "../media/store.ts";
 
 const idParam = z.object({ id: z.string().uuid() });
+
+/**
+ * Обложка: либо относительный путь внутри нашего сайта (загруженный файл
+ * /media/... или готовая картинка сборки /assets/...), либо https-ссылка.
+ * Схемы вида javascript: и переходы «..» не пропускаем.
+ */
+const coverUrlSchema = z
+  .string()
+  .max(500)
+  .refine(
+    (value) =>
+      (value.startsWith("/") && !value.startsWith("//") && !value.includes("..")) ||
+      /^https:\/\/[^\s]+$/i.test(value),
+    "Некорректная ссылка на обложку",
+  );
 
 const SPACE_SELECT = `
   SELECT s.id, s.title, s.description, s.topic, s.cover_url, s.category, s.format, s.cadence,
@@ -156,6 +177,30 @@ export async function spaceRoutes(app: FastifyInstance) {
     return list;
   });
 
+  /**
+   * POST /api/spaces/cover — загрузка своей обложки (multipart, поле `file`).
+   * Файл кладём в общее медиа-хранилище, но в profile_media НЕ пишем:
+   * это картинка сообщества, а не фото профиля.
+   */
+  app.post(
+    "/cover",
+    { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } },
+    async (request) => {
+      const userId = currentUserId(request);
+      const part = await request.file({ limits: { fileSize: MAX_PHOTO_BYTES } });
+      if (!part) throw badRequest("Файл не получен");
+
+      const buffer = await part.toBuffer();
+      const type = detectMediaType(buffer);
+      if (!type || type.kind !== "photo") throw badRequest("Обложка — это фото JPEG, PNG или WebP");
+      assertSize(type, buffer.length);
+
+      const { url } = await saveProfileFile(userId, buffer, type);
+      return { url };
+    },
+  );
+
+
   app.post("/", async (request) => {
     const userId = currentUserId(request);
     const draft = z
@@ -166,7 +211,7 @@ export async function spaceRoutes(app: FastifyInstance) {
         format: z.enum(["offline", "online", "mixed"]),
         cadence: z.enum(["weekly", "biweekly", "monthly", "occasional"]),
         city: z.string().max(120).default(""),
-        coverUrl: z.string().url().max(500).optional(),
+        coverUrl: coverUrlSchema.optional(),
       })
       .parse(request.body);
 

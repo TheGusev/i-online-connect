@@ -12,8 +12,11 @@ import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
+import fastifyStatic from "@fastify/static";
 import websocket from "@fastify/websocket";
 import Fastify from "fastify";
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
 
 import { rateLimitSubject } from "./auth/tokens.ts";
 import { registerAbuseLog } from "./security/abuse-log.ts";
@@ -104,6 +107,26 @@ app.get("/api/health", async (_request, reply) => {
   const dbOk = await healthcheck();
   return reply.status(dbOk ? 200 : 503).send({ ok: dbOk, uptime: process.uptime() });
 });
+
+// Раздача пользовательских фото и видео.
+// В проде тот же путь может отдавать Nginx напрямую (это быстрее), но и без
+// него ссылки рабочие: иначе картинки запрашиваются с домена сайта и не
+// находятся. Приватный каталог верификации (VERIFICATION_DIR) здесь не
+// участвует — он не раздаётся никогда.
+{
+  const prefix = new URL(env.MEDIA_BASE_URL, "http://localhost").pathname.replace(/\/?$/, "/");
+  await mkdir(env.MEDIA_DIR, { recursive: true });
+  await app.register(fastifyStatic, {
+    root: path.resolve(env.MEDIA_DIR),
+    prefix,
+    index: false,
+    dotfiles: "deny",
+    // Файлы иммутабельны: имя содержит UUID, перезаписи не бывает.
+    cacheControl: true,
+    maxAge: "30d",
+  });
+}
+
 
 await app.register(authRoutes, { prefix: "/api/auth" });
 await app.register(profileRoutes, { prefix: "/api/profiles" });

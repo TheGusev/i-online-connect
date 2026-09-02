@@ -6,6 +6,7 @@ import { Card, Chip, TrustBadge } from "@/components/ds";
 import { badgeLevel } from "@/features/chat/trust";
 
 import { categoryLabel, formatDate, formatPrice, priceApplies } from "../labels";
+import { mediaUrl } from "@/api";
 
 export function ListingCard({ listing }: { listing: Listing }) {
   const photo = listing.photos[0];
@@ -19,7 +20,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
       >
         {photo ? (
           <img
-            src={photo}
+            src={mediaUrl(photo)}
             alt={listing.title}
             width={640}
             height={400}
