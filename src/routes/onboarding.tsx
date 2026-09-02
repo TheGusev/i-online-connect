@@ -354,7 +354,7 @@ function OnboardingPage() {
                 {submitState === "ready" && result && (
                   <div className="space-y-5 animate-in fade-in duration-700">
                     <p className="text-sm text-muted-foreground">{t("onboarding.s9.ready")}</p>
-                    <ProfilePreview draft={draft} />
+                    <ProfilePreview draft={draft} photoUrl={result.avatarUrl ?? null} />
                     <div className="flex flex-wrap gap-3">
                       <Button
                         size="lg"
