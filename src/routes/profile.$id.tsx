@@ -7,9 +7,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { IntentCard } from "@/features/profile/components/IntentCard";
 import { MediaCarousel } from "@/features/profile/components/MediaCarousel";
 import { ProfileActionBar } from "@/features/profile/components/ProfileActionBar";
+import { ProfileCollapseToggle } from "@/features/profile/components/ProfileCollapseToggle";
 import { ProfileSection } from "@/features/profile/components/ProfileSection";
 import { TrustBadgeExplained } from "@/features/profile/components/TrustBadgeExplained";
 import { useProfileDetail } from "@/features/profile/hooks";
+import { useProfileCollapse } from "@/features/profile/hooks/useProfileCollapse";
 
 export const Route = createFileRoute("/profile/$id")({
   head: () => ({
