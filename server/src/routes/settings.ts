@@ -42,6 +42,7 @@ export async function settingsRoutes(app: FastifyInstance) {
       messages: boolean;
       spaces: boolean;
       safety: boolean;
+      listings: boolean;
     }>("SELECT matches, messages, spaces, safety, listings FROM notification_prefs WHERE user_id = $1", [
       userId,
     ]);
@@ -65,6 +66,8 @@ export async function settingsRoutes(app: FastifyInstance) {
         messages: notifications?.messages ?? true,
         spaces: notifications?.spaces ?? true,
         safety: notifications?.safety ?? true,
+        // Новое поле: старые клиенты его просто игнорируют.
+        listings: notifications?.listings ?? true,
       },
       subscription: {
         plan,
@@ -120,6 +123,7 @@ export async function settingsRoutes(app: FastifyInstance) {
         messages: z.boolean().optional(),
         spaces: z.boolean().optional(),
         safety: z.boolean().optional(),
+        listings: z.boolean().optional(),
       })
       .parse(request.body);
 
@@ -128,7 +132,8 @@ export async function settingsRoutes(app: FastifyInstance) {
          matches  = COALESCE($2, matches),
          messages = COALESCE($3, messages),
          spaces   = COALESCE($4, spaces),
-         safety   = COALESCE($5, safety)
+         safety   = COALESCE($5, safety),
+         listings = COALESCE($6, listings)
        WHERE user_id = $1`,
       [
         userId,
@@ -136,6 +141,7 @@ export async function settingsRoutes(app: FastifyInstance) {
         patch.messages ?? null,
         patch.spaces ?? null,
         patch.safety ?? null,
+        patch.listings ?? null,
       ],
     );
 
