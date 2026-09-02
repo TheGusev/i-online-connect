@@ -97,4 +97,10 @@ export const env = {
   corsOrigins: parsed.data.CORS_ORIGINS.split(",")
     .map((value) => value.trim())
     .filter(Boolean),
+  // Вход в админку работает только когда заданы оба секрета.
+  adminLoginEnabled:
+    parsed.data.JWT_ADMIN_SECRET.length >= 32 && parsed.data.TOTP_ENCRYPTION_KEY.length >= 32,
+  redisEnabled: parsed.data.REDIS_HOST.length > 0,
+  captchaEnabled: parsed.data.YANDEX_CAPTCHA_SECRET.length > 0,
 };
+
