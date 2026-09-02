@@ -9,12 +9,17 @@ const { pool, query, queryOne } = await import("../src/db.ts");
 const { hashPassword } = await import("../src/auth/passwords.ts");
 const { signAccessToken } = await import("../src/auth/tokens.ts");
 const { adminRoutes } = await import("../src/routes/admin.ts");
+const { adminSessionRoutes } = await import("../src/routes/admin-session.ts");
+const { createTotpBinding } = await import("../src/security/totp.ts");
+const { env } = await import("../src/env.ts");
+const { authenticator } = await import("otplib");
 const { listingRoutes } = await import("../src/routes/listings.ts");
 const { registerErrorHandler } = await import("../src/http.ts");
 const Fastify = (await import("fastify")).default;
 
 const app = Fastify();
 registerErrorHandler(app);
+await app.register(adminSessionRoutes, { prefix: "/api/admin" });
 await app.register(adminRoutes, { prefix: "/api/admin" });
 await app.register(listingRoutes, { prefix: "/api/listings" });
 
@@ -30,7 +35,17 @@ async function makeUser(email, role = "user") {
      ON CONFLICT (user_id) DO NOTHING`,
     [u.id, email.split("@")[0]],
   );
-  return { id: u.id, token: await signAccessToken(u.id) };
+  let totpSecret = null;
+  if (role === "admin") {
+    // Вход в админку требует второй фактор: кладём секрет так же, как grant-admin.
+    const binding = createTotpBinding(email, env.TOTP_ENCRYPTION_KEY);
+    totpSecret = binding.secret;
+    await query(
+      "UPDATE users SET totp_secret = $2, totp_confirmed_at = now() WHERE id = $1",
+      [u.id, binding.encrypted],
+    );
+  }
+  return { id: u.id, token: await signAccessToken(u.id), totpSecret };
 }
 
 const admin = await makeUser("admin@test.local", "admin");
@@ -38,8 +53,56 @@ const user = await makeUser("user@test.local");
 const victim = await makeUser("victim@test.local");
 
 const auth = (t) => ({ authorization: `Bearer ${t}` });
-const call = (method, url, token, payload) =>
+// Обычные (не админские) маршруты: пользовательский токен в Authorization.
+const userCall = (method, url, token, payload) =>
   app.inject({ method, url, headers: auth(token), ...(payload ? { payload } : {}) });
+// Админские маршруты: отдельный короткий токен в x-admin-token.
+const call = (method, url, token, payload) =>
+  app.inject({
+    method,
+    url,
+    headers: { "x-admin-token": token },
+    ...(payload ? { payload } : {}),
+  });
+
+// 0. Вход в админку: пароль + TOTP. Проверяем и отказы, и успешный вход.
+const login = (payload) => app.inject({ method: "POST", url: "/api/admin/session", payload });
+const base = { email: "admin@test.local", password: "Sup3r-Secret-Pass" };
+const code = () => authenticator.generate(admin.totpSecret);
+
+assert.equal((await login({ ...base, totp: "000000" })).statusCode, 403, "неверный код должен отклоняться");
+assert.equal(
+  (await login({ ...base, password: "wrong-password", totp: code() })).statusCode,
+  403,
+  "неверный пароль должен отклоняться",
+);
+assert.equal(
+  (await login({ email: "user@test.local", password: "Sup3r-Secret-Pass", totp: code() })).statusCode,
+  403,
+  "пользователь без роли admin не должен входить",
+);
+assert.equal(
+  (await login({ ...base, totp: code(), contactFax: "bot" })).statusCode,
+  403,
+  "заполненная ловушка должна отклоняться",
+);
+
+const okLogin = await login({ ...base, totp: code() });
+assert.equal(okLogin.statusCode, 200, okLogin.body);
+const session = okLogin.json();
+assert.ok(session.token && session.expiresIn > 0, "вход должен вернуть токен и срок жизни");
+admin.token = session.token;
+
+// Один и тот же код второй раз не проходит (защита от повтора).
+assert.equal((await login({ ...base, totp: code() })).statusCode, 403, "повтор кода должен отклоняться");
+
+// Пользовательский access-токен админкой не принимается.
+assert.equal((await call("GET", "/api/admin/users", user.token)).statusCode, 403);
+
+// Все попытки входа записаны.
+const attempts = await query("SELECT outcome FROM admin_login_attempts ORDER BY id");
+assert.ok(attempts.some((a) => a.outcome === "ok"), "успешный вход должен быть в журнале");
+assert.ok(attempts.filter((a) => a.outcome !== "ok").length >= 3, "отказы должны быть в журнале");
 
 // 1. Обычный пользователь не имеет доступа ни к одному разделу.
 for (const path of [
@@ -54,8 +117,8 @@ for (const path of [
   const res = await call("GET", path, user.token);
   assert.equal(res.statusCode, 403, `${path} должен быть 403 для пользователя, а не ${res.statusCode}`);
 }
-// Без токена — 401.
-assert.equal((await app.inject({ method: "GET", url: "/api/admin/users" })).statusCode, 401);
+// Без админского токена — тот же 403: снаружи не видно, что раздел существует.
+assert.equal((await app.inject({ method: "GET", url: "/api/admin/users" })).statusCode, 403);
 
 // 2. Админ читает все списки.
 for (const path of [
@@ -105,12 +168,12 @@ const live = await queryOne(
 );
 assert.equal(live.c, 0, "сессии заблокированного должны быть отозваны");
 
-const denied = await call("GET", "/api/listings", victim.token);
+const denied = await userCall("GET", "/api/listings", victim.token);
 assert.equal(denied.statusCode, 403, `заблокированный должен получить 403, получил ${denied.statusCode}`);
 
 // Разблокировка возвращает доступ.
 assert.equal((await call("POST", `/api/admin/users/${victim.id}/unblock`, admin.token, {})).statusCode, 200);
-assert.equal((await call("GET", "/api/listings", victim.token)).statusCode, 200);
+assert.equal((await userCall("GET", "/api/listings", victim.token)).statusCode, 200);
 
 // Себя блокировать нельзя.
 assert.equal(
@@ -217,7 +280,7 @@ const log = await readFile(process.env.ADMIN_LOG_FILE, "utf8");
 const lines = log.trim().split("\n").map((line) => JSON.parse(line));
 assert.ok(lines.length > 20);
 assert.ok(lines.every((line) => line.path.startsWith("/api/admin")));
-assert.ok(lines.some((line) => line.status === 403 && line.userId));
+assert.ok(lines.some((line) => line.status === 403));
 assert.ok(!log.includes("Bearer"), "в аудит-лог не должны попадать токены");
 
 console.log(`OK: ${names.length} действий в admin_actions, ${lines.length} строк аудита`);

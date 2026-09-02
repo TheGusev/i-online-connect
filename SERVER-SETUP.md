@@ -508,3 +508,43 @@ ssh deploy@example.com '
 | Камера не включается на `/verification` | нет HTTPS или `Permissions-Policy` запрещает `camera` |
 | Все заявки верификации висят в `pending` | не установлен `ffmpeg` или пуст `AI_API_KEY` |
 | Загрузка видео падает с `413` | мало `client_max_body_size` в Nginx |
+
+## Служебная панель (админка)
+
+Панель живёт на скрытом пути и не имеет ссылок в интерфейсе. Скрытый путь —
+не защита: доступ дают пароль, одноразовый код TOTP и роль `admin`, которые
+проверяет сервер.
+
+1. Секреты сервера (`server/.env`):
+   ```
+   JWT_ADMIN_SECRET=<openssl rand -base64 48>
+   TOTP_ENCRYPTION_KEY=<openssl rand -base64 48>
+   ADMIN_SESSION_TTL=2h
+   REDIS_HOST=127.0.0.1        # общие счётчики rate limit
+   REDIS_PORT=6379
+   YANDEX_CAPTCHA_SECRET=<серверный ключ SmartCaptcha>
+   ABUSE_LOG_FILE=logs/abuse.log
+   ```
+   Без `JWT_ADMIN_SECRET` и `TOTP_ENCRYPTION_KEY` вход в панель выключен.
+
+2. Переменные фронтенда (`.env`, нужна пересборка):
+   ```
+   VITE_ADMIN_PATH=panel-x7f2k9        # адрес: https://example.com/panel-x7f2k9
+   VITE_YANDEX_CAPTCHA_KEY=<клиентский ключ SmartCaptcha>
+   ```
+
+3. Выдать права и привязать аутентификатор:
+   ```bash
+   cd server && npm run grant-admin -- admin@example.com
+   ```
+   Скрипт выведет QR-код и base32-секрет в терминал **один раз** — отсканируйте
+   его в Google Authenticator / Яндекс Ключ и закройте терминал. В базе секрет
+   лежит зашифрованным (AES-256-GCM на `TOTP_ENCRYPTION_KEY`).
+
+4. Вход: открыть скрытый путь, ввести email, пароль и 6-значный код. Сессия
+   живёт 2 часа и не продлевается; токен хранится в `sessionStorage`, поэтому
+   закрытая вкладка = завершённая сессия.
+
+Что пишется в журналы: попытки входа — таблица `admin_login_attempts`,
+действия модератора — `admin_actions` + `logs/admin-audit.log`, все ответы
+429/403 — `logs/abuse.log`.
