@@ -6,6 +6,12 @@ import { Button } from "@/components/ds";
 
 const MAX_SECONDS = 15;
 
+/**
+ * Шаг «фото и видео-интро».
+ *
+ * Наверх уходит сам файл, а не его имя: после регистрации онбординг
+ * загружает фото и видео через POST /api/media, иначе аватар остался бы пустым.
+ */
 export function MediaStep({
   photoName,
   videoName,
@@ -16,8 +22,8 @@ export function MediaStep({
 }: {
   photoName: string | null;
   videoName: string | null;
-  onPhoto: (name: string | null) => void;
-  onVideo: (name: string | null) => void;
+  onPhoto: (file: File | null) => void;
+  onVideo: (file: File | Blob | null, filename: string) => void;
   onSubmit: () => void;
   onSkipVideo: () => void;
 }) {
@@ -25,6 +31,7 @@ export function MediaStep({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [cameraError, setCameraError] = useState(false);
@@ -58,8 +65,13 @@ export function MediaStep({
       }
       const recorder = new MediaRecorder(stream);
       recorderRef.current = recorder;
+      chunksRef.current = [];
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data);
+      };
       recorder.onstop = () => {
-        onVideo(`video-intro-${new Date().toISOString().slice(0, 19)}.webm`);
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "video/webm" });
+        onVideo(blob, `video-intro-${Date.now()}.webm`);
         stopStream();
         if (videoRef.current) videoRef.current.srcObject = null;
       };
@@ -102,7 +114,7 @@ export function MediaStep({
               onChange={(event) => {
                 const file = event.target.files?.[0];
                 if (!file) return;
-                onPhoto(file.name);
+                onPhoto(file);
                 setPhotoPreview(URL.createObjectURL(file));
               }}
             />
@@ -168,7 +180,7 @@ export function MediaStep({
               className="sr-only"
               onChange={(event) => {
                 const file = event.target.files?.[0];
-                if (file) onVideo(file.name);
+                if (file) onVideo(file, file.name);
               }}
             />
             <span className="inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold text-foreground hover:bg-accent">
