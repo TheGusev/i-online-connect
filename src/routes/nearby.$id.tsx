@@ -219,7 +219,10 @@ function ListingPage() {
                   onClick={() =>
                     close.mutate(undefined, {
                       onSuccess: () => toast.success("Объявление закрыто"),
-                      onError: () => toast.error("Не удалось закрыть объявление"),
+                      onError: (cause) =>
+                        toast.error(
+                          cause instanceof Error ? cause.message : "Не удалось закрыть объявление",
+                        ),
                     })
                   }
                 >
