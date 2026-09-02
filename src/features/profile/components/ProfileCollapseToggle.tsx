@@ -9,7 +9,11 @@ interface ProfileCollapseToggleProps {
   className?: string;
 }
 
-export function ProfileCollapseToggle({ collapsed, onToggle, className }: ProfileCollapseToggleProps) {
+export function ProfileCollapseToggle({
+  collapsed,
+  onToggle,
+  className,
+}: ProfileCollapseToggleProps) {
   return (
     <Button
       variant="secondary"

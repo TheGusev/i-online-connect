@@ -79,9 +79,7 @@ function MyProfilePage() {
               value={data.name}
               saving={update.isPending}
               onSave={(name) => patch({ name })}
-              renderValue={(name) => (
-                <h1 className="text-4xl font-bold tracking-tight">{name}</h1>
-              )}
+              renderValue={(name) => <h1 className="text-4xl font-bold tracking-tight">{name}</h1>}
             />
             <div className="mt-1">
               <InlineTextField
@@ -92,9 +90,7 @@ function MyProfilePage() {
                   const parsed = Number.parseInt(age, 10);
                   if (Number.isFinite(parsed) && parsed >= 18) patch({ age: parsed });
                 }}
-                renderValue={(age) => (
-                  <p className="text-base text-muted-foreground">{age} лет</p>
-                )}
+                renderValue={(age) => <p className="text-base text-muted-foreground">{age} лет</p>}
               />
             </div>
             <div className="mt-4">
@@ -167,10 +163,7 @@ function MyProfilePage() {
                         options={intentOptions}
                         onChange={(event) => setIntentDraft(event.target.value as ProfileIntent)}
                       />
-                      <InlineTextFieldless
-                        value={intentNote}
-                        onChange={setIntentNote}
-                      />
+                      <InlineTextFieldless value={intentNote} onChange={setIntentNote} />
                     </div>
                   }
                 />
@@ -226,9 +219,9 @@ function MyProfilePage() {
 
               <Reveal as="footer" className="mt-12">
                 <Card className="p-5 text-sm leading-relaxed text-muted-foreground">
-                  Это твоя личная страница, а не витрина. Здесь нет рейтингов и мест в списке — только
-                  то, что ты сам решил рассказать. И <Chip size="sm">интересы</Chip> помогают AI искать
-                  людей рядом по смыслу.
+                  Это твоя личная страница, а не витрина. Здесь нет рейтингов и мест в списке —
+                  только то, что ты сам решил рассказать. И <Chip size="sm">интересы</Chip> помогают
+                  AI искать людей рядом по смыслу.
                 </Card>
               </Reveal>
             </div>
