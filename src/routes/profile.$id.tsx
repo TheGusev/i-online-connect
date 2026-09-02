@@ -7,9 +7,11 @@ import { AppShell } from "@/components/layout/AppShell";
 import { IntentCard } from "@/features/profile/components/IntentCard";
 import { MediaCarousel } from "@/features/profile/components/MediaCarousel";
 import { ProfileActionBar } from "@/features/profile/components/ProfileActionBar";
+import { ProfileCollapseToggle } from "@/features/profile/components/ProfileCollapseToggle";
 import { ProfileSection } from "@/features/profile/components/ProfileSection";
 import { TrustBadgeExplained } from "@/features/profile/components/TrustBadgeExplained";
 import { useProfileDetail } from "@/features/profile/hooks";
+import { useProfileCollapse } from "@/features/profile/hooks/useProfileCollapse";
 
 export const Route = createFileRoute("/profile/$id")({
   head: () => ({
@@ -35,6 +37,7 @@ export const Route = createFileRoute("/profile/$id")({
 function ProfileViewPage() {
   const { id } = Route.useParams();
   const { data, isPending, isError } = useProfileDetail(id);
+  const { collapsed, toggle } = useProfileCollapse();
 
   if (id === "me") {
     return (
@@ -57,50 +60,63 @@ function ProfileViewPage() {
 
       {data ? (
         <div className="pb-24">
-          <Reveal>
-            <MediaCarousel media={data.media} name={data.name} />
-          </Reveal>
-
           <Reveal delay={80} as="header" className="mt-7">
             <h1 className="text-4xl font-bold tracking-tight">
               {data.name}, {data.age}
             </h1>
-            <p className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-              <MapPin className="size-4" aria-hidden="true" />
-              {data.city}
-            </p>
             <div className="mt-4">
               <TrustBadgeExplained level={data.trustLevel} details={data.trust} />
             </div>
           </Reveal>
 
-          <ProfileSection title="О себе" delay={60}>
-            <p className="max-w-2xl text-base leading-loose text-muted-foreground">{data.bio}</p>
-          </ProfileSection>
+          <div className="mt-6 flex items-center justify-between gap-4 border-t pt-4">
+            <ProfileCollapseToggle collapsed={collapsed} onToggle={toggle} />
+          </div>
 
-          <ProfileSection title="Ищу" delay={60}>
-            <IntentCard intent={data.intent} note={data.intentNote} />
-          </ProfileSection>
+          {!collapsed && (
+            <div id="profile-collapsible-content">
+              <Reveal delay={40}>
+                <MediaCarousel media={data.media} name={data.name} />
+              </Reveal>
 
-          <ProfileSection title="Интересы" delay={60}>
-            <ul className="flex flex-wrap gap-2">
-              {data.interests.map((interest) => (
-                <li key={interest}>
-                  <Chip>{interest}</Chip>
-                </li>
-              ))}
-            </ul>
-          </ProfileSection>
+              <Reveal delay={80} className="mt-4">
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <MapPin className="size-4" aria-hidden="true" />
+                  {data.city}
+                </p>
+              </Reveal>
 
-          <ProfileSection title="Что важно" delay={60}>
-            <ul className="grid gap-3 sm:grid-cols-2">
-              {data.values.map((value) => (
-                <li key={value}>
-                  <Card className="h-full p-5 text-base leading-relaxed">{value}</Card>
-                </li>
-              ))}
-            </ul>
-          </ProfileSection>
+              <ProfileSection title="О себе" delay={60}>
+                <p className="max-w-2xl text-base leading-loose text-muted-foreground">
+                  {data.bio}
+                </p>
+              </ProfileSection>
+
+              <ProfileSection title="Ищу" delay={60}>
+                <IntentCard intent={data.intent} note={data.intentNote} />
+              </ProfileSection>
+
+              <ProfileSection title="Интересы" delay={60}>
+                <ul className="flex flex-wrap gap-2">
+                  {data.interests.map((interest) => (
+                    <li key={interest}>
+                      <Chip>{interest}</Chip>
+                    </li>
+                  ))}
+                </ul>
+              </ProfileSection>
+
+              <ProfileSection title="Что важно" delay={60}>
+                <ul className="grid gap-3 sm:grid-cols-2">
+                  {data.values.map((value) => (
+                    <li key={value}>
+                      <Card className="h-full p-5 text-base leading-relaxed">{value}</Card>
+                    </li>
+                  ))}
+                </ul>
+              </ProfileSection>
+            </div>
+          )}
 
           <ProfileActionBar id={data.id} name={data.name} />
         </div>
