@@ -39,8 +39,20 @@ const INTENTS: OnboardingIntent[] = ["serious", "friends", "projects", "unsure"]
 function OnboardingPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { stepIndex, draft, answers, patchDraft, toggleInterest, answerStep, goBack, reset } =
-    useOnboardingStore();
+  const {
+    stepIndex,
+    draft,
+    files,
+    answers,
+    patchDraft,
+    setPhotoFile,
+    setVideoFile,
+    toggleInterest,
+    answerStep,
+    goBack,
+    reset,
+  } = useOnboardingStore();
+
 
   const [typing, setTyping] = useState(true);
   const [error, setError] = useState<string | null>(null);
