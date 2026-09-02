@@ -206,10 +206,11 @@ function OnboardingPage() {
               <MediaStep
                 photoName={draft.photoName}
                 videoName={draft.videoName}
-                onPhoto={(photoName) => patchDraft({ photoName })}
-                onVideo={(videoName) => patchDraft({ videoName, videoSkipped: false })}
+                onPhoto={setPhotoFile}
+                onVideo={(file, filename) => setVideoFile(file, filename)}
                 onSkipVideo={() => {
-                  patchDraft({ videoName: null, videoSkipped: true });
+                  setVideoFile(null, null);
+
                   answerStep({
                     stepId: "media",
                     answer: draft.photoName
