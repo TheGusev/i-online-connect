@@ -10,7 +10,10 @@ export interface User {
   trustLevel: TrustLevel;
   trustScore: number;
   online: boolean;
+  /** Главное фото профиля: аватар в шапке и в списках. */
+  avatarUrl?: string;
 }
+
 
 export interface MatchCandidate extends User {
   compatibility: number;

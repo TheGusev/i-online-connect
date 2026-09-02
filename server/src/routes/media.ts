@@ -63,19 +63,51 @@ export async function mediaRoutes(app: FastifyInstance) {
     },
   );
 
+  // Главное фото: с ним сверяется верификация, оно же становится аватаром.
+  app.patch<{ Params: { id: string } }>("/:id/primary", async (request) => {
+    const userId = currentUserId(request);
+    const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+
+    const media = await queryOne<{ id: string; kind: "photo" | "video"; url: string }>(
+      "SELECT id, kind, url FROM profile_media WHERE id = $1 AND user_id = $2",
+      [id, userId],
+    );
+    if (!media) throw notFound("Файл не найден");
+    if (media.kind !== "photo") throw badRequest("Главным можно сделать только фото");
+
+    await query(
+      "UPDATE profile_media SET is_primary = (id = $1) WHERE user_id = $2 AND kind = 'photo'",
+      [id, userId],
+    );
+
+    return { id: media.id, kind: media.kind, url: media.url };
+  });
+
   app.delete<{ Params: { id: string } }>("/:id", async (request, reply) => {
     const userId = currentUserId(request);
     const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
 
-    const row = await queryOne<{ url: string }>(
-      "DELETE FROM profile_media WHERE id = $1 AND user_id = $2 RETURNING url",
+    const row = await queryOne<{ url: string; is_primary: boolean; kind: "photo" | "video" }>(
+      "DELETE FROM profile_media WHERE id = $1 AND user_id = $2 RETURNING url, is_primary, kind",
       [id, userId],
     );
     if (!row) throw notFound("Файл не найден");
+
+    // Удалили главное фото — главным становится следующее по порядку.
+    if (row.is_primary && row.kind === "photo") {
+      await query(
+        `UPDATE profile_media SET is_primary = true
+          WHERE id = (SELECT id FROM profile_media
+                       WHERE user_id = $1 AND kind = 'photo'
+                       ORDER BY position, created_at LIMIT 1)`,
+        [userId],
+      );
+    }
 
     const filePath = mediaPathFromUrl(row.url);
     if (filePath) await unlink(filePath).catch(() => undefined);
 
     return reply.status(204).send();
   });
+
 }
