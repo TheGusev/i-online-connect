@@ -175,10 +175,13 @@ export function UsersSection() {
               {user.role === "admin" ? <Tag tone="warn">админ</Tag> : null}
             </Cell>
             <Cell>{user.city || "—"}</Cell>
-            <Cell>
-              {user.trustLevel} · {user.trustScore}
+            <Cell className="whitespace-nowrap">
+              <span className="mr-1">
+                {user.trustLevel} · {user.trustScore}
+              </span>
               {user.videoVerified ? <Tag tone="good">видео</Tag> : null}
             </Cell>
+
             <Cell className="space-x-1">
               <Tag tone={user.emailVerified ? "good" : "neutral"}>почта</Tag>
               <Tag tone={user.phoneVerified ? "good" : "neutral"}>телефон</Tag>
