@@ -176,3 +176,14 @@ pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" 2026-08-17.du
 
 Ничего из знакомств (`matches`, `daily_feed`), онбординга, чата и верификации
 миграция не меняет: все изменения additive.
+
+## 006_admin.sql — роли и аудит админки
+
+| Объект | Назначение |
+| --- | --- |
+| enum `user_role` | `user`, `admin`. Хранится в `users.role`, выдаётся только скриптом `npm run grant-admin` |
+| `users.blocked_at`, `users.blocked_reason` | Блокировка модератором. Не путать с `blocks` — там пользователи скрывают друг друга |
+| `admin_actions` | Журнал: `admin_id`, `action`, `target_type`, `target_id`, `note`, `ip`, `created_at` |
+| `support_requests.reply / replied_at / replied_by` | Ответ модератора, который ушёл заявителю письмом |
+
+Все изменения additive: новый enum, новые колонки с DEFAULT, новая таблица.

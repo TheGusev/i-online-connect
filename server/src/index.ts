@@ -20,6 +20,7 @@ import { healthcheck, pool } from "./db.ts";
 import { env } from "./env.ts";
 import { registerErrorHandler } from "./http.ts";
 
+import { adminRoutes } from "./routes/admin.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { chatRoutes } from "./routes/chat.ts";
 import { confirmRoutes } from "./routes/confirm.ts";
@@ -103,6 +104,23 @@ await app.register(confirmRoutes, { prefix: "/api/confirm" });
 await app.register(supportRoutes, { prefix: "/api/support" });
 await app.register(listingRoutes, { prefix: "/api/listings" });
 await app.register(notificationRoutes, { prefix: "/api/notifications" });
+// Админка: отдельный, более строгий лимит поверх общего (300/мин).
+await app.register(
+  async (scope) => {
+    await scope.register(rateLimit, {
+      max: 60,
+      timeWindow: "1 minute",
+      keyGenerator: (request) => rateLimitSubject(request.headers.authorization, request.ip),
+      errorResponseBuilder: () => ({
+        statusCode: 429,
+        error: "Too Many Requests",
+        message: "Слишком много запросов к админке. Подождите минуту.",
+      }),
+    });
+    await scope.register(adminRoutes);
+  },
+  { prefix: "/api/admin" },
+);
 await app.register(chatSocketRoutes, { prefix: "/ws" });
 await app.register(notificationSocketRoutes, { prefix: "/ws" });
 

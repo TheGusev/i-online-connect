@@ -24,12 +24,14 @@ export async function requireAuth(request: FastifyRequest, _reply: FastifyReply)
   const claims = await verifyAccessToken(header.slice("Bearer ".length).trim());
 
   // Аккаунт мог быть удалён или поставлен на паузу уже после выдачи токена.
-  const user = await queryOne<{ id: string; deleted_at: Date | null }>(
-    "SELECT id, deleted_at FROM users WHERE id = $1",
+  const user = await queryOne<{ id: string; deleted_at: Date | null; blocked_at: Date | null }>(
+    "SELECT id, deleted_at, blocked_at FROM users WHERE id = $1",
     [claims.sub],
   );
   if (!user) throw unauthorized("Аккаунт не найден");
   if (user.deleted_at) throw forbidden("Аккаунт удалён");
+  // Блокировка модератором действует сразу, не дожидаясь истечения токена.
+  if (user.blocked_at) throw forbidden("Аккаунт заблокирован модератором");
 
   request.userId = user.id;
 }
@@ -49,11 +51,11 @@ export async function optionalUserId(request: FastifyRequest): Promise<string | 
   if (!header?.startsWith("Bearer ")) return null;
   try {
     const claims = await verifyAccessToken(header.slice("Bearer ".length).trim());
-    const user = await queryOne<{ id: string; deleted_at: Date | null }>(
-      "SELECT id, deleted_at FROM users WHERE id = $1",
+    const user = await queryOne<{ id: string; deleted_at: Date | null; blocked_at: Date | null }>(
+      "SELECT id, deleted_at, blocked_at FROM users WHERE id = $1",
       [claims.sub],
     );
-    return user && !user.deleted_at ? user.id : null;
+    return user && !user.deleted_at && !user.blocked_at ? user.id : null;
   } catch {
     return null;
   }

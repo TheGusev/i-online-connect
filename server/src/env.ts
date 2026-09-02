@@ -47,6 +47,9 @@ const schema = z.object({
   // Порог уверенности, с которого доверяем автоматическому решению.
   FACE_MATCH_MIN_CONFIDENCE: z.coerce.number().int().min(50).max(100).default(80),
   FFMPEG_PATH: z.string().default("ffmpeg"),
+
+  // Аудит доступа к /api/admin/*: отдельный файл, только метаданные запросов.
+  ADMIN_LOG_FILE: z.string().default("logs/admin-audit.log"),
 });
 
 const parsed = schema.safeParse(process.env);
