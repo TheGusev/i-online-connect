@@ -41,12 +41,23 @@ type DetailRow = ProfileRow & {
 };
 
 async function loadMedia(userId: string) {
-  const rows = await query<{ id: string; kind: "photo" | "video"; url: string }>(
+  const rows = await query<{
+    id: string;
+    kind: "photo" | "video";
+    url: string;
+    is_primary: boolean;
+  }>(
     "SELECT id, kind, url, is_primary FROM profile_media WHERE user_id = $1 ORDER BY is_primary DESC, position, created_at",
     [userId],
   );
-  return rows.map((row) => ({ id: row.id, kind: row.kind, url: row.url }));
+  return rows.map((row) => ({
+    id: row.id,
+    kind: row.kind,
+    url: row.url,
+    isPrimary: row.is_primary,
+  }));
 }
+
 
 const monthsSince = (date: Date) =>
   Math.max(0, Math.floor((Date.now() - date.getTime()) / (30 * 24 * 60 * 60 * 1000)));
