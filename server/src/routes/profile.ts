@@ -42,7 +42,7 @@ type DetailRow = ProfileRow & {
 
 async function loadMedia(userId: string) {
   const rows = await query<{ id: string; kind: "photo" | "video"; url: string }>(
-    "SELECT id, kind, url FROM profile_media WHERE user_id = $1 ORDER BY position, created_at",
+    "SELECT id, kind, url, is_primary FROM profile_media WHERE user_id = $1 ORDER BY is_primary DESC, position, created_at",
     [userId],
   );
   return rows.map((row) => ({ id: row.id, kind: row.kind, url: row.url }));
