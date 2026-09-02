@@ -15,9 +15,11 @@ import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import Fastify from "fastify";
 
+import { rateLimitSubject } from "./auth/tokens.ts";
 import { healthcheck, pool } from "./db.ts";
 import { env } from "./env.ts";
 import { registerErrorHandler } from "./http.ts";
+
 import { authRoutes } from "./routes/auth.ts";
 import { chatRoutes } from "./routes/chat.ts";
 import { confirmRoutes } from "./routes/confirm.ts";
@@ -70,8 +72,15 @@ await app.register(multipart, {
 await app.register(rateLimit, {
   max: 300,
   timeWindow: "1 minute",
-  // Отдельные лимиты для входа и верификации заданы в самих роутах.
-  keyGenerator: (request) => request.ip,
+  // Считаем по аккаунту, а не по IP: иначе лимит обходится сменой сети,
+  // а офис или мобильный оператор упирается в общий счётчик.
+  // Отдельные лимиты для входа, верификации и объявлений заданы в роутах.
+  keyGenerator: (request) => rateLimitSubject(request.headers.authorization, request.ip),
+  errorResponseBuilder: () => ({
+    statusCode: 429,
+    error: "Too Many Requests",
+    message: "Слишком много запросов подряд. Немного подождите и попробуйте снова.",
+  }),
 });
 
 await app.register(websocket, { options: { maxPayload: 64 * 1024 } });

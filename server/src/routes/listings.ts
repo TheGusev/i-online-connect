@@ -29,6 +29,33 @@ const categorySchema = z.enum(NEED_CATEGORIES);
 
 const idParam = z.object({ id: z.string().uuid() });
 
+// Анти-спам: лимиты считаются по аккаунту (keyGenerator в index.ts).
+const ACTIVE_LISTINGS_LIMIT = 15;
+
+const RESPOND_LIMIT = {
+  rateLimit: {
+    max: 30,
+    timeWindow: "1 hour",
+    errorResponseBuilder: () => ({
+      statusCode: 429,
+      error: "Too Many Requests",
+      message: "Слишком много откликов подряд. Попробуйте через час.",
+    }),
+  },
+};
+
+const PATCH_LIMIT = {
+  rateLimit: {
+    max: 60,
+    timeWindow: "1 hour",
+    errorResponseBuilder: () => ({
+      statusCode: 429,
+      error: "Too Many Requests",
+      message: "Слишком много изменений подряд. Попробуйте чуть позже.",
+    }),
+  },
+};
+
 // Новые поля добавляем только опциональными — старые клиенты не присылают их
 // и получают прежнее поведение (см. правило совместимости в API.md).
 const createSchema = z.object({
@@ -247,56 +274,85 @@ export async function listingRoutes(app: FastifyInstance) {
   });
 
   // ── Создание ─────────────────────────────────────────────────────────────
-  app.post("/", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (request) => {
-    const userId = currentUserId(request);
-    const draft = createSchema.parse(request.body);
+  app.post(
+    "/",
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: "1 hour",
+          errorResponseBuilder: () => ({
+            statusCode: 429,
+            error: "Too Many Requests",
+            message: "Слишком много объявлений подряд. Попробуйте через час.",
+          }),
+        },
+      },
+    },
+    async (request) => {
+      const userId = currentUserId(request);
+      const draft = createSchema.parse(request.body);
 
-    const profile = await queryOne<{ city: string | null; name: string }>(
-      "SELECT city, name FROM profiles WHERE user_id = $1",
-      [userId],
-    );
-    const city = draft.city ?? profile?.city ?? null;
-    if (!city) throw badRequest("Укажите город в профиле — объявления показываются по городу");
+      // Лимит по времени не мешает накопить сотни объявлений за неделю —
+      // ограничиваем ещё и общее число активных.
+      const active = await queryOne<{ count: number }>(
+        `SELECT count(*)::int AS count FROM listings
+          WHERE author_id = $1 AND state = 'active' AND expires_at > now()`,
+        [userId],
+      );
+      if ((active?.count ?? 0) >= ACTIVE_LISTINGS_LIMIT) {
+        throw badRequest(
+          `Можно держать не больше ${ACTIVE_LISTINGS_LIMIT} активных объявлений. Закройте старое, чтобы опубликовать новое.`,
+        );
+      }
 
-    const row = await queryOne<{ id: string }>(
-      `INSERT INTO listings (author_id, category, city, title, description, price_minor, expires_at)
-       VALUES ($1, $2::need_category, $3, $4, $5, $6,
-               now() + make_interval(days => $7::int))
-       RETURNING id`,
-      [
-        userId,
-        draft.category,
+      const profile = await queryOne<{ city: string | null; name: string }>(
+        "SELECT city, name FROM profiles WHERE user_id = $1",
+        [userId],
+      );
+      const city = draft.city ?? profile?.city ?? null;
+      if (!city) throw badRequest("Укажите город в профиле — объявления показываются по городу");
+
+      const row = await queryOne<{ id: string }>(
+        `INSERT INTO listings (author_id, category, city, title, description, price_minor, expires_at)
+         VALUES ($1, $2::need_category, $3, $4, $5, $6,
+                 now() + make_interval(days => $7::int))
+         RETURNING id`,
+        [
+          userId,
+          draft.category,
+          city,
+          draft.title,
+          draft.description ?? "",
+          draft.priceMinor ?? null,
+          draft.expiresInDays ?? 30,
+        ],
+      );
+      if (!row) throw badRequest("Не удалось сохранить объявление");
+
+      if (draft.mediaIds?.length) await attachMedia(row.id, userId, draft.mediaIds);
+
+      // Уведомления не должны блокировать ответ: ошибки только логируем.
+      void notifyListingMatches({
+        listingId: row.id,
+        authorId: userId,
+        authorName: profile?.name ?? "",
+        category: draft.category,
         city,
-        draft.title,
-        draft.description ?? "",
-        draft.priceMinor ?? null,
-        draft.expiresInDays ?? 30,
-      ],
-    );
-    if (!row) throw badRequest("Не удалось сохранить объявление");
+        title: draft.title,
+        priceMinor: draft.priceMinor ?? null,
+      }).catch((error) => console.error("[listings] уведомления не отправлены", error));
 
-    if (draft.mediaIds?.length) await attachMedia(row.id, userId, draft.mediaIds);
-
-    // Уведомления не должны блокировать ответ: ошибки только логируем.
-    void notifyListingMatches({
-      listingId: row.id,
-      authorId: userId,
-      authorName: profile?.name ?? "",
-      category: draft.category,
-      city,
-      title: draft.title,
-      priceMinor: draft.priceMinor ?? null,
-    }).catch((error) => console.error("[listings] уведомления не отправлены", error));
-
-    const created = await queryOne<ListingRow>(`${LISTING_SELECT} WHERE l.id = $2`, [
-      userId,
-      row.id,
-    ]);
-    return created ? toListingDto(created, userId) : { id: row.id };
-  });
+      const created = await queryOne<ListingRow>(`${LISTING_SELECT} WHERE l.id = $2`, [
+        userId,
+        row.id,
+      ]);
+      return created ? toListingDto(created, userId) : { id: row.id };
+    },
+  );
 
   // ── Правка / закрытие ────────────────────────────────────────────────────
-  app.patch<{ Params: { id: string } }>("/:id", async (request) => {
+  app.patch<{ Params: { id: string } }>("/:id", { config: PATCH_LIMIT }, async (request) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
     await assertOwnListing(id, userId);
@@ -336,88 +392,92 @@ export async function listingRoutes(app: FastifyInstance) {
   });
 
   // ── Отклик: открываем обычный диалог ─────────────────────────────────────
-  app.post<{ Params: { id: string } }>("/:id/respond", async (request) => {
-    const userId = currentUserId(request);
-    const { id } = idParam.parse(request.params);
-    const body = z
-      .object({ text: z.string().trim().min(1).max(1000).optional() })
-      .parse(request.body ?? {});
+  app.post<{ Params: { id: string } }>(
+    "/:id/respond",
+    { config: RESPOND_LIMIT },
+    async (request) => {
+      const userId = currentUserId(request);
+      const { id } = idParam.parse(request.params);
+      const body = z
+        .object({ text: z.string().trim().min(1).max(1000).optional() })
+        .parse(request.body ?? {});
 
-    const listing = await queryOne<{ author_id: string; state: string; title: string }>(
-      "SELECT author_id, state, title FROM listings WHERE id = $1",
-      [id],
-    );
-    if (!listing) throw notFound("Объявление не найдено");
-    if (listing.author_id === userId) throw badRequest("Это ваше объявление");
-    if (listing.state !== "active") throw badRequest("Объявление уже закрыто");
+      const listing = await queryOne<{ author_id: string; state: string; title: string }>(
+        "SELECT author_id, state, title FROM listings WHERE id = $1",
+        [id],
+      );
+      if (!listing) throw notFound("Объявление не найдено");
+      if (listing.author_id === userId) throw badRequest("Это ваше объявление");
+      if (listing.state !== "active") throw badRequest("Объявление уже закрыто");
 
-    const blocked = await queryOne(
-      `SELECT 1 FROM blocks
+      const blocked = await queryOne(
+        `SELECT 1 FROM blocks
         WHERE (user_id = $1 AND blocked_id = $2) OR (user_id = $2 AND blocked_id = $1)`,
-      [userId, listing.author_id],
-    );
-    if (blocked) throw forbidden("Диалог недоступен");
-
-    const existing = await queryOne<{ conversation_id: string }>(
-      "SELECT conversation_id FROM listing_responses WHERE listing_id = $1 AND user_id = $2",
-      [id, userId],
-    );
-    if (existing) return { conversationId: existing.conversation_id, created: false as const };
-
-    const conversationId = await transaction(async (client) => {
-      const conversation = await client.query<{ id: string }>(
-        "INSERT INTO conversations (match_id) VALUES (NULL) RETURNING id",
-        [],
+        [userId, listing.author_id],
       );
-      const newId = conversation.rows[0]?.id;
-      if (!newId) throw badRequest("Не удалось открыть диалог");
+      if (blocked) throw forbidden("Диалог недоступен");
 
-      await client.query(
-        `INSERT INTO conversation_participants (conversation_id, user_id)
+      const existing = await queryOne<{ conversation_id: string }>(
+        "SELECT conversation_id FROM listing_responses WHERE listing_id = $1 AND user_id = $2",
+        [id, userId],
+      );
+      if (existing) return { conversationId: existing.conversation_id, created: false as const };
+
+      const conversationId = await transaction(async (client) => {
+        const conversation = await client.query<{ id: string }>(
+          "INSERT INTO conversations (match_id) VALUES (NULL) RETURNING id",
+          [],
+        );
+        const newId = conversation.rows[0]?.id;
+        if (!newId) throw badRequest("Не удалось открыть диалог");
+
+        await client.query(
+          `INSERT INTO conversation_participants (conversation_id, user_id)
          VALUES ($1, $2), ($1, $3) ON CONFLICT DO NOTHING`,
-        [newId, userId, listing.author_id],
-      );
-      await client.query(
-        `INSERT INTO listing_responses (listing_id, user_id, conversation_id)
+          [newId, userId, listing.author_id],
+        );
+        await client.query(
+          `INSERT INTO listing_responses (listing_id, user_id, conversation_id)
          VALUES ($1, $2, $3)`,
-        [id, userId, newId],
-      );
-      await client.query(
-        `INSERT INTO messages (conversation_id, author_id, kind, text)
+          [id, userId, newId],
+        );
+        await client.query(
+          `INSERT INTO messages (conversation_id, author_id, kind, text)
          VALUES ($1, $2, 'text', $3)`,
-        [newId, userId, body.text ?? `Здравствуйте! Пишу по объявлению «${listing.title}».`],
-      );
-      return newId;
-    });
+          [newId, userId, body.text ?? `Здравствуйте! Пишу по объявлению «${listing.title}».`],
+        );
+        return newId;
+      });
 
-    // Автору — уведомление об отклике. ON CONFLICT: уникальный индекс по
-    // (user_id, kind, listingId) не должен ломать сам отклик.
-    try {
-      const payload = { listingId: id, conversationId, title: listing.title };
-      const rows = await query<{ id: string; created_at: Date }>(
-        `INSERT INTO notifications (user_id, kind, payload)
+      // Автору — уведомление об отклике. ON CONFLICT: уникальный индекс по
+      // (user_id, kind, listingId) не должен ломать сам отклик.
+      try {
+        const payload = { listingId: id, conversationId, title: listing.title };
+        const rows = await query<{ id: string; created_at: Date }>(
+          `INSERT INTO notifications (user_id, kind, payload)
          VALUES ($1, 'listing_response', $2::jsonb)
          ON CONFLICT DO NOTHING
          RETURNING id, created_at`,
-        [listing.author_id, JSON.stringify(payload)],
-      );
-      const created = rows[0];
-      if (created) {
-        publishUserEvent(listing.author_id, {
-          type: "notification",
-          notification: {
-            id: created.id,
-            kind: "listing_response",
-            payload,
-            readAt: null,
-            createdAt: created.created_at.toISOString(),
-          },
-        });
+          [listing.author_id, JSON.stringify(payload)],
+        );
+        const created = rows[0];
+        if (created) {
+          publishUserEvent(listing.author_id, {
+            type: "notification",
+            notification: {
+              id: created.id,
+              kind: "listing_response",
+              payload,
+              readAt: null,
+              createdAt: created.created_at.toISOString(),
+            },
+          });
+        }
+      } catch (error) {
+        console.error("[listings] уведомление об отклике", error);
       }
-    } catch (error) {
-      console.error("[listings] уведомление об отклике", error);
-    }
 
-    return { conversationId, created: true as const };
-  });
+      return { conversationId, created: true as const };
+    },
+  );
 }

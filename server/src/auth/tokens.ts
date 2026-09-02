@@ -82,3 +82,23 @@ export async function revokeAllForUser(userId: string): Promise<void> {
     [userId],
   );
 }
+
+/**
+ * Ключ для rate limit: id владельца токена вместо IP.
+ *
+ * Читаем `sub` из payload без проверки подписи — это сознательно: ключ нужен
+ * до авторизации (rate limit работает в onRequest). Подделать чужой sub
+ * бессмысленно: запрос с неверной подписью всё равно отклонит requireAuth.
+ * Без токена (вход, регистрация, гостевые страницы) считаем по IP.
+ */
+export function rateLimitSubject(authorization: string | undefined, ip: string): string {
+  if (!authorization?.startsWith("Bearer ")) return `ip:${ip}`;
+  try {
+    const payload = authorization.slice("Bearer ".length).trim().split(".")[1];
+    if (!payload) return `ip:${ip}`;
+    const json = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub?: string };
+    return json.sub ? `user:${json.sub}` : `ip:${ip}`;
+  } catch {
+    return `ip:${ip}`;
+  }
+}
