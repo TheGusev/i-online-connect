@@ -88,7 +88,7 @@ export async function trustRoutes(app: FastifyInstance) {
         category: z.enum(["fake", "behavior", "scam", "other"]),
         details: z.string().max(2000).default(""),
         subjectId: z.string().uuid(),
-        source: z.enum(["chat", "profile"]),
+        source: z.enum(["chat", "profile", "listing"]),
         blockToo: z.boolean().optional(),
       })
       .parse(request.body);

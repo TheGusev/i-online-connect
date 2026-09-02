@@ -20,6 +20,11 @@ const channels: { id: NotificationChannel; title: string; description: string }[
     description: "Когда тебя приглашают в сообщество или на событие.",
   },
   {
+    id: "listings",
+    title: "Объявления рядом",
+    description: "Когда в твоём городе появляется задача из отмеченных категорий.",
+  },
+  {
     id: "safety",
     title: "Обновления безопасности",
     description: "Результат верификации, ответ по жалобе, важные предупреждения.",

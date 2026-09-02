@@ -201,6 +201,41 @@ function LandingPage() {
           </div>
         </section>
 
+        {/* Nearby — второй столп: бытовые задачи рядом. Компактно, чтобы не
+            размывать основной посыл про живые знакомства. */}
+        <section className="mx-auto max-w-6xl px-5 py-16 lg:px-8 lg:py-20">
+          <Reveal>
+            <div
+              className="rounded-4xl border border-border bg-card p-8 lg:p-12"
+              style={{ boxShadow: "var(--shadow-soft)" }}
+            >
+              <div className="grid gap-8 lg:grid-cols-[1fr_1.1fr] lg:items-center lg:gap-14">
+                <div>
+                  <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">
+                    {t("landing.nearby.title")}
+                  </h2>
+                  <p className="mt-4 leading-relaxed text-muted-foreground">
+                    {t("landing.nearby.subtitle")}
+                  </p>
+                  <p className="mt-4 text-sm text-muted-foreground">{t("landing.nearby.note")}</p>
+                </div>
+                <ul className="flex flex-wrap gap-3">
+                  {(t("landing.nearby.items", { returnObjects: true }) as unknown as string[]).map(
+                    (item) => (
+                      <li
+                        key={item}
+                        className="rounded-full border border-border bg-secondary/50 px-4 py-2 text-sm font-semibold"
+                      >
+                        {item}
+                      </li>
+                    ),
+                  )}
+                </ul>
+              </div>
+            </div>
+          </Reveal>
+        </section>
+
         {/* Trust */}
         <section id="trust" className="mx-auto max-w-6xl px-5 py-20 lg:px-8 lg:py-28">
           <div className="grid items-center gap-14 lg:grid-cols-2 lg:gap-20">
@@ -267,7 +302,6 @@ function LandingPage() {
               {t("landing.footer.support")}
             </Link>
           </nav>
-
         </div>
         <div className="mx-auto max-w-6xl px-5 pb-8 text-xs text-muted-foreground lg:px-8">
           © {new Date().getFullYear()} {t("app.name")}. {t("landing.footer.rights")}
