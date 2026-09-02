@@ -5,7 +5,9 @@ import { toast } from "sonner";
 
 import type { AccountSettings } from "@/api";
 import { Button, Card, Input, Modal } from "@/components/ds";
+import { ContactConfirm } from "@/features/settings/components/ContactConfirm";
 import { useChangePassword, useUpdateAccount } from "@/features/settings/hooks";
+
 import { supportedLanguages } from "@/i18n";
 
 const languageNames: Record<string, string> = { ru: "Русский", en: "English" };
@@ -188,11 +190,13 @@ function ContactRow({
   label,
   value,
   verified,
+  action,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   verified: boolean;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 p-6">
@@ -200,17 +204,21 @@ function ContactRow({
         <span className="text-muted-foreground">{icon}</span>
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-          <p className="font-medium">{value}</p>
+          <p className="font-medium">{value || "не указан"}</p>
         </div>
       </div>
-      {verified ? (
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-3 py-1 text-xs font-medium text-foreground">
-          <BadgeCheck className="size-3.5" aria-hidden="true" />
-          Подтверждён
-        </span>
-      ) : (
-        <span className="text-xs font-medium text-muted-foreground">Не подтверждён</span>
-      )}
+      <div className="flex items-center gap-3">
+        {verified ? (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-3 py-1 text-xs font-medium text-foreground">
+            <BadgeCheck className="size-3.5" aria-hidden="true" />
+            Подтверждён
+          </span>
+        ) : (
+          <span className="text-xs font-medium text-muted-foreground">Не подтверждён</span>
+        )}
+        {action}
+      </div>
     </div>
   );
 }
+
