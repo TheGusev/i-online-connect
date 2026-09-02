@@ -285,42 +285,44 @@ export async function listingRoutes(app: FastifyInstance) {
       if (!city) throw badRequest("Укажите город в профиле — объявления показываются по городу");
 
 
-    const row = await queryOne<{ id: string }>(
-      `INSERT INTO listings (author_id, category, city, title, description, price_minor, expires_at)
-       VALUES ($1, $2::need_category, $3, $4, $5, $6,
-               now() + make_interval(days => $7::int))
-       RETURNING id`,
-      [
-        userId,
-        draft.category,
+      const row = await queryOne<{ id: string }>(
+        `INSERT INTO listings (author_id, category, city, title, description, price_minor, expires_at)
+         VALUES ($1, $2::need_category, $3, $4, $5, $6,
+                 now() + make_interval(days => $7::int))
+         RETURNING id`,
+        [
+          userId,
+          draft.category,
+          city,
+          draft.title,
+          draft.description ?? "",
+          draft.priceMinor ?? null,
+          draft.expiresInDays ?? 30,
+        ],
+      );
+      if (!row) throw badRequest("Не удалось сохранить объявление");
+
+      if (draft.mediaIds?.length) await attachMedia(row.id, userId, draft.mediaIds);
+
+      // Уведомления не должны блокировать ответ: ошибки только логируем.
+      void notifyListingMatches({
+        listingId: row.id,
+        authorId: userId,
+        authorName: profile?.name ?? "",
+        category: draft.category,
         city,
-        draft.title,
-        draft.description ?? "",
-        draft.priceMinor ?? null,
-        draft.expiresInDays ?? 30,
-      ],
-    );
-    if (!row) throw badRequest("Не удалось сохранить объявление");
+        title: draft.title,
+        priceMinor: draft.priceMinor ?? null,
+      }).catch((error) => console.error("[listings] уведомления не отправлены", error));
 
-    if (draft.mediaIds?.length) await attachMedia(row.id, userId, draft.mediaIds);
+      const created = await queryOne<ListingRow>(`${LISTING_SELECT} WHERE l.id = $2`, [
+        userId,
+        row.id,
+      ]);
+      return created ? toListingDto(created, userId) : { id: row.id };
+    },
+  );
 
-    // Уведомления не должны блокировать ответ: ошибки только логируем.
-    void notifyListingMatches({
-      listingId: row.id,
-      authorId: userId,
-      authorName: profile?.name ?? "",
-      category: draft.category,
-      city,
-      title: draft.title,
-      priceMinor: draft.priceMinor ?? null,
-    }).catch((error) => console.error("[listings] уведомления не отправлены", error));
-
-    const created = await queryOne<ListingRow>(`${LISTING_SELECT} WHERE l.id = $2`, [
-      userId,
-      row.id,
-    ]);
-    return created ? toListingDto(created, userId) : { id: row.id };
-  });
 
   // ── Правка / закрытие ────────────────────────────────────────────────────
   app.patch<{ Params: { id: string } }>("/:id", async (request) => {
