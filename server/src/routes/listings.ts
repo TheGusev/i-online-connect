@@ -450,6 +450,7 @@ export async function listingRoutes(app: FastifyInstance) {
       console.error("[listings] уведомление об отклике", error);
     }
 
-    return { conversationId, created: true as const };
-  });
+      return { conversationId, created: true as const };
+    },
+  );
 }
