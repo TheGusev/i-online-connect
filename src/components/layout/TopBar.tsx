@@ -55,7 +55,7 @@ export function TopBar({ notifications = 0 }: { notifications?: number }) {
             >
               <Avatar
                 name={name}
-                src={user.avatarUrl}
+                src={user.avatarUrl ?? null}
                 size="sm"
                 verified={level !== "new"}
                 online={user.online}
