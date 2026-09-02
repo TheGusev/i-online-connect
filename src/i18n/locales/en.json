@@ -79,6 +79,18 @@
       "rules": "Rules",
       "support": "Support",
       "rights": "All rights reserved."
+    },
+    "nearby": {
+      "title": "More than dating",
+      "subtitle": "Everyone here is online right now and in your city — everyday things get solved in minutes, not across ten different services.",
+      "items": [
+        "Sell a phone",
+        "Find company for a movie",
+        "Urgent help with moving",
+        "Find a tutor nearby",
+        "Travel buddy for the weekend"
+      ],
+      "note": "Pick your categories — you get a notification when something matching appears nearby."
     }
   },
   "onboarding": {
