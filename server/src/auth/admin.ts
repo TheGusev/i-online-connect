@@ -2,8 +2,10 @@
  * Доступ администратора и аудит.
  *
  * Правило: скрытый путь и отсутствие кнопки в интерфейсе — не защита.
- * Каждый /api/admin/* маршрут проходит requireAdmin, роль читается из БД
- * (в JWT её нет — иначе выданный ранее токен «носил бы» устаревшую роль).
+ * Каждый /api/admin/* маршрут проходит requireAdmin, который требует
+ * отдельный короткий админский токен (пароль + TOTP, см. admin-tokens.ts).
+ * Роль читается из БД на каждом запросе — снятую роль выданный ранее токен
+ * «носить» не должен.
  */
 import { appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -12,7 +14,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { query, queryOne } from "../db.ts";
 import { env } from "../env.ts";
 import { forbidden } from "../http.ts";
-import { requireAuth } from "./middleware.ts";
+import { verifyAdminToken } from "./admin-tokens.ts";
 
 declare module "fastify" {
   interface FastifyRequest {
@@ -20,16 +22,23 @@ declare module "fastify" {
   }
 }
 
-export async function requireAdmin(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  await requireAuth(request, reply);
+export async function requireAdmin(request: FastifyRequest, _reply: FastifyReply): Promise<void> {
+  const header = request.headers["x-admin-token"];
+  const token = typeof header === "string" ? header.trim() : "";
+  // Обычному пользователю не сообщаем, что раздел вообще существует:
+  // одинаковый 403 и при отсутствии токена, и при недостаточной роли.
+  if (!token) throw forbidden("Нет доступа");
 
-  const row = await queryOne<{ role: string }>("SELECT role FROM users WHERE id = $1", [
-    request.userId ?? "",
-  ]);
-  // Обычному пользователю не сообщаем, что раздел вообще существует.
-  if (row?.role !== "admin") throw forbidden("Нет доступа");
+  const { sub } = await verifyAdminToken(token);
 
-  request.adminId = request.userId;
+  const row = await queryOne<{ role: string; blocked_at: string | null }>(
+    "SELECT role, blocked_at FROM users WHERE id = $1 AND deleted_at IS NULL",
+    [sub],
+  );
+  if (row?.role !== "admin" || row.blocked_at) throw forbidden("Нет доступа");
+
+  request.adminId = sub;
+  request.userId = sub;
 }
 
 /** adminId после requireAdmin. */
@@ -37,6 +46,7 @@ export function currentAdminId(request: FastifyRequest): string {
   if (!request.adminId) throw forbidden("Нет доступа");
   return request.adminId;
 }
+
 
 /** Запись в журнал действий администратора (таблица admin_actions). */
 export async function logAdminAction(

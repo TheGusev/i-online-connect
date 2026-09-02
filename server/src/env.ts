@@ -18,7 +18,36 @@ const schema = z.object({
   ACCESS_TTL: z.string().default("15m"),
   REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(30),
 
+  // ── Вход в админку ─────────────────────────────────────────────────────────
+  // Отдельный ключ подписи: обычный access-токен админку не открывает,
+  // а админский токен не работает на пользовательских маршрутах.
+  // Пусто — вход в админку выключен целиком (безопасное значение по умолчанию).
+  JWT_ADMIN_SECRET: z.string().default(""),
+  // Короткая сессия без авто-обновления: истекла — только повторный вход.
+  ADMIN_SESSION_TTL: z.string().default("2h"),
+  // Ключ шифрования секретов TOTP (AES-256-GCM). Минимум 32 символа.
+  TOTP_ENCRYPTION_KEY: z.string().default(""),
+
+  // ── Redis: общее хранилище счётчиков rate limit ────────────────────────────
+  // Пусто — счётчики живут в памяти процесса (сбрасываются при перезапуске),
+  // сервер об этом предупреждает в логе при старте.
+  REDIS_HOST: z.string().default(""),
+  REDIS_PORT: z.coerce.number().int().positive().default(6379),
+  REDIS_PASSWORD: z.string().default(""),
+  REDIS_DB: z.coerce.number().int().min(0).default(0),
+
+  // ── Капча (Yandex SmartCaptcha) ───────────────────────────────────────────
+  // Пусто — проверка выключена, работают honeypot и лимиты частоты.
+  YANDEX_CAPTCHA_SECRET: z.string().default(""),
+  YANDEX_CAPTCHA_URL: z
+    .string()
+    .default("https://smartcaptcha.yandexcloud.net/validate"),
+
+  // Журнал подозрительной активности: все ответы 429 и 403.
+  ABUSE_LOG_FILE: z.string().default("logs/abuse.log"),
+
   CORS_ORIGINS: z.string().default(""),
+
 
   MEDIA_DIR: z.string().default("/var/lib/ya-online/media"),
   // Публичный префикс, по которому Nginx раздаёт MEDIA_DIR.
@@ -68,4 +97,10 @@ export const env = {
   corsOrigins: parsed.data.CORS_ORIGINS.split(",")
     .map((value) => value.trim())
     .filter(Boolean),
+  // Вход в админку работает только когда заданы оба секрета.
+  adminLoginEnabled:
+    parsed.data.JWT_ADMIN_SECRET.length >= 32 && parsed.data.TOTP_ENCRYPTION_KEY.length >= 32,
+  redisEnabled: parsed.data.REDIS_HOST.length > 0,
+  captchaEnabled: parsed.data.YANDEX_CAPTCHA_SECRET.length > 0,
 };
+

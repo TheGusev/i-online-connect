@@ -16,11 +16,14 @@ import websocket from "@fastify/websocket";
 import Fastify from "fastify";
 
 import { rateLimitSubject } from "./auth/tokens.ts";
+import { registerAbuseLog } from "./security/abuse-log.ts";
+import { closeRedis, getRedis } from "./security/redis.ts";
 import { healthcheck, pool } from "./db.ts";
 import { env } from "./env.ts";
 import { registerErrorHandler } from "./http.ts";
 
 import { adminRoutes } from "./routes/admin.ts";
+import { adminSessionRoutes } from "./routes/admin-session.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { chatRoutes } from "./routes/chat.ts";
 import { confirmRoutes } from "./routes/confirm.ts";
@@ -46,10 +49,16 @@ const app = Fastify({
   // Nginx стоит впереди: доверяем X-Forwarded-For, иначе rate limit
   // увидит один IP (сам Nginx) на всех пользователей.
   trustProxy: true,
-  bodyLimit: 6 * 1024 * 1024, // 6 МБ: хватает для data URL селфи
+  // JSON-тело ограничено 1 МБ: обычные запросы намного меньше, а раздутое
+  // тело — дешёвый способ загрузить сервер. Файлы идут через multipart и
+  // имеют свой лимит (см. регистрацию multipart ниже), 6 МБ нужны только
+  // для data URL селфи верификации.
+  bodyLimit: 1024 * 1024,
 });
 
 registerErrorHandler(app);
+// Журнал подозрительной активности: каждый 429 и 403 (см. ABUSE_LOG_FILE).
+registerAbuseLog(app);
 
 await app.register(helmet, {
   // API отдаёт только JSON; CSP для статики настраивается в Nginx.
@@ -70,7 +79,12 @@ await app.register(multipart, {
   limits: { fileSize: 40 * 1024 * 1024, files: 1, fields: 5 },
 });
 
+const redis = getRedis(app.log);
+
 await app.register(rateLimit, {
+  // Счётчики в Redis: общие для всех процессов PM2 и не сбрасываются при
+  // перезапуске, иначе лимит обходится через reload.
+  ...(redis ? { redis } : {}),
   max: 300,
   timeWindow: "1 minute",
   // Считаем по аккаунту, а не по IP: иначе лимит обходится сменой сети,
@@ -117,6 +131,8 @@ await app.register(
         message: "Слишком много запросов к админке. Подождите минуту.",
       }),
     });
+    // Вход отдельно и БЕЗ requireAdmin: свой лимит 5 попыток / 10 минут.
+    await scope.register(adminSessionRoutes);
     await scope.register(adminRoutes);
   },
   { prefix: "/api/admin" },
@@ -129,6 +145,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {
     app.log.info(`Получен ${signal}, закрываю соединения`);
     await app.close();
+    await closeRedis();
     await pool.end();
     process.exit(0);
   });
