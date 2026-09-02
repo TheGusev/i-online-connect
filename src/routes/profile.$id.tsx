@@ -37,6 +37,7 @@ export const Route = createFileRoute("/profile/$id")({
 function ProfileViewPage() {
   const { id } = Route.useParams();
   const { data, isPending, isError } = useProfileDetail(id);
+  const { collapsed, toggle } = useProfileCollapse();
 
   if (id === "me") {
     return (
