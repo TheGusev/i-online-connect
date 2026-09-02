@@ -80,12 +80,7 @@ export function StatsSection() {
         <Select
           label="Период"
           value={String(days)}
-          onChange={(event) => setDays(Number(event.target.value))}
-        >
-          <option value="7">7 дней</option>
-          <option value="30">30 дней</option>
-          <option value="90">90 дней</option>
-        </Select>
+          onChange={(event) => setDays(Number(event.target.value))} options={[{ value: "7", label: "7 дней" }, { value: "30", label: "30 дней" }, { value: "90", label: "90 дней" }]} />
       </SectionHeader>
 
       {isLoading || !data ? (
@@ -166,16 +161,8 @@ export function UsersSection() {
     <section>
       <SectionHeader title="Пользователи" hint="Поиск по email и имени">
         <Input label="Поиск" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-        <Select label="Блокировка" value={blocked} onChange={(e) => { setBlocked(e.target.value); setPage(1); }}>
-          <option value="">все</option>
-          <option value="yes">заблокированные</option>
-          <option value="no">активные</option>
-        </Select>
-        <Select label="Проверка" value={verified} onChange={(e) => { setVerified(e.target.value); setPage(1); }}>
-          <option value="">все</option>
-          <option value="yes">проверенные</option>
-          <option value="no">без проверки</option>
-        </Select>
+        <Select label="Блокировка" value={blocked} onChange={(e) => { setBlocked(e.target.value); setPage(1); }} options={[{ value: "", label: "все" }, { value: "yes", label: "заблокированные" }, { value: "no", label: "активные" }]} />
+        <Select label="Проверка" value={verified} onChange={(e) => { setVerified(e.target.value); setPage(1); }} options={[{ value: "", label: "все" }, { value: "yes", label: "проверенные" }, { value: "no", label: "без проверки" }]} />
       </SectionHeader>
 
       <Table head={["Пользователь", "Город", "Доверие", "Контакты", "Активность", "Действия"]}>
@@ -263,13 +250,7 @@ export function ReportsSection() {
   return (
     <section>
       <SectionHeader title="Жалобы" hint="Разбираем от старых к новым">
-        <Select label="Статус" value={state} onChange={(e) => { setState(e.target.value); setPage(1); }}>
-          <option value="new">новые</option>
-          <option value="in_review">в работе</option>
-          <option value="resolved">решённые</option>
-          <option value="rejected">отклонённые</option>
-          <option value="">все</option>
-        </Select>
+        <Select label="Статус" value={state} onChange={(e) => { setState(e.target.value); setPage(1); }} options={[{ value: "new", label: "новые" }, { value: "in_review", label: "в работе" }, { value: "resolved", label: "решённые" }, { value: "rejected", label: "отклонённые" }, { value: "", label: "все" }]} />
       </SectionHeader>
 
       <Table head={["Тема", "На кого", "От кого", "Подробности", "Когда", "Решение"]}>
@@ -353,11 +334,7 @@ export function VerificationsSection() {
         title="Верификации"
         hint="Автосверка решает сама; здесь остаются спорные случаи. Само видео и селфи в админку не отдаются."
       >
-        <Select label="Статус" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
-          <option value="pending">ждут разбора</option>
-          <option value="verified">подтверждённые</option>
-          <option value="rejected">отклонённые</option>
-        </Select>
+        <Select label="Статус" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} options={[{ value: "pending", label: "ждут разбора" }, { value: "verified", label: "подтверждённые" }, { value: "rejected", label: "отклонённые" }]} />
       </SectionHeader>
 
       <Table head={["Пользователь", "Задание", "Автосверка", "Отправлено", "Решение"]}>
@@ -444,12 +421,7 @@ export function ListingsSection() {
     <section>
       <SectionHeader title="Объявления «Рядом»" hint="Поиск по заголовку и городу">
         <Input label="Поиск" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
-        <Select label="Статус" value={state} onChange={(e) => { setState(e.target.value); setPage(1); }}>
-          <option value="">все</option>
-          <option value="active">активные</option>
-          <option value="closed">закрытые</option>
-          <option value="expired">истёкшие</option>
-        </Select>
+        <Select label="Статус" value={state} onChange={(e) => { setState(e.target.value); setPage(1); }} options={[{ value: "", label: "все" }, { value: "active", label: "активные" }, { value: "closed", label: "закрытые" }, { value: "expired", label: "истёкшие" }]} />
       </SectionHeader>
 
       <Table head={["Объявление", "Категория", "Автор", "Цена", "Срок", "Действия"]}>
@@ -535,12 +507,7 @@ export function SupportSection() {
   return (
     <section>
       <SectionHeader title="Поддержка" hint="Ответ уходит письмом на указанный адрес">
-        <Select label="Статус" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
-          <option value="new">новые</option>
-          <option value="in_progress">в работе</option>
-          <option value="closed">закрытые</option>
-          <option value="">все</option>
-        </Select>
+        <Select label="Статус" value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }} options={[{ value: "new", label: "новые" }, { value: "in_progress", label: "в работе" }, { value: "closed", label: "закрытые" }, { value: "", label: "все" }]} />
       </SectionHeader>
 
       <Table head={["Тема", "Кто", "Сообщение", "Когда", "Ответ"]}>
