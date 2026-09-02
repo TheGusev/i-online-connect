@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { Avatar, Chip, TrustBadge } from "@/components/ds";
 import type { OnboardingDraft } from "@/api";
 
-export function ProfilePreview({ draft }: { draft: OnboardingDraft }) {
+export function ProfilePreview({ draft, photoUrl }: { draft: OnboardingDraft; photoUrl?: string | null }) {
   const { t } = useTranslation();
   const hasVideo = Boolean(draft.videoName);
 
@@ -14,7 +14,13 @@ export function ProfilePreview({ draft }: { draft: OnboardingDraft }) {
       style={{ boxShadow: "var(--shadow-soft)" }}
     >
       <div className="flex items-center gap-4 p-5" style={{ background: "var(--gradient-warm)" }}>
-        <Avatar name={draft.name || "Профиль"} size="lg" verified={hasVideo} />
+        <Avatar
+          name={draft.name || "Профиль"}
+          src={photoUrl ?? null}
+          size="lg"
+          verified={hasVideo}
+        />
+
         <div className="min-w-0">
           <p className="truncate text-lg font-extrabold">
             {draft.name}
