@@ -9,8 +9,6 @@
 -- Все изменения additive: новые таблицы, новое значение enum, новая колонка с
 -- DEFAULT. Старые клиенты продолжают работать без правок.
 
-BEGIN;
-
 DO $$ BEGIN
   CREATE TYPE need_category AS ENUM ('sale', 'service', 'leisure', 'travel', 'help');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -95,7 +93,3 @@ CREATE UNIQUE INDEX IF NOT EXISTS notifications_listing_unique_idx
 ALTER TABLE notification_prefs
   ADD COLUMN IF NOT EXISTS listings boolean NOT NULL DEFAULT true;
 
-INSERT INTO schema_migrations (name) VALUES ('005_listings.sql')
-  ON CONFLICT (name) DO NOTHING;
-
-COMMIT;
