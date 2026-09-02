@@ -81,7 +81,6 @@ await app.register(rateLimit, {
   }),
 });
 
-
 await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
 
 app.get("/api/health", async (_request, reply) => {

@@ -307,7 +307,6 @@ export async function listingRoutes(app: FastifyInstance) {
       const city = draft.city ?? profile?.city ?? null;
       if (!city) throw badRequest("Укажите город в профиле — объявления показываются по городу");
 
-
       const row = await queryOne<{ id: string }>(
         `INSERT INTO listings (author_id, category, city, title, description, price_minor, expires_at)
          VALUES ($1, $2::need_category, $3, $4, $5, $6,
@@ -345,7 +344,6 @@ export async function listingRoutes(app: FastifyInstance) {
       return created ? toListingDto(created, userId) : { id: row.id };
     },
   );
-
 
   // ── Правка / закрытие ────────────────────────────────────────────────────
   app.patch<{ Params: { id: string } }>("/:id", { config: PATCH_LIMIT }, async (request) => {
@@ -392,86 +390,86 @@ export async function listingRoutes(app: FastifyInstance) {
     "/:id/respond",
     { config: RESPOND_LIMIT },
     async (request) => {
-    const userId = currentUserId(request);
-    const { id } = idParam.parse(request.params);
-    const body = z
-      .object({ text: z.string().trim().min(1).max(1000).optional() })
-      .parse(request.body ?? {});
+      const userId = currentUserId(request);
+      const { id } = idParam.parse(request.params);
+      const body = z
+        .object({ text: z.string().trim().min(1).max(1000).optional() })
+        .parse(request.body ?? {});
 
-    const listing = await queryOne<{ author_id: string; state: string; title: string }>(
-      "SELECT author_id, state, title FROM listings WHERE id = $1",
-      [id],
-    );
-    if (!listing) throw notFound("Объявление не найдено");
-    if (listing.author_id === userId) throw badRequest("Это ваше объявление");
-    if (listing.state !== "active") throw badRequest("Объявление уже закрыто");
+      const listing = await queryOne<{ author_id: string; state: string; title: string }>(
+        "SELECT author_id, state, title FROM listings WHERE id = $1",
+        [id],
+      );
+      if (!listing) throw notFound("Объявление не найдено");
+      if (listing.author_id === userId) throw badRequest("Это ваше объявление");
+      if (listing.state !== "active") throw badRequest("Объявление уже закрыто");
 
-    const blocked = await queryOne(
-      `SELECT 1 FROM blocks
+      const blocked = await queryOne(
+        `SELECT 1 FROM blocks
         WHERE (user_id = $1 AND blocked_id = $2) OR (user_id = $2 AND blocked_id = $1)`,
-      [userId, listing.author_id],
-    );
-    if (blocked) throw forbidden("Диалог недоступен");
-
-    const existing = await queryOne<{ conversation_id: string }>(
-      "SELECT conversation_id FROM listing_responses WHERE listing_id = $1 AND user_id = $2",
-      [id, userId],
-    );
-    if (existing) return { conversationId: existing.conversation_id, created: false as const };
-
-    const conversationId = await transaction(async (client) => {
-      const conversation = await client.query<{ id: string }>(
-        "INSERT INTO conversations (match_id) VALUES (NULL) RETURNING id",
-        [],
+        [userId, listing.author_id],
       );
-      const newId = conversation.rows[0]?.id;
-      if (!newId) throw badRequest("Не удалось открыть диалог");
+      if (blocked) throw forbidden("Диалог недоступен");
 
-      await client.query(
-        `INSERT INTO conversation_participants (conversation_id, user_id)
+      const existing = await queryOne<{ conversation_id: string }>(
+        "SELECT conversation_id FROM listing_responses WHERE listing_id = $1 AND user_id = $2",
+        [id, userId],
+      );
+      if (existing) return { conversationId: existing.conversation_id, created: false as const };
+
+      const conversationId = await transaction(async (client) => {
+        const conversation = await client.query<{ id: string }>(
+          "INSERT INTO conversations (match_id) VALUES (NULL) RETURNING id",
+          [],
+        );
+        const newId = conversation.rows[0]?.id;
+        if (!newId) throw badRequest("Не удалось открыть диалог");
+
+        await client.query(
+          `INSERT INTO conversation_participants (conversation_id, user_id)
          VALUES ($1, $2), ($1, $3) ON CONFLICT DO NOTHING`,
-        [newId, userId, listing.author_id],
-      );
-      await client.query(
-        `INSERT INTO listing_responses (listing_id, user_id, conversation_id)
+          [newId, userId, listing.author_id],
+        );
+        await client.query(
+          `INSERT INTO listing_responses (listing_id, user_id, conversation_id)
          VALUES ($1, $2, $3)`,
-        [id, userId, newId],
-      );
-      await client.query(
-        `INSERT INTO messages (conversation_id, author_id, kind, text)
+          [id, userId, newId],
+        );
+        await client.query(
+          `INSERT INTO messages (conversation_id, author_id, kind, text)
          VALUES ($1, $2, 'text', $3)`,
-        [newId, userId, body.text ?? `Здравствуйте! Пишу по объявлению «${listing.title}».`],
-      );
-      return newId;
-    });
+          [newId, userId, body.text ?? `Здравствуйте! Пишу по объявлению «${listing.title}».`],
+        );
+        return newId;
+      });
 
-    // Автору — уведомление об отклике. ON CONFLICT: уникальный индекс по
-    // (user_id, kind, listingId) не должен ломать сам отклик.
-    try {
-      const payload = { listingId: id, conversationId, title: listing.title };
-      const rows = await query<{ id: string; created_at: Date }>(
-        `INSERT INTO notifications (user_id, kind, payload)
+      // Автору — уведомление об отклике. ON CONFLICT: уникальный индекс по
+      // (user_id, kind, listingId) не должен ломать сам отклик.
+      try {
+        const payload = { listingId: id, conversationId, title: listing.title };
+        const rows = await query<{ id: string; created_at: Date }>(
+          `INSERT INTO notifications (user_id, kind, payload)
          VALUES ($1, 'listing_response', $2::jsonb)
          ON CONFLICT DO NOTHING
          RETURNING id, created_at`,
-        [listing.author_id, JSON.stringify(payload)],
-      );
-      const created = rows[0];
-      if (created) {
-        publishUserEvent(listing.author_id, {
-          type: "notification",
-          notification: {
-            id: created.id,
-            kind: "listing_response",
-            payload,
-            readAt: null,
-            createdAt: created.created_at.toISOString(),
-          },
-        });
+          [listing.author_id, JSON.stringify(payload)],
+        );
+        const created = rows[0];
+        if (created) {
+          publishUserEvent(listing.author_id, {
+            type: "notification",
+            notification: {
+              id: created.id,
+              kind: "listing_response",
+              payload,
+              readAt: null,
+              createdAt: created.created_at.toISOString(),
+            },
+          });
+        }
+      } catch (error) {
+        console.error("[listings] уведомление об отклике", error);
       }
-    } catch (error) {
-      console.error("[listings] уведомление об отклике", error);
-    }
 
       return { conversationId, created: true as const };
     },
