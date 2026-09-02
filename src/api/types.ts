@@ -246,8 +246,8 @@ export interface ReportDraft {
   /** Кого или что обжалуют. */
   subjectId: string;
   subjectName?: string;
-  /** Откуда пришла жалоба — из чата или из профиля. */
-  source: "chat" | "profile";
+  /** Откуда пришла жалоба — из чата, профиля или объявления «Рядом». */
+  source: "chat" | "profile" | "listing";
   blockToo?: boolean;
 }
 

@@ -79,9 +79,7 @@ export function SpaceChat({
           onChange={(event) => setText(event.target.value)}
           disabled={!canWrite}
           aria-label="Сообщение в чат сообщества"
-          placeholder={
-            canWrite ? "Написать в общий чат" : "Чат доступен участникам сообщества"
-          }
+          placeholder={canWrite ? "Написать в общий чат" : "Чат доступен участникам сообщества"}
           className="min-w-0 flex-1 rounded-full border border-input bg-background px-4 py-2.5 text-sm outline-none transition-colors focus:border-community focus:ring-4 focus:ring-community/12 disabled:opacity-60"
         />
         <Button

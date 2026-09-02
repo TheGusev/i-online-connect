@@ -133,7 +133,10 @@ export function ReportModal({
               )}
             >
               <Icon
-                className={cn("mt-0.5 size-4 shrink-0", active ? "text-primary" : "text-muted-foreground")}
+                className={cn(
+                  "mt-0.5 size-4 shrink-0",
+                  active ? "text-primary" : "text-muted-foreground",
+                )}
                 aria-hidden="true"
               />
               <span>

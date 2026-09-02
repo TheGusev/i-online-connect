@@ -105,4 +105,3 @@ export const useOnboardingStore = create<OnboardingState>((set) => ({
     })),
   reset: () => set({ stepIndex: 0, draft: emptyDraft, files: emptyFiles, answers: [] }),
 }));
-

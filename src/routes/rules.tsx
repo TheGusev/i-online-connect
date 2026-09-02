@@ -96,7 +96,10 @@ function RulesPage() {
                         key={item}
                         className="flex gap-2 text-sm leading-relaxed text-muted-foreground"
                       >
-                        <span aria-hidden="true" className="mt-2 size-1.5 shrink-0 rounded-full bg-primary/60" />
+                        <span
+                          aria-hidden="true"
+                          className="mt-2 size-1.5 shrink-0 rounded-full bg-primary/60"
+                        />
                         {item}
                       </li>
                     ))}

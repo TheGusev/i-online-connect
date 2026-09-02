@@ -29,9 +29,7 @@ export function FeedEmptyState({ nextRefreshAt }: { nextRefreshAt: string }) {
           </Link>
         </Button>
         <Button asChild variant="secondary">
-          <Link to="/profile/me">
-            {t("feed.empty.improve")}
-          </Link>
+          <Link to="/profile/me">{t("feed.empty.improve")}</Link>
         </Button>
       </div>
     </section>

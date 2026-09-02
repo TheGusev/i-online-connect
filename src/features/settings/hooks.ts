@@ -40,9 +40,13 @@ export function useUpdateNotifications() {
 }
 
 export function useChangePassword() {
-  return useMutation({ mutationFn: (payload: PasswordChange) => settingsApi.changePassword(payload) });
+  return useMutation({
+    mutationFn: (payload: PasswordChange) => settingsApi.changePassword(payload),
+  });
 }
 
 export function useDeleteAccount() {
-  return useMutation({ mutationFn: (payload: DeleteAccountRequest) => settingsApi.deleteAccount(payload) });
+  return useMutation({
+    mutationFn: (payload: DeleteAccountRequest) => settingsApi.deleteAccount(payload),
+  });
 }

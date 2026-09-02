@@ -146,9 +146,7 @@ export function DangerZoneSection({ onPause }: { onPause: () => void }) {
         onClose={() => setStage("closed")}
         title="Аккаунт удалён"
         description={`Мы сохранили возможность восстановления на ${restoreDays} дней — просто войди снова с тем же email.`}
-        footer={
-          <Button onClick={() => setStage("closed")}>Понятно</Button>
-        }
+        footer={<Button onClick={() => setStage("closed")}>Понятно</Button>}
       >
         <p className="text-sm text-muted-foreground">
           Спасибо, что был(а) с нами. Если захочешь вернуться — будем рады.

@@ -53,7 +53,6 @@ function OnboardingPage() {
     reset,
   } = useOnboardingStore();
 
-
   const [typing, setTyping] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitState, setSubmitState] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -107,7 +106,6 @@ function OnboardingPage() {
       setSubmitState("error");
     });
   }, [stepId, typing, submitState, draft, files]);
-
 
   const retry = () => {
     setSubmitState("idle");
@@ -164,11 +162,7 @@ function OnboardingPage() {
             );
           })}
 
-          {typing ? (
-            <TypingBubble />
-          ) : (
-            <AiBubble>{t(`onboarding.s${stepIndex + 1}.ai`)}</AiBubble>
-          )}
+          {typing ? <TypingBubble /> : <AiBubble>{t(`onboarding.s${stepIndex + 1}.ai`)}</AiBubble>}
         </div>
 
         {!typing && (
@@ -349,7 +343,6 @@ function OnboardingPage() {
                     </Button>
                   </div>
                 )}
-
 
                 {submitState === "ready" && result && (
                   <div className="space-y-5 animate-in fade-in duration-700">
@@ -542,7 +535,6 @@ function AccountStep({ name, onDone }: { name: string; onDone: (email: string) =
     </div>
   );
 }
-
 
 function BuildingLoader() {
   const { t } = useTranslation();

@@ -90,7 +90,6 @@ export function AccountSection({ account }: { account: AccountSettings }) {
         />
       </Card>
 
-
       <Card className="p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-start gap-3">
@@ -221,4 +220,3 @@ function ContactRow({
     </div>
   );
 }
-

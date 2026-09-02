@@ -21,10 +21,7 @@ export function useSpace(id: string) {
 }
 
 /** Инвалидация списка и карточки после любой мутации сообщества. */
-function useSpaceMutation<TArgs>(
-  id: string,
-  mutationFn: (args: TArgs) => Promise<unknown>,
-) {
+function useSpaceMutation<TArgs>(id: string, mutationFn: (args: TArgs) => Promise<unknown>) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn,

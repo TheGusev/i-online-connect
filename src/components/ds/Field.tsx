@@ -26,12 +26,16 @@ function Wrapper({
   children: ReactNode;
   className?: string | undefined;
 }) {
-
   return (
     <div className={cn("w-full", className)}>
       <div className="relative">{children}</div>
       {(error || hint) && (
-        <p className={cn("mt-1.5 px-1 text-xs", error ? "text-destructive" : "text-muted-foreground")}>
+        <p
+          className={cn(
+            "mt-1.5 px-1 text-xs",
+            error ? "text-destructive" : "text-muted-foreground",
+          )}
+        >
           {error ?? hint}
         </p>
       )}
@@ -63,8 +67,10 @@ export function Input({ label, hint, error, className, id, ...props }: InputProp
   );
 }
 
-export interface TextAreaProps
-  extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "placeholder"> {
+export interface TextAreaProps extends Omit<
+  TextareaHTMLAttributes<HTMLTextAreaElement>,
+  "placeholder"
+> {
   label: string;
   hint?: string | undefined;
   error?: string | undefined;

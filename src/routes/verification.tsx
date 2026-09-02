@@ -107,13 +107,7 @@ function useChallengeCountdown(challenge: VerificationChallenge | null) {
   return left;
 }
 
-function ResultCard({
-  ticket,
-  onRetry,
-}: {
-  ticket: VerificationTicket;
-  onRetry: () => void;
-}) {
+function ResultCard({ ticket, onRetry }: { ticket: VerificationTicket; onRetry: () => void }) {
   if (ticket.status === "verified") {
     return (
       <Card className="p-8 text-center">
@@ -140,9 +134,8 @@ function ResultCard({
         </span>
         <h2 className="mt-4 text-xl font-bold">Пока не сходится</h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-          {ticket.reason || "Не удалось сопоставить видео с фото профиля."} Это не приговор:
-          проверь свет, сними шапку и очки, при необходимости обнови фото в профиле — и попробуй
-          снова.
+          {ticket.reason || "Не удалось сопоставить видео с фото профиля."} Это не приговор: проверь
+          свет, сними шапку и очки, при необходимости обнови фото в профиле — и попробуй снова.
         </p>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
           <Button onClick={onRetry}>Записать заново</Button>
@@ -260,8 +253,7 @@ function VerificationPage() {
         to="/profile/me"
         className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
-        <ArrowLeft className="size-4" aria-hidden="true" />
-        В профиль
+        <ArrowLeft className="size-4" aria-hidden="true" />В профиль
       </Link>
 
       <header className="mb-7">

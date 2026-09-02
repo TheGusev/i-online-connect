@@ -9,12 +9,7 @@ const MAX_SECONDS = 8;
 /** Первый поддерживаемый браузером контейнер: Safari умеет только mp4. */
 function pickMimeType(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
-  const candidates = [
-    "video/webm;codecs=vp9",
-    "video/webm;codecs=vp8",
-    "video/webm",
-    "video/mp4",
-  ];
+  const candidates = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"];
   return candidates.find((type) => MediaRecorder.isTypeSupported(type));
 }
 

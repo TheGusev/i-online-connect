@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Bell, CreditCard, ShieldCheck, TriangleAlert, UserRound } from "lucide-react";
+import { Bell, CreditCard, Handshake, ShieldCheck, TriangleAlert, UserRound } from "lucide-react";
 import { useState } from "react";
 
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ds";
 import { AccountSection } from "@/features/settings/components/AccountSection";
 import { DangerZoneSection } from "@/features/settings/components/DangerZoneSection";
+import { NeedsSection } from "@/features/settings/components/NeedsSection";
 import { NotificationsSection } from "@/features/settings/components/NotificationsSection";
 import { PrivacyPanel } from "@/features/settings/components/PrivacyPanel";
 import { SettingsNav, type SettingsSectionMeta } from "@/features/settings/components/SettingsNav";
@@ -36,6 +37,7 @@ export const Route = createFileRoute("/settings")({
 const sections: SettingsSectionMeta[] = [
   { id: "account", label: "Аккаунт", icon: UserRound },
   { id: "privacy", label: "Приватность", icon: ShieldCheck },
+  { id: "needs", label: "Мои потребности", icon: Handshake },
   { id: "notifications", label: "Уведомления", icon: Bell },
   { id: "subscription", label: "Тариф", icon: CreditCard },
   { id: "danger", label: "Удаление аккаунта", icon: TriangleAlert },
@@ -44,6 +46,7 @@ const sections: SettingsSectionMeta[] = [
 const sectionHints: Record<string, string> = {
   account: "Контакты для входа, пароль и язык интерфейса.",
   privacy: "Кто видит профиль и геолокацию, кто может написать первым.",
+  needs: "Что вы ищете или готовы предложить в разделе «Рядом».",
   notifications: "Выбери, о чём сообщать, а о чём — молчать.",
   subscription: "Сейчас всё главное бесплатно. Премиум в работе.",
   danger: "Необратимое действие — сначала предложим паузу.",
@@ -73,6 +76,7 @@ function SettingsPage() {
             <>
               {active === "account" ? <AccountSection account={data.account} /> : null}
               {active === "privacy" ? <PrivacyPanel /> : null}
+              {active === "needs" ? <NeedsSection /> : null}
               {active === "notifications" ? (
                 <NotificationsSection notifications={data.notifications} />
               ) : null}
