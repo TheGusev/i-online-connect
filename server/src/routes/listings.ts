@@ -247,16 +247,43 @@ export async function listingRoutes(app: FastifyInstance) {
   });
 
   // ── Создание ─────────────────────────────────────────────────────────────
-  app.post("/", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (request) => {
-    const userId = currentUserId(request);
-    const draft = createSchema.parse(request.body);
+  app.post(
+    "/",
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: "1 hour",
+          errorResponseBuilder: () => ({
+            message: "Слишком много объявлений подряд. Попробуйте через час.",
+          }),
+        },
+      },
+    },
+    async (request) => {
+      const userId = currentUserId(request);
+      const draft = createSchema.parse(request.body);
 
-    const profile = await queryOne<{ city: string | null; name: string }>(
-      "SELECT city, name FROM profiles WHERE user_id = $1",
-      [userId],
-    );
-    const city = draft.city ?? profile?.city ?? null;
-    if (!city) throw badRequest("Укажите город в профиле — объявления показываются по городу");
+      // Лимит по времени не мешает накопить сотни объявлений за неделю —
+      // ограничиваем ещё и общее число активных.
+      const active = await queryOne<{ count: number }>(
+        `SELECT count(*)::int AS count FROM listings
+          WHERE author_id = $1 AND state = 'active' AND expires_at > now()`,
+        [userId],
+      );
+      if ((active?.count ?? 0) >= ACTIVE_LISTINGS_LIMIT) {
+        throw badRequest(
+          `Можно держать не больше ${ACTIVE_LISTINGS_LIMIT} активных объявлений. Закройте старое, чтобы опубликовать новое.`,
+        );
+      }
+
+      const profile = await queryOne<{ city: string | null; name: string }>(
+        "SELECT city, name FROM profiles WHERE user_id = $1",
+        [userId],
+      );
+      const city = draft.city ?? profile?.city ?? null;
+      if (!city) throw badRequest("Укажите город в профиле — объявления показываются по городу");
+
 
     const row = await queryOne<{ id: string }>(
       `INSERT INTO listings (author_id, category, city, title, description, price_minor, expires_at)
