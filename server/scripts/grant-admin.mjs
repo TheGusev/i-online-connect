@@ -1,18 +1,26 @@
 /**
- * Выдача роли администратора существующему пользователю.
+ * Выдача роли администратора существующему пользователю + привязка TOTP.
  *
  * Публичная регистрация роль не выдаёт никогда: первый админ появляется
- * только этой командой, вручную, на сервере.
+ * только этой командой, вручную, на сервере. Заодно генерируется секрет
+ * второго фактора: QR печатается прямо в терминал (ASCII), никуда не
+ * отправляется и в базе лежит зашифрованным (AES-256-GCM,
+ * ключ TOTP_ENCRYPTION_KEY).
  *
  * Запуск:
- *   npm run grant-admin -- admin@example.com
- *   npm run grant-admin -- admin@example.com --revoke   (снять роль)
+ *   npm run grant-admin -- admin@example.com            (роль + новый TOTP)
+ *   npm run grant-admin -- admin@example.com --keep-totp (роль, TOTP не менять)
+ *   npm run grant-admin -- admin@example.com --revoke    (снять роль и TOTP)
  */
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { authenticator } from "otplib";
+import qrcode from "qrcode-terminal";
 import pg from "pg";
+
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 
