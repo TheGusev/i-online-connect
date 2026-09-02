@@ -11,14 +11,15 @@ import { IntentCard, intentOptions } from "@/features/profile/components/IntentC
 import { InlineEditable, InlineTextField } from "@/features/profile/components/InlineEdit";
 import { MediaCarousel } from "@/features/profile/components/MediaCarousel";
 import { MediaManager } from "@/features/profile/components/MediaManager";
-
 import { PrivacySection } from "@/features/profile/components/PrivacySection";
+import { ProfileCollapseToggle } from "@/features/profile/components/ProfileCollapseToggle";
 import { ProfileSection } from "@/features/profile/components/ProfileSection";
 import { TagEditor } from "@/features/profile/components/TagEditor";
 import { TrustBadgeExplained } from "@/features/profile/components/TrustBadgeExplained";
 import { TrustStatsSection } from "@/features/profile/components/TrustStatsSection";
 import { VerificationSection } from "@/features/profile/components/VerificationSection";
 import { useMyProfile, useUpdateMyProfile } from "@/features/profile/hooks";
+import { useProfileCollapse } from "@/features/profile/hooks/useProfileCollapse";
 
 export const Route = createFileRoute("/profile/me")({
   head: () => ({
