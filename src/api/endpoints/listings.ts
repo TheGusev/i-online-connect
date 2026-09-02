@@ -1,19 +1,16 @@
-import type {
-  Listing,
-  ListingDraft,
-  ListingSearchResult,
-  NeedCategory,
-} from "../types";
+import type { Listing, ListingDraft, ListingSearchResult, NeedCategory } from "../types";
 import { request } from "../client";
 
 /** Поиск объявлений. Без city сервер подставит город из профиля. */
-export async function searchListings(params: {
-  city?: string;
-  category?: NeedCategory;
-  q?: string;
-  limit?: number;
-  onlyMyNeeds?: boolean;
-} = {}): Promise<ListingSearchResult> {
+export async function searchListings(
+  params: {
+    city?: string;
+    category?: NeedCategory;
+    q?: string;
+    limit?: number;
+    onlyMyNeeds?: boolean;
+  } = {},
+): Promise<ListingSearchResult> {
   return request<ListingSearchResult>("/listings", { query: params });
 }
 

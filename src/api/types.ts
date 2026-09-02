@@ -14,7 +14,6 @@ export interface User {
   avatarUrl?: string;
 }
 
-
 export interface MatchCandidate extends User {
   compatibility: number;
   reasons: string[];
@@ -57,13 +56,7 @@ export interface Message {
 export type MeetingKind = "coffee" | "walk" | "event";
 
 /** Категория сообщества. */
-export type SpaceCategory =
-  | "sport"
-  | "games"
-  | "professional"
-  | "culture"
-  | "food"
-  | "city";
+export type SpaceCategory = "sport" | "games" | "professional" | "culture" | "food" | "city";
 
 /** Формат встреч сообщества. */
 export type SpaceFormat = "offline" | "online" | "mixed";
@@ -203,7 +196,6 @@ export interface ProfileMedia {
   /** Главное фото: аватар профиля и основа для видео-верификации. */
   isPrimary?: boolean;
 }
-
 
 /** Расшифровка бейджа доверия — то, что видно другим людям (без баллов). */
 export interface TrustDetails {

@@ -31,10 +31,9 @@ export async function settingsRoutes(app: FastifyInstance) {
       language: string;
       email_verified: boolean;
       phone_verified: boolean;
-    }>(
-      "SELECT email, phone, language, email_verified, phone_verified FROM users WHERE id = $1",
-      [userId],
-    );
+    }>("SELECT email, phone, language, email_verified, phone_verified FROM users WHERE id = $1", [
+      userId,
+    ]);
     if (!account) throw notFound("Аккаунт не найден");
 
     const notifications = await queryOne<{
@@ -43,9 +42,10 @@ export async function settingsRoutes(app: FastifyInstance) {
       spaces: boolean;
       safety: boolean;
       listings: boolean;
-    }>("SELECT matches, messages, spaces, safety, listings FROM notification_prefs WHERE user_id = $1", [
-      userId,
-    ]);
+    }>(
+      "SELECT matches, messages, spaces, safety, listings FROM notification_prefs WHERE user_id = $1",
+      [userId],
+    );
 
     const subscription = await queryOne<{ plan: "basic" | "premium"; since: Date }>(
       "SELECT plan, since FROM subscriptions WHERE user_id = $1",

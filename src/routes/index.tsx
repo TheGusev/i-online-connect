@@ -220,23 +220,21 @@ function LandingPage() {
                   <p className="mt-4 text-sm text-muted-foreground">{t("landing.nearby.note")}</p>
                 </div>
                 <ul className="flex flex-wrap gap-3">
-                  {(
-                    t("landing.nearby.items", { returnObjects: true }) as unknown as string[]
-                  ).map((item) => (
-                    <li
-                      key={item}
-                      className="rounded-full border border-border bg-secondary/50 px-4 py-2 text-sm font-semibold"
-                    >
-                      {item}
-                    </li>
-                  ))}
+                  {(t("landing.nearby.items", { returnObjects: true }) as unknown as string[]).map(
+                    (item) => (
+                      <li
+                        key={item}
+                        className="rounded-full border border-border bg-secondary/50 px-4 py-2 text-sm font-semibold"
+                      >
+                        {item}
+                      </li>
+                    ),
+                  )}
                 </ul>
               </div>
             </div>
           </Reveal>
         </section>
-
-
 
         {/* Trust */}
         <section id="trust" className="mx-auto max-w-6xl px-5 py-20 lg:px-8 lg:py-28">
@@ -304,7 +302,6 @@ function LandingPage() {
               {t("landing.footer.support")}
             </Link>
           </nav>
-
         </div>
         <div className="mx-auto max-w-6xl px-5 pb-8 text-xs text-muted-foreground lg:px-8">
           © {new Date().getFullYear()} {t("app.name")}. {t("landing.footer.rights")}
