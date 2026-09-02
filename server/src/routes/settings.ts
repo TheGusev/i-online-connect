@@ -42,7 +42,7 @@ export async function settingsRoutes(app: FastifyInstance) {
       messages: boolean;
       spaces: boolean;
       safety: boolean;
-    }>("SELECT matches, messages, spaces, safety FROM notification_prefs WHERE user_id = $1", [
+    }>("SELECT matches, messages, spaces, safety, listings FROM notification_prefs WHERE user_id = $1", [
       userId,
     ]);
 

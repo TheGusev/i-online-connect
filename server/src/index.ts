@@ -21,8 +21,10 @@ import { registerErrorHandler } from "./http.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { chatRoutes } from "./routes/chat.ts";
 import { confirmRoutes } from "./routes/confirm.ts";
+import { listingRoutes } from "./routes/listings.ts";
 import { matchingRoutes } from "./routes/matching.ts";
 import { mediaRoutes } from "./routes/media.ts";
+import { notificationRoutes } from "./routes/notifications.ts";
 import { onboardingRoutes } from "./routes/onboarding.ts";
 import { profileRoutes } from "./routes/profile.ts";
 import { settingsRoutes } from "./routes/settings.ts";
@@ -30,6 +32,7 @@ import { spaceRoutes } from "./routes/spaces.ts";
 import { supportRoutes } from "./routes/support.ts";
 import { trustRoutes } from "./routes/trust.ts";
 import { chatSocketRoutes } from "./ws/chat.ts";
+import { notificationSocketRoutes } from "./ws/notifications.ts";
 
 const app = Fastify({
   logger: {
@@ -89,7 +92,10 @@ await app.register(mediaRoutes, { prefix: "/api/media" });
 await app.register(settingsRoutes, { prefix: "/api/settings" });
 await app.register(confirmRoutes, { prefix: "/api/confirm" });
 await app.register(supportRoutes, { prefix: "/api/support" });
+await app.register(listingRoutes, { prefix: "/api/listings" });
+await app.register(notificationRoutes, { prefix: "/api/notifications" });
 await app.register(chatSocketRoutes, { prefix: "/ws" });
+await app.register(notificationSocketRoutes, { prefix: "/ws" });
 
 // Корректное завершение: PM2 присылает SIGINT/SIGTERM при reload.
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
