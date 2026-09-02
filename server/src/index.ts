@@ -70,9 +70,15 @@ await app.register(multipart, {
 await app.register(rateLimit, {
   max: 300,
   timeWindow: "1 minute",
-  // Отдельные лимиты для входа и верификации заданы в самих роутах.
-  keyGenerator: (request) => request.ip,
+  // Считаем по аккаунту, а не по IP: иначе лимит обходится сменой сети,
+  // а офис или мобильный оператор упирается в общий счётчик.
+  // Отдельные лимиты для входа, верификации и объявлений заданы в роутах.
+  keyGenerator: (request) => rateLimitSubject(request.headers.authorization, request.ip),
+  errorResponseBuilder: () => ({
+    message: "Слишком много запросов подряд. Немного подождите и попробуйте снова.",
+  }),
 });
+
 
 await app.register(websocket, { options: { maxPayload: 64 * 1024 } });
 
