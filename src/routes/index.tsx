@@ -257,16 +257,17 @@ function LandingPage() {
             <p className="mt-1 text-sm text-muted-foreground">{t("app.tagline")}</p>
           </div>
           <nav className="flex flex-wrap gap-x-8 gap-y-3 text-sm text-muted-foreground">
-            <a href="#trust" className="transition-colors hover:text-foreground">
+            <Link to="/about" className="transition-colors hover:text-foreground">
               {t("landing.footer.about")}
-            </a>
-            <Link to="/safety-center" className="transition-colors hover:text-foreground">
+            </Link>
+            <Link to="/rules" className="transition-colors hover:text-foreground">
               {t("landing.footer.rules")}
             </Link>
-            <Link to="/settings" className="transition-colors hover:text-foreground">
+            <Link to="/support" className="transition-colors hover:text-foreground">
               {t("landing.footer.support")}
             </Link>
           </nav>
+
         </div>
         <div className="mx-auto max-w-6xl px-5 pb-8 text-xs text-muted-foreground lg:px-8">
           © {new Date().getFullYear()} {t("app.name")}. {t("landing.footer.rights")}
