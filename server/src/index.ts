@@ -77,6 +77,8 @@ await app.register(rateLimit, {
   // Отдельные лимиты для входа, верификации и объявлений заданы в роутах.
   keyGenerator: (request) => rateLimitSubject(request.headers.authorization, request.ip),
   errorResponseBuilder: () => ({
+    statusCode: 429,
+    error: "Too Many Requests",
     message: "Слишком много запросов подряд. Немного подождите и попробуйте снова.",
   }),
 });

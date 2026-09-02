@@ -37,6 +37,8 @@ const RESPOND_LIMIT = {
     max: 30,
     timeWindow: "1 hour",
     errorResponseBuilder: () => ({
+      statusCode: 429,
+      error: "Too Many Requests",
       message: "Слишком много откликов подряд. Попробуйте через час.",
     }),
   },
@@ -47,6 +49,8 @@ const PATCH_LIMIT = {
     max: 60,
     timeWindow: "1 hour",
     errorResponseBuilder: () => ({
+      statusCode: 429,
+      error: "Too Many Requests",
       message: "Слишком много изменений подряд. Попробуйте чуть позже.",
     }),
   },
@@ -278,6 +282,8 @@ export async function listingRoutes(app: FastifyInstance) {
           max: 20,
           timeWindow: "1 hour",
           errorResponseBuilder: () => ({
+            statusCode: 429,
+            error: "Too Many Requests",
             message: "Слишком много объявлений подряд. Попробуйте через час.",
           }),
         },
