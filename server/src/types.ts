@@ -15,7 +15,10 @@ export interface UserDto {
   trustLevel: TrustLevel;
   trustScore: number;
   online: boolean;
+  /** Главное фото профиля: подставляется в аватары интерфейса. */
+  avatarUrl?: string;
 }
+
 
 export interface ProfileMediaDto {
   id: string;
