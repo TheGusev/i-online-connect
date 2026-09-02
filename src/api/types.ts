@@ -298,7 +298,13 @@ export interface AccountSettings {
   phoneVerified: boolean;
 }
 
-export type NotificationChannel = "matches" | "messages" | "spaces" | "safety";
+export type NotificationChannel =
+  | "matches"
+  | "messages"
+  | "spaces"
+  | "safety"
+  /** Совпадения по объявлениям в разделе «Рядом». */
+  | "listings";
 
 /** Переключатели уведомлений по типам событий. */
 export type NotificationSettings = Record<NotificationChannel, boolean>;
@@ -337,4 +343,69 @@ export interface DeleteAccountReceipt {
 export interface PasswordChange {
   current: string;
   next: string;
+}
+
+// ── Раздел «Рядом»: объявления по жизненным задачам ───────────────────────────
+// Не путать с interests (хобби для знакомств): needs — про бытовые задачи.
+
+export type NeedCategory = "sale" | "service" | "leisure" | "travel" | "help";
+
+export type ListingState = "active" | "closed" | "expired";
+
+export interface ListingAuthor {
+  id: string;
+  name: string;
+  /** Тот же уровень доверия, что и в знакомствах — система доверия одна. */
+  trustLevel: TrustLevel;
+  avatarUrl: string | null;
+}
+
+export interface Listing {
+  id: string;
+  category: NeedCategory;
+  city: string;
+  title: string;
+  description: string;
+  /** Цена в копейках; null — «договорная» или неприменимо. */
+  priceMinor: number | null;
+  currency: string;
+  state: ListingState;
+  expiresAt: string;
+  createdAt: string;
+  photos: string[];
+  responsesCount: number;
+  /** Диалог, если уже откликнулся. */
+  respondedConversationId: string | null;
+  isMine: boolean;
+  author: ListingAuthor;
+}
+
+export interface ListingSearchResult {
+  city: string | null;
+  items: Listing[];
+}
+
+export interface ListingDraft {
+  category: NeedCategory;
+  title: string;
+  description?: string;
+  priceMinor?: number | null;
+  city?: string;
+  mediaIds?: string[];
+  expiresInDays?: number;
+}
+
+export type AppNotificationKind = "listing_match" | "listing_response";
+
+export interface AppNotification {
+  id: string;
+  kind: AppNotificationKind | string;
+  payload: Record<string, unknown>;
+  readAt: string | null;
+  createdAt: string;
+}
+
+export interface NotificationFeed {
+  unreadCount: number;
+  items: AppNotification[];
 }
