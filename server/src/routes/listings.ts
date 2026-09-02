@@ -29,6 +29,29 @@ const categorySchema = z.enum(NEED_CATEGORIES);
 
 const idParam = z.object({ id: z.string().uuid() });
 
+// Анти-спам: лимиты считаются по аккаунту (keyGenerator в index.ts).
+const ACTIVE_LISTINGS_LIMIT = 15;
+
+const RESPOND_LIMIT = {
+  rateLimit: {
+    max: 30,
+    timeWindow: "1 hour",
+    errorResponseBuilder: () => ({
+      message: "Слишком много откликов подряд. Попробуйте через час.",
+    }),
+  },
+};
+
+const PATCH_LIMIT = {
+  rateLimit: {
+    max: 60,
+    timeWindow: "1 hour",
+    errorResponseBuilder: () => ({
+      message: "Слишком много изменений подряд. Попробуйте чуть позже.",
+    }),
+  },
+};
+
 // Новые поля добавляем только опциональными — старые клиенты не присылают их
 // и получают прежнее поведение (см. правило совместимости в API.md).
 const createSchema = z.object({
