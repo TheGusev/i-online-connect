@@ -12,6 +12,7 @@
  * Результат — dist/static: только статика, Node.js в рантайме не требуется.
  */
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -20,6 +21,24 @@ const root = process.cwd();
 const clientDir = path.join(root, "dist", "client");
 const outDir = path.join(root, "dist", "static");
 const shellPath = path.join(clientDir, "_shell.html");
+
+/**
+ * Версия сборки: короткий git-хэш, а если git недоступен (сборка из архива) —
+ * timestamp. Значение попадает в dist/static/version.json; открытые вкладки
+ * опрашивают этот файл и предлагают обновиться (см. src/hooks/useAppVersion.ts).
+ */
+function buildVersion() {
+  if (process.env.APP_VERSION) return process.env.APP_VERSION;
+  try {
+    return execFileSync("git", ["rev-parse", "--short", "HEAD"], {
+      stdio: ["ignore", "pipe", "ignore"],
+    })
+      .toString()
+      .trim();
+  } catch {
+    return `ts-${Date.now()}`;
+  }
+}
 
 function fail(message) {
   console.error(`[build-static] ${message}`);
@@ -49,6 +68,14 @@ async function main() {
   await rm(path.join(outDir, "_headers"), { force: true });
   await rm(path.join(outDir, ".vite"), { recursive: true, force: true });
 
+  const version = buildVersion();
+  await writeFile(
+    path.join(outDir, "version.json"),
+    `${JSON.stringify({ version, builtAt: new Date().toISOString() }, null, 2)}\n`,
+    "utf8",
+  );
+
+  console.log(`[build-static] version.json: ${version}`);
   console.log("[build-static] Готово: dist/static (index.html + assets).");
   console.log("[build-static] Раздавайте эту папку через Nginx (см. DEPLOY.md).");
 }
