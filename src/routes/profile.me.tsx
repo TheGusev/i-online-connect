@@ -46,6 +46,7 @@ function MyProfilePage() {
   const { data, isPending, isError } = useMyProfile();
   const update = useUpdateMyProfile();
   const navigate = useNavigate();
+  const { collapsed, toggle } = useProfileCollapse();
 
   const [editingIntent, setEditingIntent] = useState(false);
   const [intentDraft, setIntentDraft] = useState<ProfileIntent>("serious");
