@@ -15,6 +15,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as FeedRouteImport } from './routes/feed'
+import { Route as NearbyRouteImport } from './routes/nearby'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as RulesRouteImport } from './routes/rules'
 import { Route as SafetyCenterRouteImport } from './routes/safety-center'
@@ -24,6 +25,9 @@ import { Route as SupportRouteImport } from './routes/support'
 import { Route as VerificationRouteImport } from './routes/verification'
 import { Route as ChatIndexRouteImport } from './routes/chat.index'
 import { Route as ChatIdRouteImport } from './routes/chat.$id'
+import { Route as NearbyIndexRouteImport } from './routes/nearby.index'
+import { Route as NearbyIdRouteImport } from './routes/nearby.$id'
+import { Route as NearbyNewRouteImport } from './routes/nearby.new'
 import { Route as ProfileIdRouteImport } from './routes/profile.$id'
 import { Route as ProfileMeRouteImport } from './routes/profile.me'
 import { Route as SpacesIndexRouteImport } from './routes/spaces.index'
@@ -57,6 +61,11 @@ const DesignSystemRoute = DesignSystemRouteImport.update({
 const FeedRoute = FeedRouteImport.update({
   id: '/feed',
   path: '/feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NearbyRoute = NearbyRouteImport.update({
+  id: '/nearby',
+  path: '/nearby',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -104,6 +113,21 @@ const ChatIdRoute = ChatIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ChatRoute,
 } as any)
+const NearbyIndexRoute = NearbyIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => NearbyRoute,
+} as any)
+const NearbyIdRoute = NearbyIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => NearbyRoute,
+} as any)
+const NearbyNewRoute = NearbyNewRouteImport.update({
+  id: '/new',
+  path: '/new',
+  getParentRoute: () => NearbyRoute,
+} as any)
 const ProfileIdRoute = ProfileIdRouteImport.update({
   id: '/profile/$id',
   path: '/profile/$id',
@@ -132,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof ChatRouteWithChildren
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
+  '/nearby': typeof NearbyRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/rules': typeof RulesRoute
   '/safety-center': typeof SafetyCenterRoute
@@ -140,10 +165,13 @@ export interface FileRoutesByFullPath {
   '/support': typeof SupportRoute
   '/verification': typeof VerificationRoute
   '/chat/$id': typeof ChatIdRoute
+  '/nearby/$id': typeof NearbyIdRoute
+  '/nearby/new': typeof NearbyNewRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
   '/spaces/$id': typeof SpacesIdRoute
   '/chat/': typeof ChatIndexRoute
+  '/nearby/': typeof NearbyIndexRoute
   '/spaces/': typeof SpacesIndexRoute
 }
 export interface FileRoutesByTo {
@@ -159,10 +187,13 @@ export interface FileRoutesByTo {
   '/support': typeof SupportRoute
   '/verification': typeof VerificationRoute
   '/chat/$id': typeof ChatIdRoute
+  '/nearby/$id': typeof NearbyIdRoute
+  '/nearby/new': typeof NearbyNewRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
   '/spaces/$id': typeof SpacesIdRoute
   '/chat': typeof ChatIndexRoute
+  '/nearby': typeof NearbyIndexRoute
   '/spaces': typeof SpacesIndexRoute
 }
 export interface FileRoutesById {
@@ -173,6 +204,7 @@ export interface FileRoutesById {
   '/chat': typeof ChatRouteWithChildren
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
+  '/nearby': typeof NearbyRouteWithChildren
   '/onboarding': typeof OnboardingRoute
   '/rules': typeof RulesRoute
   '/safety-center': typeof SafetyCenterRoute
@@ -181,10 +213,13 @@ export interface FileRoutesById {
   '/support': typeof SupportRoute
   '/verification': typeof VerificationRoute
   '/chat/$id': typeof ChatIdRoute
+  '/nearby/$id': typeof NearbyIdRoute
+  '/nearby/new': typeof NearbyNewRoute
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
   '/spaces/$id': typeof SpacesIdRoute
   '/chat/': typeof ChatIndexRoute
+  '/nearby/': typeof NearbyIndexRoute
   '/spaces/': typeof SpacesIndexRoute
 }
 export interface FileRouteTypes {
@@ -196,6 +231,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/design-system'
     | '/feed'
+    | '/nearby'
     | '/onboarding'
     | '/rules'
     | '/safety-center'
@@ -204,10 +240,13 @@ export interface FileRouteTypes {
     | '/support'
     | '/verification'
     | '/chat/$id'
+    | '/nearby/$id'
+    | '/nearby/new'
     | '/profile/$id'
     | '/profile/me'
     | '/spaces/$id'
     | '/chat/'
+    | '/nearby/'
     | '/spaces/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -223,10 +262,13 @@ export interface FileRouteTypes {
     | '/support'
     | '/verification'
     | '/chat/$id'
+    | '/nearby/$id'
+    | '/nearby/new'
     | '/profile/$id'
     | '/profile/me'
     | '/spaces/$id'
     | '/chat'
+    | '/nearby'
     | '/spaces'
   id:
     | '__root__'
@@ -236,6 +278,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/design-system'
     | '/feed'
+    | '/nearby'
     | '/onboarding'
     | '/rules'
     | '/safety-center'
@@ -244,10 +287,13 @@ export interface FileRouteTypes {
     | '/support'
     | '/verification'
     | '/chat/$id'
+    | '/nearby/$id'
+    | '/nearby/new'
     | '/profile/$id'
     | '/profile/me'
     | '/spaces/$id'
     | '/chat/'
+    | '/nearby/'
     | '/spaces/'
   fileRoutesById: FileRoutesById
 }
@@ -258,6 +304,7 @@ export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
   DesignSystemRoute: typeof DesignSystemRoute
   FeedRoute: typeof FeedRoute
+  NearbyRoute: typeof NearbyRouteWithChildren
   OnboardingRoute: typeof OnboardingRoute
   RulesRoute: typeof RulesRoute
   SafetyCenterRoute: typeof SafetyCenterRoute
@@ -311,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/feed'
       fullPath: '/feed'
       preLoaderRoute: typeof FeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/nearby': {
+      id: '/nearby'
+      path: '/nearby'
+      fullPath: '/nearby'
+      preLoaderRoute: typeof NearbyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -376,6 +430,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatIdRouteImport
       parentRoute: typeof ChatRoute
     }
+    '/nearby/': {
+      id: '/nearby/'
+      path: '/'
+      fullPath: '/nearby/'
+      preLoaderRoute: typeof NearbyIndexRouteImport
+      parentRoute: typeof NearbyRoute
+    }
+    '/nearby/$id': {
+      id: '/nearby/$id'
+      path: '/$id'
+      fullPath: '/nearby/$id'
+      preLoaderRoute: typeof NearbyIdRouteImport
+      parentRoute: typeof NearbyRoute
+    }
+    '/nearby/new': {
+      id: '/nearby/new'
+      path: '/new'
+      fullPath: '/nearby/new'
+      preLoaderRoute: typeof NearbyNewRouteImport
+      parentRoute: typeof NearbyRoute
+    }
     '/profile/$id': {
       id: '/profile/$id'
       path: '/profile/$id'
@@ -419,6 +494,21 @@ const ChatRouteChildren: ChatRouteChildren = {
 
 const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
+interface NearbyRouteChildren {
+  NearbyIdRoute: typeof NearbyIdRoute
+  NearbyNewRoute: typeof NearbyNewRoute
+  NearbyIndexRoute: typeof NearbyIndexRoute
+}
+
+const NearbyRouteChildren: NearbyRouteChildren = {
+  NearbyIdRoute: NearbyIdRoute,
+  NearbyNewRoute: NearbyNewRoute,
+  NearbyIndexRoute: NearbyIndexRoute,
+}
+
+const NearbyRouteWithChildren =
+  NearbyRoute._addFileChildren(NearbyRouteChildren)
+
 interface SpacesRouteChildren {
   SpacesIdRoute: typeof SpacesIdRoute
   SpacesIndexRoute: typeof SpacesIndexRoute
@@ -439,6 +529,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
   DesignSystemRoute: DesignSystemRoute,
   FeedRoute: FeedRoute,
+  NearbyRoute: NearbyRouteWithChildren,
   OnboardingRoute: OnboardingRoute,
   RulesRoute: RulesRoute,
   SafetyCenterRoute: SafetyCenterRoute,

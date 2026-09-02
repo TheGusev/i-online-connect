@@ -12,7 +12,6 @@ export function SideNav() {
   const authed = useSessionStore((state) => state.status === "authed");
   if (!authed) return null;
 
-
   return (
     <aside className="hidden w-64 shrink-0 border-r border-border lg:block">
       <div className="sticky top-0 flex h-screen flex-col gap-8 p-6">

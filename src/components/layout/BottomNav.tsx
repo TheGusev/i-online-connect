@@ -11,10 +11,9 @@ export function BottomNav() {
   const authed = useSessionStore((state) => state.status === "authed");
   if (!authed) return null;
 
-
   return (
     <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card/95 backdrop-blur lg:hidden">
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {navItems.map(({ to, params, labelKey, icon: Icon }) => (
           <li key={to}>
             <Link

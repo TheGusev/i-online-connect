@@ -292,6 +292,9 @@ function LandingPage() {
             <p className="mt-1 text-sm text-muted-foreground">{t("app.tagline")}</p>
           </div>
           <nav className="flex flex-wrap gap-x-8 gap-y-3 text-sm text-muted-foreground">
+            <Link to="/nearby" className="transition-colors hover:text-foreground">
+              {t("nav.nearby")}
+            </Link>
             <Link to="/about" className="transition-colors hover:text-foreground">
               {t("landing.footer.about")}
             </Link>
