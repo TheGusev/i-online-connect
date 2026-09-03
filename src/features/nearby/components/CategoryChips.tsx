@@ -33,6 +33,7 @@ export function CategoryChips({
           key={id}
           size="sm"
           selected={value === id}
+          className="shrink-0 snap-start"
           onClick={() => onChange(allowEmpty && value === id ? null : id)}
         >
           <Icon className="size-3.5" aria-hidden="true" />
