@@ -73,6 +73,7 @@ function NewListingPage() {
         title: title.trim(),
         description: description.trim(),
         priceMinor,
+        district: district.trim() || undefined,
         mediaIds: photos.map((item) => item.id),
         expiresInDays: Number(days),
       },
