@@ -3,7 +3,7 @@ import { ArrowLeft, BadgeCheck, CalendarDays, MapPin, MessagesSquare } from "luc
 
 import { WaveHeading } from "@/components/landing/WaveHeading";
 import { AppShell } from "@/components/layout/AppShell";
-import { Chip, ProfileCardSkeleton } from "@/components/ds";
+import { Chip, MediaImage, ProfileCardSkeleton } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { EventList } from "@/features/spaces/components/EventList";
 import { JoinPanel } from "@/features/spaces/components/JoinPanel";
@@ -84,13 +84,7 @@ function SpaceDetailPage() {
 
       <Reveal className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
         <div className="relative aspect-[16/6]">
-          <img
-            src={mediaUrl(space.coverUrl)}
-            alt={space.title}
-            width={1024}
-            height={640}
-            className="size-full object-cover"
-          />
+          <MediaImage src={space.coverUrl} alt={space.title} className="size-full object-cover" />
           {space.verifiedCommunity ? (
             <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-community px-3 py-1 text-xs font-semibold text-community-foreground shadow-soft">
               <BadgeCheck className="size-3.5" aria-hidden="true" />

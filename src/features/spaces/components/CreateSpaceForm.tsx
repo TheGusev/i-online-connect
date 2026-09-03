@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import type { SpaceCadence, SpaceCategory, SpaceDraft, SpaceFormat } from "@/api";
 import { mediaUrl, spacesApi } from "@/api";
-import { Button, Input, Select, TextArea } from "@/components/ds";
+import { Button, Input, MediaImage, Select, TextArea } from "@/components/ds";
 import { cadenceLabels, categoryLabels, formatLabels } from "@/features/spaces/labels";
 import { cn } from "@/lib/utils";
 
@@ -180,8 +180,8 @@ export function CreateSpaceForm({
         <p className="mt-1 text-xs text-muted-foreground">JPEG, PNG или WebP до 8 МБ.</p>
 
         {!covers.includes(coverUrl) ? (
-          <img
-            src={mediaUrl(coverUrl)}
+          <MediaImage
+            src={coverUrl}
             alt="Загруженная обложка"
             className="mt-3 aspect-[4/3] w-40 rounded-2xl border-2 border-community object-cover"
           />

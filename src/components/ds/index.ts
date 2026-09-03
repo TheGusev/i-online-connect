@@ -9,6 +9,7 @@ export {
   type CardProps,
 } from "./Card";
 export { Avatar, type AvatarProps } from "./Avatar";
+export { MediaImage } from "./MediaImage";
 export { TrustBadge, type TrustBadgeProps, type TrustLevel } from "./TrustBadge";
 export { Chip, type ChipProps } from "./Chip";
 export { Toggle, ToggleRow, type ToggleProps } from "./Toggle";

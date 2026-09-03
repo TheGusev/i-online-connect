@@ -2,8 +2,9 @@ import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { useState } from "react";
 
 import type { ProfileMedia } from "@/api";
-import { cn } from "@/lib/utils";
 import { mediaUrl } from "@/api";
+import { MediaImage } from "@/components/ds";
+import { cn } from "@/lib/utils";
 
 /** Крупный блок медиа с прокруткой нескольких фото/видео. */
 export function MediaCarousel({
@@ -25,12 +26,22 @@ export function MediaCarousel({
 
   return (
     <div className={cn("relative overflow-hidden rounded-[2rem] bg-secondary", className)}>
-      <div className="aspect-[4/5] w-full sm:aspect-[16/10]">
-        <img
-          src={mediaUrl(current.url)}
-          alt={`${name} — медиа ${index + 1} из ${total}`}
-          className="size-full object-cover transition-opacity duration-500"
-        />
+      <div className="aspect-square w-full sm:aspect-[16/10]">
+        {current.kind === "video" ? (
+          <video
+            src={mediaUrl(current.url)}
+            controls
+            playsInline
+            preload="metadata"
+            className="size-full object-cover"
+          />
+        ) : (
+          <MediaImage
+            src={current.url}
+            alt={`${name} — медиа ${index + 1} из ${total}`}
+            className="size-full object-cover transition-opacity duration-500"
+          />
+        )}
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-foreground/55 to-transparent" />

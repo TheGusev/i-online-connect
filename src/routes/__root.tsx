@@ -83,7 +83,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "viewport",
         content:
-          "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
+          "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content",
       },
       { title: "Я Онлайн" },
       { name: "description", content: "Платформа знакомств и социальных связей «Я Онлайн»." },

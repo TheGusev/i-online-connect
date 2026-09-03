@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { CalendarDays, MapPin, MessageCircle } from "lucide-react";
 
 import type { Listing } from "@/api";
-import { Card, Chip, TrustBadge } from "@/components/ds";
+import { Card, Chip, MediaImage, TrustBadge } from "@/components/ds";
 import { badgeLevel } from "@/features/chat/trust";
 
 import { categoryLabel, formatDate, formatPrice, priceApplies } from "../labels";
@@ -19,13 +19,11 @@ export function ListingCard({ listing }: { listing: Listing }) {
         className="flex h-full flex-col focus-visible:outline-none"
       >
         {photo ? (
-          <img
-            src={mediaUrl(photo)}
+          <MediaImage
+            src={photo}
             alt={listing.title}
-            width={640}
-            height={400}
-            loading="lazy"
             className="h-44 w-full object-cover"
+            wrapperClassName="h-44"
           />
         ) : null}
 

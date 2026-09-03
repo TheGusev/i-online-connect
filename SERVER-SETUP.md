@@ -314,7 +314,9 @@ server {
 
     client_max_body_size 45m;  # видео-селфи (до 40 МБ) и видео профиля
 
-    # Фото и видео профилей: приватный каталог verification здесь НЕ раздаётся.
+    # Фото и видео профилей. Не обязательно: по умолчанию файлы идут через
+    # /api/media-file и их отдаёт backend. Этот location — ускорение для
+    # старых ссылок вида /media/...; приватный verification НЕ раздаётся.
     location /media/ {
         alias /var/lib/ya-online/media/;
         add_header Cache-Control "public, max-age=2592000, immutable";
@@ -489,7 +491,7 @@ ssh deploy@example.com '
 - [ ] Каталог `/var/lib/ya-online/verification` в режиме `700`
 - [ ] `ffmpeg` установлен (`ffmpeg -version`) — нужен для нарезки кадров
 - [ ] `AI_API_KEY` в `server/.env` задан, иначе верификация только ручная
-- [ ] `location /media/` в Nginx раздаёт `/var/lib/ya-online/media`
+- [ ] Медиа открываются по `/api/media-file/...` (проверить любое фото профиля)
 - [ ] Внешний монитор смотрит на `/api/health`
 
 ---

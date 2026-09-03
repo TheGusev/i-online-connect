@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { MapPin } from "lucide-react";
 
-import { Card, Chip } from "@/components/ds";
+import { Avatar, Card, Chip } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { AppShell } from "@/components/layout/AppShell";
 import { IntentCard } from "@/features/profile/components/IntentCard";
@@ -60,10 +60,28 @@ function ProfileViewPage() {
 
       {data ? (
         <div className="pb-24">
-          <Reveal delay={80} as="header" className="mt-7">
-            <h1 className="text-4xl font-bold tracking-tight">
-              {data.name}, {data.age}
-            </h1>
+          <Reveal delay={80} as="header" className="mt-5">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+              <Avatar
+                name={data.name}
+                src={
+                  (
+                    data.media.find((item) => item.kind === "photo" && item.isPrimary) ??
+                    data.media.find((item) => item.kind === "photo")
+                  )?.url ?? null
+                }
+                size="lg"
+              />
+              <div className="min-w-0">
+                <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">
+                  {data.name}, {data.age}
+                </h1>
+                <p className="mt-0.5 flex items-center gap-1 text-sm text-muted-foreground">
+                  <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{data.city}</span>
+                </p>
+              </div>
+            </div>
             <div className="mt-4">
               <TrustBadgeExplained level={data.trustLevel} details={data.trust} />
             </div>
@@ -77,13 +95,6 @@ function ProfileViewPage() {
             <div id="profile-collapsible-content">
               <Reveal delay={40}>
                 <MediaCarousel media={data.media} name={data.name} />
-              </Reveal>
-
-              <Reveal delay={80} className="mt-4">
-                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <MapPin className="size-4" aria-hidden="true" />
-                  {data.city}
-                </p>
               </Reveal>
 
               <ProfileSection title="О себе" delay={60}>

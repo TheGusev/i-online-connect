@@ -2,6 +2,8 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, CalendarHeart, SendHorizontal } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useKeyboardInset } from "@/hooks/useKeyboardOpen";
+
 import type { MeetingKind } from "@/api";
 import { Avatar, Button, TrustBadge } from "@/components/ds";
 import { MeetingSheet } from "@/features/chat/components/MeetingSheet";
@@ -48,6 +50,7 @@ function ConversationPage() {
   const suggestMeeting = useSuggestMeeting(id);
   const markRead = useMarkConversationRead(id);
 
+  const keyboardInset = useKeyboardInset();
   const [draft, setDraft] = useState("");
   const [meetingOpen, setMeetingOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -163,7 +166,10 @@ function ConversationPage() {
         <div ref={bottomRef} />
       </main>
 
-      <div className="sticky bottom-0 z-20 border-t border-border bg-card/95 backdrop-blur">
+      <div
+        className="sticky bottom-0 z-20 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur transition-[padding] duration-150"
+        style={keyboardInset > 0 ? { paddingBottom: keyboardInset } : undefined}
+      >
         <div className="mx-auto w-full max-w-3xl">
           {isEmptyThread ? (
             <StarterChips

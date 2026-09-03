@@ -114,17 +114,23 @@ app.get("/api/health", async (_request, reply) => {
 // находятся. Приватный каталог верификации (VERIFICATION_DIR) здесь не
 // участвует — он не раздаётся никогда.
 {
-  const prefix = new URL(env.MEDIA_BASE_URL, "http://localhost").pathname.replace(/\/?$/, "/");
+  const configured = new URL(env.MEDIA_BASE_URL, "http://localhost").pathname.replace(/\/?$/, "/");
+  // Раздаём и настроенный префикс, и оба исторических: ссылки, сохранённые в
+  // базе раньше, продолжают открываться после смены MEDIA_BASE_URL.
+  const prefixes = [...new Set([configured, "/media/", "/api/media-file/"])];
   await mkdir(env.MEDIA_DIR, { recursive: true });
-  await app.register(fastifyStatic, {
-    root: path.resolve(env.MEDIA_DIR),
-    prefix,
-    index: false,
-    dotfiles: "deny",
-    // Файлы иммутабельны: имя содержит UUID, перезаписи не бывает.
-    cacheControl: true,
-    maxAge: "30d",
-  });
+  for (const [index, prefix] of prefixes.entries()) {
+    await app.register(fastifyStatic, {
+      root: path.resolve(env.MEDIA_DIR),
+      prefix,
+      index: false,
+      dotfiles: "deny",
+      decorateReply: index === 0,
+      // Файлы иммутабельны: имя содержит UUID, перезаписи не бывает.
+      cacheControl: true,
+      maxAge: "30d",
+    });
+  }
 }
 
 
