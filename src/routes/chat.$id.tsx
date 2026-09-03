@@ -2,6 +2,8 @@ import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, CalendarHeart, SendHorizontal } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { useKeyboardInset } from "@/hooks/useKeyboardOpen";
+
 import type { MeetingKind } from "@/api";
 import { Avatar, Button, TrustBadge } from "@/components/ds";
 import { MeetingSheet } from "@/features/chat/components/MeetingSheet";
@@ -48,6 +50,7 @@ function ConversationPage() {
   const suggestMeeting = useSuggestMeeting(id);
   const markRead = useMarkConversationRead(id);
 
+  const keyboardInset = useKeyboardInset();
   const [draft, setDraft] = useState("");
   const [meetingOpen, setMeetingOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);

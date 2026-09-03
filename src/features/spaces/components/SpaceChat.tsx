@@ -4,6 +4,7 @@ import { SendHorizontal } from "lucide-react";
 import type { SpaceMessage } from "@/api";
 import { Avatar, Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
+import { useKeyboardInset } from "@/hooks/useKeyboardOpen";
 
 const timeFormatter = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" });
 
@@ -19,6 +20,7 @@ export function SpaceChat({
   onSend: (text: string) => void;
   sending?: boolean | undefined;
 }) {
+  const keyboardInset = useKeyboardInset();
   const [text, setText] = useState("");
   const endRef = useRef<HTMLDivElement | null>(null);
 
