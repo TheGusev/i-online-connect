@@ -97,6 +97,10 @@ server {
     # Видео-верификация и профильные медиа: backend принимает до 40 МБ.
     client_max_body_size 45m;
 
+    # Камера доступна только самому сайту; домены ниже нужны счётчику Метрики.
+    add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(self)" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru https://mc.yandex.com https://yastatic.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://mc.yandex.ru https://mc.yandex.com; media-src 'self' blob:; connect-src 'self' https://mc.yandex.ru https://mc.yandex.com wss://example.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+
     # gzip/brotli для текстовых ассетов
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;

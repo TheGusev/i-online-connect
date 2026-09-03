@@ -10,6 +10,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import type { VerificationChallenge, VerificationTicket } from "@/api";
@@ -169,6 +170,7 @@ function ResultCard({ ticket, onRetry }: { ticket: VerificationTicket; onRetry: 
 }
 
 function VerificationPage() {
+  const queryClient = useQueryClient();
   const { data: profile } = useMyProfile();
   const status = useVerificationStatus();
   const challengeMutation = useVerificationChallenge();
@@ -194,8 +196,12 @@ function VerificationPage() {
     ) {
       setTicket(status.data);
       setStage("result");
+      if (status.data.status === "verified") {
+        void queryClient.invalidateQueries({ queryKey: ["my-profile"] });
+        void queryClient.invalidateQueries({ queryKey: ["trust", "summary"] });
+      }
     }
-  }, [stage, status.data]);
+  }, [queryClient, stage, status.data]);
 
   const requestChallenge = () => {
     setError(null);
@@ -221,6 +227,11 @@ function VerificationPage() {
       setError("Видео получилось больше 40 МБ. Запишите короткий ролик на 4–8 секунд заново.");
       return;
     }
+    if (video.type && !video.type.includes("webm") && !video.type.includes("mp4")) {
+      setError("Этот формат видео не поддерживается. Запишите ролик камерой ещё раз.");
+      return;
+    }
+    const attemptedAt = Date.now();
     setError(null);
     setUploadProgress(0);
     submit.mutate(
@@ -242,7 +253,8 @@ function VerificationPage() {
         },
         onError: (cause) => {
           void status.refetch().then(({ data }) => {
-            if (data && data.status !== "none" && data.submittedAt) {
+            const submittedAt = data?.submittedAt ? Date.parse(data.submittedAt) : 0;
+            if (data && submittedAt >= attemptedAt - 5_000) {
               setTicket(data);
               setStage("result");
               toast("Видео принято", { description: "Проверка продолжается в фоне." });
