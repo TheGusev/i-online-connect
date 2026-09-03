@@ -390,6 +390,8 @@ export interface ListingDraft {
   description?: string;
   priceMinor?: number | null;
   city?: string;
+  /** Район: помогает понять, насколько человек близко. */
+  district?: string;
   mediaIds?: string[];
   expiresInDays?: number;
 }
