@@ -3,7 +3,7 @@ import { ArrowLeft, BadgeCheck, CalendarDays, MapPin, MessagesSquare } from "luc
 
 import { WaveHeading } from "@/components/landing/WaveHeading";
 import { AppShell } from "@/components/layout/AppShell";
-import { Chip, ProfileCardSkeleton } from "@/components/ds";
+import { Chip, MediaImage, ProfileCardSkeleton } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { EventList } from "@/features/spaces/components/EventList";
 import { JoinPanel } from "@/features/spaces/components/JoinPanel";
@@ -84,11 +84,9 @@ function SpaceDetailPage() {
 
       <Reveal className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
         <div className="relative aspect-[16/6]">
-          <img
-            src={mediaUrl(space.coverUrl)}
+          <MediaImage
+            src={space.coverUrl}
             alt={space.title}
-            width={1024}
-            height={640}
             className="size-full object-cover"
           />
           {space.verifiedCommunity ? (

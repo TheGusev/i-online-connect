@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { BadgeCheck, CalendarDays, MapPin, Users } from "lucide-react";
 
 import { mediaUrl, type Space } from "@/api";
-import { Chip } from "@/components/ds";
+import { Chip, MediaImage } from "@/components/ds";
 import {
   cadenceLabels,
   formatEventDate,
@@ -18,12 +18,9 @@ export function SpaceCard({ space }: { space: Space }) {
       className="group block overflow-hidden rounded-3xl border border-border bg-card shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lift focus-visible:ring-2 focus-visible:ring-community focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <div className="relative aspect-[16/7] overflow-hidden bg-muted">
-        <img
-          src={mediaUrl(space.coverUrl)}
+        <MediaImage
+          src={space.coverUrl}
           alt={space.title}
-          loading="lazy"
-          width={1024}
-          height={640}
           className="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         />
         {space.verifiedCommunity ? (

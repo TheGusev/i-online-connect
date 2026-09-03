@@ -3,7 +3,7 @@ import { CalendarDays, Flag, MapPin, MessageCircle, Pencil, XCircle } from "luci
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Avatar, Button, Card, Chip, Input, TextArea, TrustBadge } from "@/components/ds";
+import { Avatar, Button, Card, Chip, Input, MediaImage, TextArea, TrustBadge } from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
 import { badgeLevel } from "@/features/chat/trust";
 import { ReportModal } from "@/features/trust/components/ReportModal";
@@ -179,10 +179,9 @@ function ListingPage() {
           <ul className="grid gap-3 sm:grid-cols-2">
             {listing.photos.map((url) => (
               <li key={url}>
-                <img
-                  src={mediaUrl(url)}
+                <MediaImage
+                  src={url}
                   alt={listing.title}
-                  loading="lazy"
                   className="aspect-[4/3] w-full rounded-3xl border border-border object-cover"
                 />
               </li>

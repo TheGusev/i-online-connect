@@ -3,7 +3,7 @@ import { Bookmark, BookmarkCheck, MapPin, PlayCircle, Sparkles, X } from "lucide
 import { useTranslation } from "react-i18next";
 
 import type { DailyMatch } from "@/api";
-import { Button, Chip } from "@/components/ds";
+import { Button, Chip, MediaImage } from "@/components/ds";
 import { TrustBadge } from "@/components/ds";
 import { badgeLevel } from "@/features/chat/trust";
 import { mediaUrl } from "@/api";
@@ -27,13 +27,11 @@ export function MatchCard({
   return (
     <article className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft transition-shadow duration-300 hover:shadow-lift">
       <div className="relative">
-        <img
-          src={mediaUrl(match.photoUrl)}
+        <MediaImage
+          src={match.photoUrl}
           alt={match.name}
-          width={640}
-          height={800}
-          loading="lazy"
           className="h-72 w-full object-cover sm:h-96"
+          wrapperClassName="h-72 sm:h-96"
         />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/75 via-foreground/20 to-transparent p-5">
           <div className="flex items-end justify-between gap-3">
