@@ -136,28 +136,12 @@ function MyProfilePage() {
 
           {!collapsed && (
             <div id="profile-collapsible-content">
+              {/* Отдельной крупной карусели нет: галерея и управление живут в
+                  одном блоке, чтобы фото не дублировались на мобильном. */}
               <Reveal delay={40}>
-                <MediaCarousel media={data.media} name={data.name} />
-              </Reveal>
-
-              <Reveal delay={40} className="mt-5">
                 <MediaManager media={data.media} />
               </Reveal>
 
-              <Reveal delay={80} className="mt-4">
-                <InlineTextField
-                  label="Город"
-                  value={data.city}
-                  saving={update.isPending}
-                  onSave={(city) => patch({ city })}
-                  renderValue={(city) => (
-                    <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                      <MapPin className="size-4" aria-hidden="true" />
-                      {city}
-                    </p>
-                  )}
-                />
-              </Reveal>
 
               <ProfileSection title="О себе" delay={60}>
                 <InlineTextField
