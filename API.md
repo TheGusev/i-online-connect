@@ -252,7 +252,8 @@ refresh-токены (выход на других устройствах). Уд
 | GET | `/api/listings/needs` | Свои категории жизненных задач |
 | PUT | `/api/listings/needs` | `{ categories: NeedCategory[] }` — заменяет набор |
 
-`NeedCategory`: `sale | service | leisure | travel | help`.
+`NeedCategory`: `dating | service | realty | transport | sale | leisure | travel | help | urgent`
+(миграция `008_listing_categories.sql` добавляет четыре последних значения additive).
 
 ### Анти-спам
 
