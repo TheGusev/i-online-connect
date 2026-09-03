@@ -65,7 +65,8 @@ export function SpaceChat({
       </div>
 
       <form
-        className="flex items-center gap-2 border-t border-border p-3"
+        className="sticky bottom-0 flex items-center gap-2 border-t border-border bg-card/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur"
+        style={keyboardInset > 0 ? { paddingBottom: keyboardInset + 12 } : undefined}
         onSubmit={(event) => {
           event.preventDefault();
           const value = text.trim();

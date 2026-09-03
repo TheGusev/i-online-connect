@@ -163,7 +163,10 @@ function ConversationPage() {
         <div ref={bottomRef} />
       </main>
 
-      <div className="sticky bottom-0 z-20 border-t border-border bg-card/95 backdrop-blur">
+      <div
+        className="sticky bottom-0 z-20 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur transition-[padding] duration-150"
+        style={keyboardInset > 0 ? { paddingBottom: keyboardInset } : undefined}
+      >
         <div className="mx-auto w-full max-w-3xl">
           {isEmptyThread ? (
             <StarterChips
