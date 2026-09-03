@@ -109,6 +109,8 @@ export interface Space {
   format: SpaceFormat;
   cadence: SpaceCadence;
   city: string;
+  /** Демо-сообщество для примера — исчезнет, когда появятся живые. */
+  isSeed?: boolean;
   /** Расстояние до места встреч, км — для таба «Рядом». */
   distanceKm: number;
   /** Модерация подтвердила, что сообщество живое. */
