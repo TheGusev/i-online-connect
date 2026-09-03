@@ -1,4 +1,4 @@
-import { request } from "../client";
+import { request, upload } from "../client";
 import type {
   ReportDraft,
   ReportReceipt,
@@ -33,9 +33,15 @@ export async function getVerificationStatus(): Promise<VerificationTicket> {
 export async function submitVerificationVideo(
   challengeId: string,
   video: Blob,
+  onProgress?: (percent: number) => void,
 ): Promise<VerificationTicket> {
+  const isMp4 = video.type.includes("mp4");
   const form = new FormData();
   form.append("challengeId", challengeId);
-  form.append("file", video, "verification.webm");
-  return request<VerificationTicket>("/trust/verification", { method: "POST", body: form });
+  form.append("file", video, isMp4 ? "verification.mp4" : "verification.webm");
+  return upload<VerificationTicket>("/trust/verification", form, {
+    onProgress,
+    timeoutMs: 90_000,
+    timeoutMessage: "Видео не успело загрузиться. Проверьте связь и попробуйте ещё раз.",
+  });
 }

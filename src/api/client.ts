@@ -151,6 +151,13 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 /** Сколько ждём завершения загрузки файла, прежде чем показать ошибку. */
 export const UPLOAD_TIMEOUT_MS = 30_000;
 
+export interface UploadOptions {
+  onProgress?: (percent: number) => void;
+  /** Видео на мобильной сети требует больше времени, чем обычное фото. */
+  timeoutMs?: number;
+  timeoutMessage?: string;
+}
+
 /**
  * Загрузка файла с прогрессом и таймаутом.
  *
@@ -161,27 +168,45 @@ export const UPLOAD_TIMEOUT_MS = 30_000;
 export function upload<T>(
   path: string,
   form: FormData,
-  onProgress?: (percent: number) => void,
+  options: UploadOptions | ((percent: number) => void) = {},
 ): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
+  const normalized =
+    typeof options === "function" ? { onProgress: options } : options;
+
+  const attempt = (token: string | null, canRefresh: boolean): Promise<T> =>
+    new Promise<T>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", buildUrl(path), true);
     xhr.withCredentials = true;
-    xhr.timeout = UPLOAD_TIMEOUT_MS;
+    xhr.timeout = normalized.timeoutMs ?? UPLOAD_TIMEOUT_MS;
     xhr.setRequestHeader("Accept", "application/json");
-    const token = getToken();
     if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
 
     xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable && onProgress) {
-        onProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
+      if (event.lengthComputable && normalized.onProgress) {
+        normalized.onProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
       }
     };
     xhr.ontimeout = () =>
-      reject(new ApiError(408, "Не удалось загрузить фото, попробуйте ещё раз"));
+      reject(
+        new ApiError(
+          408,
+          normalized.timeoutMessage ?? "Загрузка заняла слишком много времени — попробуйте ещё раз",
+        ),
+      );
     xhr.onerror = () => reject(new ApiError(0, "Нет связи с сервером — попробуйте ещё раз"));
-    xhr.onload = () => {
-      onProgress?.(100);
+    xhr.onload = async () => {
+      if (xhr.status === 401 && token && canRefresh) {
+        const next = await refreshAccessToken();
+        if (next) {
+          setToken(next);
+          attempt(next, false).then(resolve, reject);
+          return;
+        }
+        setToken(null);
+      }
+
+      normalized.onProgress?.(100);
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           resolve(xhr.responseText ? (JSON.parse(xhr.responseText) as T) : (undefined as T));
@@ -202,4 +227,6 @@ export function upload<T>(
 
     xhr.send(form);
   });
+
+  return attempt(getToken(), true);
 }

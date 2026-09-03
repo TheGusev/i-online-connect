@@ -8,17 +8,34 @@ import { spawn } from "node:child_process";
 
 import { env } from "../env.ts";
 
+const FFMPEG_TIMEOUT_MS = 15_000;
+
 function run(args: string[]): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const proc = spawn(env.FFMPEG_PATH, args, { stdio: ["ignore", "pipe", "pipe"] });
     const chunks: Buffer[] = [];
     let stderr = "";
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      proc.kill("SIGKILL");
+      reject(new Error("ffmpeg не ответил за 15 секунд"));
+    }, FFMPEG_TIMEOUT_MS);
     proc.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
     proc.stderr.on("data", (chunk: Buffer) => {
       stderr += chunk.toString();
     });
-    proc.on("error", reject);
+    proc.on("error", (error) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    });
     proc.on("close", (code) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       const output = Buffer.concat(chunks);
       if (output.length > 0) resolve(output);
       else reject(new Error(`ffmpeg завершился с кодом ${code}: ${stderr.slice(-400)}`));

@@ -30,12 +30,19 @@ export const verificationStatusQueryOptions = {
 };
 
 export function useVerificationStatus() {
-  return useQuery(verificationStatusQueryOptions);
+  return useQuery({
+    ...verificationStatusQueryOptions,
+    refetchInterval: (query) =>
+      query.state.data?.status === "pending" ? 5_000 : false,
+  });
 }
 
 export function useSubmitVerificationVideo() {
   return useMutation({
-    mutationFn: (input: { challengeId: string; video: Blob }) =>
-      trustApi.submitVerificationVideo(input.challengeId, input.video),
+    mutationFn: (input: {
+      challengeId: string;
+      video: Blob;
+      onProgress?: (percent: number) => void;
+    }) => trustApi.submitVerificationVideo(input.challengeId, input.video, input.onProgress),
   });
 }

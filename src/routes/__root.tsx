@@ -17,6 +17,12 @@ import { SessionRestore } from "@/features/auth/session";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 
+declare global {
+  interface Window {
+    ym?: (counter: number, action: string, value: string) => void;
+  }
+}
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -123,9 +129,7 @@ function YandexMetrikaTracker() {
       return;
     }
 
-    if (typeof window !== "undefined" && (window as any).ym) {
-      (window as any).ym(112270169, "hit", location.href);
-    }
+    window.ym?.(112270169, "hit", location.href);
   }, [location.href]);
 
   return null;
