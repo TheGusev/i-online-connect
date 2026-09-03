@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, Play } from "lucide-react";
 import { useState } from "react";
 
 import type { ProfileMedia } from "@/api";
+import { mediaUrl } from "@/api";
 import { MediaImage } from "@/components/ds";
 import { cn } from "@/lib/utils";
 
