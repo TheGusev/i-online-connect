@@ -340,7 +340,16 @@ export interface PasswordChange {
 // ── Раздел «Рядом»: объявления по жизненным задачам ───────────────────────────
 // Не путать с interests (хобби для знакомств): needs — про бытовые задачи.
 
-export type NeedCategory = "sale" | "service" | "leisure" | "travel" | "help";
+export type NeedCategory =
+  | "dating"
+  | "service"
+  | "realty"
+  | "transport"
+  | "sale"
+  | "leisure"
+  | "travel"
+  | "help"
+  | "urgent";
 
 export type ListingState = "active" | "closed" | "expired";
 
