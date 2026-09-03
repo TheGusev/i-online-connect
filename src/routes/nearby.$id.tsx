@@ -3,7 +3,16 @@ import { CalendarDays, Flag, MapPin, MessageCircle, Pencil, XCircle } from "luci
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { Avatar, Button, Card, Chip, Input, MediaImage, TextArea, TrustBadge } from "@/components/ds";
+import {
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  Input,
+  MediaImage,
+  TextArea,
+  TrustBadge,
+} from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
 import { badgeLevel } from "@/features/chat/trust";
 import { ReportModal } from "@/features/trust/components/ReportModal";

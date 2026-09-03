@@ -84,11 +84,7 @@ function SpaceDetailPage() {
 
       <Reveal className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
         <div className="relative aspect-[16/6]">
-          <MediaImage
-            src={space.coverUrl}
-            alt={space.title}
-            className="size-full object-cover"
-          />
+          <MediaImage src={space.coverUrl} alt={space.title} className="size-full object-cover" />
           {space.verifiedCommunity ? (
             <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-community px-3 py-1 text-xs font-semibold text-community-foreground shadow-soft">
               <BadgeCheck className="size-3.5" aria-hidden="true" />

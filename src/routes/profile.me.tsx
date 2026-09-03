@@ -141,7 +141,6 @@ function MyProfilePage() {
                 <MediaManager media={data.media} />
               </Reveal>
 
-
               <ProfileSection title="О себе" delay={60}>
                 <InlineTextField
                   label="Расскажи о себе"
