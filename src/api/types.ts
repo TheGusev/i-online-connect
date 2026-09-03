@@ -341,15 +341,7 @@ export interface PasswordChange {
 // Не путать с interests (хобби для знакомств): needs — про бытовые задачи.
 
 export type NeedCategory =
-  | "dating"
-  | "service"
-  | "realty"
-  | "transport"
-  | "sale"
-  | "leisure"
-  | "travel"
-  | "help"
-  | "urgent";
+  "dating" | "service" | "realty" | "transport" | "sale" | "leisure" | "travel" | "help" | "urgent";
 
 export type ListingState = "active" | "closed" | "expired";
 

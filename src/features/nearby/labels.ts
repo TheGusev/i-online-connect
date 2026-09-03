@@ -87,7 +87,6 @@ export const categories: CategoryMeta[] = [
   },
 ];
 
-
 export const categoryMap = new Map(categories.map((item) => [item.id, item]));
 
 export function categoryLabel(id: NeedCategory): string {
