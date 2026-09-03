@@ -51,6 +51,10 @@ export function detectMediaType(buffer: Buffer): DetectedType | null {
 export const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 40 * 1024 * 1024;
 
+/** Сколько фото и видео помещается в один профиль. */
+export const MAX_PROFILE_PHOTOS = 5;
+export const MAX_PROFILE_VIDEOS = 1;
+
 /** Проверка размера под тип файла: у фото и видео разные лимиты. */
 export function assertSize(type: DetectedType, size: number) {
   const limit = type.kind === "photo" ? MAX_PHOTO_BYTES : MAX_VIDEO_BYTES;
