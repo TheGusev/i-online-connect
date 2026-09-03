@@ -29,7 +29,7 @@ export function MediaCarousel({
       <div className="aspect-square w-full sm:aspect-[16/10]">
         {current.kind === "video" ? (
           <video
-            src={current.url}
+            src={mediaUrl(current.url)}
             controls
             playsInline
             preload="metadata"
