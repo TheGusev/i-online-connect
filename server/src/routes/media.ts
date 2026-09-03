@@ -36,14 +36,23 @@ export async function mediaRoutes(app: FastifyInstance) {
       if (!type) throw badRequest("Поддерживаем фото JPEG/PNG/WebP и видео WebM/MP4");
       assertSize(type, buffer.length);
 
-      const { url } = await saveProfileFile(userId, buffer, type);
-
-      // Первое фото становится главным: с ним сверяется верификация.
+      // Лимит на профиль: 5 фото и одно видео-интро.
       const existing = await queryOne<{ count: number }>(
         "SELECT count(*)::int AS count FROM profile_media WHERE user_id = $1 AND kind = $2",
         [userId, type.kind],
       );
-      const isFirstPhoto = type.kind === "photo" && (existing?.count ?? 0) === 0;
+      const used = existing?.count ?? 0;
+      if (type.kind === "photo" && used >= MAX_PROFILE_PHOTOS) {
+        throw badRequest(`Можно добавить до ${MAX_PROFILE_PHOTOS} фото — удалите одно из старых`);
+      }
+      if (type.kind === "video" && used >= MAX_PROFILE_VIDEOS) {
+        throw badRequest("Видео-интро может быть только одно — удалите старое");
+      }
+
+      const { url } = await saveProfileFile(userId, buffer, type);
+
+      // Первое фото становится главным: с ним сверяется верификация.
+      const isFirstPhoto = type.kind === "photo" && used === 0;
 
       const row = await queryOne<{ id: string; created_at: Date }>(
         `INSERT INTO profile_media (user_id, kind, url, position, is_primary)
