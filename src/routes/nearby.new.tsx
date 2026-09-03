@@ -42,19 +42,22 @@ function NewListingPage() {
   const [days, setDays] = useState("7");
   const [photos, setPhotos] = useState<ProfileMedia[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
 
   const showPrice = priceApplies(category);
   const canSubmit = title.trim().length >= 3 && !create.isPending && !uploading;
 
   const upload = async (file: File) => {
     setUploading(true);
+    setProgress(0);
     try {
-      const media = await mediaApi.uploadMedia(file, file.name);
+      const media = await mediaApi.uploadMedia(file, file.name, setProgress);
       setPhotos((prev) => [...prev, media]);
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "Не удалось загрузить фото");
     } finally {
       setUploading(false);
+      setProgress(null);
     }
   };
 
@@ -171,7 +174,9 @@ function NewListingPage() {
               />
             </label>
           </div>
-          {uploading ? <p className="mt-2 text-xs text-muted-foreground">Загружаем фото…</p> : null}
+          {uploading ? (
+            <p className="mt-2 text-xs text-muted-foreground">Загружаем фото… {progress ?? 0}%</p>
+          ) : null}
         </div>
 
         <Select

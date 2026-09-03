@@ -12,6 +12,7 @@ import { InlineEditable, InlineTextField } from "@/features/profile/components/I
 import { MediaManager } from "@/features/profile/components/MediaManager";
 import { PrivacySection } from "@/features/profile/components/PrivacySection";
 import { ProfileCollapseToggle } from "@/features/profile/components/ProfileCollapseToggle";
+import { ProfilePanel } from "@/features/profile/components/ProfilePanel";
 import { ProfileSection } from "@/features/profile/components/ProfileSection";
 import { TagEditor } from "@/features/profile/components/TagEditor";
 import { TrustBadgeExplained } from "@/features/profile/components/TrustBadgeExplained";
@@ -183,7 +184,12 @@ function MyProfilePage() {
                 />
               </ProfileSection>
 
-              <ProfileSection title="Интересы" delay={60}>
+              <ProfilePanel
+                title="Интересы"
+                hint={`${data.interests.length}`}
+                defaultOpen
+                className="mt-6"
+              >
                 <TagEditor
                   items={data.interests}
                   label="Новый интерес"
@@ -191,9 +197,9 @@ function MyProfilePage() {
                   saving={update.isPending}
                   onSave={(interests) => patch({ interests })}
                 />
-              </ProfileSection>
+              </ProfilePanel>
 
-              <ProfileSection title="Что важно" delay={60}>
+              <ProfilePanel title="Что важно" hint={`${data.values.length}`}>
                 <TagEditor
                   items={data.values}
                   label="Что для тебя важно"
@@ -202,37 +208,36 @@ function MyProfilePage() {
                   saving={update.isPending}
                   onSave={(values) => patch({ values })}
                 />
-              </ProfileSection>
+              </ProfilePanel>
 
-              <ProfileSection
+              <ProfilePanel
                 title="Настройки приватности"
                 description="Ты решаешь, что видно другим и кто может к тебе обратиться."
-                delay={60}
               >
                 <PrivacySection privacy={data.privacy} onChange={patchPrivacy} />
-              </ProfileSection>
+              </ProfilePanel>
 
-              <ProfileSection
+              <ProfilePanel
                 title="Верификация"
                 description="Подтверждение по видео — основа доверия в «Я Онлайн»."
-                delay={60}
+                hint={data.verification === "verified" ? "Подтверждён" : "Не пройдена"}
+                defaultOpen={data.verification !== "verified"}
               >
                 <VerificationSection
                   status={data.verification}
                   onStart={() => void navigate({ to: "/verification" })}
                 />
-              </ProfileSection>
+              </ProfilePanel>
 
-              <ProfileSection
+              <ProfilePanel
                 title="Только для тебя"
                 description="Личная статистика доверия — её не видит никто, кроме тебя."
-                delay={60}
               >
                 <TrustStatsSection stats={data.stats} />
-              </ProfileSection>
+              </ProfilePanel>
 
-              <Reveal as="footer" className="mt-12">
-                <Card className="p-5 text-sm leading-relaxed text-muted-foreground">
+              <Reveal as="footer" className="mt-6">
+                <Card className="p-4 text-sm leading-relaxed text-muted-foreground">
                   Это твоя личная страница, а не витрина. Здесь нет рейтингов и мест в списке —
                   только то, что ты сам решил рассказать. И <Chip size="sm">интересы</Chip> помогают
                   AI искать людей рядом по смыслу.

@@ -169,7 +169,8 @@ pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" 2026-08-17.du
 | `listing_responses (listing_id, user_id, conversation_id)` | Отклик ↔ обычный диалог; отдельного чата объявлений нет |
 | `notifications (user_id, kind, payload, read_at)` | In-app уведомления; уникальный индекс по `(user_id, kind, payload->>'listingId')` защищает от дублей |
 
-Новые enum: `need_category` (`sale, service, leisure, travel, help`),
+Новые enum: `need_category` (`sale, service, leisure, travel, help` + добавленные
+миграцией 008 `dating, realty, transport, urgent`),
 `listing_state` (`active, closed, expired`). В `report_source` добавлено
 значение `listing` — модерация объявлений идёт через ту же очередь `reports`.
 В `notification_prefs` добавлена колонка `listings boolean DEFAULT true`.

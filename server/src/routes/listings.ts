@@ -24,7 +24,18 @@ import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { notifyListingMatches } from "../listings/notify.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 
-const NEED_CATEGORIES = ["sale", "service", "leisure", "travel", "help"] as const;
+// Порядок значений совпадает с enum need_category в БД (миграции 005 и 008).
+const NEED_CATEGORIES = [
+  "dating",
+  "service",
+  "realty",
+  "transport",
+  "sale",
+  "leisure",
+  "travel",
+  "help",
+  "urgent",
+] as const;
 const categorySchema = z.enum(NEED_CATEGORIES);
 
 const idParam = z.object({ id: z.string().uuid() });
