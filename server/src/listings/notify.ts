@@ -37,6 +37,7 @@ export async function notifyListingMatches(input: ListingNotificationInput): Pro
        JOIN profiles p ON p.user_id = u.id
        LEFT JOIN notification_prefs np ON np.user_id = u.id
       WHERE n.category = $1::need_category
+        AND p.is_seed = false
         AND u.id <> $2
         AND u.deleted_at IS NULL
         AND lower(p.city) = lower($3)

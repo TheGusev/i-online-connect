@@ -42,7 +42,7 @@ const coverUrlSchema = z
 
 const SPACE_SELECT = `
   SELECT s.id, s.title, s.description, s.topic, s.cover_url, s.category, s.format, s.cadence,
-         s.city, s.verified_community, s.join_policy, s.join_question,
+         s.city, s.verified_community, s.join_policy, s.join_question, s.is_seed,
          hp.name AS host_name,
          (SELECT count(*) FROM space_members sm
            WHERE sm.space_id = s.id AND sm.status IN ('member', 'host'))::int AS members_count,
@@ -70,6 +70,7 @@ interface SpaceRow {
   verified_community: boolean;
   join_policy: "open" | "question";
   join_question: string | null;
+  is_seed: boolean;
   host_name: string;
   members_count: number;
   my_status: string;
@@ -116,6 +117,8 @@ function toSpaceDto(row: SpaceRow) {
     format: row.format,
     cadence: row.cadence,
     city: row.city,
+    // Демо-сообщество: интерфейс помечает такие карточки как пример.
+    isSeed: row.is_seed,
     // TODO: считать реальное расстояние (PostGIS или формула гаверсинуса
     // по s.lat/s.lon и координатам профиля).
     distanceKm: 0,
@@ -168,7 +171,15 @@ export async function spaceRoutes(app: FastifyInstance) {
 
   app.get("/", async (request) => {
     const userId = currentUserId(request);
-    const rows = await query<SpaceRow>(`${SPACE_SELECT} ORDER BY members_count DESC`, [userId]);
+    // Демо-сообщества показываем последними и скрываем, когда реальных
+    // сообществ набралось достаточно.
+    const rows = await query<SpaceRow>(
+      `${SPACE_SELECT}
+        WHERE s.is_seed = false
+           OR (SELECT count(*) FROM spaces rs WHERE rs.is_seed = false) < 10
+        ORDER BY s.is_seed ASC, members_count DESC`,
+      [userId],
+    );
     const list = [];
     for (const row of rows) {
       const events = await loadEvents(row.id, userId);

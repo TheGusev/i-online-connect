@@ -39,6 +39,7 @@ function NewListingPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [district, setDistrict] = useState("");
   const [days, setDays] = useState("7");
   const [photos, setPhotos] = useState<ProfileMedia[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -72,6 +73,7 @@ function NewListingPage() {
         title: title.trim(),
         description: description.trim(),
         priceMinor,
+        district: district.trim() || undefined,
         mediaIds: photos.map((item) => item.id),
         expiresInDays: Number(days),
       },
@@ -118,6 +120,14 @@ function NewListingPage() {
           maxLength={120}
           onChange={(event) => setTitle(event.target.value)}
           hint="Коротко и по делу: «Отдам детский велосипед», «Нужен репетитор по математике»"
+        />
+
+        <Input
+          label="Район (необязательно)"
+          value={district}
+          maxLength={120}
+          onChange={(event) => setDistrict(event.target.value)}
+          hint="Точный адрес не нужен — район помогает понять, насколько это близко"
         />
 
         <TextArea

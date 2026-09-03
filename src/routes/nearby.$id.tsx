@@ -172,7 +172,7 @@ function ListingPage() {
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <MapPin className="size-4" aria-hidden="true" />
-            {listing.city}
+            {[listing.city, listing.district].filter(Boolean).join(", ")}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <CalendarDays className="size-4" aria-hidden="true" />
@@ -240,6 +240,12 @@ function ListingPage() {
                 </Button>
               ) : null}
             </>
+          ) : listing.isSeed ? (
+            // Демо-объявление: отклик всё равно отклонит сервер, поэтому честно
+            // объясняем это до нажатия, а не после ошибки.
+            <p className="text-sm text-muted-foreground">
+              Это демо-объявление для примера — реальные люди появятся рядом совсем скоро.
+            </p>
           ) : (
             <>
               {listing.respondedConversationId ? (

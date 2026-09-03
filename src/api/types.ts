@@ -109,6 +109,8 @@ export interface Space {
   format: SpaceFormat;
   cadence: SpaceCadence;
   city: string;
+  /** Демо-сообщество для примера — исчезнет, когда появятся живые. */
+  isSeed?: boolean | undefined;
   /** Расстояние до места встреч, км — для таба «Рядом». */
   distanceKm: number;
   /** Модерация подтвердила, что сообщество живое. */
@@ -357,6 +359,10 @@ export interface Listing {
   id: string;
   category: NeedCategory;
   city: string;
+  /** Район города: показываем вместо расстояния — координат мы не спрашиваем. */
+  district?: string | undefined;
+  /** Демо-объявление для примера: откликнуться нельзя, помечено в интерфейсе. */
+  isSeed?: boolean | undefined;
   title: string;
   description: string;
   /** Цена в копейках; null — «договорная» или неприменимо. */
@@ -384,6 +390,8 @@ export interface ListingDraft {
   description?: string;
   priceMinor?: number | null;
   city?: string;
+  /** Район: помогает понять, насколько человек близко. */
+  district?: string | undefined;
   mediaIds?: string[];
   expiresInDays?: number;
 }
