@@ -172,7 +172,7 @@ function ListingPage() {
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
           <span className="inline-flex items-center gap-1.5">
             <MapPin className="size-4" aria-hidden="true" />
-            {listing.city}
+            {[listing.city, listing.district].filter(Boolean).join(", ")}
           </span>
           <span className="inline-flex items-center gap-1.5">
             <CalendarDays className="size-4" aria-hidden="true" />
