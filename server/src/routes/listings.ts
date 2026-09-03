@@ -43,6 +43,12 @@ const idParam = z.object({ id: z.string().uuid() });
 // Анти-спам: лимиты считаются по аккаунту (keyGenerator в index.ts).
 const ACTIVE_LISTINGS_LIMIT = 15;
 
+/**
+ * Сколько реальных активных объявлений в паре «город + категория» должно
+ * появиться, чтобы демо-примеры этой пары перестали показываться.
+ */
+const SEED_HIDE_THRESHOLD = 10;
+
 const RESPOND_LIMIT = {
   rateLimit: {
     max: 30,
@@ -75,6 +81,7 @@ const createSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   priceMinor: z.number().int().min(0).max(1_000_000_000).nullish(),
   city: z.string().trim().min(2).max(120).optional(),
+  district: z.string().trim().max(120).optional(),
   mediaIds: z.array(z.string().uuid()).max(6).optional(),
   expiresInDays: z.number().int().min(1).max(90).optional(),
 });
@@ -83,13 +90,14 @@ const patchSchema = z.object({
   title: z.string().trim().min(3).max(120).optional(),
   description: z.string().trim().max(2000).optional(),
   priceMinor: z.number().int().min(0).max(1_000_000_000).nullish(),
+  district: z.string().trim().max(120).optional(),
   state: z.enum(["active", "closed"]).optional(),
   mediaIds: z.array(z.string().uuid()).max(6).optional(),
 });
 
 const LISTING_SELECT = `
-  SELECT l.id, l.category, l.city, l.title, l.description, l.price_minor, l.currency,
-         l.state, l.expires_at, l.created_at,
+  SELECT l.id, l.category, l.city, l.district, l.title, l.description, l.price_minor, l.currency,
+         l.state, l.expires_at, l.created_at, l.is_seed,
          l.author_id,
          p.name        AS author_name,
          p.trust_level AS author_trust,
@@ -114,6 +122,8 @@ interface ListingRow {
   id: string;
   category: (typeof NEED_CATEGORIES)[number];
   city: string;
+  district: string;
+  is_seed: boolean;
   title: string;
   description: string;
   price_minor: number | null;
@@ -135,6 +145,8 @@ function toListingDto(row: ListingRow, userId: string) {
     id: row.id,
     category: row.category,
     city: row.city,
+    district: row.district,
+    isSeed: row.is_seed,
     title: row.title,
     description: row.description,
     priceMinor: row.price_minor,
@@ -236,7 +248,9 @@ export async function listingRoutes(app: FastifyInstance) {
       "SELECT city FROM profiles WHERE user_id = $1",
       [userId],
     );
-    const city = filters.city ?? profile?.city ?? null;
+    // Пустой город в профиле (город ещё не указан) не должен приводить к пустой
+    // выдаче: в этом случае показываем объявления всех городов.
+    const city = filters.city ?? (profile?.city ? profile.city : null);
 
     const rows = await query<ListingRow>(
       `${LISTING_SELECT}
@@ -252,7 +266,16 @@ export async function listingRoutes(app: FastifyInstance) {
                  WHERE (b.user_id = $1 AND b.blocked_id = l.author_id)
                     OR (b.user_id = l.author_id AND b.blocked_id = $1)
               )
-        ORDER BY l.created_at DESC
+          AND (
+                l.is_seed = false
+                OR (SELECT count(*) FROM listings rl
+                     WHERE rl.is_seed = false
+                       AND rl.state = 'active'
+                       AND rl.expires_at > now()
+                       AND lower(rl.city) = lower(l.city)
+                       AND rl.category = l.category) < ${SEED_HIDE_THRESHOLD}
+              )
+        ORDER BY l.is_seed ASC, l.created_at DESC
         LIMIT $6`,
       [
         userId,
@@ -325,8 +348,8 @@ export async function listingRoutes(app: FastifyInstance) {
       if (!city) throw badRequest("Укажите город в профиле — объявления показываются по городу");
 
       const row = await queryOne<{ id: string }>(
-        `INSERT INTO listings (author_id, category, city, title, description, price_minor, expires_at)
-         VALUES ($1, $2::need_category, $3, $4, $5, $6,
+        `INSERT INTO listings (author_id, category, city, district, title, description, price_minor, expires_at)
+         VALUES ($1, $2::need_category, $3, $8, $4, $5, $6,
                  now() + make_interval(days => $7::int))
          RETURNING id`,
         [
@@ -337,6 +360,7 @@ export async function listingRoutes(app: FastifyInstance) {
           draft.description ?? "",
           draft.priceMinor ?? null,
           draft.expiresInDays ?? 30,
+          draft.district ?? "",
         ],
       );
       if (!row) throw badRequest("Не удалось сохранить объявление");
@@ -373,6 +397,7 @@ export async function listingRoutes(app: FastifyInstance) {
       `UPDATE listings SET
          title       = COALESCE($2, title),
          description = COALESCE($3, description),
+         district    = COALESCE($7, district),
          price_minor = CASE WHEN $4::boolean THEN $5 ELSE price_minor END,
          state       = COALESCE($6::listing_state, state),
          updated_at  = now()
@@ -384,6 +409,7 @@ export async function listingRoutes(app: FastifyInstance) {
         patch.priceMinor !== undefined,
         patch.priceMinor ?? null,
         patch.state ?? null,
+        patch.district ?? null,
       ],
     );
 
@@ -413,11 +439,18 @@ export async function listingRoutes(app: FastifyInstance) {
         .object({ text: z.string().trim().min(1).max(1000).optional() })
         .parse(request.body ?? {});
 
-      const listing = await queryOne<{ author_id: string; state: string; title: string }>(
-        "SELECT author_id, state, title FROM listings WHERE id = $1",
-        [id],
-      );
+      const listing = await queryOne<{
+        author_id: string;
+        state: string;
+        title: string;
+        is_seed: boolean;
+      }>("SELECT author_id, state, title, is_seed FROM listings WHERE id = $1", [id]);
       if (!listing) throw notFound("Объявление не найдено");
+      if (listing.is_seed) {
+        throw badRequest(
+          "Это демо-объявление для примера — реальные люди появятся рядом совсем скоро.",
+        );
+      }
       if (listing.author_id === userId) throw badRequest("Это ваше объявление");
       if (listing.state !== "active") throw badRequest("Объявление уже закрыто");
 

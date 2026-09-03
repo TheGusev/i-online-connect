@@ -83,10 +83,11 @@ async function buildDailyFeed(userId: string): Promise<void> {
               CURRENT_DATE,
               LEAST(100, 40 + c.shared * 12 + c.trust_score / 5)::smallint,
               ARRAY[]::text[],
-              (ROW_NUMBER() OVER (ORDER BY c.shared DESC, c.trust_score DESC) - 1)::smallint
+              (ROW_NUMBER() OVER (ORDER BY c.is_seed ASC, c.shared DESC, c.trust_score DESC) - 1)::smallint
          FROM (
            SELECT u.id,
                   p.trust_score,
+                  p.is_seed,
                   (SELECT count(*) FROM user_interests ui
                     WHERE ui.user_id = u.id
                       AND ui.interest_id IN (SELECT interest_id FROM user_interests WHERE user_id = $1)
@@ -106,7 +107,22 @@ async function buildDailyFeed(userId: string): Promise<void> {
                      WHERE (b.user_id = $1 AND b.blocked_id = u.id)
                         OR (b.user_id = u.id AND b.blocked_id = $1)
                   )
-            ORDER BY shared DESC, p.trust_score DESC
+              -- Демо-анкеты только заполняют пустоту: как только реальных
+              -- подходящих людей стало достаточно, они исчезают навсегда.
+              AND (
+                    p.is_seed = false
+                    OR (SELECT count(*) FROM users ru
+                          JOIN profiles rp ON rp.user_id = ru.id
+                          JOIN privacy_settings rs ON rs.user_id = ru.id
+                         WHERE rp.is_seed = false
+                           AND ru.id <> $1
+                           AND ru.deleted_at IS NULL
+                           AND ru.paused_at IS NULL
+                           AND rs.visible_in_feed
+                           AND rp.onboarded_at IS NOT NULL
+                       ) < 10
+                  )
+            ORDER BY p.is_seed ASC, shared DESC, p.trust_score DESC
             LIMIT $2
          ) c
        ON CONFLICT DO NOTHING`,

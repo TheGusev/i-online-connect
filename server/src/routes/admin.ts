@@ -62,6 +62,8 @@ export async function adminRoutes(app: FastifyInstance) {
       .extend({
         verified: z.enum(["yes", "no"]).optional(),
         blocked: z.enum(["yes", "no"]).optional(),
+        // Демо-анкеты в модерации не нужны: по умолчанию скрыты.
+        seed: z.enum(["show", "hide"]).optional(),
       })
       .parse(request.query);
     const { q, page, limit } = filters;
@@ -83,6 +85,7 @@ export async function adminRoutes(app: FastifyInstance) {
     if (filters.blocked) {
       where.push(filters.blocked === "yes" ? "u.blocked_at IS NOT NULL" : "u.blocked_at IS NULL");
     }
+    if (filters.seed !== "show") where.push("COALESCE(p.is_seed, false) = false");
 
 
     const whereSql = `WHERE ${where.join(" AND ")}`;
@@ -96,7 +99,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const rows = await query(
       `SELECT u.id, u.email::text AS email, u.role, u.email_verified, u.phone_verified,
               u.blocked_at, u.blocked_reason, u.paused_at, u.last_seen_at, u.created_at,
-              p.name, p.city, p.trust_level, p.trust_score, p.video_verified
+              p.name, p.city, p.trust_level, p.trust_score, p.video_verified, p.is_seed
          FROM users u
          LEFT JOIN profiles p ON p.user_id = u.id
          ${whereSql}
@@ -115,6 +118,7 @@ export async function adminRoutes(app: FastifyInstance) {
         trustLevel: (row.trust_level as string | null) ?? "new",
         trustScore: (row.trust_score as number | null) ?? 0,
         videoVerified: Boolean(row.video_verified),
+        isSeed: Boolean(row.is_seed),
         emailVerified: Boolean(row.email_verified),
         phoneVerified: Boolean(row.phone_verified),
         blockedAt: row.blocked_at as Date | null,
@@ -551,11 +555,15 @@ export async function adminRoutes(app: FastifyInstance) {
   // ── Объявления «Рядом» ────────────────────────────────────────────────────
 
   app.get("/listings", async (request) => {
-    const { q, page, limit, state } = pageQuery
-      .extend({ state: z.enum(["active", "closed", "expired"]).optional() })
+    const { q, page, limit, state, seed } = pageQuery
+      .extend({
+        state: z.enum(["active", "closed", "expired"]).optional(),
+        seed: z.enum(["show", "hide"]).optional(),
+      })
       .parse(request.query);
 
     const where: string[] = [];
+    if (seed !== "show") where.push("l.is_seed = false");
     const params: (string | number)[] = [];
     if (state) {
       params.push(state);
@@ -576,7 +584,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const rows = await query(
       `SELECT l.id, l.author_id, l.category, l.city, l.title, l.description,
               l.price_minor, l.currency, l.state, l.expires_at, l.created_at,
-              p.name AS author_name, p.trust_level
+              l.is_seed, p.name AS author_name, p.trust_level
          FROM listings l
          LEFT JOIN profiles p ON p.user_id = l.author_id
          ${whereSql}
@@ -593,6 +601,7 @@ export async function adminRoutes(app: FastifyInstance) {
         trustLevel: (row.trust_level as string | null) ?? "new",
         category: row.category as string,
         city: row.city as string,
+        isSeed: Boolean(row.is_seed),
         title: row.title as string,
         description: row.description as string,
         priceMinor: (row.price_minor as number | null) ?? null,
@@ -630,14 +639,18 @@ export async function adminRoutes(app: FastifyInstance) {
   // ── Сообщества ────────────────────────────────────────────────────────────
 
   app.get("/spaces", async (request) => {
-    const { q, page, limit } = pageQuery.parse(request.query);
+    const { q, page, limit, seed } = pageQuery
+      .extend({ seed: z.enum(["show", "hide"]).optional() })
+      .parse(request.query);
 
     const params: (string | number)[] = [];
-    let whereSql = "";
+    const where: string[] = [];
+    if (seed !== "show") where.push("s.is_seed = false");
     if (q) {
       params.push(`%${q}%`);
-      whereSql = `WHERE (s.title ILIKE $${params.length} OR s.city ILIKE $${params.length})`;
+      where.push(`(s.title ILIKE $${params.length} OR s.city ILIKE $${params.length})`);
     }
+    const whereSql = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
 
     const total = await queryOne<{ count: string }>(
       `SELECT count(*)::text AS count FROM spaces s ${whereSql}`,
@@ -647,7 +660,7 @@ export async function adminRoutes(app: FastifyInstance) {
     params.push(limit, (page - 1) * limit);
     const rows = await query(
       `SELECT s.id, s.title, s.category, s.format, s.city, s.verified_community,
-              s.host_id, s.created_at, p.name AS host_name,
+              s.is_seed, s.host_id, s.created_at, p.name AS host_name,
               (SELECT count(*) FROM space_members m WHERE m.space_id = s.id)::int AS members,
               (SELECT count(*) FROM space_events e WHERE e.space_id = s.id
                  AND e.starts_at > now())::int AS upcoming_events
@@ -667,6 +680,7 @@ export async function adminRoutes(app: FastifyInstance) {
         format: row.format as string,
         city: row.city as string,
         verifiedCommunity: Boolean(row.verified_community),
+        isSeed: Boolean(row.is_seed),
         hostId: row.host_id as string,
         hostName: (row.host_name as string | null) ?? "",
         members: row.members as number,
