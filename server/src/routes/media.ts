@@ -13,6 +13,8 @@ import { query, queryOne } from "../db.ts";
 import { badRequest, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import {
+  MAX_PROFILE_PHOTOS,
+  MAX_PROFILE_VIDEOS,
   MAX_VIDEO_BYTES,
   assertSize,
   detectMediaType,
