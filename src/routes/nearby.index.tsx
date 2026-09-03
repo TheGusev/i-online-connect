@@ -141,7 +141,7 @@ function NearbyPage() {
           ) : null}
 
           {isPending ? (
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-3 lg:grid-cols-2">
               <SpaceCardSkeleton />
               <SpaceCardSkeleton />
               <SpaceCardSkeleton />
