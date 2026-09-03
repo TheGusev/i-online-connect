@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { MapPin } from "lucide-react";
 
-import { Card, Chip } from "@/components/ds";
+import { Avatar, Card, Chip } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { AppShell } from "@/components/layout/AppShell";
 import { IntentCard } from "@/features/profile/components/IntentCard";
@@ -95,13 +95,6 @@ function ProfileViewPage() {
             <div id="profile-collapsible-content">
               <Reveal delay={40}>
                 <MediaCarousel media={data.media} name={data.name} />
-              </Reveal>
-
-              <Reveal delay={80} className="mt-4">
-                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <MapPin className="size-4" aria-hidden="true" />
-                  {data.city}
-                </p>
               </Reveal>
 
               <ProfileSection title="О себе" delay={60}>
