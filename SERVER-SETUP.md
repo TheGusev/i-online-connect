@@ -309,7 +309,7 @@ server {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(self)" always;
     # camera/microphone нужны экрану верификации и видео-визитке.
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' wss://example.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru https://mc.yandex.com https://yastatic.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://mc.yandex.ru https://mc.yandex.com; media-src 'self' blob:; connect-src 'self' https://mc.yandex.ru https://mc.yandex.com wss://example.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
     server_tokens off;
 
     client_max_body_size 45m;  # видео-селфи (до 40 МБ) и видео профиля
@@ -388,7 +388,8 @@ proxy_set_header Host              $host;
 proxy_set_header X-Real-IP         $remote_addr;
 proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
 proxy_set_header X-Forwarded-Proto $scheme;
-proxy_read_timeout 30s;
+proxy_read_timeout 120s;
+proxy_send_timeout 120s;
 proxy_connect_timeout 5s;
 ```
 

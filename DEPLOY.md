@@ -94,6 +94,13 @@ server {
     root /var/www/ya-online;
     index index.html;
 
+    # Видео-верификация и профильные медиа: backend принимает до 40 МБ.
+    client_max_body_size 45m;
+
+    # Камера доступна только самому сайту; домены ниже нужны счётчику Метрики.
+    add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(self)" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://mc.yandex.ru https://mc.yandex.com https://yastatic.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://mc.yandex.ru https://mc.yandex.com; media-src 'self' blob:; connect-src 'self' https://mc.yandex.ru https://mc.yandex.com wss://example.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'" always;
+
     # gzip/brotli для текстовых ассетов
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;
@@ -119,10 +126,14 @@ server {
     # 3. REST API -> Node.js backend (PM2)
     location /api/ {
         proxy_pass http://127.0.0.1:4000/api/;
+        proxy_http_version 1.1;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
     }
 
     # 4. WebSocket чата
@@ -174,6 +185,12 @@ pm2 startup
 Мок-данных нет: все запросы всегда уходят на `VITE_API_URL`. Если интерфейс
 показывает ошибки загрузки — проверяйте backend и прокси `/api`, а не флаги
 сборки.
+
+Проверка после выкладки: `curl -i https://example.com/api/health` обязан вернуть
+JSON backend, а не `index.html`. Если приходит HTML, `location /api/` не попал в
+активную конфигурацию Nginx. Для видео-верификации также проверьте
+`ffmpeg -version`, доступ на запись к `VERIFICATION_DIR`, применённые миграции и
+наличие AI-конфигурации; без AI заявка безопасно остаётся в ручной очереди.
 
 ---
 

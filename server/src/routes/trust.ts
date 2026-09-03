@@ -182,43 +182,6 @@ export async function trustRoutes(app: FastifyInstance) {
       if (!photo) throw badRequest("В профиле нет фото — сверять не с чем");
 
       const videoPath = await savePrivateFile(userId, buffer, type.ext);
-      const frames = await extractFrames(videoPath);
-      const framePath =
-        frames[0] ? await savePrivateFile(userId, frames[0], "jpg") : videoPath;
-
-      // Фото профиля читаем с диска: наружу за ним не ходим.
-      let reference: { buffer: Buffer; mime: string } | null = null;
-      const photoPath = mediaPathFromUrl(photo.url);
-      if (photoPath) {
-        const file = await readFile(photoPath).catch(() => null);
-        if (file) {
-          reference = { buffer: file, mime: detectMediaType(file)?.mime ?? "image/jpeg" };
-        }
-      }
-
-      const outcome = reference
-        ? await matchFaces({
-            frames,
-            referencePhoto: reference,
-            instructions: challenge.instructions,
-            spokenCode: challenge.spokenCode,
-          })
-        : ({ decision: "manual", verdict: null, reason: "Фото профиля недоступно" } as const);
-
-      const status =
-        outcome.decision === "verified"
-          ? "verified"
-          : outcome.decision === "rejected"
-            ? "rejected"
-            : "pending";
-
-      const reason =
-        outcome.decision === "verified"
-          ? "Лицо совпало с фото профиля"
-          : "reason" in outcome
-            ? outcome.reason
-            : "";
-
       const row = await queryOne<{
         id: string;
         status: "none" | "pending" | "verified" | "rejected";
@@ -228,34 +191,101 @@ export async function trustRoutes(app: FastifyInstance) {
         `INSERT INTO verifications
            (user_id, status, selfie_path, video_path, reference_url, challenge, verdict, confidence, reason,
             reviewed_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CASE WHEN $2 = 'pending' THEN NULL ELSE now() END)
+         VALUES ($1, 'pending', $2, $2, $3, $4, NULL, NULL, $5, NULL)
          RETURNING id, status, submitted_at, reason`,
         [
           userId,
-          status,
-          framePath,
           videoPath,
           photo.url,
           challenge.instructions.join("; "),
-          outcome.verdict ? JSON.stringify(outcome.verdict) : null,
-          outcome.verdict?.confidence ?? null,
-          reason,
+          "Видео принято, автоматическая проверка началась",
         ],
       );
       if (!row) throw badRequest("Не удалось отправить заявку");
 
-      if (status === "verified") {
-        // Видео-подтверждение и уровень доверия обновляем только по факту сверки.
-        await query(
-          `UPDATE profiles
-              SET video_verified = true,
-                  trust_level = CASE WHEN trust_level = 'new' THEN 'verified' ELSE trust_level END,
-                  trust_score = LEAST(100, trust_score + 20),
-                  updated_at = now()
-            WHERE user_id = $1`,
-          [userId],
-        );
-      }
+      // Сразу отвечаем клиенту. Тяжёлая нарезка кадров и AI-сверка продолжаются
+      // отдельно, поэтому мобильная сеть и proxy timeout не обрывают заявку.
+      void (async () => {
+        try {
+          const frames = await extractFrames(videoPath);
+          const framePath =
+            frames[0] ? await savePrivateFile(userId, frames[0], "jpg") : videoPath;
+
+          let reference: { buffer: Buffer; mime: string } | null = null;
+          const photoPath = mediaPathFromUrl(photo.url);
+          if (photoPath) {
+            const file = await readFile(photoPath).catch(() => null);
+            if (file) {
+              reference = { buffer: file, mime: detectMediaType(file)?.mime ?? "image/jpeg" };
+            }
+          }
+
+          const outcome = reference
+            ? await matchFaces({
+                frames,
+                referencePhoto: reference,
+                instructions: challenge.instructions,
+                spokenCode: challenge.spokenCode,
+              })
+            : ({ decision: "manual", verdict: null, reason: "Фото профиля недоступно" } as const);
+          const nextStatus =
+            outcome.decision === "verified"
+              ? "verified"
+              : outcome.decision === "rejected"
+                ? "rejected"
+                : "pending";
+          const reason =
+            outcome.decision === "verified"
+              ? "Лицо совпало с фото профиля"
+              : "reason" in outcome
+                ? outcome.reason
+                : "";
+
+          await query(
+            `UPDATE verifications
+                SET status = $2,
+                    selfie_path = $3,
+                    verdict = $4,
+                    confidence = $5,
+                    reason = $6,
+                    reviewed_at = CASE WHEN $2 = 'pending' THEN NULL ELSE now() END
+              WHERE id = $1`,
+            [
+              row.id,
+              nextStatus,
+              framePath,
+              outcome.verdict ? JSON.stringify(outcome.verdict) : null,
+              outcome.verdict?.confidence ?? null,
+              reason,
+            ],
+          );
+
+          if (nextStatus === "verified") {
+            await query(
+              `UPDATE profiles
+                  SET video_verified = true,
+                      trust_level = CASE WHEN trust_level = 'new' THEN 'verified' ELSE trust_level END,
+                      trust_score = LEAST(100, trust_score + 20),
+                      updated_at = now()
+                WHERE user_id = $1`,
+              [userId],
+            );
+          }
+        } catch (error) {
+          app.log.error({ err: error, verificationId: row.id }, "Ошибка фоновой видео-верификации");
+          await query(
+            `UPDATE verifications
+                SET reason = 'Автоматическая проверка недоступна — заявка передана модератору'
+              WHERE id = $1 AND status = 'pending'`,
+            [row.id],
+          ).catch((updateError) => {
+            app.log.error(
+              { err: updateError, verificationId: row.id },
+              "Не удалось обновить статус видео-верификации",
+            );
+          });
+        }
+      })();
 
       return ticket(row);
     },
