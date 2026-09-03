@@ -1,4 +1,14 @@
-import { Handshake, HeartHandshake, Route as RouteIcon, Tag, Wrench } from "lucide-react";
+import {
+  Building2,
+  Car,
+  Handshake,
+  HeartHandshake,
+  Heart,
+  Route as RouteIcon,
+  Siren,
+  Tag,
+  Wrench,
+} from "lucide-react";
 
 import type { NeedCategory } from "@/api";
 
@@ -7,23 +17,44 @@ export interface CategoryMeta {
   label: string;
   hint: string;
   icon: typeof Tag;
-  /** Для «Досуга» и «Помощи» цена не имеет смысла. */
+  /** Для «Досуга», «Помощи» и «Знакомств» цена не имеет смысла. */
   priceApplies: boolean;
 }
 
 export const categories: CategoryMeta[] = [
   {
-    id: "sale",
-    label: "Продажа",
-    hint: "Отдать, продать или купить вещь рядом",
-    icon: Tag,
-    priceApplies: true,
+    id: "dating",
+    label: "Знакомства",
+    hint: "Живое общение и встречи в своём городе",
+    icon: Heart,
+    priceApplies: false,
   },
   {
     id: "service",
-    label: "Услуга",
+    label: "Услуги",
     hint: "Мастер, репетитор, ремонт, уборка",
     icon: Wrench,
+    priceApplies: true,
+  },
+  {
+    id: "realty",
+    label: "Жильё",
+    hint: "Снять, сдать, найти соседа по квартире",
+    icon: Building2,
+    priceApplies: true,
+  },
+  {
+    id: "transport",
+    label: "Транспорт",
+    hint: "Авто, велосипед, самокат: продать или взять",
+    icon: Car,
+    priceApplies: true,
+  },
+  {
+    id: "sale",
+    label: "Покупка/продажа",
+    hint: "Отдать, продать или купить вещь рядом",
+    icon: Tag,
     priceApplies: true,
   },
   {
@@ -35,7 +66,7 @@ export const categories: CategoryMeta[] = [
   },
   {
     id: "travel",
-    label: "Попутчик",
+    label: "Попутчики",
     hint: "Поездка в одну сторону, поделить дорогу",
     icon: RouteIcon,
     priceApplies: true,
@@ -47,7 +78,15 @@ export const categories: CategoryMeta[] = [
     icon: Handshake,
     priceApplies: false,
   },
+  {
+    id: "urgent",
+    label: "Срочно",
+    hint: "Нужно решить сегодня — время важнее всего",
+    icon: Siren,
+    priceApplies: true,
+  },
 ];
+
 
 export const categoryMap = new Map(categories.map((item) => [item.id, item]));
 
