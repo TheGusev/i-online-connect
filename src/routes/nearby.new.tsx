@@ -122,6 +122,14 @@ function NewListingPage() {
           hint="Коротко и по делу: «Отдам детский велосипед», «Нужен репетитор по математике»"
         />
 
+        <Input
+          label="Район (необязательно)"
+          value={district}
+          maxLength={120}
+          onChange={(event) => setDistrict(event.target.value)}
+          hint="Точный адрес не нужен — район помогает понять, насколько это близко"
+        />
+
         <TextArea
           label="Описание"
           value={description}
