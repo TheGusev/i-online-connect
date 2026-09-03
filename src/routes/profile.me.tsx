@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import type { MyProfile, PrivacySettings, ProfileIntent } from "@/api";
-import { Card, Chip, Select } from "@/components/ds";
+import { Avatar, Card, Chip, Select } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { AppShell } from "@/components/layout/AppShell";
 import { IntentCard, intentOptions } from "@/features/profile/components/IntentCard";
@@ -52,6 +52,10 @@ function MyProfilePage() {
   const [intentDraft, setIntentDraft] = useState<ProfileIntent>("serious");
   const [intentNote, setIntentNote] = useState("");
 
+  const primaryPhoto =
+    data?.media.find((item) => item.kind === "photo" && item.isPrimary) ??
+    data?.media.find((item) => item.kind === "photo");
+
   const patch = (next: Partial<MyProfile>) => update.mutate(next);
   const patchPrivacy = (next: Partial<PrivacySettings>) => {
     if (!data) return;
@@ -79,7 +83,7 @@ function MyProfilePage() {
                 name={data.name}
                 src={primaryPhoto?.url ?? null}
                 size="lg"
-                verified={data.verification.status === "verified"}
+                verified={data.verification === "verified"}
               />
               <div className="min-w-0">
                 <InlineTextField
