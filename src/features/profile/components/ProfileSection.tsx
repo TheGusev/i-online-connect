@@ -21,7 +21,7 @@ export function ProfileSection({
   delay?: number;
 }) {
   return (
-    <Reveal as="section" delay={delay} className={cn("mt-12", className)}>
+    <Reveal as="section" delay={delay} className={cn("mt-6", className)}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <WaveHeading className="text-xl font-bold tracking-tight">{title}</WaveHeading>
@@ -31,7 +31,7 @@ export function ProfileSection({
         </div>
         {action}
       </div>
-      <div className="mt-5">{children}</div>
+      <div className="mt-4">{children}</div>
     </Reveal>
   );
 }

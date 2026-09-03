@@ -5,9 +5,10 @@ import { Avatar, Card, Chip } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { AppShell } from "@/components/layout/AppShell";
 import { IntentCard } from "@/features/profile/components/IntentCard";
-import { MediaCarousel } from "@/features/profile/components/MediaCarousel";
+import { MediaCoverflow } from "@/features/profile/components/MediaCoverflow";
 import { ProfileActionBar } from "@/features/profile/components/ProfileActionBar";
 import { ProfileCollapseToggle } from "@/features/profile/components/ProfileCollapseToggle";
+import { ProfilePanel } from "@/features/profile/components/ProfilePanel";
 import { ProfileSection } from "@/features/profile/components/ProfileSection";
 import { TrustBadgeExplained } from "@/features/profile/components/TrustBadgeExplained";
 import { useProfileDetail } from "@/features/profile/hooks";
@@ -94,7 +95,7 @@ function ProfileViewPage() {
           {!collapsed && (
             <div id="profile-collapsible-content">
               <Reveal delay={40}>
-                <MediaCarousel media={data.media} name={data.name} />
+                <MediaCoverflow media={data.media} name={data.name} />
               </Reveal>
 
               <ProfileSection title="О себе" delay={60}>
@@ -107,7 +108,12 @@ function ProfileViewPage() {
                 <IntentCard intent={data.intent} note={data.intentNote} />
               </ProfileSection>
 
-              <ProfileSection title="Интересы" delay={60}>
+              <ProfilePanel
+                title="Интересы"
+                hint={`${data.interests.length}`}
+                defaultOpen
+                className="mt-6"
+              >
                 <ul className="flex flex-wrap gap-2">
                   {data.interests.map((interest) => (
                     <li key={interest}>
@@ -115,17 +121,17 @@ function ProfileViewPage() {
                     </li>
                   ))}
                 </ul>
-              </ProfileSection>
+              </ProfilePanel>
 
-              <ProfileSection title="Что важно" delay={60}>
-                <ul className="grid gap-3 sm:grid-cols-2">
+              <ProfilePanel title="Что важно" hint={`${data.values.length}`}>
+                <ul className="grid gap-2 sm:grid-cols-2">
                   {data.values.map((value) => (
                     <li key={value}>
-                      <Card className="h-full p-5 text-base leading-relaxed">{value}</Card>
+                      <Card className="h-full p-4 text-sm leading-relaxed">{value}</Card>
                     </li>
                   ))}
                 </ul>
-              </ProfileSection>
+              </ProfilePanel>
             </div>
           )}
 
