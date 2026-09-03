@@ -357,6 +357,10 @@ export interface Listing {
   id: string;
   category: NeedCategory;
   city: string;
+  /** Район города: показываем вместо расстояния — координат мы не спрашиваем. */
+  district?: string;
+  /** Демо-объявление для примера: откликнуться нельзя, помечено в интерфейсе. */
+  isSeed?: boolean;
   title: string;
   description: string;
   /** Цена в копейках; null — «договорная» или неприменимо. */
