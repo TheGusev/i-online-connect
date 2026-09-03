@@ -163,7 +163,9 @@ function NearbyPage() {
             </div>
           ) : (
             <>
-              <ul className="grid gap-5 md:grid-cols-2">
+              {/* Список, а не галерея: на телефоне видно сразу несколько
+                  объявлений, на широком экране — две колонки. */}
+              <ul className="grid gap-3 lg:grid-cols-2">
                 {items.map((listing, index) => (
                   <Reveal as="li" key={listing.id} delay={index * 50}>
                     <ListingCard listing={listing} />
