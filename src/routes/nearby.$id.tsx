@@ -240,6 +240,12 @@ function ListingPage() {
                 </Button>
               ) : null}
             </>
+          ) : listing.isSeed ? (
+            // Демо-объявление: отклик всё равно отклонит сервер, поэтому честно
+            // объясняем это до нажатия, а не после ошибки.
+            <p className="text-sm text-muted-foreground">
+              Это демо-объявление для примера — реальные люди появятся рядом совсем скоро.
+            </p>
           ) : (
             <>
               {listing.respondedConversationId ? (
