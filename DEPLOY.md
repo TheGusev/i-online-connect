@@ -94,6 +94,9 @@ server {
     root /var/www/ya-online;
     index index.html;
 
+    # Видео-верификация и профильные медиа: backend принимает до 40 МБ.
+    client_max_body_size 45m;
+
     # gzip/brotli для текстовых ассетов
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;
@@ -119,10 +122,14 @@ server {
     # 3. REST API -> Node.js backend (PM2)
     location /api/ {
         proxy_pass http://127.0.0.1:4000/api/;
+        proxy_http_version 1.1;
         proxy_set_header Host              $host;
         proxy_set_header X-Real-IP         $remote_addr;
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 5s;
+        proxy_send_timeout 120s;
+        proxy_read_timeout 120s;
     }
 
     # 4. WebSocket чата
@@ -174,6 +181,12 @@ pm2 startup
 Мок-данных нет: все запросы всегда уходят на `VITE_API_URL`. Если интерфейс
 показывает ошибки загрузки — проверяйте backend и прокси `/api`, а не флаги
 сборки.
+
+Проверка после выкладки: `curl -i https://example.com/api/health` обязан вернуть
+JSON backend, а не `index.html`. Если приходит HTML, `location /api/` не попал в
+активную конфигурацию Nginx. Для видео-верификации также проверьте
+`ffmpeg -version`, доступ на запись к `VERIFICATION_DIR`, применённые миграции и
+наличие AI-конфигурации; без AI заявка безопасно остаётся в ручной очереди.
 
 ---
 

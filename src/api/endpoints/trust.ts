@@ -40,7 +40,7 @@ export async function submitVerificationVideo(
   form.append("challengeId", challengeId);
   form.append("file", video, isMp4 ? "verification.mp4" : "verification.webm");
   return upload<VerificationTicket>("/trust/verification", form, {
-    onProgress,
+    ...(onProgress ? { onProgress } : {}),
     timeoutMs: 90_000,
     timeoutMessage: "Видео не успело загрузиться. Проверьте связь и попробуйте ещё раз.",
   });
