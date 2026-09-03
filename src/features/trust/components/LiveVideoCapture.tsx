@@ -1,10 +1,12 @@
-import { Camera, CircleStop, RotateCcw, Video } from "lucide-react";
+import { AlertTriangle, Camera, CircleStop, RotateCcw, Video } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ds";
 
 const MIN_SECONDS = 4;
 const MAX_SECONDS = 8;
+/** Сколько ждём ответа от камеры, прежде чем считать, что она не откроется. */
+const CAMERA_TIMEOUT_MS = 15_000;
 
 /** Первый поддерживаемый браузером контейнер: Safari умеет только mp4. */
 function pickMimeType(): string | undefined {
@@ -14,10 +16,45 @@ function pickMimeType(): string | undefined {
 }
 
 /**
+ * Что мешает записать видео в этом браузере. null — всё в порядке.
+ *
+ * Проверяем до запроса камеры: на iOS Safari по http `mediaDevices` вообще
+ * отсутствует, и без этой проверки экран просто «зависал» без объяснений.
+ */
+function supportProblem(): string | null {
+  if (typeof window === "undefined") return null;
+  if (!window.isSecureContext) {
+    return "Камера работает только на защищённом соединении (https). Откройте сайт по адресу с https — и запись станет доступна.";
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return "Этот браузер не даёт доступ к камере. Откройте страницу в Safari или Chrome посвежее — или напишите нам в поддержку, проверим вручную.";
+  }
+  if (typeof MediaRecorder === "undefined") {
+    return "Этот браузер не умеет записывать видео. Попробуйте Safari или Chrome посвежее — или напишите нам в поддержку.";
+  }
+  return null;
+}
+
+/** Понятная причина отказа камеры вместо технического кода ошибки. */
+function cameraErrorText(cause: unknown): string {
+  const name = cause instanceof Error ? cause.name : "";
+  if (name === "NotAllowedError" || name === "SecurityError") {
+    return "Доступ к камере запрещён. Разрешите камеру для этого сайта в настройках браузера и нажмите «Попробовать снова» — запись видит только проверка.";
+  }
+  if (name === "NotFoundError" || name === "OverconstrainedError") {
+    return "Не нашли фронтальную камеру. Проверьте, что камера есть и не отключена, затем попробуйте снова.";
+  }
+  if (name === "NotReadableError" || name === "AbortError") {
+    return "Камера занята другим приложением. Закройте видеозвонки и другие вкладки с камерой и попробуйте снова.";
+  }
+  return "Не получилось включить камеру. Проверьте разрешения браузера и попробуйте снова — запись видит только проверка.";
+}
+
+/**
  * Запись живого видео-селфи: 4–8 секунд с фронтальной камеры.
  *
- * Ничего не отправляем сами — отдаём готовый Blob наверх, чтобы экран
- * верификации решал, когда его показать и когда загрузить.
+ * Камера включается только по нажатию кнопки: iOS Safari требует явный
+ * пользовательский жест, иначе запрос молча не срабатывает.
  */
 export function LiveVideoCapture({
   video,
@@ -35,11 +72,16 @@ export function LiveVideoCapture({
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
 
+  const [unsupported, setUnsupported] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
   const [ready, setReady] = useState(false);
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+
+  // Поддержку проверяем на клиенте: при SSR никаких navigator нет.
+  useEffect(() => setUnsupported(supportProblem()), []);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -47,40 +89,51 @@ export function LiveVideoCapture({
     setReady(false);
   }, []);
 
-  // Камеру просим только когда запись действительно нужна.
+  // Поток гасим, когда компонент уходит или уже есть записанное видео.
   useEffect(() => {
-    if (video) return;
-    let cancelled = false;
+    if (video) stopStream();
+    return () => stopStream();
+  }, [video, stopStream]);
 
-    void (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
+  const enableCamera = useCallback(async () => {
+    const problem = supportProblem();
+    if (problem) {
+      setUnsupported(problem);
+      return;
+    }
+
+    setStarting(true);
+    setError(null);
+    try {
+      const stream = await Promise.race([
+        navigator.mediaDevices.getUserMedia({
           video: { facingMode: "user", width: { ideal: 720 } },
           audio: true,
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        streamRef.current = stream;
-        if (previewRef.current) {
-          previewRef.current.srcObject = stream;
-          await previewRef.current.play().catch(() => undefined);
-        }
-        setReady(true);
-        setError(null);
-      } catch {
-        setError(
-          "Не получилось включить камеру. Разреши доступ в настройках браузера — запись видит только проверка.",
-        );
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error("camera-timeout")),
+            CAMERA_TIMEOUT_MS,
+          ),
+        ),
+      ]);
+      streamRef.current = stream;
+      if (previewRef.current) {
+        previewRef.current.srcObject = stream;
+        await previewRef.current.play().catch(() => undefined);
       }
-    })();
-
-    return () => {
-      cancelled = true;
+      setReady(true);
+    } catch (cause) {
       stopStream();
-    };
-  }, [video, stopStream]);
+      setError(
+        cause instanceof Error && cause.message === "camera-timeout"
+          ? "Камера не ответила за 15 секунд. Проверьте разрешения браузера и попробуйте снова."
+          : cameraErrorText(cause),
+      );
+    } finally {
+      setStarting(false);
+    }
+  }, [stopStream]);
 
   // Превью записанного видео.
   useEffect(() => {
@@ -107,17 +160,23 @@ export function LiveVideoCapture({
   const start = () => {
     const stream = streamRef.current;
     if (!stream) return;
-    if (typeof MediaRecorder === "undefined") {
-      setError("Этот браузер не умеет записывать видео. Попробуй Chrome или Safari посвежее.");
-      return;
-    }
 
     const mimeType = pickMimeType();
-    const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    let recorder: MediaRecorder;
+    try {
+      recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    } catch {
+      setError("Этот браузер не смог начать запись. Попробуйте Safari или Chrome посвежее.");
+      return;
+    }
     const chunks: Blob[] = [];
 
     recorder.ondataavailable = (event) => {
       if (event.data.size > 0) chunks.push(event.data);
+    };
+    recorder.onerror = () => {
+      setRecording(false);
+      setError("Запись прервалась. Попробуйте ещё раз.");
     };
     recorder.onstop = () => {
       setRecording(false);
@@ -131,6 +190,21 @@ export function LiveVideoCapture({
     setRecording(true);
     recorder.start(500);
   };
+
+  if (unsupported) {
+    return (
+      <div className="rounded-3xl border border-border bg-secondary p-5">
+        <p className="flex items-start gap-2 text-sm leading-relaxed text-foreground">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning-foreground" aria-hidden="true" />
+          {unsupported}
+        </p>
+        <Button variant="ghost" className="mt-3" type="button" onClick={() => setUnsupported(supportProblem())}>
+          <RotateCcw aria-hidden="true" />
+          Проверить снова
+        </Button>
+      </div>
+    );
+  }
 
   if (video) {
     return (
@@ -171,14 +245,14 @@ export function LiveVideoCapture({
             Запись {seconds}s / {MAX_SECONDS}s
           </span>
         ) : null}
-        {!ready && !error ? (
-          <span className="absolute inset-0 grid place-items-center text-xs text-muted-foreground">
-            Включаем камеру…
+        {!ready ? (
+          <span className="absolute inset-0 grid place-items-center px-6 text-center text-xs text-muted-foreground">
+            {starting ? "Включаем камеру…" : "Камера включится после нажатия кнопки"}
           </span>
         ) : null}
       </div>
 
-      {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm leading-relaxed text-destructive">{error}</p> : null}
 
       <div className="mt-4 flex flex-wrap gap-2">
         {recording ? (
@@ -191,10 +265,15 @@ export function LiveVideoCapture({
             <CircleStop aria-hidden="true" />
             {seconds < MIN_SECONDS ? `Ещё ${MIN_SECONDS - seconds} с…` : "Остановить"}
           </Button>
-        ) : (
-          <Button type="button" onClick={start} disabled={!ready || disabled}>
+        ) : ready ? (
+          <Button type="button" onClick={start} disabled={disabled}>
             <Video aria-hidden="true" />
             Начать запись
+          </Button>
+        ) : (
+          <Button type="button" onClick={() => void enableCamera()} disabled={starting || disabled}>
+            <Camera aria-hidden="true" />
+            {starting ? "Включаем…" : error ? "Попробовать снова" : "Включить камеру"}
           </Button>
         )}
       </div>
