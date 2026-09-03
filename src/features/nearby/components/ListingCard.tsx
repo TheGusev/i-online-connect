@@ -1,71 +1,82 @@
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, MapPin, MessageCircle } from "lucide-react";
+import { MapPin, MessageCircle } from "lucide-react";
 
 import type { Listing } from "@/api";
-import { Card, Chip, MediaImage, TrustBadge } from "@/components/ds";
+import { Card, MediaImage, TrustBadge } from "@/components/ds";
 import { badgeLevel } from "@/features/chat/trust";
 
 import { categoryLabel, formatDate, formatPrice, priceApplies } from "../labels";
-import { mediaUrl } from "@/api";
 
+/**
+ * Компактная карточка объявления: фото слева, текст справа.
+ *
+ * Так на экран телефона попадает 4–5 объявлений вместо одного — раздел
+ * читается как лента объявлений, а не как галерея. Цена — самый заметный
+ * элемент: именно её ищут глазами в первую очередь.
+ */
 export function ListingCard({ listing }: { listing: Listing }) {
   const photo = listing.photos[0];
+  const place = [listing.city, listing.district].filter(Boolean).join(", ");
 
   return (
-    <Card variant="space" className="flex h-full flex-col overflow-hidden p-0">
+    <Card variant="space" className="overflow-hidden p-0">
       <Link
         to="/nearby/$id"
         params={{ id: listing.id }}
-        className="flex h-full flex-col focus-visible:outline-none"
+        className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-stretch gap-3 p-2.5 focus-visible:outline-none sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4 sm:p-3"
       >
-        {photo ? (
+        <div className="relative aspect-square overflow-hidden rounded-2xl bg-secondary">
           <MediaImage
             src={photo}
             alt={listing.title}
-            className="h-44 w-full object-cover"
-            wrapperClassName="h-44"
+            className="size-full object-cover"
+            wrapperClassName="size-full"
           />
-        ) : null}
+          {listing.isSeed ? (
+            <span className="absolute left-1.5 top-1.5 rounded-full bg-background/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground backdrop-blur">
+              пример
+            </span>
+          ) : null}
+        </div>
 
-        <div className="flex flex-1 flex-col gap-3 p-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <Chip size="sm" variant="intent">
+        <div className="flex min-w-0 flex-col gap-1 py-0.5">
+          {priceApplies(listing.category) ? (
+            <span className="text-base font-black leading-none sm:text-lg">
+              {formatPrice(listing.priceMinor, listing.currency)}
+            </span>
+          ) : (
+            <span className="text-xs font-bold uppercase tracking-wide text-primary">
               {categoryLabel(listing.category)}
-            </Chip>
-            {priceApplies(listing.category) ? (
-              <span className="text-sm font-bold">
-                {formatPrice(listing.priceMinor, listing.currency)}
-              </span>
-            ) : null}
-          </div>
+            </span>
+          )}
 
-          <h3 className="text-lg font-bold leading-snug">{listing.title}</h3>
+          <h3 className="line-clamp-2 text-sm font-semibold leading-snug sm:text-base">
+            {listing.title}
+          </h3>
 
           {listing.description ? (
-            <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+            <p className="line-clamp-1 text-xs leading-relaxed text-muted-foreground sm:line-clamp-2">
               {listing.description}
             </p>
           ) : null}
 
-          <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin className="size-3.5" aria-hidden="true" />
-              {listing.city}
+          <div className="mt-auto flex min-w-0 items-center gap-2 pt-1 text-[11px] text-muted-foreground">
+            <span className="inline-flex min-w-0 items-center gap-1">
+              <MapPin className="size-3 shrink-0" aria-hidden="true" />
+              <span className="truncate">{place || "Город не указан"}</span>
             </span>
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays className="size-3.5" aria-hidden="true" />
-              {formatDate(listing.createdAt)}
-            </span>
+            <span className="shrink-0">·</span>
+            <span className="shrink-0">{formatDate(listing.createdAt)}</span>
             {listing.responsesCount > 0 ? (
-              <span className="inline-flex items-center gap-1.5">
-                <MessageCircle className="size-3.5" aria-hidden="true" />
+              <span className="ml-auto inline-flex shrink-0 items-center gap-1">
+                <MessageCircle className="size-3" aria-hidden="true" />
                 {listing.responsesCount}
               </span>
             ) : null}
           </div>
 
-          <div className="flex items-center gap-2 border-t border-border pt-3">
-            <span className="truncate text-sm font-semibold">{listing.author.name}</span>
+          <div className="flex min-w-0 items-center gap-1.5 text-[11px]">
+            <span className="truncate font-semibold">{listing.author.name}</span>
             <TrustBadge level={badgeLevel(listing.author.trustLevel)} size="sm" />
           </div>
         </div>
