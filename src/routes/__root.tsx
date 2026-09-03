@@ -3,7 +3,8 @@ import {
   Outlet,
   Link,
   createRootRouteWithContext,
-  useRouter, useLocation,
+  useRouter,
+  useLocation,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -112,13 +113,58 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+function YandexMetrikaTracker() {
+  const location = useLocation();
+  const isFirstRender = useRef(true);
+
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    if (typeof window !== "undefined" && (window as any).ym) {
+      (window as any).ym(112270169, "hit", location.href);
+    }
+  }, [location.href]);
+
+  return null;
+}
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="ru">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+              m[i].l=1*new Date();
+              for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+              k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+              (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+              ym(112270169, "init", {
+                clickmap:true,
+                trackLinks:true,
+                accurateTrackBounce:true,
+                webvisor:true
+              });
+            `,
+          }}
+        />
       </head>
       <body>
+        <noscript>
+          <div>
+            <img
+              src="https://mc.yandex.ru/watch/112270169"
+              style={{ position: "absolute", left: "-9999px" }}
+              alt=""
+            />
+          </div>
+        </noscript>
         {children}
         <Scripts />
       </body>
@@ -131,6 +177,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <YandexMetrikaTracker />
       {/* Восстанавливаем сессию по токену до отрисовки приватных экранов. */}
       <SessionRestore />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
