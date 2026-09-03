@@ -85,9 +85,15 @@ export async function savePrivateFile(userId: string, buffer: Buffer, ext: strin
 
 /** Путь к файлу медиа по публичному URL (для удаления). */
 export function mediaPathFromUrl(url: string): string | null {
-  const base = env.MEDIA_BASE_URL.replace(/\/$/, "");
-  if (!url.startsWith(`${base}/`)) return null;
-  const relative = url.slice(base.length + 1);
+  // Учитываем и текущий MEDIA_BASE_URL, и исторические префиксы: старые записи
+  // в базе хранят ссылки, выданные до смены настройки.
+  const bases = [env.MEDIA_BASE_URL, "/media", "/api/media-file"].map((base) =>
+    base.replace(/\/$/, ""),
+  );
+  const pathname = url.startsWith("/") ? url : new URL(url, "http://localhost").pathname;
+  const base = bases.find((candidate) => pathname.startsWith(`${candidate}/`));
+  if (!base) return null;
+  const relative = pathname.slice(base.length + 1);
   // Защита от «../»: путь должен остаться внутри MEDIA_DIR.
   const resolved = path.resolve(env.MEDIA_DIR, relative);
   return resolved.startsWith(path.resolve(env.MEDIA_DIR)) ? resolved : null;
