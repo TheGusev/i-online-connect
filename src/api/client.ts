@@ -25,10 +25,14 @@ if (API_URL === "" && typeof window !== "undefined") {
  * (разработка, отдельный домен API) — относительный путь ушёл бы на домен
  * сайта, где файла нет, и фото «не грузилось». Поэтому приклеиваем origin API.
  */
+/** Префиксы, по которым backend раздаёт пользовательские файлы. */
+const MEDIA_PREFIXES = ["/media/", "/api/media-file/", "/uploads/"];
+
 export function mediaUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
   if (/^(https?:|data:|blob:)/i.test(url)) return url;
-  if (!url.startsWith("/media/") || API_URL === "") return url;
+  // Локальные ассеты сборки (/assets/...) отдаёт сам сайт — их не трогаем.
+  if (!MEDIA_PREFIXES.some((prefix) => url.startsWith(prefix)) || API_URL === "") return url;
   try {
     return new URL(url, API_URL).toString();
   } catch {
