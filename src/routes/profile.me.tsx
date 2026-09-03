@@ -73,25 +73,53 @@ function MyProfilePage() {
 
       {data ? (
         <div className="pb-8">
-          <Reveal delay={80} as="header" className="mt-7">
-            <InlineTextField
-              label="Как тебя зовут"
-              value={data.name}
-              saving={update.isPending}
-              onSave={(name) => patch({ name })}
-              renderValue={(name) => <h1 className="text-4xl font-bold tracking-tight">{name}</h1>}
-            />
-            <div className="mt-1">
-              <InlineTextField
-                label="Возраст"
-                value={String(data.age)}
-                saving={update.isPending}
-                onSave={(age) => {
-                  const parsed = Number.parseInt(age, 10);
-                  if (Number.isFinite(parsed) && parsed >= 18) patch({ age: parsed });
-                }}
-                renderValue={(age) => <p className="text-base text-muted-foreground">{age} лет</p>}
+          <Reveal delay={80} as="header" className="mt-5">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+              <Avatar
+                name={data.name}
+                src={primaryPhoto?.url ?? null}
+                size="lg"
+                verified={data.verification.status === "verified"}
               />
+              <div className="min-w-0">
+                <InlineTextField
+                  label="Как тебя зовут"
+                  value={data.name}
+                  saving={update.isPending}
+                  onSave={(name) => patch({ name })}
+                  renderValue={(name) => (
+                    <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">
+                      {name}
+                    </h1>
+                  )}
+                />
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <InlineTextField
+                    label="Возраст"
+                    value={String(data.age)}
+                    saving={update.isPending}
+                    onSave={(age) => {
+                      const parsed = Number.parseInt(age, 10);
+                      if (Number.isFinite(parsed) && parsed >= 18) patch({ age: parsed });
+                    }}
+                    renderValue={(age) => (
+                      <p className="text-sm text-muted-foreground">{age} лет</p>
+                    )}
+                  />
+                  <InlineTextField
+                    label="Город"
+                    value={data.city}
+                    saving={update.isPending}
+                    onSave={(city) => patch({ city })}
+                    renderValue={(city) => (
+                      <p className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{city}</span>
+                      </p>
+                    )}
+                  />
+                </div>
+              </div>
             </div>
             <div className="mt-4">
               <TrustBadgeExplained level={data.trustLevel} details={data.trust} />
