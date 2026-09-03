@@ -39,6 +39,7 @@ function NewListingPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [district, setDistrict] = useState("");
   const [days, setDays] = useState("7");
   const [photos, setPhotos] = useState<ProfileMedia[]>([]);
   const [uploading, setUploading] = useState(false);
