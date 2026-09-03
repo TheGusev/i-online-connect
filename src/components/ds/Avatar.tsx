@@ -1,9 +1,11 @@
 import { Check } from "lucide-react";
+import { useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 import { mediaUrl } from "@/api";
 
 const sizeMap = {
+  xs: "size-7 text-[10px]",
   sm: "size-9 text-xs",
   md: "size-12 text-sm",
   lg: "size-16 text-base",
@@ -11,6 +13,7 @@ const sizeMap = {
 } as const;
 
 const badgeMap = {
+  xs: "size-3.5 [&_svg]:size-2",
   sm: "size-4 [&_svg]:size-2.5",
   md: "size-5 [&_svg]:size-3",
   lg: "size-6 [&_svg]:size-3.5",
@@ -43,6 +46,11 @@ export function Avatar({
   online = false,
   className,
 }: AvatarProps) {
+  // Если файл не отдался, показываем инициалы, а не «битую» картинку.
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  const resolved = failed ? undefined : mediaUrl(src);
+
   return (
     <div className={cn("relative inline-flex shrink-0", className)}>
       <div
@@ -51,8 +59,14 @@ export function Avatar({
           sizeMap[size],
         )}
       >
-        {src ? (
-          <img src={mediaUrl(src)} alt={name} className="size-full object-cover" loading="lazy" />
+        {resolved ? (
+          <img
+            src={resolved}
+            alt={name}
+            className="size-full object-cover"
+            loading="lazy"
+            onError={() => setFailed(true)}
+          />
         ) : (
           <span aria-hidden="true">{initials(name)}</span>
         )}
