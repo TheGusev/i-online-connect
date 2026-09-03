@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
 
 /**
- * Открыта ли экранная клавиатура. Считаем по visualViewport: когда его высота
- * заметно меньше высоты окна — клавиатура перекрывает экран. Нужно, чтобы
- * нижняя навигация не «уезжала» вверх вместе с клавиатурой.
+ * Насколько экранная клавиатура перекрывает окно, в пикселях.
+ * Считаем по visualViewport: при `interactive-widget=overlays-content`
+ * layout не сжимается, поэтому поле ввода нужно приподнимать самим.
  */
-export function useKeyboardOpen(threshold = 140): boolean {
-  const [open, setOpen] = useState(false);
+export function useKeyboardInset(): number {
+  const [inset, setInset] = useState(0);
 
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
 
-    const update = () => setOpen(window.innerHeight - viewport.height > threshold);
+    const update = () => {
+      const overlap = window.innerHeight - viewport.height - viewport.offsetTop;
+      setInset(overlap > 80 ? Math.round(overlap) : 0);
+    };
     update();
     viewport.addEventListener("resize", update);
     viewport.addEventListener("scroll", update);
@@ -20,7 +23,12 @@ export function useKeyboardOpen(threshold = 140): boolean {
       viewport.removeEventListener("resize", update);
       viewport.removeEventListener("scroll", update);
     };
-  }, [threshold]);
+  }, []);
 
-  return open;
+  return inset;
+}
+
+/** Открыта ли клавиатура — для скрытия нижней навигации. */
+export function useKeyboardOpen(): boolean {
+  return useKeyboardInset() > 0;
 }
