@@ -147,3 +147,59 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
 }
+
+/** Сколько ждём завершения загрузки файла, прежде чем показать ошибку. */
+export const UPLOAD_TIMEOUT_MS = 30_000;
+
+/**
+ * Загрузка файла с прогрессом и таймаутом.
+ *
+ * fetch не сообщает прогресс отправки и без таймаута может «висеть» вечно —
+ * поэтому файлы уходят через XHR: пользователь видит проценты, а через
+ * UPLOAD_TIMEOUT_MS получает понятную ошибку вместо бесконечного «Загружаем…».
+ */
+export function upload<T>(
+  path: string,
+  form: FormData,
+  onProgress?: (percent: number) => void,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", buildUrl(path), true);
+    xhr.withCredentials = true;
+    xhr.timeout = UPLOAD_TIMEOUT_MS;
+    xhr.setRequestHeader("Accept", "application/json");
+    const token = getToken();
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && onProgress) {
+        onProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
+      }
+    };
+    xhr.ontimeout = () =>
+      reject(new ApiError(408, "Не удалось загрузить фото, попробуйте ещё раз"));
+    xhr.onerror = () => reject(new ApiError(0, "Нет связи с сервером — попробуйте ещё раз"));
+    xhr.onload = () => {
+      onProgress?.(100);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          resolve(xhr.responseText ? (JSON.parse(xhr.responseText) as T) : (undefined as T));
+        } catch {
+          reject(new ApiError(xhr.status, "Сервер вернул неожиданный ответ"));
+        }
+        return;
+      }
+      let message = xhr.status === 413 ? "Файл слишком большой" : `HTTP ${xhr.status}`;
+      try {
+        const data = JSON.parse(xhr.responseText) as { message?: string };
+        if (data?.message) message = data.message;
+      } catch {
+        /* тело не JSON — оставляем понятный текст по статусу */
+      }
+      reject(new ApiError(xhr.status, message));
+    };
+
+    xhr.send(form);
+  });
+}
