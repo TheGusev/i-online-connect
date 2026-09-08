@@ -1,6 +1,14 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { BadgeCheck, MessageSquareHeart, Sparkles, EyeOff, ShieldCheck, Lock } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  MessageSquareHeart,
+  Sparkles,
+  EyeOff,
+  ShieldCheck,
+  Lock,
+} from "lucide-react";
 
 import { Button } from "@/components/ds";
 import { SessionLoading } from "@/features/auth/session";
@@ -34,6 +42,9 @@ export const Route = createFileRoute("/")({
 function LandingPage() {
   const { t } = useTranslation();
   const status = useSessionStore((state) => state.status);
+  const brandParts = t("app.name").split(" ");
+  const brandMark = brandParts.shift() ?? "Я";
+  const brandWord = brandParts.join(" ");
 
   const why = [
     { icon: BadgeCheck, key: "real", tone: "text-success" },
@@ -57,8 +68,17 @@ function LandingPage() {
     <div className="min-h-dvh bg-background text-foreground">
       <header className="sticky top-0 z-20 border-b border-border/60 bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5 lg:px-8">
-          <Link to="/" className="text-lg font-extrabold tracking-tight">
-            {t("app.name")}
+          <Link
+            to="/"
+            aria-label={t("app.name")}
+            className="group flex items-center gap-2.5"
+          >
+            <span aria-hidden="true" className="brand-mark">
+              {brandMark}
+            </span>
+            <span aria-hidden="true" className="brand-word text-lg font-extrabold">
+              {brandWord}
+            </span>
           </Link>
           <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
             <a href="#how" className="transition-colors hover:text-foreground">
@@ -68,8 +88,15 @@ function LandingPage() {
               {t("landing.nav.trust")}
             </a>
           </nav>
-          <Button asChild size="sm">
-            <Link to="/onboarding">{t("landing.hero.cta")}</Link>
+          <Button
+            asChild
+            size="sm"
+            className="landing-start-button !bg-foreground !text-background hover:!bg-destructive hover:!text-destructive-foreground"
+          >
+            <Link to="/onboarding">
+              {t("landing.hero.cta")}
+              <ArrowRight aria-hidden="true" />
+            </Link>
           </Button>
         </div>
       </header>
@@ -102,8 +129,15 @@ function LandingPage() {
                 {t("landing.hero.subtitle")}
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-3">
-                <Button asChild size="lg">
-                  <Link to="/onboarding">{t("landing.hero.cta")}</Link>
+                <Button
+                  asChild
+                  size="lg"
+                  className="landing-start-button landing-start-button-main !bg-foreground !text-background hover:!bg-destructive hover:!text-destructive-foreground"
+                >
+                  <Link to="/onboarding">
+                    {t("landing.hero.cta")}
+                    <ArrowRight aria-hidden="true" />
+                  </Link>
                 </Button>
                 <Button asChild variant="ghost" size="lg">
                   <a href="#how">{t("landing.hero.secondary")}</a>

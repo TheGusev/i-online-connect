@@ -242,6 +242,81 @@
   box-shadow: var(--shadow-lift);
 }
 
+@utility brand-mark {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, var(--destructive), var(--warning));
+  color: var(--destructive-foreground);
+  font-size: 1.125rem;
+  font-weight: 800;
+  box-shadow: var(--shadow-soft);
+  animation: brand-mark-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
+
+  .group:hover & {
+    transform: rotate(5deg) translateY(-1px);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    transition: none;
+  }
+}
+
+@utility brand-word {
+  color: var(--foreground);
+  animation: brand-word-in 0.55s 0.12s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility landing-start-button {
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  background-color: var(--foreground);
+  padding-inline: 1rem;
+  color: var(--background);
+  box-shadow: var(--shadow-soft);
+  animation: start-button-in 0.55s 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  &:hover {
+    background-color: var(--destructive);
+    color: var(--destructive-foreground);
+    box-shadow: var(--shadow-lift);
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(1px) scale(0.98);
+  }
+
+  & svg {
+    transition: transform 250ms ease;
+  }
+
+  &:hover svg {
+    transform: translateX(0.2rem);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+    transition: none;
+  }
+}
+
+@utility landing-start-button-main {
+  height: 3rem;
+  padding-inline: 1.5rem;
+  font-size: 1rem;
+}
+
 @utility bg-gradient-verified {
   background-image: var(--gradient-verified);
 }
@@ -314,6 +389,39 @@
   100% {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes brand-mark-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-0.5rem) rotate(-8deg) scale(0.88);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+  }
+}
+
+@keyframes brand-word-in {
+  0% {
+    opacity: 0;
+    transform: translateX(-0.5rem);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes start-button-in {
+  0% {
+    opacity: 0;
+    transform: translateY(0.45rem) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
