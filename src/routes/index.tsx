@@ -88,7 +88,11 @@ function LandingPage() {
               {t("landing.nav.trust")}
             </a>
           </nav>
-          <Button asChild size="sm" className="landing-start-button">
+          <Button
+            asChild
+            size="sm"
+            className="landing-start-button !bg-foreground !text-background hover:!bg-destructive hover:!text-destructive-foreground"
+          >
             <Link to="/onboarding">
               {t("landing.hero.cta")}
               <ArrowRight aria-hidden="true" />
@@ -125,7 +129,11 @@ function LandingPage() {
                 {t("landing.hero.subtitle")}
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-3">
-                <Button asChild size="lg" className="landing-start-button landing-start-button-main">
+                <Button
+                  asChild
+                  size="lg"
+                  className="landing-start-button landing-start-button-main !bg-foreground !text-background hover:!bg-destructive hover:!text-destructive-foreground"
+                >
                   <Link to="/onboarding">
                     {t("landing.hero.cta")}
                     <ArrowRight aria-hidden="true" />
