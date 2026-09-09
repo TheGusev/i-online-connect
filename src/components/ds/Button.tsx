@@ -10,11 +10,12 @@ export const dsButtonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-primary text-primary-foreground shadow-soft hover:bg-primary/90",
+        primary:
+          "bg-primary text-primary-foreground shadow-glow tracking-[0.04em] hover:bg-primary/90 hover:shadow-lift",
         secondary:
           "border border-border bg-card text-foreground shadow-soft hover:bg-secondary hover:text-secondary-foreground",
         ghost: "text-foreground hover:bg-accent hover:text-accent-foreground",
-        danger: "bg-destructive text-destructive-foreground shadow-soft hover:bg-destructive/90",
+        danger: "bg-destructive text-destructive-foreground shadow-glow hover:bg-destructive/90",
       },
       size: {
         sm: "h-9 px-4 text-sm",

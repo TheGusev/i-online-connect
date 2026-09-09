@@ -93,6 +93,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content",
       },
       { title: "Я Онлайн" },
+      // Тёмная тема: адресная строка телефона не должна оставаться светлой.
+      { name: "theme-color", content: "#0B0F1A" },
+      { name: "color-scheme", content: "dark" },
       { name: "description", content: "Платформа знакомств и социальных связей «Я Онлайн»." },
       { property: "og:site_name", content: "Я Онлайн" },
       { property: "og:type", content: "website" },

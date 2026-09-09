@@ -24,7 +24,7 @@ export function ProfileSection({
     <Reveal as="section" delay={delay} className={cn("mt-6", className)}>
       <div className="flex items-start justify-between gap-4">
         <div>
-          <WaveHeading className="text-xl font-bold tracking-tight">{title}</WaveHeading>
+          <WaveHeading className="hud-title text-lg">{title}</WaveHeading>
           {description ? (
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{description}</p>
           ) : null}

@@ -30,7 +30,7 @@ export function TrustStatsSection({ stats }: { stats: OwnerTrustStats }) {
           <li key={label}>
             <Icon className="size-5 text-primary" aria-hidden="true" />
             <p className="mt-3 text-xl font-bold tracking-tight">{value}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{label}</p>
+            <p className="hud-label mt-1">{label}</p>
           </li>
         ))}
       </ul>

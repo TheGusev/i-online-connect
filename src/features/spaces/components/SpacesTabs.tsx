@@ -32,9 +32,9 @@ export function SpacesTabs({
             aria-selected={active}
             onClick={() => onChange(tab.id)}
             className={cn(
-              "shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors duration-200",
+              "shrink-0 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.1em] transition-colors duration-200",
               active
-                ? "bg-community text-community-foreground"
+                ? "bg-community text-community-foreground shadow-glow"
                 : "text-muted-foreground hover:bg-community-soft hover:text-community-ink",
             )}
           >
