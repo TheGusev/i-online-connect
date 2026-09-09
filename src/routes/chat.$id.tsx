@@ -1,10 +1,11 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, CalendarHeart, SendHorizontal } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, CalendarHeart, SendHorizontal, WifiOff } from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useKeyboardInset } from "@/hooks/useKeyboardOpen";
 
-import type { MeetingKind } from "@/api";
+import type { MeetingKind, Message } from "@/api";
 import { Avatar, Button, TrustBadge } from "@/components/ds";
 import { MeetingSheet } from "@/features/chat/components/MeetingSheet";
 import { MessageBubble } from "@/features/chat/components/MessageBubble";
@@ -15,11 +16,13 @@ import {
   useMarkConversationRead,
   useMessageStarters,
   useMessages,
+  useMessagesCache,
   useSendMessage,
   useSuggestMeeting,
 } from "@/features/chat/hooks";
 import { badgeLevel } from "@/features/chat/trust";
-import { useChatSocket } from "@/features/chat/useChatSocket";
+import { useChatSocket, type ChatSocketEvent } from "@/features/chat/useChatSocket";
+import { useSessionStore } from "@/store/useSessionStore";
 
 export const Route = createFileRoute("/chat/$id")({
   head: () => ({
@@ -42,10 +45,36 @@ export const Route = createFileRoute("/chat/$id")({
   component: ConversationPage,
 });
 
+/** «Сегодня», «Вчера» или дата — разделители между днями. */
+function dayLabel(iso: string) {
+  const date = new Date(iso);
+  const today = new Date();
+  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round((startOf(today) - startOf(date)) / 86_400_000);
+  if (diffDays === 0) return "Сегодня";
+  if (diffDays === 1) return "Вчера";
+  return date.toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    year: date.getFullYear() === today.getFullYear() ? undefined : "numeric",
+  });
+}
+
+function sameDay(a: string, b: string) {
+  const x = new Date(a);
+  const y = new Date(b);
+  return (
+    x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate()
+  );
+}
+
 function ConversationPage() {
   const { id } = Route.useParams();
+  const queryClient = useQueryClient();
+  const myId = useSessionStore((s) => s.user?.id);
   const { data: conversation } = useConversation(id);
-  const { data: messages, isPending } = useMessages(id);
+  const { messages, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useMessages(id);
+  const cache = useMessagesCache(id);
   const send = useSendMessage(id);
   const suggestMeeting = useSuggestMeeting(id);
   const markRead = useMarkConversationRead(id);
@@ -55,6 +84,8 @@ function ConversationPage() {
   const [meetingOpen, setMeetingOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const scrollerRef = useRef<HTMLElement | null>(null);
+  const topSentinelRef = useRef<HTMLDivElement | null>(null);
 
   const isEmptyThread = (messages?.length ?? 0) === 0;
   const { data: starters, isPending: startersPending } = useMessageStarters(
@@ -62,7 +93,43 @@ function ConversationPage() {
     Boolean(messages) && isEmptyThread,
   );
 
-  const { typing } = useChatSocket({ conversationId: id });
+  // Входящие события: новое сообщение сразу в ленту, «прочитано» — на мои пузыри.
+  const onSocketEvent = useCallback(
+    (event: ChatSocketEvent) => {
+      if (event.conversationId !== id) return;
+      if (event.type === "message" && event.message) {
+        const incoming = event.message;
+        if (incoming.authorId === myId) {
+          // Своё сообщение — уже добавлено оптимистично; просто синхронизируем статус.
+          cache.upsert({ ...incoming, status: incoming.status ?? "sent" });
+        } else {
+          cache.upsert({ ...incoming, status: incoming.status ?? "sent" });
+          // Мы в диалоге — сразу помечаем прочитанным.
+          markRead.mutate();
+        }
+        void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+      }
+      if (event.type === "read" && event.authorId && event.authorId !== myId && myId) {
+        cache.markMineRead(myId);
+      }
+    },
+    [id, myId, cache, markRead, queryClient],
+  );
+
+  const { typing, status: socketStatus, sendTyping } = useChatSocket({
+    conversationId: id,
+    onEvent: onSocketEvent,
+  });
+
+  // Сокет переподключился — за время обрыва могли прийти сообщения.
+  const wasClosedRef = useRef(false);
+  useEffect(() => {
+    if (socketStatus === "closed") wasClosedRef.current = true;
+    if (socketStatus === "open" && wasClosedRef.current) {
+      wasClosedRef.current = false;
+      void queryClient.invalidateQueries({ queryKey: ["chat", "messages", id] });
+    }
+  }, [socketStatus, id, queryClient]);
 
   const markReadOnce = useRef(false);
   useEffect(() => {
@@ -71,19 +138,44 @@ function ConversationPage() {
     markRead.mutate();
   }, [conversation, markRead]);
 
+  // Автопрокрутка вниз при новых сообщениях (но не при подгрузке истории вверх).
+  const lastId = messages?.[messages.length - 1]?.id;
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages?.length, typing]);
+  }, [lastId, typing]);
+
+  // Подгрузка ранних сообщений при прокрутке к верху с сохранением позиции.
+  useEffect(() => {
+    const sentinel = topSentinelRef.current;
+    if (!sentinel || !hasNextPage) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries[0]?.isIntersecting || isFetchingNextPage) return;
+      const el = document.scrollingElement ?? document.documentElement;
+      const prevHeight = el.scrollHeight;
+      const prevTop = el.scrollTop;
+      void fetchNextPage().then(() => {
+        requestAnimationFrame(() => {
+          el.scrollTop = prevTop + (el.scrollHeight - prevHeight);
+        });
+      });
+    });
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const participant = conversation?.participant;
   const shared = useMemo(() => conversation?.sharedInterests ?? [], [conversation]);
 
   const submit = () => {
     const text = draft.trim();
-    if (!text || send.isPending) return;
-    send.mutate(text);
+    if (!text) return;
+    send.mutate({ text });
     setDraft("");
     inputRef.current?.focus();
+  };
+
+  const retry = (message: Message) => {
+    send.mutate({ text: message.text, retryId: message.id });
   };
 
   return (
@@ -132,9 +224,15 @@ function ConversationPage() {
             participantId={participant?.id ?? "unknown"}
           />
         </div>
+        {socketStatus === "closed" ? (
+          <p className="flex items-center justify-center gap-1.5 border-t border-border bg-secondary/60 px-3 py-1 text-[11px] text-muted-foreground">
+            <WifiOff className="size-3" aria-hidden="true" />
+            Нет соединения — переподключаемся…
+          </p>
+        ) : null}
       </header>
 
-      <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-4">
+      <main ref={scrollerRef} className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-4">
         {shared.length > 0 ? (
           <p className="mb-4 rounded-2xl bg-primary-soft/50 px-4 py-2.5 text-xs text-accent-foreground">
             Общее у вас: {shared.join(", ")}
@@ -150,18 +248,47 @@ function ConversationPage() {
             </p>
           </div>
         ) : (
-          <ul className="flex-1 space-y-3">
-            {messages?.map((message) => (
-              <MessageBubble key={message.id} message={message} />
-            ))}
-            {typing ? (
-              <li className="flex justify-start">
-                <span className="rounded-3xl rounded-bl-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-                  печатает…
-                </span>
-              </li>
+          <>
+            <div ref={topSentinelRef} className="h-px" />
+            {hasNextPage ? (
+              <div className="mb-3 flex justify-center">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isFetchingNextPage}
+                  onClick={() => void fetchNextPage()}
+                >
+                  {isFetchingNextPage ? "Загружаем…" : "Показать более ранние"}
+                </Button>
+              </div>
             ) : null}
-          </ul>
+            <ul className="flex-1 space-y-3">
+              {messages?.map((message, index) => {
+                const prev = messages[index - 1];
+                const showDay = !prev || !sameDay(prev.createdAt, message.createdAt);
+                return (
+                  <Fragment key={message.id}>
+                    {showDay ? (
+                      <li className="flex justify-center py-1">
+                        <span className="hud-label rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">
+                          {dayLabel(message.createdAt)}
+                        </span>
+                      </li>
+                    ) : null}
+                    <MessageBubble message={message} onRetry={retry} />
+                  </Fragment>
+                );
+              })}
+              {typing ? (
+                <li className="flex justify-start">
+                  <span className="rounded-3xl rounded-bl-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+                    печатает…
+                  </span>
+                </li>
+              ) : null}
+            </ul>
+          </>
         )}
         <div ref={bottomRef} />
       </main>
@@ -202,7 +329,10 @@ function ConversationPage() {
               ref={inputRef}
               rows={1}
               value={draft}
-              onChange={(event) => setDraft(event.target.value)}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                if (event.target.value.trim()) sendTyping();
+              }}
               onKeyDown={(event) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();

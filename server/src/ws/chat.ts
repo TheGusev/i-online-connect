@@ -27,16 +27,29 @@ export interface ChatSocketEvent {
   authorId?: string;
 }
 
-const rooms = new Map<string, Set<WebSocket>>();
+const rooms = new Map<string, Map<WebSocket, string>>();
 
 /** Разослать событие всем, кто открыл этот диалог. */
 export function publishChatEvent(conversationId: string, event: ChatSocketEvent): void {
   const room = rooms.get(conversationId);
   if (!room) return;
   const payload = JSON.stringify(event);
-  for (const socket of room) {
+  for (const socket of room.keys()) {
     if (socket.readyState === 1) socket.send(payload);
   }
+}
+
+/**
+ * Открыт ли диалог у пользователя прямо сейчас (в этом процессе).
+ * Используется, чтобы не плодить уведомления тому, кто и так видит сообщение.
+ */
+export function isInRoom(conversationId: string, userId: string): boolean {
+  const room = rooms.get(conversationId);
+  if (!room) return false;
+  for (const [socket, owner] of room) {
+    if (owner === userId && socket.readyState === 1) return true;
+  }
+  return false;
 }
 
 export async function chatSocketRoutes(app: FastifyInstance) {
@@ -70,9 +83,15 @@ export async function chatSocketRoutes(app: FastifyInstance) {
         return;
       }
 
-      const room = rooms.get(conversationId) ?? new Set<WebSocket>();
-      room.add(socket);
+      const room = rooms.get(conversationId) ?? new Map<WebSocket, string>();
+      room.set(socket, userId);
       rooms.set(conversationId, room);
+
+      // Heartbeat: без ping прокси (Nginx) закрывает «тихие» соединения,
+      // а клиент узнаёт об этом с задержкой.
+      const heartbeat = setInterval(() => {
+        if (socket.readyState === 1) socket.ping();
+      }, 30_000);
 
       socket.on("message", (raw: Buffer) => {
         // Через сокет принимаем только «печатает…». Сообщения идут по HTTP,
@@ -81,7 +100,7 @@ export async function chatSocketRoutes(app: FastifyInstance) {
           const parsed = JSON.parse(raw.toString()) as { type?: string };
           if (parsed.type === "typing") {
             const payload = JSON.stringify({ type: "typing", conversationId, authorId: userId });
-            for (const peer of room) {
+            for (const peer of room.keys()) {
               if (peer !== socket && peer.readyState === 1) peer.send(payload);
             }
           }
@@ -91,6 +110,7 @@ export async function chatSocketRoutes(app: FastifyInstance) {
       });
 
       socket.on("close", () => {
+        clearInterval(heartbeat);
         room.delete(socket);
         if (room.size === 0) rooms.delete(conversationId);
       });

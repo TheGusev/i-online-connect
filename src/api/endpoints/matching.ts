@@ -13,8 +13,8 @@ export async function getDailyFeed(): Promise<DailyFeed> {
 export async function reactToCandidate(
   id: string,
   reaction: "like" | "skip" | "save",
-): Promise<{ matched: boolean }> {
-  return request<{ matched: boolean }>(`/matching/candidates/${id}/reaction`, {
+): Promise<{ matched: boolean; conversationId?: string }> {
+  return request<{ matched: boolean; conversationId?: string }>(`/matching/candidates/${id}/reaction`, {
     method: "POST",
     body: { reaction },
   });

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { WS_URL, getToken } from "@/api";
+import { API_URL, WS_URL, getToken } from "@/api";
 import type { Message } from "@/api";
 
 export type ChatSocketStatus = "connecting" | "open" | "closed";
@@ -15,70 +15,136 @@ export interface ChatSocketEvent {
 interface UseChatSocketOptions {
   conversationId: string | null;
   onEvent?: (event: ChatSocketEvent) => void;
-  /** Полный URL реального сервера. Если не задан — работает мок-реализация. */
+  /** Полный базовый URL сокета (…/ws). По умолчанию — VITE_WS_URL или адрес сайта. */
   url?: string;
 }
 
+const TYPING_TTL_MS = 3000;
+const TYPING_THROTTLE_MS = 2000;
+const RECONNECT_BASE_MS = 1000;
+const RECONNECT_MAX_MS = 15000;
+
 /**
- * Транспорт реального времени для чата.
- *
- * Сейчас работает как мок: соединение «открывается» и присылает изредка событие
- * набора текста. Когда появится реальный сервер, достаточно передать `url` —
- * ветка с настоящим WebSocket уже подготовлена и повторяет тот же контракт.
+ * Базовый адрес WebSocket. Если VITE_WS_URL не задан, выводим его из
+ * VITE_API_URL (тот же хост, путь /ws) либо из адреса текущей страницы.
  */
-export function useChatSocket({ conversationId, onEvent, url = WS_URL }: UseChatSocketOptions) {
+export function resolveWsUrl(): string {
+  if (WS_URL) return WS_URL.replace(/\/$/, "");
+  if (typeof window === "undefined") return "";
+  try {
+    const base = API_URL ? new URL(API_URL, window.location.origin) : new URL(window.location.origin);
+    const protocol = base.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${base.host}/ws`;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Реальный транспорт чата: подключение к /ws/chat/:id, автопереподключение с
+ * нарастающей задержкой, «печатает…» с автосбросом и отправка typing.
+ */
+export function useChatSocket({ conversationId, onEvent, url }: UseChatSocketOptions) {
   const [status, setStatus] = useState<ChatSocketStatus>("connecting");
   const [typing, setTyping] = useState(false);
   const handlerRef = useRef(onEvent);
   handlerRef.current = onEvent;
+  const socketRef = useRef<WebSocket | null>(null);
+  const lastTypingSentRef = useRef(0);
 
   useEffect(() => {
-    if (!conversationId) {
+    if (!conversationId || typeof window === "undefined") {
+      setStatus("closed");
+      return;
+    }
+    const base = url ?? resolveWsUrl();
+    if (!base) {
       setStatus("closed");
       return;
     }
 
-    setStatus("connecting");
-    setTyping(false);
+    let disposed = false;
+    let attempt = 0;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let typingTimer: ReturnType<typeof setTimeout> | null = null;
 
-    // Реальный сервер: тот же контракт событий, что и у мока.
-    if (url) {
-      // Браузерный WebSocket не умеет заголовки, поэтому access-токен
-      // передаётся в query — соединение идёт по wss, токен короткоживущий.
+    const bumpTyping = () => {
+      setTyping(true);
+      if (typingTimer) clearTimeout(typingTimer);
+      typingTimer = setTimeout(() => setTyping(false), TYPING_TTL_MS);
+    };
+
+    const connect = () => {
+      if (disposed) return;
+      setStatus("connecting");
       const token = getToken();
       const socket = new WebSocket(
-        `${url}/chat/${conversationId}${token ? `?token=${encodeURIComponent(token)}` : ""}`,
+        `${base}/chat/${conversationId}${token ? `?token=${encodeURIComponent(token)}` : ""}`,
       );
-      socket.onopen = () => setStatus("open");
-      socket.onclose = () => setStatus("closed");
-      socket.onerror = () => setStatus("closed");
+      socketRef.current = socket;
+
+      socket.onopen = () => {
+        attempt = 0;
+        setStatus("open");
+      };
       socket.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data as string) as ChatSocketEvent;
-          if (payload.type === "typing") setTyping(true);
+          if (payload.type === "typing") bumpTyping();
+          if (payload.type === "message") setTyping(false);
           handlerRef.current?.(payload);
         } catch {
           // Неразобранные кадры игнорируем: интерфейс не должен ломаться.
         }
       };
-      return () => socket.close();
-    }
+      socket.onerror = () => {
+        /* onclose вызовется следом и запланирует переподключение */
+      };
+      socket.onclose = (event) => {
+        if (socketRef.current === socket) socketRef.current = null;
+        setStatus("closed");
+        if (disposed) return;
+        // 4401/4403 — нас не пустили: без нового токена стучаться бесполезно.
+        if (event.code === 4403) return;
+        const delay = Math.min(RECONNECT_MAX_MS, RECONNECT_BASE_MS * 2 ** attempt);
+        attempt += 1;
+        reconnectTimer = setTimeout(connect, delay);
+      };
+    };
 
-    // Мок-реализация.
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    timers.push(setTimeout(() => setStatus("open"), 400));
-    const typingTimer = setInterval(() => {
-      setTyping(true);
-      handlerRef.current?.({ type: "typing", conversationId });
-      timers.push(setTimeout(() => setTyping(false), 2200));
-    }, 16000);
+    connect();
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible" && !socketRef.current && !disposed) {
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        attempt = 0;
+        connect();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onVisible);
 
     return () => {
-      clearInterval(typingTimer);
-      timers.forEach(clearTimeout);
-      setStatus("closed");
+      disposed = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onVisible);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (typingTimer) clearTimeout(typingTimer);
+      socketRef.current?.close();
+      socketRef.current = null;
+      setTyping(false);
     };
   }, [conversationId, url]);
 
-  return { status, typing };
+  /** Сообщить собеседнику, что мы печатаем (не чаще раза в 2 секунды). */
+  const sendTyping = useCallback(() => {
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    const now = Date.now();
+    if (now - lastTypingSentRef.current < TYPING_THROTTLE_MS) return;
+    lastTypingSentRef.current = now;
+    socket.send(JSON.stringify({ type: "typing" }));
+  }, []);
+
+  return { status, typing, sendTyping };
 }

@@ -76,12 +76,36 @@ Refresh-токен ставится в httpOnly-cookie `ya_refresh` (path `/api/
 | Метод | Путь | Тело | Ответ |
 | --- | --- | --- | --- |
 | GET | `/chat/conversations` | — | `Conversation[]` |
+| GET | `/chat/unread-count` | — | `{ count }` — диалогов с непрочитанными (бейдж в меню) |
+| POST | `/chat/conversations` | `{ participantId }` | `{ conversationId, created }` — открыть/найти диалог |
 | GET | `/chat/conversations/:id` | — | `Conversation` |
-| GET | `/chat/conversations/:id/messages` | — | `Message[]` (до 500, по возрастанию) |
+| GET | `/chat/conversations/:id/messages?before=&limit=` | — | `{ items: Message[], hasMore, nextBefore }` |
 | GET | `/chat/conversations/:id/starters` | — | `string[]` (до 3 подсказок) |
 | POST | `/chat/conversations/:id/messages` | `{ text }` | `Message` |
 | POST | `/chat/conversations/:id/read` | — | `204` |
 | POST | `/chat/conversations/:id/meetings` | `{ kind: "coffee"\|"walk"\|"event", text }` | `Message` c `kind: "meeting"` |
+
+**История.** По умолчанию отдаются последние 50 сообщений (`limit` до 200) по
+возрастанию даты. Для более ранних передайте `before=<nextBefore>` из
+предыдущего ответа; `hasMore=false` — начало переписки. `Message.status` для
+своих сообщений: `sent` или `read` (собеседник открыл диалог позже отправки).
+
+**Открытие диалога** (`POST /chat/conversations`) учитывает приватность
+собеседника (`who_can_message`: `everyone` / `verified` — нужен trust-уровень
+выше `new` / `matches` — только после взаимного лайка), блокировки и
+демо-профили (`is_seed=true` → `403` «Это демо-профиль для примера…»).
+Существующий диалог переиспользуется. Лимит: 30 открытий в час.
+
+**Уведомления о сообщениях.** При каждом сообщении получателю создаётся
+`notifications.kind='new_message'` с payload
+`{ conversationId, messageId, fromId, fromName, preview }` и пушится в
+`/ws/notifications`. Уведомление не создаётся, если получатель прямо сейчас
+держит диалог открытым по сокету, является демо-профилем или кто-то из двоих
+заблокирован. `POST …/read` помечает такие уведомления прочитанными.
+Взаимный лайк создаёт обоим `kind='match'` с `{ conversationId, withId, withName }`
+и возвращает `conversationId` в ответе на реакцию.
+
+Лимит отправки: 60 сообщений/встреч в минуту на пользователя (`429`).
 
 `awaitingReply` в `Conversation` = последнее сообщение написал собеседник.
 Не участник диалога получает `403` на любой из этих запросов.

@@ -5,6 +5,7 @@ import type { SpaceMessage } from "@/api";
 import { Avatar, Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
 import { useKeyboardInset } from "@/hooks/useKeyboardOpen";
+import { useSessionStore } from "@/store/useSessionStore";
 
 const timeFormatter = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" });
 
@@ -21,6 +22,7 @@ export function SpaceChat({
   sending?: boolean | undefined;
 }) {
   const keyboardInset = useKeyboardInset();
+  const myId = useSessionStore((s) => s.user?.id);
   const [text, setText] = useState("");
   const endRef = useRef<HTMLDivElement | null>(null);
 
@@ -37,7 +39,7 @@ export function SpaceChat({
           </p>
         ) : (
           messages.map((message) => {
-            const mine = message.authorId === "me";
+            const mine = message.authorId === myId || message.authorId === "me";
             return (
               <div
                 key={message.id}

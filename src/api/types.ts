@@ -39,7 +39,7 @@ export interface Conversation {
   lastMessageFromMe: boolean;
 }
 
-export type MessageStatus = "sending" | "sent" | "read";
+export type MessageStatus = "sending" | "sent" | "read" | "failed";
 
 export interface Message {
   id: string;
