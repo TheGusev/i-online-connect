@@ -230,6 +230,71 @@
   box-shadow: var(--shadow-lift);
 }
 
+/* Розовое свечение вокруг активных элементов — как подсветка в меню игры. */
+@utility shadow-glow {
+  box-shadow: var(--shadow-glow);
+}
+
+/* Подпись раздела капсом с разрядкой и тонкой розовой линией под ней. */
+@utility hud-label {
+  display: block;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+@utility hud-title {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+
+  &::after {
+    content: "";
+    display: block;
+    margin-top: 0.4rem;
+    height: 2px;
+    width: 2.75rem;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--primary), transparent);
+  }
+}
+
+/* Тонкая полоска-индикатор: дорожка + залитая часть через --hud-value. */
+@utility hud-bar {
+  position: relative;
+  height: 3px;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: color-mix(in oklab, var(--foreground) 14%, transparent);
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: var(--hud-value, 0%);
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    box-shadow: 0 0 10px -2px var(--primary);
+    transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &::after {
+      transition: none;
+    }
+  }
+}
+
+/* Выбранная строка списка: розовый градиент слева направо. */
+@utility hud-row-active {
+  background-image: var(--gradient-row);
+  border-left: 2px solid var(--primary);
+}
+
 @utility brand-mark {
   display: inline-flex;
   width: 2.25rem;
@@ -238,11 +303,11 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
-  background: linear-gradient(135deg, var(--destructive), var(--warning));
-  color: var(--destructive-foreground);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--primary-foreground);
   font-size: 1.125rem;
   font-weight: 800;
-  box-shadow: var(--shadow-soft);
+  box-shadow: var(--shadow-glow);
   animation: brand-mark-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) both;
   transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1);
 
@@ -258,6 +323,8 @@
 
 @utility brand-word {
   color: var(--foreground);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   animation: brand-word-in 0.55s 0.12s cubic-bezier(0.22, 1, 0.36, 1) both;
 
   @media (prefers-reduced-motion: reduce) {
@@ -267,19 +334,23 @@
 
 @utility landing-start-button {
   height: 2.5rem;
-  border-radius: var(--radius-md);
-  background-color: var(--foreground);
-  padding-inline: 1rem;
-  color: var(--background);
-  box-shadow: var(--shadow-soft);
+  border-radius: 999px;
+  background-color: var(--primary);
+  padding-inline: 1.15rem;
+  color: var(--primary-foreground);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  box-shadow: var(--shadow-glow);
   animation: start-button-in 0.55s 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
 
   &:hover {
-    background-color: var(--destructive);
-    color: var(--destructive-foreground);
+    background-color: var(--accent);
+    color: var(--accent-foreground);
     box-shadow: var(--shadow-lift);
     transform: translateY(-1px);
   }
+
 
   &:active {
     transform: translateY(1px) scale(0.98);
