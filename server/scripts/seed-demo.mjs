@@ -67,16 +67,56 @@ const DISTRICTS = {
   Екатеринбург: ["Центр", "Уралмаш", "Академический", "Пионерский"],
 };
 
-const PHOTOS = [
-  "person-01.jpg",
-  "person-02.jpg",
-  "person-03.jpg",
-  "person-04.jpg",
-  "person-05.jpg",
-  "person-06.jpg",
-  "person-07.jpg",
-  "person-08.jpg",
-];
+/**
+ * Фото демо-анкет разложены по полу и возрастной группе: анкета «Светлана, 32»
+ * никогда не получит фото человека 60+. Минимум два фото на каждую группу.
+ */
+const PERSON_PHOTOS = {
+  female: {
+    "18-25": ["person-03.jpg", "person-w-18-25-b.jpg"],
+    "26-35": ["person-01.jpg", "person-w-26-35-b.jpg"],
+    "36-50": ["person-05.jpg", "person-w-36-50-b.jpg"],
+    "50+": ["person-07.jpg", "person-w-50-plus-b.jpg"],
+  },
+  male: {
+    "18-25": ["person-06.jpg", "person-m-18-25-b.jpg"],
+    "26-35": ["person-02.jpg", "person-m-26-35-b.jpg"],
+    "36-50": ["person-08.jpg", "person-m-36-50-b.jpg"],
+    "50+": ["person-04.jpg", "person-m-50-plus-b.jpg"],
+  },
+};
+
+/** Обратная карта «файл → группа»: нужна для самопроверки после подбора. */
+const PHOTO_BUCKETS = new Map();
+for (const [gender, buckets] of Object.entries(PERSON_PHOTOS)) {
+  for (const [bucket, files] of Object.entries(buckets)) {
+    for (const file of files) PHOTO_BUCKETS.set(file, { gender, bucket });
+  }
+}
+
+function ageBucket(age) {
+  if (age <= 25) return "18-25";
+  if (age <= 35) return "26-35";
+  if (age <= 50) return "36-50";
+  return "50+";
+}
+
+/** Фото строго из своей группы; при рассогласовании — предупреждение в консоль. */
+function pickPhoto(gender, age, index) {
+  const bucket = ageBucket(age);
+  const files = PERSON_PHOTOS[gender]?.[bucket] ?? [];
+  if (files.length === 0) {
+    console.warn(`[seed] нет фото для группы ${gender} ${bucket} — анкета останется без фото`);
+    return null;
+  }
+  const file = files[index % files.length];
+  const meta = PHOTO_BUCKETS.get(file);
+  if (!meta || meta.gender !== gender || meta.bucket !== bucket) {
+    console.warn(`[seed] ВНИМАНИЕ: фото ${file} не подходит анкете (${gender}, ${age} лет)`);
+  }
+  return file;
+}
+
 
 const LISTING_PHOTOS = {
   dating: "listing-dating.jpg",
