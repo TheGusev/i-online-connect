@@ -66,150 +66,138 @@
   --color-community-ink: var(--community-ink);
 }
 
+/*
+ * Единая тёмная тема в духе меню GTA VI: почти чёрный синеватый фон,
+ * горячий розовый акцент, светло-розовые подсветки, белый текст.
+ * Светлой темы нет — .dark дублирует :root, чтобы вариант dark: не ломался.
+ */
 :root {
   --radius: 0.875rem;
 
-  --background: oklch(0.969 0.008 83);
-  --foreground: oklch(0.22 0.025 285);
-  --card: oklch(0.995 0.004 85);
-  --card-foreground: oklch(0.22 0.025 285);
-  --popover: oklch(0.995 0.004 85);
-  --popover-foreground: oklch(0.22 0.025 285);
+  --background: oklch(0.15 0.025 265);
+  --foreground: oklch(0.97 0.006 250);
+  --card: oklch(0.235 0.03 265);
+  --card-foreground: oklch(0.97 0.006 250);
+  --popover: oklch(0.215 0.03 265);
+  --popover-foreground: oklch(0.97 0.006 250);
 
-  --primary: oklch(0.43 0.19 297);
-  --primary-foreground: oklch(0.99 0.004 85);
-  --primary-soft: oklch(0.935 0.035 295);
+  --primary: oklch(0.68 0.2 358);
+  --primary-foreground: oklch(0.16 0.025 265);
+  --primary-soft: oklch(0.31 0.095 358);
 
-  --secondary: oklch(0.942 0.025 260);
-  --secondary-foreground: oklch(0.3 0.09 275);
+  --secondary: oklch(0.28 0.03 265);
+  --secondary-foreground: oklch(0.94 0.01 250);
 
-  --muted: oklch(0.945 0.012 84);
-  --muted-foreground: oklch(0.49 0.025 280);
+  --muted: oklch(0.26 0.028 265);
+  --muted-foreground: oklch(0.74 0.025 262);
 
-  --accent: oklch(0.91 0.075 88);
-  --accent-foreground: oklch(0.33 0.12 296);
+  --accent: oklch(0.82 0.11 355);
+  --accent-foreground: oklch(0.18 0.03 265);
 
-  --destructive: oklch(0.64 0.19 38);
-  --destructive-foreground: oklch(0.99 0.004 85);
+  --destructive: oklch(0.66 0.19 28);
+  --destructive-foreground: oklch(0.16 0.025 265);
 
-  --success: oklch(0.68 0.105 155);
-  --success-foreground: oklch(0.995 0.005 80);
-  --success-soft: oklch(0.955 0.035 155);
+  --success: oklch(0.74 0.12 162);
+  --success-foreground: oklch(0.17 0.025 265);
+  --success-soft: oklch(0.3 0.06 162);
 
-  --warning: oklch(0.79 0.16 78);
-  --warning-foreground: oklch(0.28 0.065 65);
-  --warning-soft: oklch(0.95 0.065 88);
+  --warning: oklch(0.84 0.15 86);
+  --warning-foreground: oklch(0.2 0.04 70);
+  --warning-soft: oklch(0.32 0.07 86);
 
-  --border: oklch(0.885 0.02 285);
-  --input: oklch(0.87 0.025 285);
-  --ring: oklch(0.43 0.19 297);
+  --border: oklch(0.8 0.05 340 / 16%);
+  --input: oklch(0.8 0.05 340 / 24%);
+  --ring: oklch(0.68 0.2 358);
 
-  --gradient-verified: linear-gradient(135deg, oklch(0.43 0.19 297), oklch(0.52 0.2 260));
-  --gradient-warm: linear-gradient(140deg, oklch(0.95 0.045 295), oklch(0.965 0.055 88));
+  --gradient-verified: linear-gradient(135deg, oklch(0.68 0.2 358), oklch(0.82 0.11 355));
+  --gradient-warm: linear-gradient(140deg, oklch(0.26 0.075 355), oklch(0.22 0.045 300));
   --gradient-heading: linear-gradient(
     100deg,
-    oklch(0.43 0.19 297) 0%,
-    oklch(0.52 0.2 260) 20%,
-    oklch(0.67 0.19 42) 42%,
-    oklch(0.79 0.16 80) 62%,
-    oklch(0.52 0.2 260) 82%,
-    oklch(0.43 0.19 297) 100%
+    oklch(0.68 0.2 358) 0%,
+    oklch(0.8 0.14 350) 22%,
+    oklch(0.9 0.08 350) 45%,
+    oklch(0.78 0.16 335) 68%,
+    oklch(0.68 0.2 358) 100%
   );
-  --shadow-soft: 0 1px 2px oklch(0.25 0.04 285 / 7%), 0 8px 24px -12px oklch(0.35 0.11 290 / 20%);
-  --shadow-lift: 0 2px 4px oklch(0.25 0.04 285 / 9%), 0 18px 40px -18px oklch(0.35 0.14 285 / 30%);
+  /* Активная строка списка — как выбранный персонаж в меню игры. */
+  --gradient-row: linear-gradient(
+    90deg,
+    oklch(0.68 0.2 358 / 55%) 0%,
+    oklch(0.68 0.2 358 / 12%) 70%,
+    transparent 100%
+  );
+  --shadow-soft: 0 1px 2px oklch(0 0 0 / 45%), 0 10px 26px -14px oklch(0.55 0.2 358 / 35%);
+  --shadow-lift: 0 2px 6px oklch(0 0 0 / 50%), 0 20px 44px -20px oklch(0.6 0.22 358 / 45%);
+  --shadow-glow: 0 0 0 1px oklch(0.68 0.2 358 / 35%), 0 8px 28px -10px oklch(0.68 0.2 358 / 55%);
 
-  --chart-1: oklch(0.43 0.19 297);
-  --chart-2: oklch(0.68 0.105 155);
-  --chart-3: oklch(0.79 0.16 78);
-  --chart-4: oklch(0.52 0.2 260);
-  --chart-5: oklch(0.66 0.19 42);
+  --chart-1: oklch(0.68 0.2 358);
+  --chart-2: oklch(0.74 0.12 162);
+  --chart-3: oklch(0.84 0.15 86);
+  --chart-4: oklch(0.66 0.19 330);
+  --chart-5: oklch(0.82 0.11 355);
 
-  --sidebar: oklch(0.955 0.014 84);
-  --sidebar-foreground: oklch(0.22 0.025 285);
-  --sidebar-primary: oklch(0.43 0.19 297);
-  --sidebar-primary-foreground: oklch(0.99 0.004 85);
-  --sidebar-accent: oklch(0.935 0.035 295);
-  --sidebar-accent-foreground: oklch(0.33 0.12 296);
-  --sidebar-border: oklch(0.885 0.02 285);
-  --sidebar-ring: oklch(0.43 0.19 297);
+  --sidebar: oklch(0.185 0.028 265);
+  --sidebar-foreground: oklch(0.97 0.006 250);
+  --sidebar-primary: oklch(0.68 0.2 358);
+  --sidebar-primary-foreground: oklch(0.16 0.025 265);
+  --sidebar-accent: oklch(0.31 0.095 358);
+  --sidebar-accent-foreground: oklch(0.9 0.07 355);
+  --sidebar-border: oklch(0.8 0.05 340 / 16%);
+  --sidebar-ring: oklch(0.68 0.2 358);
 
-  /* Spaces: спокойнее и «дружелюбнее» ленты знакомств — шалфейно-бирюзовая интонация. */
-  --community: oklch(0.52 0.2 260);
-  --community-foreground: oklch(0.99 0.004 85);
-  --community-soft: oklch(0.93 0.045 260);
-  --community-ink: oklch(0.35 0.15 265);
+  /* Сообщества: тот же розовый род, но глубже и сиреневее, чтобы не спорить с основным акцентом. */
+  --community: oklch(0.64 0.19 330);
+  --community-foreground: oklch(0.16 0.025 265);
+  --community-soft: oklch(0.3 0.085 330);
+  --community-ink: oklch(0.86 0.09 332);
 }
 
 .dark {
-  --background: oklch(0.15 0.018 275);
-  --foreground: oklch(0.96 0.008 85);
-  --card: oklch(0.205 0.025 280);
-  --card-foreground: oklch(0.96 0.008 85);
-  --popover: oklch(0.205 0.025 280);
-  --popover-foreground: oklch(0.96 0.008 85);
+  --background: oklch(0.15 0.025 265);
+  --foreground: oklch(0.97 0.006 250);
+  --card: oklch(0.235 0.03 265);
+  --card-foreground: oklch(0.97 0.006 250);
+  --popover: oklch(0.215 0.03 265);
+  --popover-foreground: oklch(0.97 0.006 250);
 
-  --primary: oklch(0.68 0.2 295);
-  --primary-foreground: oklch(0.98 0.005 85);
-  --primary-soft: oklch(0.29 0.075 295);
+  --primary: oklch(0.68 0.2 358);
+  --primary-foreground: oklch(0.16 0.025 265);
+  --primary-soft: oklch(0.31 0.095 358);
 
-  --secondary: oklch(0.255 0.04 268);
-  --secondary-foreground: oklch(0.94 0.015 255);
+  --secondary: oklch(0.28 0.03 265);
+  --secondary-foreground: oklch(0.94 0.01 250);
 
-  --muted: oklch(0.245 0.025 280);
-  --muted-foreground: oklch(0.72 0.025 278);
+  --muted: oklch(0.26 0.028 265);
+  --muted-foreground: oklch(0.74 0.025 262);
 
-  --accent: oklch(0.34 0.09 78);
-  --accent-foreground: oklch(0.91 0.12 82);
+  --accent: oklch(0.82 0.11 355);
+  --accent-foreground: oklch(0.18 0.03 265);
 
-  --destructive: oklch(0.69 0.19 38);
-  --destructive-foreground: oklch(0.15 0.018 275);
+  --destructive: oklch(0.66 0.19 28);
+  --destructive-foreground: oklch(0.16 0.025 265);
 
-  --success: oklch(0.7 0.1 155);
-  --success-foreground: oklch(0.19 0.018 264);
-  --success-soft: oklch(0.3 0.05 155);
+  --success: oklch(0.74 0.12 162);
+  --success-foreground: oklch(0.17 0.025 265);
+  --success-soft: oklch(0.3 0.06 162);
 
-  --warning: oklch(0.82 0.16 78);
+  --warning: oklch(0.84 0.15 86);
   --warning-foreground: oklch(0.2 0.04 70);
-  --warning-soft: oklch(0.31 0.07 78);
+  --warning-soft: oklch(0.32 0.07 86);
 
-  --border: oklch(0.72 0.04 285 / 20%);
-  --input: oklch(0.72 0.04 285 / 26%);
-  --ring: oklch(0.68 0.2 295);
+  --border: oklch(0.8 0.05 340 / 16%);
+  --input: oklch(0.8 0.05 340 / 24%);
+  --ring: oklch(0.68 0.2 358);
 
-  --gradient-verified: linear-gradient(135deg, oklch(0.68 0.2 295), oklch(0.64 0.2 260));
-  --gradient-warm: linear-gradient(140deg, oklch(0.25 0.065 295), oklch(0.25 0.055 75));
-  --gradient-heading: linear-gradient(
-    100deg,
-    oklch(0.76 0.17 295) 0%,
-    oklch(0.72 0.18 260) 20%,
-    oklch(0.76 0.18 42) 42%,
-    oklch(0.86 0.15 80) 62%,
-    oklch(0.72 0.18 260) 82%,
-    oklch(0.76 0.17 295) 100%
-  );
-  --shadow-soft: 0 1px 2px oklch(0 0 0 / 30%), 0 8px 24px -12px oklch(0 0 0 / 55%);
-  --shadow-lift: 0 2px 4px oklch(0 0 0 / 35%), 0 18px 40px -18px oklch(0 0 0 / 65%);
+  --sidebar: oklch(0.185 0.028 265);
+  --sidebar-accent: oklch(0.31 0.095 358);
+  --sidebar-accent-foreground: oklch(0.9 0.07 355);
 
-  --chart-1: oklch(0.68 0.2 295);
-  --chart-2: oklch(0.7 0.1 155);
-  --chart-3: oklch(0.82 0.16 78);
-  --chart-4: oklch(0.64 0.2 260);
-  --chart-5: oklch(0.72 0.18 42);
-
-  --sidebar: oklch(0.18 0.022 278);
-  --sidebar-foreground: oklch(0.96 0.008 85);
-  --sidebar-primary: oklch(0.68 0.2 295);
-  --sidebar-primary-foreground: oklch(0.98 0.005 85);
-  --sidebar-accent: oklch(0.29 0.075 295);
-  --sidebar-accent-foreground: oklch(0.91 0.06 295);
-  --sidebar-border: oklch(0.72 0.04 285 / 20%);
-  --sidebar-ring: oklch(0.68 0.2 295);
-
-  --community: oklch(0.64 0.2 260);
-  --community-foreground: oklch(0.98 0.005 85);
-  --community-soft: oklch(0.28 0.07 260);
-  --community-ink: oklch(0.82 0.1 255);
+  --community: oklch(0.64 0.19 330);
+  --community-foreground: oklch(0.16 0.025 265);
+  --community-soft: oklch(0.3 0.085 330);
+  --community-ink: oklch(0.86 0.09 332);
 }
+
 
 @layer base {
   * {
