@@ -77,10 +77,19 @@ export function MediaCoverflow({
         }}
       />
       {progress !== null && progress !== undefined ? (
-        <span className="text-[11px] font-bold text-primary">{progress}%</span>
+        <span className="flex w-full flex-col items-center gap-1 px-1.5">
+          <span className="text-[10px] font-bold text-primary">{progress}%</span>
+          {/* Тонкая розовая полоска-индикатор, как шкалы в меню игры. */}
+          <span
+            className="hud-bar"
+            style={{ ["--hud-value" as string]: `${progress}%` }}
+            aria-hidden="true"
+          />
+        </span>
       ) : (
         <Plus className="size-5 text-primary" aria-hidden="true" />
       )}
+
     </label>
   ) : null;
 
