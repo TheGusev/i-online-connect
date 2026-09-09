@@ -15,8 +15,12 @@ import rateLimit from "@fastify/rate-limit";
 import fastifyStatic from "@fastify/static";
 import websocket from "@fastify/websocket";
 import Fastify from "fastify";
+import cron from "node-cron";
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+
+import { runSeedRefresh } from "./seed/refresh.ts";
+
 
 import { rateLimitSubject } from "./auth/tokens.ts";
 import { registerAbuseLog } from "./security/abuse-log.ts";
@@ -168,6 +172,15 @@ await app.register(
 );
 await app.register(chatSocketRoutes, { prefix: "/ws" });
 await app.register(notificationSocketRoutes, { prefix: "/ws" });
+
+// Демо-контент освежается сам, без ручного захода по SSH: каждый день в 04:00
+// по времени сервера. Логика живёт в репозитории, а не в системном crontab.
+// Реальные данные (is_seed = false) задача не трогает.
+cron.schedule("0 4 * * *", () => {
+  void runSeedRefresh(app.log);
+});
+
+
 
 // Корректное завершение: PM2 присылает SIGINT/SIGTERM при reload.
 for (const signal of ["SIGINT", "SIGTERM"] as const) {

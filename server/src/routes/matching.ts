@@ -101,6 +101,12 @@ async function buildDailyFeed(userId: string): Promise<void> {
               AND s.visible_in_feed
               AND p.onboarded_at IS NOT NULL
               AND p.age >= 18
+              -- Город: правило одинаковое для реальных и демо-анкет.
+              -- Если город у человека не указан, показываем всех.
+              AND (
+                    (SELECT nullif(city, '') FROM profiles WHERE user_id = $1) IS NULL
+                    OR lower(p.city) = lower((SELECT city FROM profiles WHERE user_id = $1))
+                  )
               AND NOT EXISTS (SELECT 1 FROM match_reactions r WHERE r.user_id = $1 AND r.target_id = u.id)
               AND NOT EXISTS (
                     SELECT 1 FROM blocks b
@@ -108,7 +114,8 @@ async function buildDailyFeed(userId: string): Promise<void> {
                         OR (b.user_id = u.id AND b.blocked_id = $1)
                   )
               -- Демо-анкеты только заполняют пустоту: как только реальных
-              -- подходящих людей стало достаточно, они исчезают навсегда.
+              -- подходящих людей в этом же городе стало достаточно,
+              -- они исчезают навсегда.
               AND (
                     p.is_seed = false
                     OR (SELECT count(*) FROM users ru
@@ -120,8 +127,13 @@ async function buildDailyFeed(userId: string): Promise<void> {
                            AND ru.paused_at IS NULL
                            AND rs.visible_in_feed
                            AND rp.onboarded_at IS NOT NULL
+                           AND (
+                                 (SELECT nullif(city, '') FROM profiles WHERE user_id = $1) IS NULL
+                                 OR lower(rp.city) = lower((SELECT city FROM profiles WHERE user_id = $1))
+                               )
                        ) < 10
                   )
+
             ORDER BY p.is_seed ASC, shared DESC, p.trust_score DESC
             LIMIT $2
          ) c
