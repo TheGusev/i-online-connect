@@ -17,7 +17,10 @@ const chipVariants = cva(
         sm: "px-2.5 py-0.5 text-xs",
         md: "px-3.5 py-1.5 text-sm",
       },
-      selected: { true: "border-primary bg-primary text-primary-foreground", false: "" },
+      selected: {
+        true: "border-primary bg-primary text-primary-foreground shadow-glow",
+        false: "",
+      },
     },
     defaultVariants: { variant: "interest", size: "md", selected: false },
   },
