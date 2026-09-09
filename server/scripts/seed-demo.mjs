@@ -300,7 +300,7 @@ async function seedProfiles() {
   const interests = (await client.query("SELECT id FROM interests")).rows.map((row) => row.id);
   const created = [];
 
-  for (const [index, [name, age, intent, bio]] of PEOPLE.entries()) {
+  for (const [index, [name, age, intent, bio, gender]] of PEOPLE.entries()) {
     const email = `demo${String(index + 1).padStart(2, "0")}@${SEED_DOMAIN}`;
     const existing = await client.query("SELECT id FROM users WHERE email = $1", [email]);
     if (existing.rows.length > 0) {
@@ -354,17 +354,18 @@ async function seedProfiles() {
       );
     }
 
-    // Два-три фото: каскадная карусель профиля должна быть видна.
-    const count = 2 + (index % 2);
-    for (let position = 0; position < count; position += 1) {
-      const asset = PHOTOS[(index + position) % PHOTOS.length];
+    // Одно фото на анкету: лицо должно совпадать с полом и возрастом,
+    // поэтому разные люди в одной карусели исключены.
+    const asset = pickPhoto(gender, age, index);
+    if (asset) {
       const url = await copyAsset(userId, asset);
       await client.query(
         `INSERT INTO profile_media (user_id, kind, url, position, is_primary)
-         VALUES ($1, 'photo', $2, $3, $4)`,
-        [userId, url, position, position === 0],
+         VALUES ($1, 'photo', $2, 0, true)`,
+        [userId, url],
       );
     }
+
 
     created.push({ id: userId, city, fresh: true });
   }
