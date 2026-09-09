@@ -1,24 +1,37 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Ban, Flag, MessageCircle, MoreHorizontal, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ds";
+import { useOpenConversation } from "@/features/chat/hooks";
 import { ReportModal } from "@/features/trust/components/ReportModal";
 
 /** Фиксированная панель действий: «Написать» + ненавязчивая жалоба/блокировка. */
 export function ProfileActionBar({ id, name }: { id: string; name: string }) {
   const [open, setOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const navigate = useNavigate();
+  const openConversation = useOpenConversation();
+
+  const write = () => {
+    if (openConversation.isPending) return;
+    openConversation.mutate(id, {
+      onSuccess: ({ conversationId }) => {
+        void navigate({ to: "/chat/$id", params: { id: conversationId } });
+      },
+      onError: (error) => {
+        toast.error(error instanceof Error ? error.message : "Не удалось открыть диалог");
+      },
+    });
+  };
 
   return (
     <div className="fixed inset-x-0 bottom-14 z-30 border-t border-border bg-background/92 backdrop-blur lg:bottom-0">
       <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 lg:px-8">
-        <Button asChild size="lg" className="flex-1">
-          <Link to="/chat">
-            <MessageCircle aria-hidden="true" />
-            Написать
-          </Link>
+        <Button size="lg" className="flex-1" onClick={write} disabled={openConversation.isPending}>
+          <MessageCircle aria-hidden="true" />
+          {openConversation.isPending ? "Открываем…" : "Написать"}
         </Button>
 
         <div className="relative">

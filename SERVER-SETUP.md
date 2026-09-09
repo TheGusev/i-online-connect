@@ -248,7 +248,7 @@ pm2 install pm2-logrotate  # ротация логов
 ```bash
 cp .env.example .env.production
 # VITE_API_URL=/api
-# VITE_WS_URL=wss://example.com/ws
+# VITE_WS_URL=wss://example.com/ws   # можно не задавать: фронт выведет wss://<домен сайта>/ws
 # VITE_APP_NAME=Я Онлайн
 
 npm ci

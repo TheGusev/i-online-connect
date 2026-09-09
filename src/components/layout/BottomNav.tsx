@@ -1,15 +1,18 @@
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
+import { useUnreadChatCount } from "@/features/chat/hooks";
 import { useKeyboardOpen } from "@/hooks/useKeyboardOpen";
 import { useSessionStore } from "@/store/useSessionStore";
 
 import { navItems } from "./nav-items";
+import { NavBadge } from "./NavBadge";
 
 export function BottomNav() {
   const { t } = useTranslation();
   // Гостю приватная навигация не нужна: за ней всё равно стоит вход.
   const authed = useSessionStore((state) => state.status === "authed");
+  const { data: unreadChats = 0 } = useUnreadChatCount(authed);
   // При открытой клавиатуре панель прячем: иначе она всплывает над клавиатурой
   // и перекрывает поле ввода.
   const keyboardOpen = useKeyboardOpen();
@@ -29,7 +32,10 @@ export function BottomNav() {
               }}
               className="relative flex h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[10px] leading-none text-muted-foreground transition-colors"
             >
-              <Icon className="size-6" aria-hidden="true" />
+              <span className="relative">
+                <Icon className="size-6" aria-hidden="true" />
+                {to === "/chat" ? <NavBadge count={unreadChats} /> : null}
+              </span>
               <span className="w-full truncate text-center">{t(labelKey)}</span>
             </Link>
           </li>

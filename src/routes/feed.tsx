@@ -55,9 +55,14 @@ function FeedPage() {
     reaction.mutate({ id: match.id, reaction: "save" });
   };
 
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const handleWrite = (match: DailyMatch) => {
     setActive(match);
-    reaction.mutate({ id: match.id, reaction: "like" });
+    setActiveConversationId(null);
+    reaction.mutate(
+      { id: match.id, reaction: "like" },
+      { onSuccess: (result) => setActiveConversationId(result.conversationId ?? null) },
+    );
   };
 
   return (
@@ -106,7 +111,12 @@ function FeedPage() {
         <p className="mt-8 text-center text-sm text-muted-foreground">{t("feed.endOfDay")}</p>
       ) : null}
 
-      <FirstMessageSheet match={active} open={Boolean(active)} onClose={() => setActive(null)} />
+      <FirstMessageSheet
+        match={active}
+        open={Boolean(active)}
+        onClose={() => setActive(null)}
+        conversationId={activeConversationId}
+      />
     </AppShell>
   );
 }

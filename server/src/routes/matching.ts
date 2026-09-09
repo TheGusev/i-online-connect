@@ -15,6 +15,7 @@ import { env } from "../env.ts";
 import { badRequest } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { toUserDto, type ProfileRow } from "../types.ts";
+import { publishUserEvent } from "../ws/notifications.ts";
 
 /** Начало следующих суток в UTC — время обновления подборки. */
 function nextRefreshAt(): string {
@@ -204,28 +205,88 @@ export async function matchingRoutes(app: FastifyInstance) {
     );
     if (!mutual) return { matched: false };
 
-    await transaction(async (client) => {
-      const [a, b] = userId < id ? [userId, id] : [id, userId];
+    const [a, b] = userId < id ? [userId, id] : [id, userId];
+    const result = await transaction(async (client) => {
       const { rows } = await client.query<{ id: string }>(
         `INSERT INTO matches (user_a, user_b) VALUES ($1, $2)
          ON CONFLICT (user_a, user_b) DO UPDATE SET created_at = matches.created_at
          RETURNING id`,
         [a, b],
       );
-      const matchId = rows[0]?.id;
+      const matchId = rows[0]?.id ?? null;
+
+      // Переиспользуем диалог: по match_id или уже существующий между этими двумя.
+      const existing = await client.query<{ id: string }>(
+        `SELECT c.id FROM conversations c
+          WHERE (c.match_id = $1)
+             OR EXISTS (SELECT 1 FROM conversation_participants x WHERE x.conversation_id = c.id AND x.user_id = $2)
+            AND EXISTS (SELECT 1 FROM conversation_participants y WHERE y.conversation_id = c.id AND y.user_id = $3)
+          ORDER BY c.created_at LIMIT 1`,
+        [matchId, a, b],
+      );
+      if (existing.rows[0]) {
+        if (matchId) {
+          await client.query(
+            "UPDATE conversations SET match_id = COALESCE(match_id, $2) WHERE id = $1",
+            [existing.rows[0].id, matchId],
+          );
+        }
+        return { conversationId: existing.rows[0].id, created: false };
+      }
+
       const conversation = await client.query<{ id: string }>(
         `INSERT INTO conversations (match_id) VALUES ($1) RETURNING id`,
-        [matchId ?? null],
+        [matchId],
       );
       const conversationId = conversation.rows[0]?.id;
-      if (!conversationId) return;
+      if (!conversationId) throw new Error("conversation insert failed");
       await client.query(
         `INSERT INTO conversation_participants (conversation_id, user_id)
          VALUES ($1, $2), ($1, $3) ON CONFLICT DO NOTHING`,
         [conversationId, a, b],
       );
+      return { conversationId, created: true };
     });
 
-    return { matched: true };
+    if (result.created) {
+      // Обоим — уведомление о совпадении (демо-профили не трогаем).
+      try {
+        const people = await query<{ user_id: string; name: string; is_seed: boolean }>(
+          "SELECT user_id, name, is_seed FROM profiles WHERE user_id = ANY($1::uuid[])",
+          [[a, b]],
+        );
+        for (const person of people) {
+          if (person.is_seed) continue;
+          const other = people.find((p) => p.user_id !== person.user_id);
+          const payload = {
+            conversationId: result.conversationId,
+            withId: other?.user_id,
+            withName: other?.name ?? "Совпадение",
+          };
+          const rows = await query<{ id: string; created_at: Date }>(
+            `INSERT INTO notifications (user_id, kind, payload)
+             VALUES ($1, 'match', $2::jsonb) RETURNING id, created_at`,
+            [person.user_id, JSON.stringify(payload)],
+          );
+          const created = rows[0];
+          if (created) {
+            publishUserEvent(person.user_id, {
+              type: "notification",
+              notification: {
+                id: created.id,
+                kind: "match",
+                payload,
+                readAt: null,
+                createdAt: created.created_at.toISOString(),
+              },
+            });
+          }
+        }
+      } catch (error) {
+        console.error("[matching] уведомление о совпадении", error);
+      }
+    }
+
+    return { matched: true, conversationId: result.conversationId };
   });
 }

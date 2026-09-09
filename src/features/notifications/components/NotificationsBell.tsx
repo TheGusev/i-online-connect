@@ -63,10 +63,19 @@ export function NotificationsBell() {
             ) : (
               <ul className="max-h-80 space-y-1 overflow-y-auto">
                 {items.map((item) => {
-                  const { title, listingId } = describeNotification(item);
+                  const { title, listingId, conversationId } = describeNotification(item);
+                  const preview =
+                    item.kind === "new_message" && typeof item.payload?.["preview"] === "string"
+                      ? (item.payload["preview"] as string)
+                      : null;
                   const content = (
                     <span className="block">
                       <span className="block text-sm leading-snug">{title}</span>
+                      {preview ? (
+                        <span className="mt-0.5 block truncate text-xs text-foreground/80">
+                          {preview}
+                        </span>
+                      ) : null}
                       <span className="mt-0.5 block text-xs text-muted-foreground">
                         {new Date(item.createdAt).toLocaleString("ru-RU", {
                           day: "numeric",
@@ -77,19 +86,30 @@ export function NotificationsBell() {
                       </span>
                     </span>
                   );
+                  const linkClass = `block rounded-xl px-3 py-2 transition-colors hover:bg-secondary ${
+                    item.readAt ? "" : "bg-primary-soft/60"
+                  }`;
+                  const onPick = () => {
+                    setOpen(false);
+                    markRead.mutate([item.id]);
+                  };
                   return (
                     <li key={item.id}>
-                      {listingId ? (
+                      {conversationId ? (
+                        <Link
+                          to="/chat/$id"
+                          params={{ id: conversationId }}
+                          onClick={onPick}
+                          className={linkClass}
+                        >
+                          {content}
+                        </Link>
+                      ) : listingId ? (
                         <Link
                           to="/nearby/$id"
                           params={{ id: listingId }}
-                          onClick={() => {
-                            setOpen(false);
-                            markRead.mutate([item.id]);
-                          }}
-                          className={`block rounded-xl px-3 py-2 transition-colors hover:bg-secondary ${
-                            item.readAt ? "" : "bg-primary-soft/60"
-                          }`}
+                          onClick={onPick}
+                          className={linkClass}
                         >
                           {content}
                         </Link>
