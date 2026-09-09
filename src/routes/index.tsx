@@ -91,7 +91,7 @@ function LandingPage() {
           <Button
             asChild
             size="sm"
-            className="landing-start-button !bg-foreground !text-background hover:!bg-destructive hover:!text-destructive-foreground"
+            className="landing-start-button !bg-primary !text-primary-foreground hover:!bg-accent hover:!text-accent-foreground"
           >
             <Link to="/onboarding">
               {t("landing.hero.cta")}
@@ -132,7 +132,7 @@ function LandingPage() {
                 <Button
                   asChild
                   size="lg"
-                  className="landing-start-button landing-start-button-main !bg-foreground !text-background hover:!bg-destructive hover:!text-destructive-foreground"
+                  className="landing-start-button landing-start-button-main !bg-primary !text-primary-foreground hover:!bg-accent hover:!text-accent-foreground"
                 >
                   <Link to="/onboarding">
                     {t("landing.hero.cta")}
