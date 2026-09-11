@@ -70,7 +70,7 @@ const swatches = [
   { name: "Графит (текст)", className: "bg-foreground text-background" },
   { name: "Фон", className: "bg-background text-foreground border border-border" },
   { name: "Доверие", className: "bg-success text-success-foreground" },
-  { name: "Внимание", className: "bg-warning text-warning-ink" },
+  { name: "Внимание", className: "bg-warning text-warning-foreground" },
   { name: "Риск", className: "bg-destructive text-destructive-foreground" },
   { name: "Верификация", className: "bg-gradient-verified text-primary-foreground" },
 ];

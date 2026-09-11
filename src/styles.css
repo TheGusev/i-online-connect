@@ -64,6 +64,10 @@
   --color-community-foreground: var(--community-foreground);
   --color-community-soft: var(--community-soft);
   --color-community-ink: var(--community-ink);
+  /* Светлые «чернила» для тёмных подложек *-soft: тёмный текст на них не читается. */
+  --color-primary-ink: var(--primary-ink);
+  --color-warning-ink: var(--warning-ink);
+  --color-success-ink: var(--success-ink);
 }
 
 /*
