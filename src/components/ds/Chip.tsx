@@ -10,7 +10,7 @@ const chipVariants = cva(
     variants: {
       variant: {
         interest: "border-border bg-secondary text-secondary-foreground",
-        intent: "border-primary/25 bg-primary-soft text-accent-foreground",
+        intent: "border-primary/25 bg-primary-soft text-primary-ink",
         outline: "border-border bg-transparent text-muted-foreground",
       },
       size: {

@@ -26,7 +26,7 @@ export function SideNav() {
               key={to}
               to={to}
               {...(params ? { params } : {})}
-              activeProps={{ className: "bg-primary-soft text-accent-foreground font-semibold" }}
+              activeProps={{ className: "bg-primary-soft text-primary-ink font-semibold" }}
               className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
               <Icon className="size-4" aria-hidden="true" />
@@ -40,7 +40,7 @@ export function SideNav() {
           ))}
           <Link
             to="/settings"
-            activeProps={{ className: "bg-primary-soft text-accent-foreground font-semibold" }}
+            activeProps={{ className: "bg-primary-soft text-primary-ink font-semibold" }}
             className="flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
           >
             <Settings className="size-4" aria-hidden="true" />

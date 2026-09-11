@@ -23,9 +23,11 @@ export function ListingCard({ listing }: { listing: Listing }) {
       <Link
         to="/nearby/$id"
         params={{ id: listing.id }}
-        className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-stretch gap-3 p-2.5 focus-visible:outline-none sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4 sm:p-3"
+        className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-3 p-2.5 focus-visible:outline-none sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4 sm:p-3"
       >
-        <div className="relative aspect-square overflow-hidden rounded-2xl bg-secondary">
+        {/* Жёсткий размер: квадрат не должен расти вслед за высотой карточки
+            и наезжать на текст, когда заголовок занимает две строки. */}
+        <div className="relative size-[6.5rem] shrink-0 overflow-hidden rounded-2xl bg-secondary sm:size-[8.5rem]">
           <MediaImage
             src={photo}
             alt={listing.title}

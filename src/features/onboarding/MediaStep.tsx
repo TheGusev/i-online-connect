@@ -197,7 +197,7 @@ export function MediaStep({
         </div>
 
         {cameraError && (
-          <p className="mt-3 text-xs text-warning-foreground">{t("onboarding.s4.cameraError")}</p>
+          <p className="mt-3 text-xs text-warning-ink">{t("onboarding.s4.cameraError")}</p>
         )}
       </div>
 

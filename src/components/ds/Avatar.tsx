@@ -55,7 +55,7 @@ export function Avatar({
     <div className={cn("relative inline-flex shrink-0", className)}>
       <div
         className={cn(
-          "flex items-center justify-center overflow-hidden rounded-full bg-primary-soft font-bold text-accent-foreground ring-2 ring-card",
+          "flex items-center justify-center overflow-hidden rounded-full bg-primary-soft font-bold text-primary-ink ring-2 ring-card",
           sizeMap[size],
         )}
       >
