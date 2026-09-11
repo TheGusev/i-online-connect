@@ -66,11 +66,11 @@ function Section({
 
 const swatches = [
   { name: "Коралл (акцент)", className: "bg-primary text-primary-foreground" },
-  { name: "Коралл мягкий", className: "bg-primary-soft text-accent-foreground" },
+  { name: "Коралл мягкий", className: "bg-primary-soft text-primary-ink" },
   { name: "Графит (текст)", className: "bg-foreground text-background" },
   { name: "Фон", className: "bg-background text-foreground border border-border" },
   { name: "Доверие", className: "bg-success text-success-foreground" },
-  { name: "Внимание", className: "bg-warning text-warning-foreground" },
+  { name: "Внимание", className: "bg-warning text-warning-ink" },
   { name: "Риск", className: "bg-destructive text-destructive-foreground" },
   { name: "Верификация", className: "bg-gradient-verified text-primary-foreground" },
 ];
@@ -85,7 +85,7 @@ function DesignSystemPage() {
     <AppShell wide public>
       <div className="space-y-10 pb-16">
         <header className="rounded-3xl bg-gradient-warm p-6 shadow-soft">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-card/70 px-3 py-1 text-xs font-semibold text-accent-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-card/70 px-3 py-1 text-xs font-semibold text-primary-ink">
             <Sparkles className="size-3.5" aria-hidden="true" /> Дизайн-система
           </span>
           <h1 className="mt-3 text-3xl font-extrabold leading-tight text-foreground sm:text-4xl">
@@ -244,7 +244,7 @@ function DesignSystemPage() {
             </Card>
 
             <Card variant="intent">
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-accent-foreground">
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-ink">
                 <Sparkles className="size-3.5" aria-hidden="true" /> Намерение
               </span>
               <CardTitle className="mt-2">Серьёзные отношения</CardTitle>
@@ -266,7 +266,7 @@ function DesignSystemPage() {
                   <CardTitle>Утренние забеги</CardTitle>
                   <CardSubtitle>Сообщество · 1 248 участников</CardSubtitle>
                 </div>
-                <span className="grid size-10 place-items-center rounded-2xl bg-primary-soft text-accent-foreground">
+                <span className="grid size-10 place-items-center rounded-2xl bg-primary-soft text-primary-ink">
                   <Users className="size-5" aria-hidden="true" />
                 </span>
               </CardHeaderRow>

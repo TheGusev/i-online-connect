@@ -18,7 +18,7 @@ interface LevelConfig {
 export const trustLevelConfig: Record<TrustLevel, LevelConfig> = {
   new: {
     label: "Новый участник",
-    className: "bg-warning-soft text-warning-foreground border-warning/30",
+    className: "bg-warning-soft text-warning-ink border-warning/30",
     icon: Sparkles,
     meaning:
       "Профиль создан, но видео-верификация ещё не пройдена. Пока это значит только одно: человек здесь недавно.",

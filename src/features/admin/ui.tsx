@@ -94,7 +94,7 @@ export function Tag({
   const tones = {
     neutral: "bg-secondary text-secondary-foreground",
     good: "bg-success/15 text-success",
-    warn: "bg-warning/20 text-warning-foreground",
+    warn: "bg-warning/20 text-warning-ink",
     bad: "bg-destructive/12 text-destructive",
   } as const;
   return (

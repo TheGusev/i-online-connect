@@ -9,7 +9,7 @@ const statusConfig: Record<
 > = {
   none: {
     label: "Не пройдена",
-    tone: "border-warning/35 bg-warning-soft text-warning-foreground",
+    tone: "border-warning/35 bg-warning-soft text-warning-ink",
     icon: Video,
   },
   pending: {
@@ -24,7 +24,7 @@ const statusConfig: Record<
   },
   rejected: {
     label: "Не подтвердилась",
-    tone: "border-warning/35 bg-warning-soft text-warning-foreground",
+    tone: "border-warning/35 bg-warning-soft text-warning-ink",
     icon: ShieldAlert,
   },
 };

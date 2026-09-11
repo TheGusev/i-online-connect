@@ -81,7 +81,7 @@ export function MeetingSheet({
             className={cn(
               "flex flex-col items-center gap-2 rounded-2xl border px-3 py-3 text-xs font-medium transition-colors",
               kind === id
-                ? "border-primary bg-primary-soft text-accent-foreground"
+                ? "border-primary bg-primary-soft text-primary-ink"
                 : "border-border bg-card text-muted-foreground hover:bg-secondary",
             )}
           >

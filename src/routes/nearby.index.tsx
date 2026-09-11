@@ -58,7 +58,7 @@ function NearbyPage() {
   return (
     <AppShell wide public>
       <header className="mb-6">
-        <p className="inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold uppercase tracking-wide text-accent-foreground">
+        <p className="inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-ink">
           <MapPin className="size-3.5" aria-hidden="true" />
           Рядом
         </p>

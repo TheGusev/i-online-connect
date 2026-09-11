@@ -38,7 +38,7 @@ export function JoinPanel({
 
   if (space.pendingRequest) {
     return (
-      <p className="inline-flex items-center gap-2 rounded-2xl bg-warning-soft px-4 py-3 text-sm text-warning-foreground">
+      <p className="inline-flex items-center gap-2 rounded-2xl bg-warning-soft px-4 py-3 text-sm text-warning-ink">
         <Clock className="size-4" aria-hidden="true" />
         Заявка отправлена организатору — он ответит в ближайшие дни.
       </p>

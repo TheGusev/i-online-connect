@@ -133,7 +133,7 @@ function ResultCard({ ticket, onRetry }: { ticket: VerificationTicket; onRetry: 
     return (
       <Card className="p-8 text-center">
         <span className="mx-auto grid size-14 place-items-center rounded-full bg-warning-soft">
-          <ShieldAlert className="size-6 text-warning-foreground" aria-hidden="true" />
+          <ShieldAlert className="size-6 text-warning-ink" aria-hidden="true" />
         </span>
         <h2 className="mt-4 text-xl font-bold">Пока не сходится</h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
@@ -333,7 +333,7 @@ function VerificationPage() {
             </ol>
 
             {!hasPhoto ? (
-              <p className="mt-5 rounded-2xl border border-warning/35 bg-warning-soft px-4 py-3 text-sm text-warning-foreground">
+              <p className="mt-5 rounded-2xl border border-warning/35 bg-warning-soft px-4 py-3 text-sm text-warning-ink">
                 Сначала добавь фото в профиль — с ним мы будем сверять видео.
               </p>
             ) : null}
