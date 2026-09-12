@@ -46,7 +46,7 @@ export function ProfileActionBar({ id, name }: { id: string; name: string }) {
           </Button>
 
           {open ? (
-            <div className="absolute bottom-full right-0 mb-2 w-60 overflow-hidden rounded-2xl border border-border bg-card shadow-lift">
+            <div className="absolute right-0 top-full z-30 mt-2 w-60 overflow-hidden rounded-2xl border border-border bg-card shadow-lift">
               <button
                 type="button"
                 onClick={() => {
