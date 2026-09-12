@@ -1,5 +1,11 @@
 import { request } from "../client";
-import type { Space, SpaceDetail, SpaceDraft, SpaceMessage } from "../types";
+import type {
+  Space,
+  SpaceDetail,
+  SpaceDraft,
+  SpaceEventDraft,
+  SpaceMessage,
+} from "../types";
 
 export async function getSpaces(): Promise<Space[]> {
   return request<Space[]>("/spaces");
@@ -27,6 +33,14 @@ export async function rsvpEvent(
     method: "POST",
     body: { going },
   });
+}
+
+/** Организатор создаёт структурированную встречу сообщества. */
+export async function createSpaceEvent(
+  spaceId: string,
+  draft: SpaceEventDraft,
+): Promise<SpaceDetail> {
+  return request<SpaceDetail>(`/spaces/${spaceId}/events`, { method: "POST", body: draft });
 }
 
 export async function createSpace(draft: SpaceDraft): Promise<SpaceDetail> {

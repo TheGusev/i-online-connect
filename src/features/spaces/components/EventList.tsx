@@ -8,15 +8,20 @@ export function EventList({
   events,
   onToggleGoing,
   pending,
+  isHost,
 }: {
   events: SpaceEvent[];
   onToggleGoing: (event: SpaceEvent) => void;
   pending?: boolean | undefined;
+  /** Организатору показываем приглашение создать встречу. */
+  isHost?: boolean | undefined;
 }) {
   if (events.length === 0) {
     return (
-      <p className="rounded-3xl border border-dashed border-border p-5 text-sm text-muted-foreground">
-        Ближайших встреч пока нет. Организатор обычно объявляет их в чате сообщества за неделю.
+      <p className="rounded-3xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+        {isHost
+          ? "Встреч пока нет — создайте первую, и участники увидят её карточкой."
+          : "Встреч пока нет. Организатор добавит их здесь."}
       </p>
     );
   }
@@ -26,7 +31,7 @@ export function EventList({
       {events.map((event) => (
         <li
           key={event.id}
-          className="rounded-3xl border border-border bg-card p-5 shadow-soft transition-shadow duration-200 hover:shadow-lift"
+          className="rounded-3xl border border-border bg-card p-4 shadow-soft transition-shadow duration-200 hover:shadow-lift"
         >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">
@@ -39,6 +44,11 @@ export function EventList({
                 <MapPin className="size-3.5" aria-hidden="true" />
                 {event.place}
               </p>
+              {event.description ? (
+                <p className="mt-1.5 text-sm leading-relaxed text-foreground">
+                  {event.description}
+                </p>
+              ) : null}
               <p className="mt-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                 <Users className="size-3.5" aria-hidden="true" />
                 идут {event.goingCount}
@@ -58,10 +68,10 @@ export function EventList({
               {event.going ? (
                 <>
                   <Check aria-hidden="true" />
-                  Иду
+                  Буду
                 </>
               ) : (
-                "Пойду"
+                "Буду"
               )}
             </Button>
           </div>
