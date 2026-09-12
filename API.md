@@ -271,6 +271,7 @@ refresh-токены (выход на других устройствах). Уд
 | GET | `/api/listings/:id` | Карточка |
 | POST | `/api/listings` | `{ category, title, description?, priceMinor?, city?, mediaIds?, expiresInDays? }` |
 | PATCH | `/api/listings/:id` | Правка своего: `title?`, `description?`, `priceMinor?`, `state?`, `mediaIds?` |
+| POST | `/api/listings/media` | multipart `file` — фото объявления (JPEG/PNG/WebP, до 8 МБ) → `{ id, url }`. Хранится в `listing_files`, в галерею профиля не попадает. 60 в час |
 | POST | `/api/listings/:id/close` | Закрыть |
 | POST | `/api/listings/:id/respond` | `{ text? }` → `{ conversationId, created }` |
 | GET | `/api/listings/needs` | Свои категории жизненных задач |
