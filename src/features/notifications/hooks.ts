@@ -68,10 +68,20 @@ export function useNotificationSocket() {
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const handle = (incoming: AppNotification) => {
-      queryClient.setQueriesData<NotificationFeed>({ queryKey: notificationsQueryKey }, (previous) => {
-        if (!previous || previous.items.some((item) => item.id === incoming.id)) return previous;
-        return { ...previous, unreadCount: previous.unreadCount + 1, items: [incoming, ...previous.items] };
-      });
+      queryClient.setQueriesData<NotificationFeed>(
+        {
+          predicate: (query) =>
+            query.queryKey[0] === notificationsQueryKey[0] && query.queryKey[1] === "recent",
+        },
+        (previous) => {
+          if (!previous || previous.items.some((item) => item.id === incoming.id)) return previous;
+          return {
+            ...previous,
+            unreadCount: previous.unreadCount + 1,
+            items: [incoming, ...previous.items],
+          };
+        },
+      );
       void queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
 
       if (incoming.kind === "new_message" || incoming.kind === "match") {

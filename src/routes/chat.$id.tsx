@@ -312,7 +312,11 @@ function ConversationPage() {
         </div>
       </main>
 
-      <div className="shrink-0 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <div
+        className={`shrink-0 border-t border-border bg-card/95 backdrop-blur ${
+          keyboardInset > 0 ? "pb-0" : "pb-[env(safe-area-inset-bottom)]"
+        }`}
+      >
         <div className="mx-auto w-full max-w-3xl">
           {isEmptyThread ? (
             <StarterChips

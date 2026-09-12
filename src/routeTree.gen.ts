@@ -17,6 +17,7 @@ import { Route as ChatRouteImport } from './routes/chat'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as NearbyRouteImport } from './routes/nearby'
+import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as RulesRouteImport } from './routes/rules'
 import { Route as SafetyCenterRouteImport } from './routes/safety-center'
@@ -72,6 +73,11 @@ const FeedRoute = FeedRouteImport.update({
 const NearbyRoute = NearbyRouteImport.update({
   id: '/nearby',
   path: '/nearby',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NotificationsRoute = NotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -164,6 +170,7 @@ export interface FileRoutesByFullPath {
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
   '/nearby': typeof NearbyRouteWithChildren
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/rules': typeof RulesRoute
   '/safety-center': typeof SafetyCenterRoute
@@ -188,6 +195,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/rules': typeof RulesRoute
   '/safety-center': typeof SafetyCenterRoute
@@ -214,6 +222,7 @@ export interface FileRoutesById {
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
   '/nearby': typeof NearbyRouteWithChildren
+  '/notifications': typeof NotificationsRoute
   '/onboarding': typeof OnboardingRoute
   '/rules': typeof RulesRoute
   '/safety-center': typeof SafetyCenterRoute
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
     | '/design-system'
     | '/feed'
     | '/nearby'
+    | '/notifications'
     | '/onboarding'
     | '/rules'
     | '/safety-center'
@@ -266,6 +276,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/design-system'
     | '/feed'
+    | '/notifications'
     | '/onboarding'
     | '/rules'
     | '/safety-center'
@@ -291,6 +302,7 @@ export interface FileRouteTypes {
     | '/design-system'
     | '/feed'
     | '/nearby'
+    | '/notifications'
     | '/onboarding'
     | '/rules'
     | '/safety-center'
@@ -318,6 +330,7 @@ export interface RootRouteChildren {
   DesignSystemRoute: typeof DesignSystemRoute
   FeedRoute: typeof FeedRoute
   NearbyRoute: typeof NearbyRouteWithChildren
+  NotificationsRoute: typeof NotificationsRoute
   OnboardingRoute: typeof OnboardingRoute
   RulesRoute: typeof RulesRoute
   SafetyCenterRoute: typeof SafetyCenterRoute
@@ -385,6 +398,13 @@ declare module '@tanstack/react-router' {
       path: '/nearby'
       fullPath: '/nearby'
       preLoaderRoute: typeof NearbyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/notifications': {
+      id: '/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof NotificationsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -551,6 +571,7 @@ const rootRouteChildren: RootRouteChildren = {
   DesignSystemRoute: DesignSystemRoute,
   FeedRoute: FeedRoute,
   NearbyRoute: NearbyRouteWithChildren,
+  NotificationsRoute: NotificationsRoute,
   OnboardingRoute: OnboardingRoute,
   RulesRoute: RulesRoute,
   SafetyCenterRoute: SafetyCenterRoute,

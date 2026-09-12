@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Check, Pencil, X } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { BellRing, Check, Pencil, Settings, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -191,12 +191,39 @@ function MyProfilePage() {
                 </div>
               </Card>
             ) : (
-              <Button variant="secondary" className="mt-3 w-full" onClick={startEdit}>
-                <Pencil className="size-4" aria-hidden="true" />
-                Редактировать профиль
-              </Button>
+              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+                <Button variant="secondary" onClick={startEdit}>
+                  <Pencil className="size-4" aria-hidden="true" />
+                  Редактировать профиль
+                </Button>
+                <Button variant="secondary" size="icon" asChild>
+                  <Link to="/settings" aria-label="Настройки">
+                    <Settings aria-hidden="true" />
+                  </Link>
+                </Button>
+              </div>
             )}
           </Reveal>
+
+          {!draft ? (
+            <Card className="mt-4 p-4">
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary">
+                  <BellRing className="size-5" aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold">Уведомления</p>
+                  <p className="text-xs text-muted-foreground">История, push и выбор типов событий</p>
+                </div>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/settings" search={{ tab: "notifications" }}>Настроить</Link>
+                </Button>
+              </div>
+              <Button variant="secondary" fullWidth className="mt-3" asChild>
+                <Link to="/notifications">Открыть центр уведомлений</Link>
+              </Button>
+            </Card>
+          ) : null}
 
           {!draft ? (
             <>
