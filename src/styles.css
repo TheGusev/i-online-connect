@@ -502,3 +502,21 @@
     transform: translateX(320%);
   }
 }
+
+/*
+ * Высота экрана по visualViewport: при открытой клавиатуре layout не
+ * растягивается и не уезжает вверх. Переменные обновляет useKeyboardInset.
+ */
+:root {
+  --app-height: 100dvh;
+  --keyboard-inset: 0px;
+}
+
+.app-viewport {
+  min-height: var(--app-height, 100dvh);
+}
+
+/* Полоса ввода, приподнятая над клавиатурой. */
+.keyboard-inset-bottom {
+  padding-bottom: calc(var(--keyboard-inset, 0px) + env(safe-area-inset-bottom));
+}
