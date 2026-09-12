@@ -144,9 +144,19 @@ export async function profileRoutes(app: FastifyInstance) {
          bio         = COALESCE($3, bio),
          city        = COALESCE($4, city),
          intent_note = COALESCE($5, intent_note),
+         age         = COALESCE($6, age),
+         intent      = COALESCE($7::profile_intent, intent),
          updated_at  = now()
        WHERE user_id = $1`,
-      [userId, patch.name ?? null, patch.bio ?? null, patch.city ?? null, patch.intentNote ?? null],
+      [
+        userId,
+        patch.name ?? null,
+        patch.bio ?? null,
+        patch.city ?? null,
+        patch.intentNote ?? null,
+        patch.age ?? null,
+        patch.intent ?? null,
+      ],
     );
 
     if (patch.privacy) {
