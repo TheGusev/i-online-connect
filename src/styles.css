@@ -510,6 +510,7 @@
 :root {
   --app-height: 100dvh;
   --keyboard-inset: 0px;
+  --viewport-top: 0px;
 }
 
 .app-viewport {
@@ -519,4 +520,11 @@
 /* Полоса ввода, приподнятая над клавиатурой. */
 .keyboard-inset-bottom {
   padding-bottom: calc(var(--keyboard-inset, 0px) + env(safe-area-inset-bottom));
+}
+
+.keyboard-viewport-fixed {
+  position: fixed;
+  inset-inline: 0;
+  top: var(--viewport-top, 0px);
+  height: var(--app-height, 100dvh);
 }

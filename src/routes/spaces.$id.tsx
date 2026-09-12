@@ -1,5 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, BadgeCheck, CalendarDays, MapPin, MessagesSquare } from "lucide-react";
+import { useEffect } from "react";
+import { z } from "zod";
 
 import { WaveHeading } from "@/components/landing/WaveHeading";
 import { AppShell } from "@/components/layout/AppShell";
@@ -25,6 +27,7 @@ import { cadenceLabels, categoryLabels, formatLabels } from "@/features/spaces/l
 import { mediaUrl } from "@/api";
 
 export const Route = createFileRoute("/spaces/$id")({
+  validateSearch: z.object({ eventId: z.string().uuid().optional() }),
   head: () => ({
     meta: [
       { title: "Пространство — Я Онлайн" },
@@ -46,6 +49,7 @@ export const Route = createFileRoute("/spaces/$id")({
 
 function SpaceDetailPage() {
   const { id } = Route.useParams();
+  const { eventId } = Route.useSearch();
   const { data: space, isPending, isError } = useSpace(id);
   const { data: messages } = useSpaceMessages(id);
   const join = useJoinSpace(id);
@@ -53,6 +57,14 @@ function SpaceDetailPage() {
   const rsvp = useRsvpEvent(id);
   const sendMessage = useSendSpaceMessage(id);
   const createEvent = useCreateSpaceEvent(id);
+
+  useEffect(() => {
+    if (!eventId || !space) return;
+    const timer = window.setTimeout(() => {
+      document.getElementById(`event-${eventId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [eventId, space]);
 
   if (isPending) {
     return (
@@ -165,6 +177,7 @@ function SpaceDetailPage() {
               events={sortedEvents}
               pending={rsvp.isPending}
               isHost={space.isHost ?? false}
+              highlightedId={eventId}
               onToggleGoing={(event) => rsvp.mutate({ eventId: event.id, going: !event.going })}
             />
           </section>

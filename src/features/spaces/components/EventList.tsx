@@ -3,18 +3,21 @@ import { CalendarDays, Check, MapPin, Users } from "lucide-react";
 import type { SpaceEvent } from "@/api";
 import { Button } from "@/components/ds";
 import { formatEventDate } from "@/features/spaces/labels";
+import { cn } from "@/lib/utils";
 
 export function EventList({
   events,
   onToggleGoing,
   pending,
   isHost,
+  highlightedId,
 }: {
   events: SpaceEvent[];
   onToggleGoing: (event: SpaceEvent) => void;
   pending?: boolean | undefined;
   /** Организатору показываем приглашение создать встречу. */
   isHost?: boolean | undefined;
+  highlightedId?: string | undefined;
 }) {
   if (events.length === 0) {
     return (
@@ -31,7 +34,11 @@ export function EventList({
       {events.map((event) => (
         <li
           key={event.id}
-          className="rounded-3xl border border-border bg-card p-4 shadow-soft transition-shadow duration-200 hover:shadow-lift"
+          id={`event-${event.id}`}
+          className={cn(
+            "scroll-mt-24 rounded-3xl border bg-card p-4 shadow-soft transition-[border-color,box-shadow] duration-300 hover:shadow-lift",
+            highlightedId === event.id ? "border-primary shadow-glow" : "border-border",
+          )}
         >
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="min-w-0">

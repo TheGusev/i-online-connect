@@ -3,7 +3,12 @@ import { request } from "../client";
 
 /** Список in-app уведомлений (совпадения и отклики по объявлениям). */
 export async function getNotifications(
-  params: { unread?: boolean; limit?: number } = {},
+  params: {
+    unread?: boolean;
+    limit?: number;
+    type?: "chats" | "meetings" | "matches";
+    cursor?: string;
+  } = {},
 ): Promise<NotificationFeed> {
   return request<NotificationFeed>("/notifications", { query: params });
 }

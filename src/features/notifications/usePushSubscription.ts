@@ -15,7 +15,7 @@ import { useSessionStore } from "@/store/useSessionStore";
  * - `denied`       — пользователь запретил уведомления в браузере;
  * - `off` / `on`   — подписки нет / есть.
  */
-export type PushState = "loading" | "unsupported" | "needs-install" | "unavailable" | "denied" | "off" | "on";
+export type PushState = "loading" | "unsupported" | "needs-install" | "unavailable" | "denied" | "prompt" | "off" | "on";
 
 const SW_URL = "/sw.js";
 
@@ -91,6 +91,10 @@ export function usePushSubscription() {
       setState("denied");
       return;
     }
+    if (Notification.permission === "default") {
+      setState("prompt");
+      return;
+    }
 
     const registration = await ensureServiceWorker();
     const existing = await registration?.pushManager.getSubscription();
@@ -99,6 +103,13 @@ export function usePushSubscription() {
 
   useEffect(() => {
     void detect();
+    const refresh = () => void detect();
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, [detect]);
 
   const enable = useCallback(async () => {
@@ -143,7 +154,7 @@ export function usePushSubscription() {
       const registration = await ensureServiceWorker();
       const subscription = await registration?.pushManager.getSubscription();
       if (subscription) {
-        await pushApi.unsubscribePush(subscription.endpoint).catch(() => undefined);
+        await pushApi.unsubscribePush(subscription.endpoint);
         await subscription.unsubscribe();
       }
       setState("off");
@@ -158,6 +169,7 @@ export function usePushSubscription() {
   return {
     state,
     busy,
+    refresh: detect,
     toggle: (next: boolean) => (next ? enable() : disable()),
   };
 }

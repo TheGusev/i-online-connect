@@ -300,13 +300,17 @@ refresh-токены (выход на других устройствах). Уд
 
 | Метод | Путь | Описание |
 | --- | --- | --- |
-| GET | `/api/notifications?unread=&limit=` | `{ unreadCount, items }` |
+| GET | `/api/notifications?unread=&type=&limit=&cursor=` | `{ unreadCount, items, hasMore, nextCursor }`; `type`: `chats`, `meetings`, `matches` |
 | POST | `/api/notifications/read` | `{ ids? }`; без `ids` — прочитать все |
 
 Реальное время: `wss://<host>/ws/notifications?token=<access>` →
 `{ type: "notification", notification }`. Если пользователь офлайн, запись
 остаётся в БД (придёт при следующем заходе) и уходит письмо, если включён
 тумблер `notification_prefs.listings`.
+
+История использует стабильный курсор `created_at|id`. `new_message` ведёт в
+конкретный диалог, `space_event` — к карточке встречи в пространстве, `match` —
+в профиль второго участника. Такие же адреса передаются в Web Push.
 
 ## Админка (`/api/admin/*`)
 

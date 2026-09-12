@@ -1,5 +1,7 @@
 import type { NotificationChannel, NotificationSettings } from "@/api";
-import { Card } from "@/components/ds";
+import { Link } from "@tanstack/react-router";
+import { BellRing, ExternalLink } from "lucide-react";
+import { Button, Card } from "@/components/ds";
 import { ToggleRow } from "@/components/ds";
 import { usePushSubscription } from "@/features/notifications/usePushSubscription";
 import { useUpdateNotifications } from "@/features/settings/hooks";
@@ -46,6 +48,9 @@ function PushRow() {
       return "Уведомления запрещены в настройках браузера для этого сайта — разрешите их и вернитесь сюда.";
     if (state === "unsupported") return "Этот браузер не умеет присылать уведомления на устройство.";
     if (state === "unavailable") return "Уведомления на устройство пока не настроены на сервере.";
+    if (state === "prompt") return "Разрешение ещё не запрошено. Включите переключатель, чтобы браузер показал запрос.";
+    if (state === "on") return "Подписка активна на этом устройстве.";
+    if (state === "off") return "Разрешение есть, но это устройство сейчас не подписано.";
     return "Приходят, даже когда приложение закрыто: новые сообщения, встречи в сообществах и совпадения.";
   };
 
@@ -76,6 +81,13 @@ export function NotificationsSection({ notifications }: { notifications: Notific
   return (
     <div className="space-y-4">
       <PushRow />
+      <Button variant="secondary" fullWidth asChild>
+        <Link to="/notifications">
+          <BellRing aria-hidden="true" />
+          Открыть центр уведомлений
+          <ExternalLink aria-hidden="true" />
+        </Link>
+      </Button>
       <Card className="divide-y divide-border px-6 py-2">
         {channels.map((channel) => (
           <ToggleRow

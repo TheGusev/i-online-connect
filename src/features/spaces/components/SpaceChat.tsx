@@ -4,7 +4,7 @@ import { SendHorizontal } from "lucide-react";
 import type { SpaceMessage } from "@/api";
 import { Avatar, Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
-import { useKeyboardInset } from "@/hooks/useKeyboardOpen";
+import { useKeyboardOpen } from "@/hooks/useKeyboardOpen";
 import { useSessionStore } from "@/store/useSessionStore";
 
 const timeFormatter = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -21,7 +21,7 @@ export function SpaceChat({
   onSend: (text: string) => void;
   sending?: boolean | undefined;
 }) {
-  const keyboardInset = useKeyboardInset();
+  const keyboardOpen = useKeyboardOpen();
   const myId = useSessionStore((s) => s.user?.id);
   const [text, setText] = useState("");
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -31,8 +31,13 @@ export function SpaceChat({
   }, [messages.length]);
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
-      <div className="max-h-96 space-y-4 overflow-y-auto p-5">
+    <div
+      className={cn(
+        "overflow-hidden rounded-3xl border border-border bg-card shadow-soft",
+        keyboardOpen && "keyboard-viewport-fixed z-50 flex flex-col rounded-none border-0",
+      )}
+    >
+      <div className={cn("space-y-4 overflow-y-auto p-5", keyboardOpen ? "min-h-0 flex-1" : "max-h-96")}>
         {messages.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             В чате пока тихо. Можно поздороваться и спросить, как обычно проходят встречи.
@@ -70,7 +75,6 @@ export function SpaceChat({
 
       <form
         className="sticky bottom-0 flex items-center gap-2 border-t border-border bg-card/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur"
-        style={keyboardInset > 0 ? { paddingBottom: keyboardInset + 12 } : undefined}
         onSubmit={(event) => {
           event.preventDefault();
           const value = text.trim();

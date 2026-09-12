@@ -193,8 +193,7 @@ function ConversationPage() {
 
   return (
     <div
-      className="flex flex-col overflow-hidden bg-background text-foreground"
-      style={{ height: "var(--app-height, 100dvh)" }}
+      className="keyboard-viewport-fixed flex flex-col overflow-hidden bg-background text-foreground"
     >
       <header className="shrink-0 border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-3 py-2.5">
@@ -313,7 +312,11 @@ function ConversationPage() {
         </div>
       </main>
 
-      <div className="shrink-0 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <div
+        className={`shrink-0 border-t border-border bg-card/95 backdrop-blur ${
+          keyboardInset > 0 ? "pb-0" : "pb-[env(safe-area-inset-bottom)]"
+        }`}
+      >
         <div className="mx-auto w-full max-w-3xl">
           {isEmptyThread ? (
             <StarterChips

@@ -422,4 +422,6 @@ export interface AppNotification {
 export interface NotificationFeed {
   unreadCount: number;
   items: AppNotification[];
+  hasMore: boolean;
+  nextCursor: string | null;
 }

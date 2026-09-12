@@ -291,7 +291,7 @@ export async function matchingRoutes(app: FastifyInstance) {
             await sendPushToUser(person.user_id, {
               title: "Совпадение!",
               body: `Вы понравились друг другу с ${payload.withName}`,
-              url: `/chat/${result.conversationId}`,
+              url: payload.withId ? `/profile/${payload.withId}` : `/chat/${result.conversationId}`,
               tag: `match-${result.conversationId}`,
             });
           }

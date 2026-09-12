@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { toast } from "sonner";
 
@@ -9,14 +9,33 @@ import { useSessionStore } from "@/store/useSessionStore";
 
 export const notificationsQueryKey = ["notifications"] as const;
 
-export function useNotifications() {
+export type NotificationFilter = "chats" | "meetings" | "matches";
+
+export function useNotifications(limit = 20) {
   const authed = useSessionStore((state) => state.status === "authed");
   return useQuery({
-    queryKey: notificationsQueryKey,
-    queryFn: () => notificationsApi.getNotifications({ limit: 20 }),
+    queryKey: [...notificationsQueryKey, "recent", limit],
+    queryFn: () => notificationsApi.getNotifications({ limit }),
     enabled: authed,
     refetchOnWindowFocus: true,
   });
+}
+
+export function useNotificationHistory(type?: NotificationFilter) {
+  const authed = useSessionStore((state) => state.status === "authed");
+  const query = useInfiniteQuery({
+    queryKey: [...notificationsQueryKey, "history", type ?? "all"],
+    queryFn: ({ pageParam }) =>
+      notificationsApi.getNotifications({
+        limit: 30,
+        ...(type ? { type } : {}),
+        ...(pageParam ? { cursor: pageParam } : {}),
+      }),
+    initialPageParam: null as string | null,
+    getNextPageParam: (last) => (last.hasMore ? last.nextCursor : undefined),
+    enabled: authed,
+  });
+  return { ...query, items: query.data?.pages.flatMap((page) => page.items) ?? [] };
 }
 
 export function useMarkNotificationsRead() {
@@ -49,20 +68,26 @@ export function useNotificationSocket() {
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const handle = (incoming: AppNotification) => {
-      queryClient.setQueryData<NotificationFeed>(notificationsQueryKey, (previous) => {
-        if (!previous) return previous;
-        if (previous.items.some((item) => item.id === incoming.id)) return previous;
-        return {
-          unreadCount: previous.unreadCount + 1,
-          items: [incoming, ...previous.items],
-        };
-      });
+      queryClient.setQueriesData<NotificationFeed>(
+        {
+          predicate: (query) =>
+            query.queryKey[0] === notificationsQueryKey[0] && query.queryKey[1] === "recent",
+        },
+        (previous) => {
+          if (!previous || previous.items.some((item) => item.id === incoming.id)) return previous;
+          return {
+            ...previous,
+            unreadCount: previous.unreadCount + 1,
+            items: [incoming, ...previous.items],
+          };
+        },
+      );
       void queryClient.invalidateQueries({ queryKey: notificationsQueryKey });
 
       if (incoming.kind === "new_message" || incoming.kind === "match") {
         void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
         void queryClient.invalidateQueries({ queryKey: ["chat", "unread-count"] });
-        const { title, conversationId } = describeNotification(incoming);
+        const { title, href, conversationId } = describeNotification(incoming);
         const inThatChat =
           conversationId && window.location.pathname === `/chat/${conversationId}`;
         if (!inThatChat) {
@@ -72,16 +97,21 @@ export function useNotificationSocket() {
               : undefined;
           toast(title, {
             description: preview,
-            action: conversationId
+            action: href
               ? {
                   label: "Открыть",
                   onClick: () => {
-                    window.location.assign(`/chat/${conversationId}`);
+                     window.location.assign(href);
                   },
                 }
               : undefined,
           });
         }
+      } else if (incoming.kind === "space_event") {
+        const { title, href } = describeNotification(incoming);
+        toast(title, {
+          action: href ? { label: "Открыть", onClick: () => window.location.assign(href) } : undefined,
+        });
       }
     };
 
@@ -142,34 +172,63 @@ export function useNotificationSocket() {
 /** Человеческий текст уведомления и ссылка (объявление или диалог). */
 export function describeNotification(notification: AppNotification): {
   title: string;
+  description: string | null;
+  href: string | null;
   listingId: string | null;
   conversationId: string | null;
+  profileId: string | null;
+  spaceId: string | null;
+  eventId: string | null;
 } {
   const payload = notification.payload ?? {};
   const str = (key: string) => (typeof payload[key] === "string" ? (payload[key] as string) : null);
   const listingTitle = str("title") ?? "объявление";
   const listingId = str("listingId");
   const conversationId = str("conversationId");
+  const profileId = str("withId");
+  const spaceId = str("spaceId");
+  const eventId = str("eventId");
+
+  const result = (title: string, description: string | null, href: string | null) => ({
+    title,
+    description,
+    href,
+    listingId,
+    conversationId,
+    profileId,
+    spaceId,
+    eventId,
+  });
 
   if (notification.kind === "listing_response") {
-    return { title: `Новый отклик на «${listingTitle}»`, listingId, conversationId: null };
+    return result(`Новый отклик на «${listingTitle}»`, null, listingId ? `/nearby/${listingId}` : null);
   }
   if (notification.kind === "listing_match") {
-    return { title: `Рядом появилось: «${listingTitle}»`, listingId, conversationId: null };
+    return result(`Рядом появилось: «${listingTitle}»`, null, listingId ? `/nearby/${listingId}` : null);
   }
   if (notification.kind === "new_message") {
-    return {
-      title: `Новое сообщение от ${str("fromName") ?? "собеседника"}`,
-      listingId: null,
-      conversationId,
-    };
+    return result(
+      `Новое сообщение от ${str("fromName") ?? "собеседника"}`,
+      str("preview"),
+      conversationId ? `/chat/${conversationId}` : null,
+    );
   }
   if (notification.kind === "match") {
-    return {
-      title: `Совпадение! Вы понравились друг другу с ${str("withName") ?? "новым человеком"}`,
-      listingId: null,
-      conversationId,
-    };
+    return result(
+      `Совпадение! Вы понравились друг другу с ${str("withName") ?? "новым человеком"}`,
+      "Откройте профиль и начните разговор.",
+      profileId ? `/profile/${profileId}` : conversationId ? `/chat/${conversationId}` : null,
+    );
   }
-  return { title: listingTitle, listingId, conversationId };
+  if (notification.kind === "space_event") {
+    const href = spaceId
+      ? `/spaces/${spaceId}${eventId ? `?eventId=${encodeURIComponent(eventId)}` : ""}`
+      : null;
+    return result(
+      `Новая встреча в «${str("spaceTitle") ?? "Пространстве"}»`,
+      [str("title"), str("place")].filter(Boolean).join(" · ") || null,
+      href,
+    );
+  }
+  return result(listingTitle, null, listingId ? `/nearby/${listingId}` : null);
 }
