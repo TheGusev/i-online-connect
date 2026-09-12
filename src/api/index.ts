@@ -13,4 +13,5 @@ export * as confirmApi from "./endpoints/confirm";
 export * as supportApi from "./endpoints/support";
 export * as listingsApi from "./endpoints/listings";
 export * as notificationsApi from "./endpoints/notifications";
+export * as pushApi from "./endpoints/push";
 export type { SupportTopic, SupportRequestPayload } from "./endpoints/support";
