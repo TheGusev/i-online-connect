@@ -15,6 +15,7 @@ import { env } from "../env.ts";
 import { badRequest } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { toUserDto, type ProfileRow } from "../types.ts";
+import { sendPushToUser } from "../push/send.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 
 /** Начало следующих суток в UTC — время обновления подборки. */
