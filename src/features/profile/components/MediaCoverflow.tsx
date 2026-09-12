@@ -40,6 +40,7 @@ export function MediaCoverflow({
   className?: string;
 }) {
   const [index, setIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const touchStart = useRef<number | null>(null);
   const total = media.length;
   const own = Boolean(onUpload);
