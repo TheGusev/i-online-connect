@@ -13,6 +13,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { SessionRestore } from "@/features/auth/session";
+import { ensureServiceWorker } from "@/features/notifications/usePushSubscription";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -182,6 +183,12 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  // Service worker нужен только для push-уведомлений: регистрируем после
+  // гидратации, чтобы не мешать первой отрисовке.
+  useEffect(() => {
+    void ensureServiceWorker();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
