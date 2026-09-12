@@ -27,9 +27,9 @@ export function ProfileActionBar({ id, name }: { id: string; name: string }) {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-14 z-30 border-t border-border bg-background/92 backdrop-blur lg:bottom-0">
-      <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 lg:px-8">
-        <Button size="lg" className="flex-1" onClick={write} disabled={openConversation.isPending}>
+    <div className="mt-3">
+      <div className="flex items-center gap-2">
+        <Button className="flex-1" onClick={write} disabled={openConversation.isPending}>
           <MessageCircle aria-hidden="true" />
           {openConversation.isPending ? "Открываем…" : "Написать"}
         </Button>
