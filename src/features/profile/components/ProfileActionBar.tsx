@@ -7,7 +7,7 @@ import { Button } from "@/components/ds";
 import { useOpenConversation } from "@/features/chat/hooks";
 import { ReportModal } from "@/features/trust/components/ReportModal";
 
-/** Фиксированная панель действий: «Написать» + ненавязчивая жалоба/блокировка. */
+/** Компактный ряд действий под шапкой: «Написать» + ненавязчивая жалоба/блокировка. */
 export function ProfileActionBar({ id, name }: { id: string; name: string }) {
   const [open, setOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
