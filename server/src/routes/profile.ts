@@ -119,6 +119,8 @@ export async function profileRoutes(app: FastifyInstance) {
     name: z.string().min(2).max(80).optional(),
     bio: z.string().max(1000).optional(),
     city: z.string().max(120).optional(),
+    age: z.number().int().min(18).max(120).optional(),
+    intent: z.enum(["serious", "friends", "projects", "unsure"]).optional(),
     intentNote: z.string().max(300).optional(),
     interests: z.array(z.string().min(1).max(60)).max(20).optional(),
     values: z.array(z.string().min(1).max(60)).max(10).optional(),
