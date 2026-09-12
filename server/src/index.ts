@@ -25,7 +25,7 @@ import { runSeedRefresh } from "./seed/refresh.ts";
 import { rateLimitSubject } from "./auth/tokens.ts";
 import { registerAbuseLog } from "./security/abuse-log.ts";
 import { closeRedis, getRedis } from "./security/redis.ts";
-import { healthcheck, pool } from "./db.ts";
+import { healthcheck, pool, query } from "./db.ts";
 import { env } from "./env.ts";
 import { registerErrorHandler } from "./http.ts";
 
