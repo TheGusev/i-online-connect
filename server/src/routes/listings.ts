@@ -105,9 +105,10 @@ const LISTING_SELECT = `
            WHERE user_id = l.author_id AND kind = 'photo'
            ORDER BY is_primary DESC, position LIMIT 1) AS author_avatar,
          ARRAY(
-           SELECT m.url FROM listing_media lm
-             JOIN profile_media m ON m.id = lm.media_id
-            WHERE lm.listing_id = l.id
+           SELECT COALESCE(f.url, m.url) FROM listing_media lm
+             LEFT JOIN profile_media m  ON m.id = lm.media_id
+             LEFT JOIN listing_files f  ON f.id = lm.file_id
+            WHERE lm.listing_id = l.id AND COALESCE(f.url, m.url) IS NOT NULL
             ORDER BY lm.position
          ) AS photos,
          (SELECT count(*) FROM listing_responses r WHERE r.listing_id = l.id)::int AS responses_count,
