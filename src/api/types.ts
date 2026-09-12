@@ -74,6 +74,8 @@ export interface SpaceEvent {
   id: string;
   spaceId: string;
   title: string;
+  /** Краткое описание встречи от организатора. */
+  description?: string | undefined;
   /** ISO-дата начала. */
   startsAt: string;
   place: string;
@@ -120,6 +122,8 @@ export interface Space {
   joinQuestion?: string | undefined;
   interests: string[];
   isMember: boolean;
+  /** Вы организатор: можно создавать встречи. */
+  isHost?: boolean | undefined;
   /** Заявка отправлена организатору и ждёт ответа. */
   pendingRequest?: boolean | undefined;
   nextEvent?: SpaceEvent | undefined;
@@ -130,6 +134,15 @@ export interface SpaceDetail extends Space {
   hostName: string;
   members: SpaceMember[];
   events: SpaceEvent[];
+}
+
+/** Черновик встречи из формы организатора. */
+export interface SpaceEventDraft {
+  title: string;
+  /** ISO-дата с зоной. */
+  startsAt: string;
+  place: string;
+  description: string;
 }
 
 /** Черновик нового сообщества из формы «Создать пространство». */

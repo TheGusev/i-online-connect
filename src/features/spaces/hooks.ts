@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { spacesApi } from "@/api";
-import type { SpaceDraft, SpaceMessage } from "@/api";
+import type { SpaceDraft, SpaceEventDraft, SpaceMessage } from "@/api";
 
 export const spacesQueryOptions = {
   queryKey: ["spaces"] as const,
@@ -44,6 +44,10 @@ export function useRsvpEvent(id: string) {
   return useSpaceMutation<{ eventId: string; going: boolean }>(id, ({ eventId, going }) =>
     spacesApi.rsvpEvent(id, eventId, going),
   );
+}
+
+export function useCreateSpaceEvent(id: string) {
+  return useSpaceMutation<SpaceEventDraft>(id, (draft) => spacesApi.createSpaceEvent(id, draft));
 }
 
 export function useCreateSpace() {
