@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 
 import { RequireSession } from "@/features/auth/session";
+import { useKeyboardInset } from "@/hooks/useKeyboardOpen";
+
 
 import { BottomNav } from "./BottomNav";
 import { SideNav } from "./SideNav";
