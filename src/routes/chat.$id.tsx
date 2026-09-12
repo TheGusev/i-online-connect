@@ -83,8 +83,7 @@ function ConversationPage() {
   const [draft, setDraft] = useState("");
   const [meetingOpen, setMeetingOpen] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const bottomRef = useRef<HTMLDivElement | null>(null);
-  const scrollerRef = useRef<HTMLElement | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
 
   const isEmptyThread = (messages?.length ?? 0) === 0;
@@ -140,25 +139,39 @@ function ConversationPage() {
 
   // Автопрокрутка вниз при новых сообщениях (но не при подгрузке истории вверх).
   const lastId = messages?.[messages.length - 1]?.id;
+  const scrollToBottom = useCallback((smooth = true) => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  }, []);
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [lastId, typing]);
+    scrollToBottom();
+  }, [lastId, typing, scrollToBottom]);
+
+  // Клавиатура сократила видимую область — держим последнее сообщение в кадре.
+  useEffect(() => {
+    scrollToBottom(false);
+  }, [keyboardInset, scrollToBottom]);
 
   // Подгрузка ранних сообщений при прокрутке к верху с сохранением позиции.
   useEffect(() => {
     const sentinel = topSentinelRef.current;
     if (!sentinel || !hasNextPage) return;
-    const observer = new IntersectionObserver((entries) => {
-      if (!entries[0]?.isIntersecting || isFetchingNextPage) return;
-      const el = document.scrollingElement ?? document.documentElement;
-      const prevHeight = el.scrollHeight;
-      const prevTop = el.scrollTop;
-      void fetchNextPage().then(() => {
-        requestAnimationFrame(() => {
-          el.scrollTop = prevTop + (el.scrollHeight - prevHeight);
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0]?.isIntersecting || isFetchingNextPage) return;
+        const prevHeight = scroller.scrollHeight;
+        const prevTop = scroller.scrollTop;
+        void fetchNextPage().then(() => {
+          requestAnimationFrame(() => {
+            scroller.scrollTop = prevTop + (scroller.scrollHeight - prevHeight);
+          });
         });
-      });
-    });
+      },
+      { root: scroller },
+    );
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
@@ -179,8 +192,11 @@ function ConversationPage() {
   };
 
   return (
-    <div className="app-viewport flex flex-col bg-background text-foreground">
-      <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur">
+    <div
+      className="flex flex-col overflow-hidden bg-background text-foreground"
+      style={{ height: "var(--app-height, 100dvh)" }}
+    >
+      <header className="shrink-0 border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-3 py-2.5">
           <Link
             to="/chat"
@@ -232,7 +248,11 @@ function ConversationPage() {
         ) : null}
       </header>
 
-      <main ref={scrollerRef} className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-4 py-4">
+      <main
+        ref={scrollerRef}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [-webkit-overflow-scrolling:touch]"
+      >
+        <div className="mx-auto flex w-full max-w-3xl flex-col">
         {shared.length > 0 ? (
           <p className="mb-4 rounded-2xl bg-primary-soft/50 px-4 py-2.5 text-xs text-primary-ink">
             Общее у вас: {shared.join(", ")}
@@ -290,13 +310,10 @@ function ConversationPage() {
             </ul>
           </>
         )}
-        <div ref={bottomRef} />
+        </div>
       </main>
 
-      <div
-        className="sticky bottom-0 z-20 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur transition-[padding] duration-150"
-        style={keyboardInset > 0 ? { paddingBottom: keyboardInset } : undefined}
-      >
+      <div className="shrink-0 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         <div className="mx-auto w-full max-w-3xl">
           {isEmptyThread ? (
             <StarterChips
@@ -329,6 +346,7 @@ function ConversationPage() {
               ref={inputRef}
               rows={1}
               value={draft}
+              onFocus={() => scrollToBottom(false)}
               onChange={(event) => {
                 setDraft(event.target.value);
                 if (event.target.value.trim()) sendTyping();
