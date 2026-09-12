@@ -282,6 +282,19 @@ export async function matchingRoutes(app: FastifyInstance) {
               },
             });
           }
+
+          const prefs = await queryOne<{ matches: boolean }>(
+            "SELECT COALESCE(matches, true) AS matches FROM notification_prefs WHERE user_id = $1",
+            [person.user_id],
+          );
+          if (!prefs || prefs.matches) {
+            await sendPushToUser(person.user_id, {
+              title: "Совпадение!",
+              body: `Вы понравились друг другу с ${payload.withName}`,
+              url: `/chat/${result.conversationId}`,
+              tag: `match-${result.conversationId}`,
+            });
+          }
         }
       } catch (error) {
         console.error("[matching] уведомление о совпадении", error);
