@@ -214,6 +214,33 @@ async function attachMedia(listingId: string, userId: string, mediaIds: string[]
 export async function listingRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
+  // ── Фото объявления ──────────────────────────────────────────────────────
+  // Отдельный эндпоинт: снимки объявления не должны появляться в профиле.
+  app.post(
+    "/media",
+    { config: { rateLimit: { max: 60, timeWindow: "1 hour" } } },
+    async (request) => {
+      const userId = currentUserId(request);
+      const part = await request.file({ limits: { fileSize: MAX_PHOTO_BYTES } });
+      if (!part) throw badRequest("Файл не получен");
+
+      const buffer = await part.toBuffer();
+      const type = detectMediaType(buffer);
+      if (!type || type.kind !== "photo") throw badRequest("К объявлению можно приложить только фото JPEG/PNG/WebP");
+      assertSize(type, buffer.length);
+
+      const { url } = await saveListingFile(userId, buffer, type);
+      const row = await queryOne<{ id: string; created_at: Date }>(
+        "INSERT INTO listing_files (user_id, url) VALUES ($1, $2) RETURNING id, created_at",
+        [userId, url],
+      );
+      if (!row) throw badRequest("Не удалось сохранить фото");
+
+      return { id: row.id, kind: "photo" as const, url, createdAt: row.created_at.toISOString() };
+    },
+  );
+
+
   // ── Категории жизненных потребностей ─────────────────────────────────────
   app.get("/needs", async (request) => {
     const userId = currentUserId(request);
