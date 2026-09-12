@@ -1,10 +1,12 @@
-import { ChevronLeft, ChevronRight, Play, Plus, Star, Trash2, X } from "lucide-react";
+import { Play, Plus, Star, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { ProfileMedia } from "@/api";
 import { mediaUrl } from "@/api";
 import { MediaImage } from "@/components/ds";
 import { cn } from "@/lib/utils";
+
+import { MediaViewer } from "./MediaViewer";
 
 /**
  * Каскадная карусель фото (coverflow).
