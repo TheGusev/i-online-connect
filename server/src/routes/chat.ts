@@ -18,6 +18,7 @@ import { query, queryOne, transaction } from "../db.ts";
 import { badRequest, forbidden, notFound } from "../http.ts";
 import { assertConversationAccess, currentUserId, requireAuth } from "../auth/middleware.ts";
 import { isInRoom, publishChatEvent } from "../ws/chat.ts";
+import { sendPushToUser } from "../push/send.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 
 const idParam = z.object({ id: z.string().uuid() });
@@ -99,6 +100,21 @@ async function notifyRecipient(
         createdAt: created.created_at.toISOString(),
       },
     });
+
+    // Пуш на телефон: приходит и когда приложение закрыто. Уважаем
+    // переключатель «Сообщения» в настройках уведомлений.
+    const prefs = await queryOne<{ messages: boolean }>(
+      "SELECT COALESCE(messages, true) AS messages FROM notification_prefs WHERE user_id = $1",
+      [recipient.user_id],
+    );
+    if (!prefs || prefs.messages) {
+      await sendPushToUser(recipient.user_id, {
+        title: `Сообщение от ${recipient.sender_name ?? "собеседника"}`,
+        body: preview,
+        url: `/chat/${conversationId}`,
+        tag: `chat-${conversationId}`,
+      });
+    }
   } catch (error) {
     console.error("[chat] уведомление о сообщении", error);
   }
