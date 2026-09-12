@@ -1,6 +1,7 @@
 import type { NotificationChannel, NotificationSettings } from "@/api";
 import { Card } from "@/components/ds";
 import { ToggleRow } from "@/components/ds";
+import { usePushSubscription } from "@/features/notifications/usePushSubscription";
 import { useUpdateNotifications } from "@/features/settings/hooks";
 
 const channels: { id: NotificationChannel; title: string; description: string }[] = [
@@ -37,6 +38,7 @@ export function NotificationsSection({ notifications }: { notifications: Notific
 
   return (
     <div className="space-y-4">
+      <PushRow />
       <Card className="divide-y divide-border px-6 py-2">
         {channels.map((channel) => (
           <ToggleRow
