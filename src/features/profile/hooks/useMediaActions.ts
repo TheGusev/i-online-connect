@@ -4,19 +4,17 @@ import { toast } from "sonner";
 
 import { mediaApi, type ProfileMedia } from "@/api";
 
-import { MediaCoverflow } from "./MediaCoverflow";
-
 /** Столько фото и одно видео-интро помещается в профиль (совпадает с backend). */
 export const MAX_PROFILE_PHOTOS = 5;
 const MAX_PROFILE_VIDEOS = 1;
 
 /**
- * Своя галерея: каскадная карусель, компактная кнопка «+» и управление кадром.
+ * Загрузка, удаление и выбор главного кадра для своего профиля.
  *
  * Главное фото сразу становится аватаром — поэтому после любого действия
  * перезапрашиваем профиль.
  */
-export function MediaManager({ media }: { media: ProfileMedia[] }) {
+export function useMediaActions(media: ProfileMedia[]) {
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -80,23 +78,20 @@ export function MediaManager({ media }: { media: ProfileMedia[] }) {
     }
   };
 
-  return (
-    <MediaCoverflow
-      media={media}
-      name="Моё фото"
-      onUpload={(file) => void upload(file)}
-      onDelete={(id) => void remove(id)}
-      onPrimary={(id) => void makePrimary(id)}
-      uploadDisabled={full}
-      uploadHint={
-        progress !== null
-          ? `Загружаем… ${progress}%`
-          : full
-            ? "Лимит: 5 фото и 1 видео"
-            : `${photos} из ${MAX_PROFILE_PHOTOS} фото`
-      }
-      progress={progress}
-      busy={busy}
-    />
-  );
+  const hint =
+    progress !== null
+      ? `Загружаем… ${progress}%`
+      : full
+        ? "Лимит: 5 фото и 1 видео"
+        : `${photos} из ${MAX_PROFILE_PHOTOS} фото`;
+
+  return {
+    busy,
+    progress,
+    full,
+    hint,
+    upload: (file: File) => void upload(file),
+    makePrimary: (id: string) => void makePrimary(id),
+    remove: (id: string) => void remove(id),
+  };
 }

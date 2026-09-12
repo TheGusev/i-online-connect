@@ -7,7 +7,7 @@ import { Button } from "@/components/ds";
 import { useOpenConversation } from "@/features/chat/hooks";
 import { ReportModal } from "@/features/trust/components/ReportModal";
 
-/** Фиксированная панель действий: «Написать» + ненавязчивая жалоба/блокировка. */
+/** Компактный ряд действий под шапкой: «Написать» + ненавязчивая жалоба/блокировка. */
 export function ProfileActionBar({ id, name }: { id: string; name: string }) {
   const [open, setOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
@@ -27,9 +27,9 @@ export function ProfileActionBar({ id, name }: { id: string; name: string }) {
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-14 z-30 border-t border-border bg-background/92 backdrop-blur lg:bottom-0">
-      <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-3 lg:px-8">
-        <Button size="lg" className="flex-1" onClick={write} disabled={openConversation.isPending}>
+    <div className="mt-3">
+      <div className="flex items-center gap-2">
+        <Button className="flex-1" onClick={write} disabled={openConversation.isPending}>
           <MessageCircle aria-hidden="true" />
           {openConversation.isPending ? "Открываем…" : "Написать"}
         </Button>
@@ -46,7 +46,7 @@ export function ProfileActionBar({ id, name }: { id: string; name: string }) {
           </Button>
 
           {open ? (
-            <div className="absolute bottom-full right-0 mb-2 w-60 overflow-hidden rounded-2xl border border-border bg-card shadow-lift">
+            <div className="absolute right-0 top-full z-30 mt-2 w-60 overflow-hidden rounded-2xl border border-border bg-card shadow-lift">
               <button
                 type="button"
                 onClick={() => {

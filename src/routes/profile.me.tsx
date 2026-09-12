@@ -1,25 +1,23 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { MapPin } from "lucide-react";
+import { Check, Pencil, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import type { MyProfile, PrivacySettings, ProfileIntent } from "@/api";
-import { Avatar, Card, Chip, Select } from "@/components/ds";
+import { Button, Card, Chip, Input, Select, TextArea } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { AppShell } from "@/components/layout/AppShell";
+import { badgeLevel } from "@/features/chat/trust";
 import { IntentCard, intentOptions } from "@/features/profile/components/IntentCard";
-import { InlineEditable, InlineTextField } from "@/features/profile/components/InlineEdit";
-import { MediaManager } from "@/features/profile/components/MediaManager";
 import { PrivacySection } from "@/features/profile/components/PrivacySection";
-import { ProfileCollapseToggle } from "@/features/profile/components/ProfileCollapseToggle";
+import { ProfileHero } from "@/features/profile/components/ProfileHero";
 import { ProfilePanel } from "@/features/profile/components/ProfilePanel";
-import { ProfileSection } from "@/features/profile/components/ProfileSection";
 import { TagEditor } from "@/features/profile/components/TagEditor";
 import { TrustBadgeExplained } from "@/features/profile/components/TrustBadgeExplained";
 import { TrustStatsSection } from "@/features/profile/components/TrustStatsSection";
 import { VerificationSection } from "@/features/profile/components/VerificationSection";
 import { useMyProfile, useUpdateMyProfile } from "@/features/profile/hooks";
-import { useProfileCollapse } from "@/features/profile/hooks/useProfileCollapse";
+import { useMediaActions } from "@/features/profile/hooks/useMediaActions";
 
 export const Route = createFileRoute("/profile/me")({
   head: () => ({
@@ -28,7 +26,7 @@ export const Route = createFileRoute("/profile/me")({
       {
         name: "description",
         content:
-          "Своя личная страница в «Я Онлайн»: инлайн-редактирование, настройки приватности, статус верификации и личная статистика доверия.",
+          "Своя личная страница в «Я Онлайн»: редактирование в один клик, настройки приватности, статус верификации и личная статистика доверия.",
       },
       { property: "og:title", content: "Мой профиль — Я Онлайн" },
       {
@@ -42,19 +40,22 @@ export const Route = createFileRoute("/profile/me")({
   component: MyProfilePage,
 });
 
+type Draft = {
+  name: string;
+  age: string;
+  city: string;
+  bio: string;
+  intent: ProfileIntent;
+  intentNote: string;
+};
+
 function MyProfilePage() {
   const { data, isPending, isError } = useMyProfile();
   const update = useUpdateMyProfile();
   const navigate = useNavigate();
-  const { collapsed, toggle } = useProfileCollapse();
+  const media = useMediaActions(data?.media ?? []);
 
-  const [editingIntent, setEditingIntent] = useState(false);
-  const [intentDraft, setIntentDraft] = useState<ProfileIntent>("serious");
-  const [intentNote, setIntentNote] = useState("");
-
-  const primaryPhoto =
-    data?.media.find((item) => item.kind === "photo" && item.isPrimary) ??
-    data?.media.find((item) => item.kind === "photo");
+  const [draft, setDraft] = useState<Draft | null>(null);
 
   const patch = (next: Partial<MyProfile>) => update.mutate(next);
   const patchPrivacy = (next: Partial<PrivacySettings>) => {
@@ -70,203 +71,214 @@ function MyProfilePage() {
     }
   };
 
+  const startEdit = () => {
+    if (!data) return;
+    setDraft({
+      name: data.name,
+      age: String(data.age),
+      city: data.city,
+      bio: data.bio,
+      intent: data.intent,
+      intentNote: data.intentNote,
+    });
+  };
+
+  const save = () => {
+    if (!draft) return;
+    const age = Number.parseInt(draft.age, 10);
+    if (!Number.isFinite(age) || age < 18 || age > 120) {
+      toast.error("Возраст указывается числом от 18 до 120");
+      return;
+    }
+    if (draft.name.trim().length < 2) {
+      toast.error("Имя не может быть пустым");
+      return;
+    }
+    update.mutate(
+      {
+        name: draft.name.trim(),
+        age,
+        city: draft.city.trim(),
+        bio: draft.bio.trim(),
+        intent: draft.intent,
+        intentNote: draft.intentNote.trim(),
+      },
+      {
+        onSuccess: () => {
+          setDraft(null);
+          toast.success("Профиль обновлён");
+        },
+      },
+    );
+  };
+
   return (
     <AppShell>
       {isPending ? <p className="text-sm text-muted-foreground">Загружаем профиль…</p> : null}
       {isError ? <p className="text-sm text-destructive">Не удалось открыть профиль</p> : null}
 
       {data ? (
-        <div className="pb-8">
-          <Reveal delay={80} as="header" className="mt-5">
-            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
-              <Avatar
-                name={data.name}
-                src={primaryPhoto?.url ?? null}
-                size="lg"
-                verified={data.verification === "verified"}
-              />
-              <div className="min-w-0">
-                <InlineTextField
+        <div className="pb-10">
+          <Reveal delay={60} className="mt-4">
+            <ProfileHero
+              media={data.media}
+              name={draft ? draft.name : data.name}
+              age={draft ? Number.parseInt(draft.age, 10) || data.age : data.age}
+              city={draft ? draft.city : data.city}
+              trustLevel={badgeLevel(data.trustLevel)}
+              onUpload={media.upload}
+              onDelete={media.remove}
+              onPrimary={media.makePrimary}
+              uploadDisabled={media.full}
+              uploadHint={media.hint}
+              progress={media.progress}
+              busy={media.busy}
+            />
+            <p className="mt-2 px-1 text-xs text-muted-foreground">{media.hint}</p>
+
+            {draft ? (
+              <Card className="mt-3 space-y-3 p-4">
+                <Input
                   label="Как тебя зовут"
-                  value={data.name}
-                  saving={update.isPending}
-                  onSave={(name) => patch({ name })}
-                  renderValue={(name) => (
-                    <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">
-                      {name}
-                    </h1>
-                  )}
+                  value={draft.name}
+                  onChange={(event) => setDraft({ ...draft, name: event.target.value })}
                 />
-                <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <InlineTextField
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input
                     label="Возраст"
-                    value={String(data.age)}
-                    saving={update.isPending}
-                    onSave={(age) => {
-                      const parsed = Number.parseInt(age, 10);
-                      if (Number.isFinite(parsed) && parsed >= 18) patch({ age: parsed });
-                    }}
-                    renderValue={(age) => (
-                      <p className="text-sm text-muted-foreground">{age} лет</p>
-                    )}
+                    inputMode="numeric"
+                    value={draft.age}
+                    onChange={(event) => setDraft({ ...draft, age: event.target.value })}
                   />
-                  <InlineTextField
+                  <Input
                     label="Город"
-                    value={data.city}
-                    saving={update.isPending}
-                    onSave={(city) => patch({ city })}
-                    renderValue={(city) => (
-                      <p className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
-                        <span className="truncate">{city}</span>
-                      </p>
-                    )}
+                    value={draft.city}
+                    onChange={(event) => setDraft({ ...draft, city: event.target.value })}
                   />
                 </div>
-              </div>
-            </div>
-            <div className="mt-4">
-              <TrustBadgeExplained level={data.trustLevel} details={data.trust} />
-            </div>
-          </Reveal>
-
-          <div className="mt-6 flex items-center justify-between gap-4 border-t pt-4">
-            <ProfileCollapseToggle collapsed={collapsed} onToggle={toggle} />
-          </div>
-
-          {!collapsed && (
-            <div id="profile-collapsible-content">
-              {/* Отдельной крупной карусели нет: галерея и управление живут в
-                  одном блоке, чтобы фото не дублировались на мобильном. */}
-              <Reveal delay={40}>
-                <MediaManager media={data.media} />
-              </Reveal>
-
-              <ProfileSection title="О себе" delay={60}>
-                <InlineTextField
-                  label="Расскажи о себе"
-                  value={data.bio}
-                  multiline
-                  saving={update.isPending}
-                  onSave={(bio) => patch({ bio })}
-                  renderValue={(bio) => (
-                    <p className="max-w-2xl text-base leading-loose text-muted-foreground">{bio}</p>
-                  )}
+                <TextArea
+                  label="О себе"
+                  value={draft.bio}
+                  onChange={(event) => setDraft({ ...draft, bio: event.target.value })}
                 />
-              </ProfileSection>
-
-              <ProfileSection title="Ищу" delay={60}>
-                <InlineEditable
-                  editing={editingIntent}
-                  saving={update.isPending}
-                  onEdit={() => {
-                    setIntentDraft(data.intent);
-                    setIntentNote(data.intentNote);
-                    setEditingIntent(true);
-                  }}
-                  onCancel={() => setEditingIntent(false)}
-                  onSave={() => {
-                    patch({ intent: intentDraft, intentNote: intentNote.trim() });
-                    setEditingIntent(false);
-                  }}
-                  view={<IntentCard intent={data.intent} note={data.intentNote} />}
-                  form={
-                    <div className="space-y-3">
-                      <Select
-                        label="Намерение"
-                        value={intentDraft}
-                        options={intentOptions}
-                        onChange={(event) => setIntentDraft(event.target.value as ProfileIntent)}
-                      />
-                      <InlineTextFieldless value={intentNote} onChange={setIntentNote} />
-                    </div>
+                <Select
+                  label="Ищу"
+                  value={draft.intent}
+                  options={intentOptions}
+                  onChange={(event) =>
+                    setDraft({ ...draft, intent: event.target.value as ProfileIntent })
                   }
                 />
-              </ProfileSection>
-
-              <ProfilePanel
-                title="Интересы"
-                hint={`${data.interests.length}`}
-                defaultOpen
-                className="mt-6"
-              >
-                <TagEditor
-                  items={data.interests}
-                  label="Новый интерес"
-                  addLabel="Добавить"
-                  saving={update.isPending}
-                  onSave={(interests) => patch({ interests })}
+                <TextArea
+                  label="Пара слов о том, кого ты ищешь"
+                  rows={3}
+                  value={draft.intentNote}
+                  onChange={(event) => setDraft({ ...draft, intentNote: event.target.value })}
                 />
+                <div className="flex items-center gap-2">
+                  <Button className="flex-1" onClick={save} disabled={update.isPending}>
+                    <Check className="size-4" aria-hidden="true" />
+                    {update.isPending ? "Сохраняем…" : "Сохранить"}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    onClick={() => setDraft(null)}
+                    disabled={update.isPending}
+                  >
+                    <X className="size-4" aria-hidden="true" />
+                    Отмена
+                  </Button>
+                </div>
+              </Card>
+            ) : (
+              <Button variant="secondary" className="mt-3 w-full" onClick={startEdit}>
+                <Pencil className="size-4" aria-hidden="true" />
+                Редактировать профиль
+              </Button>
+            )}
+          </Reveal>
+
+          {!draft ? (
+            <>
+              <ProfilePanel title="О себе" defaultOpen storageKey="me-about" className="mt-5">
+                <p className="max-w-2xl text-base leading-loose text-muted-foreground">
+                  {data.bio || "Пока пусто — расскажи о себе через «Редактировать профиль»."}
+                </p>
               </ProfilePanel>
 
-              <ProfilePanel title="Что важно" hint={`${data.values.length}`}>
-                <TagEditor
-                  items={data.values}
-                  label="Что для тебя важно"
-                  addLabel="Добавить"
-                  variant="outline"
-                  saving={update.isPending}
-                  onSave={(values) => patch({ values })}
-                />
+              <ProfilePanel title="Ищу" defaultOpen storageKey="me-intent">
+                <IntentCard intent={data.intent} note={data.intentNote} />
               </ProfilePanel>
+            </>
+          ) : null}
 
-              <ProfilePanel
-                title="Настройки приватности"
-                description="Ты решаешь, что видно другим и кто может к тебе обратиться."
-              >
-                <PrivacySection privacy={data.privacy} onChange={patchPrivacy} />
-              </ProfilePanel>
+          <ProfilePanel
+            title="Интересы"
+            hint={`${data.interests.length}`}
+            storageKey="me-interests"
+          >
+            <TagEditor
+              items={data.interests}
+              label="Новый интерес"
+              addLabel="Добавить"
+              saving={update.isPending}
+              onSave={(interests) => patch({ interests })}
+            />
+          </ProfilePanel>
 
-              <ProfilePanel
-                title="Верификация"
-                description="Подтверждение по видео — основа доверия в «Я Онлайн»."
-                hint={data.verification === "verified" ? "Подтверждён" : "Не пройдена"}
-                defaultOpen={data.verification !== "verified"}
-              >
-                <VerificationSection
-                  status={data.verification}
-                  onStart={() => void navigate({ to: "/verification" })}
-                />
-              </ProfilePanel>
+          <ProfilePanel title="Что важно" hint={`${data.values.length}`} storageKey="me-values">
+            <TagEditor
+              items={data.values}
+              label="Что для тебя важно"
+              addLabel="Добавить"
+              variant="outline"
+              saving={update.isPending}
+              onSave={(values) => patch({ values })}
+            />
+          </ProfilePanel>
 
-              <ProfilePanel
-                title="Только для тебя"
-                description="Личная статистика доверия — её не видит никто, кроме тебя."
-              >
-                <TrustStatsSection stats={data.stats} />
-              </ProfilePanel>
+          <ProfilePanel title="Доверие" storageKey="me-trust">
+            <TrustBadgeExplained level={data.trustLevel} details={data.trust} />
+          </ProfilePanel>
 
-              <Reveal as="footer" className="mt-6">
-                <Card className="p-4 text-sm leading-relaxed text-muted-foreground">
-                  Это твоя личная страница, а не витрина. Здесь нет рейтингов и мест в списке —
-                  только то, что ты сам решил рассказать. И <Chip size="sm">интересы</Chip> помогают
-                  AI искать людей рядом по смыслу.
-                </Card>
-              </Reveal>
-            </div>
-          )}
+          <ProfilePanel
+            title="Настройки приватности"
+            description="Ты решаешь, что видно другим и кто может к тебе обратиться."
+            storageKey="me-privacy"
+          >
+            <PrivacySection privacy={data.privacy} onChange={patchPrivacy} />
+          </ProfilePanel>
+
+          <ProfilePanel
+            title="Верификация"
+            description="Подтверждение по видео — основа доверия в «Я Онлайн»."
+            hint={data.verification === "verified" ? "Подтверждён" : "Не пройдена"}
+            defaultOpen={data.verification !== "verified"}
+            storageKey="me-verification"
+          >
+            <VerificationSection
+              status={data.verification}
+              onStart={() => void navigate({ to: "/verification" })}
+            />
+          </ProfilePanel>
+
+          <ProfilePanel
+            title="Только для тебя"
+            description="Личная статистика доверия — её не видит никто, кроме тебя."
+            storageKey="me-stats"
+          >
+            <TrustStatsSection stats={data.stats} />
+          </ProfilePanel>
+
+          <Reveal as="footer" className="mt-5">
+            <Card className="p-4 text-sm leading-relaxed text-muted-foreground">
+              Это твоя личная страница, а не витрина. Здесь нет рейтингов и мест в списке — только
+              то, что ты сам решил рассказать. И <Chip size="sm">интересы</Chip> помогают AI искать
+              людей рядом по смыслу.
+            </Card>
+          </Reveal>
         </div>
       ) : null}
     </AppShell>
-  );
-}
-
-/** Свободный текст для намерения внутри формы. */
-function InlineTextFieldless({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (next: string) => void;
-}) {
-  return (
-    <textarea
-      rows={3}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      aria-label="Пара слов о том, кого ты ищешь"
-      placeholder="Пара слов о том, кого ты ищешь"
-      className="w-full rounded-2xl border border-input bg-card px-4 py-3 text-sm leading-relaxed outline-none transition-colors focus:border-primary focus:ring-4 focus:ring-primary/12"
-    />
   );
 }
