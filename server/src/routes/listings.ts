@@ -22,6 +22,13 @@ import { query, queryOne, transaction } from "../db.ts";
 import { badRequest, forbidden, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { notifyListingMatches } from "../listings/notify.ts";
+import {
+  MAX_LISTING_PHOTOS,
+  MAX_PHOTO_BYTES,
+  assertSize,
+  detectMediaType,
+  saveListingFile,
+} from "../media/store.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 
 // Порядок значений совпадает с enum need_category в БД (миграции 005 и 008).
