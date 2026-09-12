@@ -15,6 +15,7 @@ import { env } from "../env.ts";
 import { badRequest } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { toUserDto, type ProfileRow } from "../types.ts";
+import { sendPushToUser } from "../push/send.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 
 /** Начало следующих суток в UTC — время обновления подборки. */
@@ -279,6 +280,19 @@ export async function matchingRoutes(app: FastifyInstance) {
                 readAt: null,
                 createdAt: created.created_at.toISOString(),
               },
+            });
+          }
+
+          const prefs = await queryOne<{ matches: boolean }>(
+            "SELECT COALESCE(matches, true) AS matches FROM notification_prefs WHERE user_id = $1",
+            [person.user_id],
+          );
+          if (!prefs || prefs.matches) {
+            await sendPushToUser(person.user_id, {
+              title: "Совпадение!",
+              body: `Вы понравились друг другу с ${payload.withName}`,
+              url: `/chat/${result.conversationId}`,
+              tag: `match-${result.conversationId}`,
             });
           }
         }

@@ -82,6 +82,13 @@ const schema = z.object({
 
   // Аудит доступа к /api/admin/*: отдельный файл, только метаданные запросов.
   ADMIN_LOG_FILE: z.string().default("logs/admin-audit.log"),
+
+  // ── Push-уведомления (Web Push, VAPID) ────────────────────────────────────
+  // Ключи генерирует владелец сервера: npx web-push generate-vapid-keys.
+  // Пусто — пуши просто не отправляются, остальное работает как обычно.
+  VAPID_PUBLIC_KEY: z.string().default(""),
+  VAPID_PRIVATE_KEY: z.string().default(""),
+  VAPID_SUBJECT: z.string().default("mailto:admin@localhost"),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -105,5 +112,8 @@ export const env = {
     parsed.data.JWT_ADMIN_SECRET.length >= 32 && parsed.data.TOTP_ENCRYPTION_KEY.length >= 32,
   redisEnabled: parsed.data.REDIS_HOST.length > 0,
   captchaEnabled: parsed.data.YANDEX_CAPTCHA_SECRET.length > 0,
+  // Пуши отправляются только когда заданы оба ключа VAPID.
+  pushEnabled:
+    parsed.data.VAPID_PUBLIC_KEY.length > 0 && parsed.data.VAPID_PRIVATE_KEY.length > 0,
 };
 

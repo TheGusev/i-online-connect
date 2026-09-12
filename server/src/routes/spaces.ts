@@ -22,6 +22,7 @@ import {
   detectMediaType,
   saveProfileFile,
 } from "../media/store.ts";
+import { sendPushToUsers } from "../push/send.ts";
 
 const idParam = z.object({ id: z.string().uuid() });
 
@@ -331,6 +332,40 @@ export async function spaceRoutes(app: FastifyInstance) {
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [id, draft.title, draft.startsAt, draft.place, draft.description, userId],
       );
+
+      // Пуш участникам сообщества (кроме организатора и демо-профилей),
+      // если переключатель «Приглашения в Spaces» включён.
+      try {
+        const members = await query<{ user_id: string }>(
+          `SELECT m.user_id
+             FROM space_members m
+             JOIN profiles p ON p.user_id = m.user_id
+             JOIN users u    ON u.id = m.user_id
+             LEFT JOIN notification_prefs np ON np.user_id = m.user_id
+            WHERE m.space_id = $1
+              AND m.user_id <> $2
+              AND m.status IN ('member', 'host')
+              AND p.is_seed = false
+              AND u.deleted_at IS NULL
+              AND COALESCE(np.spaces, true) = true
+            LIMIT 500`,
+          [id, userId],
+        );
+        const space = await queryOne<{ title: string }>("SELECT title FROM spaces WHERE id = $1", [
+          id,
+        ]);
+        await sendPushToUsers(
+          members.map((member) => member.user_id),
+          {
+            title: `Новая встреча${space?.title ? ` в «${space.title}»` : ""}`,
+            body: draft.place ? `${draft.title} — ${draft.place}` : draft.title,
+            url: `/spaces/${id}`,
+            tag: `space-${id}`,
+          },
+        );
+      } catch (error) {
+        console.error("[spaces] пуш о новой встрече", error);
+      }
 
       return loadSpaceDetail(id, userId);
     },

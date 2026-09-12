@@ -560,3 +560,25 @@ ssh deploy@example.com '
 Что пишется в журналы: попытки входа — таблица `admin_login_attempts`,
 действия модератора — `admin_actions` + `logs/admin-audit.log`, все ответы
 429/403 — `logs/abuse.log`.
+
+## Push-уведомления на телефон (Web Push)
+
+1. Примените миграцию: `cd /var/www/ya-online/server && npm run migrate`
+   (добавит таблицу `push_subscriptions` из `013_push_subscriptions.sql`).
+2. Один раз сгенерируйте пару ключей: `npx web-push generate-vapid-keys`.
+3. Впишите их в `server/.env` (и в `.env.production`):
+
+   ```
+   VAPID_PUBLIC_KEY=...
+   VAPID_PRIVATE_KEY=...
+   VAPID_SUBJECT=mailto:admin@ваш-домен
+   ```
+
+   Пока значения пустые, пуши просто не отправляются — сервер работает как обычно.
+4. Перезапустите backend: `pm2 restart ya-online-api`.
+5. Nginx должен раздавать с корня файлы `sw.js` и `manifest.webmanifest`
+   (они лежат в `dist/static`, отдельной настройки не нужно, но `sw.js`
+   не кешируйте: `add_header Cache-Control "no-cache";` для `location = /sw.js`).
+6. iPhone: уведомления приходят только если сайт добавлен на экран «Домой»
+   (Safari → «Поделиться» → «На экран Домой»), iOS 16.4 и новее. Это
+   ограничение Apple. В настройках приложения об этом есть подсказка.
