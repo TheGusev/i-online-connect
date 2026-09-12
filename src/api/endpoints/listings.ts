@@ -16,7 +16,7 @@ export async function uploadListingPhoto(
 ): Promise<ListingPhoto> {
   const form = new FormData();
   form.append("file", file, fileName ?? file.name);
-  return upload<ListingPhoto>("/listings/media", form, { onProgress });
+  return upload<ListingPhoto>("/listings/media", form, onProgress ?? (() => undefined));
 }
 
 /** Поиск объявлений. Без city сервер подставит город из профиля. */
