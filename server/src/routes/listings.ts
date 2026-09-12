@@ -22,6 +22,13 @@ import { query, queryOne, transaction } from "../db.ts";
 import { badRequest, forbidden, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { notifyListingMatches } from "../listings/notify.ts";
+import {
+  MAX_LISTING_PHOTOS,
+  MAX_PHOTO_BYTES,
+  assertSize,
+  detectMediaType,
+  saveListingFile,
+} from "../media/store.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 
 // Порядок значений совпадает с enum need_category в БД (миграции 005 и 008).
@@ -82,7 +89,7 @@ const createSchema = z.object({
   priceMinor: z.number().int().min(0).max(1_000_000_000).nullish(),
   city: z.string().trim().min(2).max(120).optional(),
   district: z.string().trim().max(120).optional(),
-  mediaIds: z.array(z.string().uuid()).max(6).optional(),
+  mediaIds: z.array(z.string().uuid()).max(MAX_LISTING_PHOTOS).optional(),
   expiresInDays: z.number().int().min(1).max(90).optional(),
 });
 
@@ -92,7 +99,7 @@ const patchSchema = z.object({
   priceMinor: z.number().int().min(0).max(1_000_000_000).nullish(),
   district: z.string().trim().max(120).optional(),
   state: z.enum(["active", "closed"]).optional(),
-  mediaIds: z.array(z.string().uuid()).max(6).optional(),
+  mediaIds: z.array(z.string().uuid()).max(MAX_LISTING_PHOTOS).optional(),
 });
 
 const LISTING_SELECT = `
@@ -105,9 +112,10 @@ const LISTING_SELECT = `
            WHERE user_id = l.author_id AND kind = 'photo'
            ORDER BY is_primary DESC, position LIMIT 1) AS author_avatar,
          ARRAY(
-           SELECT m.url FROM listing_media lm
-             JOIN profile_media m ON m.id = lm.media_id
-            WHERE lm.listing_id = l.id
+           SELECT COALESCE(f.url, m.url) FROM listing_media lm
+             LEFT JOIN profile_media m  ON m.id = lm.media_id
+             LEFT JOIN listing_files f  ON f.id = lm.file_id
+            WHERE lm.listing_id = l.id AND COALESCE(f.url, m.url) IS NOT NULL
             ORDER BY lm.position
          ) AS photos,
          (SELECT count(*) FROM listing_responses r WHERE r.listing_id = l.id)::int AS responses_count,
@@ -177,27 +185,68 @@ async function assertOwnListing(listingId: string, userId: string) {
   if (row.author_id !== userId) throw forbidden("Это объявление другого человека");
 }
 
-/** Привязка фото: только свои файлы из profile_media. */
+/**
+ * Привязка фото к объявлению.
+ *
+ * Новые снимки приходят из listing_files (POST /api/listings/media) и в галерею
+ * профиля не попадают. Старые клиенты могут прислать id из profile_media —
+ * такие ссылки продолжаем поддерживать, чтобы прежние объявления не потеряли фото.
+ */
 async function attachMedia(listingId: string, userId: string, mediaIds: string[]) {
   await query("DELETE FROM listing_media WHERE listing_id = $1", [listingId]);
   if (mediaIds.length === 0) return;
-  const owned = await query<{ id: string }>(
+
+  const files = await query<{ id: string }>(
+    "SELECT id FROM listing_files WHERE user_id = $1 AND id = ANY($2::uuid[])",
+    [userId, mediaIds],
+  );
+  const fileIds = new Set(files.map((row) => row.id));
+
+  const legacy = await query<{ id: string }>(
     "SELECT id FROM profile_media WHERE user_id = $1 AND kind = 'photo' AND id = ANY($2::uuid[])",
     [userId, mediaIds],
   );
-  const ownedIds = new Set(owned.map((row) => row.id));
-  const ordered = mediaIds.filter((id) => ownedIds.has(id));
-  for (const [index, mediaId] of ordered.entries()) {
+  const legacyIds = new Set(legacy.map((row) => row.id));
+
+  const ordered = mediaIds.filter((id) => fileIds.has(id) || legacyIds.has(id));
+  for (const [index, id] of ordered.entries()) {
     await query(
-      `INSERT INTO listing_media (listing_id, media_id, position)
-       VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-      [listingId, mediaId, index],
+      `INSERT INTO listing_media (listing_id, media_id, file_id, position)
+       VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+      [listingId, fileIds.has(id) ? null : id, fileIds.has(id) ? id : null, index],
     );
   }
 }
 
 export async function listingRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
+
+  // ── Фото объявления ──────────────────────────────────────────────────────
+  // Отдельный эндпоинт: снимки объявления не должны появляться в профиле.
+  app.post(
+    "/media",
+    { config: { rateLimit: { max: 60, timeWindow: "1 hour" } } },
+    async (request) => {
+      const userId = currentUserId(request);
+      const part = await request.file({ limits: { fileSize: MAX_PHOTO_BYTES } });
+      if (!part) throw badRequest("Файл не получен");
+
+      const buffer = await part.toBuffer();
+      const type = detectMediaType(buffer);
+      if (!type || type.kind !== "photo") throw badRequest("К объявлению можно приложить только фото JPEG/PNG/WebP");
+      assertSize(type, buffer.length);
+
+      const { url } = await saveListingFile(userId, buffer, type);
+      const row = await queryOne<{ id: string; created_at: Date }>(
+        "INSERT INTO listing_files (user_id, url) VALUES ($1, $2) RETURNING id, created_at",
+        [userId, url],
+      );
+      if (!row) throw badRequest("Не удалось сохранить фото");
+
+      return { id: row.id, kind: "photo" as const, url, createdAt: row.created_at.toISOString() };
+    },
+  );
+
 
   // ── Категории жизненных потребностей ─────────────────────────────────────
   app.get("/needs", async (request) => {

@@ -3,7 +3,8 @@ import { ImagePlus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { mediaApi, type NeedCategory, type ProfileMedia } from "@/api";
+import { listingsApi, type NeedCategory } from "@/api";
+import type { ListingPhoto } from "@/api/endpoints/listings";
 import { Button, Input, Select, TextArea } from "@/components/ds";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { CategoryChips } from "@/features/nearby/components/CategoryChips";
@@ -41,7 +42,7 @@ function NewListingPage() {
   const [price, setPrice] = useState("");
   const [district, setDistrict] = useState("");
   const [days, setDays] = useState("7");
-  const [photos, setPhotos] = useState<ProfileMedia[]>([]);
+  const [photos, setPhotos] = useState<ListingPhoto[]>([]);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
 
@@ -52,7 +53,8 @@ function NewListingPage() {
     setUploading(true);
     setProgress(0);
     try {
-      const media = await mediaApi.uploadMedia(file, file.name, setProgress);
+      // Фото объявления грузим в отдельное хранилище — в профиль оно не попадёт.
+      const media = await listingsApi.uploadListingPhoto(file, file.name, setProgress);
       setPhotos((prev) => [...prev, media]);
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "Не удалось загрузить фото");

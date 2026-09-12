@@ -1,4 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
 
 import { profileApi, type MyProfile } from "@/api";
 
@@ -35,6 +37,12 @@ export function useUpdateMyProfile() {
     onSuccess: (profile) => {
       queryClient.setQueryData(["my-profile"], profile);
       queryClient.setQueryData(["profile-detail", "me"], profile);
+      // Свежие данные нужны и в ленте, и на публичной странице профиля.
+      void queryClient.invalidateQueries({ queryKey: ["profile"] });
+      void queryClient.invalidateQueries({ queryKey: ["profile-detail"] });
+    },
+    onError: () => {
+      toast.error("Не получилось сохранить изменения — попробуйте ещё раз");
     },
   });
 }

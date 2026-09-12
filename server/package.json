@@ -14,7 +14,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "seed": "node scripts/seed-demo.mjs",
     "seed:clear": "node scripts/clear-seed.mjs",
-    "seed:refresh": "node --experimental-strip-types src/seed/refresh.ts"
+    "seed:refresh": "node --experimental-strip-types src/seed/refresh.ts",
+    "split-listing-media": "node scripts/split-listing-media.mjs"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
