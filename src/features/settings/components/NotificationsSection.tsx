@@ -32,6 +32,43 @@ const channels: { id: NotificationChannel; title: string; description: string }[
   },
 ];
 
+/**
+ * «На устройство» — push-уведомления через браузер. На iPhone работают только
+ * после добавления сайта на экран «Домой» (ограничение Apple, iOS 16.4+).
+ */
+function PushRow() {
+  const { state, busy, toggle } = usePushSubscription();
+
+  const hint = () => {
+    if (state === "needs-install")
+      return "На iPhone уведомления приходят, только если открыть меню «Поделиться» в Safari и выбрать «На экран Домой». После этого включите переключатель здесь.";
+    if (state === "denied")
+      return "Уведомления запрещены в настройках браузера для этого сайта — разрешите их и вернитесь сюда.";
+    if (state === "unsupported") return "Этот браузер не умеет присылать уведомления на устройство.";
+    if (state === "unavailable") return "Уведомления на устройство пока не настроены на сервере.";
+    return "Приходят, даже когда приложение закрыто: новые сообщения, встречи в сообществах и совпадения.";
+  };
+
+  const blocked =
+    state === "loading" ||
+    state === "needs-install" ||
+    state === "denied" ||
+    state === "unsupported" ||
+    state === "unavailable";
+
+  return (
+    <Card className="px-6 py-2">
+      <ToggleRow
+        title="Push-уведомления на устройство"
+        description={hint()}
+        checked={state === "on"}
+        disabled={blocked || busy}
+        onChange={(next) => void toggle(next)}
+      />
+    </Card>
+  );
+}
+
 /** Уведомления: по одному переключателю на тип события. */
 export function NotificationsSection({ notifications }: { notifications: NotificationSettings }) {
   const update = useUpdateNotifications();
