@@ -23,6 +23,7 @@ import {
   saveProfileFile,
 } from "../media/store.ts";
 import { sendPushToUsers } from "../push/send.ts";
+import { publishUserEvent } from "../ws/notifications.ts";
 
 const idParam = z.object({ id: z.string().uuid() });
 
@@ -327,11 +328,12 @@ export async function spaceRoutes(app: FastifyInstance) {
       );
       if (!isHost) throw forbidden("Встречи создаёт только организатор сообщества");
 
-      await query(
+      const createdEvent = await queryOne<{ id: string; created_at: Date }>(
         `INSERT INTO space_events (space_id, title, starts_at, place, description, created_by)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, created_at`,
         [id, draft.title, draft.startsAt, draft.place, draft.description, userId],
       );
+      if (!createdEvent) throw new Error("space event insert failed");
 
       // Пуш участникам сообщества (кроме организатора и демо-профилей),
       // если переключатель «Приглашения в Spaces» включён.
@@ -354,13 +356,39 @@ export async function spaceRoutes(app: FastifyInstance) {
         const space = await queryOne<{ title: string }>("SELECT title FROM spaces WHERE id = $1", [
           id,
         ]);
+        const payload = {
+          spaceId: id,
+          eventId: createdEvent.id,
+          spaceTitle: space?.title ?? "Пространство",
+          title: draft.title,
+          place: draft.place,
+        };
+        for (const member of members) {
+          const notification = await queryOne<{ id: string; created_at: Date }>(
+            `INSERT INTO notifications (user_id, kind, payload)
+             VALUES ($1, 'space_event', $2::jsonb) RETURNING id, created_at`,
+            [member.user_id, JSON.stringify(payload)],
+          );
+          if (notification) {
+            publishUserEvent(member.user_id, {
+              type: "notification",
+              notification: {
+                id: notification.id,
+                kind: "space_event",
+                payload,
+                readAt: null,
+                createdAt: notification.created_at.toISOString(),
+              },
+            });
+          }
+        }
         await sendPushToUsers(
           members.map((member) => member.user_id),
           {
             title: `Новая встреча${space?.title ? ` в «${space.title}»` : ""}`,
             body: draft.place ? `${draft.title} — ${draft.place}` : draft.title,
-            url: `/spaces/${id}`,
-            tag: `space-${id}`,
+            url: `/spaces/${id}?eventId=${createdEvent.id}`,
+            tag: `space-event-${createdEvent.id}`,
           },
         );
       } catch (error) {
