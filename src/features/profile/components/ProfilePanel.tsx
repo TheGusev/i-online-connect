@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 
 import { Card } from "@/components/ds";
 import { cn } from "@/lib/utils";
@@ -9,12 +9,15 @@ import { cn } from "@/lib/utils";
  *
  * Второстепенные блоки (приватность, верификация, статистика) свёрнуты по
  * умолчанию — это и сокращает скролл, и оставляет всю функциональность на месте.
+ * Если передан `storageKey`, состояние блока запоминается в браузере: читаем его
+ * уже после гидратации, чтобы разметка сервера и клиента совпадала.
  */
 export function ProfilePanel({
   title,
   description,
   hint,
   defaultOpen = false,
+  storageKey,
   children,
   className,
 }: {
@@ -23,11 +26,38 @@ export function ProfilePanel({
   /** Короткое значение справа в заголовке — видно и в свёрнутом виде. */
   hint?: ReactNode;
   defaultOpen?: boolean;
+  /** Ключ для запоминания открытости блока между визитами. */
+  storageKey?: string;
   children: ReactNode;
   className?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const id = useId();
+
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      const stored = window.localStorage.getItem(`profile-panel:${storageKey}`);
+      if (stored === "open") setOpen(true);
+      if (stored === "closed") setOpen(false);
+    } catch {
+      // приватный режим браузера — просто оставляем значение по умолчанию
+    }
+  }, [storageKey]);
+
+  const toggle = () => {
+    setOpen((prev) => {
+      const next = !prev;
+      if (storageKey) {
+        try {
+          window.localStorage.setItem(`profile-panel:${storageKey}`, next ? "open" : "closed");
+        } catch {
+          // ничего не делаем: запоминание — приятный бонус, а не требование
+        }
+      }
+      return next;
+    });
+  };
 
   return (
     <Card className={cn("mt-3 overflow-hidden p-0", className)}>
