@@ -121,6 +121,7 @@ Refresh-токен ставится в httpOnly-cookie `ya_refresh` (path `/api/
 | GET | `/spaces/:id` | — | `SpaceDetail` |
 | POST | `/spaces/:id/join` | `{ answer? }` | `SpaceDetail` |
 | POST | `/spaces/:id/leave` | — | `SpaceDetail` |
+| POST | `/spaces/:id/events` | `{ title, startsAt, place?, description? }` — только организатор, 20 в час | `SpaceDetail` |
 | POST | `/spaces/:id/events/:eventId/rsvp` | `{ going: boolean }` | `SpaceDetail` |
 | GET | `/spaces/:id/messages` | — | `SpaceMessage[]` |
 | POST | `/spaces/:id/messages` | `{ text }` | `SpaceMessage` |
