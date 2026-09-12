@@ -335,11 +335,11 @@ export async function spaceRoutes(app: FastifyInstance) {
       );
       if (!createdEvent) throw new Error("space event insert failed");
 
-      // Пуш участникам сообщества (кроме организатора и демо-профилей),
-      // если переключатель «Приглашения в Spaces» включён.
+      // Историю получают все реальные участники, а push — только те, кто
+      // оставил включённым канал «Приглашения в Spaces».
       try {
-        const members = await query<{ user_id: string }>(
-          `SELECT m.user_id
+        const members = await query<{ user_id: string; push_enabled: boolean }>(
+          `SELECT m.user_id, COALESCE(np.spaces, true) AS push_enabled
              FROM space_members m
              JOIN profiles p ON p.user_id = m.user_id
              JOIN users u    ON u.id = m.user_id
@@ -348,8 +348,7 @@ export async function spaceRoutes(app: FastifyInstance) {
               AND m.user_id <> $2
               AND m.status IN ('member', 'host')
               AND p.is_seed = false
-              AND u.deleted_at IS NULL
-              AND COALESCE(np.spaces, true) = true
+               AND u.deleted_at IS NULL
             LIMIT 500`,
           [id, userId],
         );
@@ -383,7 +382,7 @@ export async function spaceRoutes(app: FastifyInstance) {
           }
         }
         await sendPushToUsers(
-          members.map((member) => member.user_id),
+          members.filter((member) => member.push_enabled).map((member) => member.user_id),
           {
             title: `Новая встреча${space?.title ? ` в «${space.title}»` : ""}`,
             body: draft.place ? `${draft.title} — ${draft.place}` : draft.title,
