@@ -3,7 +3,8 @@ import { ImagePlus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { mediaApi, type NeedCategory, type ProfileMedia } from "@/api";
+import { listingsApi, type NeedCategory } from "@/api";
+import type { ListingPhoto } from "@/api/endpoints/listings";
 import { Button, Input, Select, TextArea } from "@/components/ds";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { CategoryChips } from "@/features/nearby/components/CategoryChips";
