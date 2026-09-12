@@ -89,7 +89,7 @@ const createSchema = z.object({
   priceMinor: z.number().int().min(0).max(1_000_000_000).nullish(),
   city: z.string().trim().min(2).max(120).optional(),
   district: z.string().trim().max(120).optional(),
-  mediaIds: z.array(z.string().uuid()).max(6).optional(),
+  mediaIds: z.array(z.string().uuid()).max(MAX_LISTING_PHOTOS).optional(),
   expiresInDays: z.number().int().min(1).max(90).optional(),
 });
 
@@ -99,7 +99,7 @@ const patchSchema = z.object({
   priceMinor: z.number().int().min(0).max(1_000_000_000).nullish(),
   district: z.string().trim().max(120).optional(),
   state: z.enum(["active", "closed"]).optional(),
-  mediaIds: z.array(z.string().uuid()).max(6).optional(),
+  mediaIds: z.array(z.string().uuid()).max(MAX_LISTING_PHOTOS).optional(),
 });
 
 const LISTING_SELECT = `
