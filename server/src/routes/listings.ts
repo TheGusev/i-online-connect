@@ -178,21 +178,35 @@ async function assertOwnListing(listingId: string, userId: string) {
   if (row.author_id !== userId) throw forbidden("Это объявление другого человека");
 }
 
-/** Привязка фото: только свои файлы из profile_media. */
+/**
+ * Привязка фото к объявлению.
+ *
+ * Новые снимки приходят из listing_files (POST /api/listings/media) и в галерею
+ * профиля не попадают. Старые клиенты могут прислать id из profile_media —
+ * такие ссылки продолжаем поддерживать, чтобы прежние объявления не потеряли фото.
+ */
 async function attachMedia(listingId: string, userId: string, mediaIds: string[]) {
   await query("DELETE FROM listing_media WHERE listing_id = $1", [listingId]);
   if (mediaIds.length === 0) return;
-  const owned = await query<{ id: string }>(
+
+  const files = await query<{ id: string }>(
+    "SELECT id FROM listing_files WHERE user_id = $1 AND id = ANY($2::uuid[])",
+    [userId, mediaIds],
+  );
+  const fileIds = new Set(files.map((row) => row.id));
+
+  const legacy = await query<{ id: string }>(
     "SELECT id FROM profile_media WHERE user_id = $1 AND kind = 'photo' AND id = ANY($2::uuid[])",
     [userId, mediaIds],
   );
-  const ownedIds = new Set(owned.map((row) => row.id));
-  const ordered = mediaIds.filter((id) => ownedIds.has(id));
-  for (const [index, mediaId] of ordered.entries()) {
+  const legacyIds = new Set(legacy.map((row) => row.id));
+
+  const ordered = mediaIds.filter((id) => fileIds.has(id) || legacyIds.has(id));
+  for (const [index, id] of ordered.entries()) {
     await query(
-      `INSERT INTO listing_media (listing_id, media_id, position)
-       VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-      [listingId, mediaId, index],
+      `INSERT INTO listing_media (listing_id, media_id, file_id, position)
+       VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
+      [listingId, fileIds.has(id) ? null : id, fileIds.has(id) ? id : null, index],
     );
   }
 }
