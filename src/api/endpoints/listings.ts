@@ -1,5 +1,23 @@
 import type { Listing, ListingDraft, ListingSearchResult, NeedCategory } from "../types";
-import { request } from "../client";
+import { request, upload } from "../client";
+
+/** Фото объявления. Хранится отдельно от фото профиля и в галерею не попадает. */
+export interface ListingPhoto {
+  id: string;
+  kind: "photo";
+  url: string;
+  createdAt: string;
+}
+
+export async function uploadListingPhoto(
+  file: File,
+  fileName?: string,
+  onProgress?: (percent: number) => void,
+): Promise<ListingPhoto> {
+  const form = new FormData();
+  form.append("file", file, fileName ?? file.name);
+  return upload<ListingPhoto>("/listings/media", form, { onProgress });
+}
 
 /** Поиск объявлений. Без city сервер подставит город из профиля. */
 export async function searchListings(
