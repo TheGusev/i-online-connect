@@ -5,11 +5,15 @@ import { WaveHeading } from "@/components/landing/WaveHeading";
 import { AppShell } from "@/components/layout/AppShell";
 import { Chip, MediaImage, ProfileCardSkeleton } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
+import { ProfilePanel } from "@/features/profile/components/ProfilePanel";
+import { CreateEventForm } from "@/features/spaces/components/CreateEventForm";
 import { EventList } from "@/features/spaces/components/EventList";
 import { JoinPanel } from "@/features/spaces/components/JoinPanel";
-import { MemberStrip } from "@/features/spaces/components/MemberStrip";
+import { MembershipBadge } from "@/features/spaces/components/MembershipBadge";
+import { ParticipantsCarousel } from "@/features/spaces/components/ParticipantsCarousel";
 import { SpaceChat } from "@/features/spaces/components/SpaceChat";
 import {
+  useCreateSpaceEvent,
   useJoinSpace,
   useLeaveSpace,
   useRsvpEvent,
@@ -48,6 +52,7 @@ function SpaceDetailPage() {
   const leave = useLeaveSpace(id);
   const rsvp = useRsvpEvent(id);
   const sendMessage = useSendSpaceMessage(id);
+  const createEvent = useCreateSpaceEvent(id);
 
   if (isPending) {
     return (
@@ -76,87 +81,118 @@ function SpaceDetailPage() {
     <AppShell wide>
       <Link
         to="/spaces"
-        className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="mb-3 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
         Пространства
       </Link>
 
-      <Reveal className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
-        <div className="relative aspect-[16/6]">
+      {/* Обложка: название и все метаданные одной строкой — без отдельного блока-заголовка. */}
+      <Reveal className="relative overflow-hidden rounded-3xl border border-border shadow-soft">
+        <div className="relative aspect-[16/9] sm:aspect-[16/6]">
           <MediaImage src={space.coverUrl} alt={space.title} className="size-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+
           {space.verifiedCommunity ? (
-            <span className="absolute left-4 top-4 inline-flex items-center gap-1.5 rounded-full bg-community px-3 py-1 text-xs font-semibold text-community-foreground shadow-soft">
+            <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-community px-2.5 py-1 text-[11px] font-semibold text-community-foreground shadow-soft">
               <BadgeCheck className="size-3.5" aria-hidden="true" />
-              Проверенное сообщество
+              Проверенное
             </span>
           ) : null}
-        </div>
 
-        <div className="space-y-5 p-6">
-          <div>
-            <WaveHeading as="h1" className="text-2xl font-bold tracking-tight sm:text-3xl">
+          <div className="absolute inset-x-3 bottom-3">
+            <WaveHeading as="h1" className="text-xl font-bold tracking-tight sm:text-3xl">
               {space.title}
             </WaveHeading>
-            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
-              <span className="inline-flex items-center gap-1.5">
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground sm:text-xs">
+              <span className="inline-flex items-center gap-1">
                 <MapPin className="size-3.5" aria-hidden="true" />
                 {space.city} · {space.distanceKm} км
               </span>
+              <span aria-hidden="true">·</span>
               <span>{categoryLabels[space.category]}</span>
+              <span aria-hidden="true">·</span>
               <span>{formatLabels[space.format]}</span>
-              <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden="true">·</span>
+              <span className="inline-flex items-center gap-1">
                 <CalendarDays className="size-3.5" aria-hidden="true" />
                 {cadenceLabels[space.cadence]}
               </span>
-            </div>
+            </p>
           </div>
+        </div>
+      </Reveal>
 
-          <p className="max-w-3xl text-sm leading-relaxed text-foreground">{space.description}</p>
-
-          {space.interests.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {space.interests.map((interest) => (
-                <Chip key={interest} variant="outline" size="sm">
-                  {interest}
-                </Chip>
-              ))}
-            </div>
-          ) : null}
-
-          <MemberStrip
-            members={space.members}
-            total={space.membersCount}
-            hostName={space.hostName}
+      {/* Статус участия и вход — компактной строкой сразу под обложкой. */}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        {space.isMember ? (
+          <MembershipBadge
+            host={space.isHost ?? false}
+            pending={leave.isPending}
+            onLeave={() => leave.mutate()}
           />
-
+        ) : (
           <JoinPanel
             space={space}
             pending={join.isPending || leave.isPending}
             onJoin={(answer) => join.mutate(answer)}
             onLeave={() => leave.mutate()}
           />
-        </div>
-      </Reveal>
-
-      <div className="mt-8 grid gap-8 lg:grid-cols-[1.1fr_1fr]">
-        <Reveal as="section">
-          <h2 className="mb-3 text-lg font-bold">Ближайшие события</h2>
-          <EventList
-            events={sortedEvents}
-            pending={rsvp.isPending}
-            onToggleGoing={(event) => rsvp.mutate({ eventId: event.id, going: !event.going })}
+        )}
+        {space.isHost ? (
+          <CreateEventForm
+            submitting={createEvent.isPending}
+            onSubmit={(draft) => createEvent.mutate(draft)}
           />
-        </Reveal>
+        ) : null}
+      </div>
 
-        <Reveal as="section" delay={80}>
-          <h2 className="mb-3 inline-flex items-center gap-2 text-lg font-bold">
+      {/* Участники: ряд аватаров со свайпом и переходом в анкету. */}
+      <section className="mt-4">
+        <h2 className="hud-title mb-2">Участники</h2>
+        <ParticipantsCarousel
+          members={space.members}
+          total={space.membersCount}
+          hostName={space.hostName}
+        />
+      </section>
+
+      <div className="mt-5 grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+        <div className="min-w-0 space-y-4">
+          <section>
+            <h2 className="hud-title mb-2">Ближайшие встречи</h2>
+            <EventList
+              events={sortedEvents}
+              pending={rsvp.isPending}
+              isHost={space.isHost ?? false}
+              onToggleGoing={(event) => rsvp.mutate({ eventId: event.id, going: !event.going })}
+            />
+          </section>
+
+          <ProfilePanel
+            title="О сообществе"
+            storageKey={`space-about:${space.id}`}
+            defaultOpen={false}
+            hint={space.interests.length > 0 ? `Интересы: ${space.interests.length}` : undefined}
+          >
+            <p className="text-sm leading-relaxed text-foreground">{space.description}</p>
+            {space.interests.length > 0 ? (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {space.interests.map((interest) => (
+                  <Chip key={interest} variant="outline" size="sm">
+                    {interest}
+                  </Chip>
+                ))}
+              </div>
+            ) : null}
+          </ProfilePanel>
+        </div>
+
+        <Reveal as="section" delay={80} className="min-w-0">
+          <h2 className="hud-title mb-2 inline-flex items-center gap-2">
             <MessagesSquare className="size-4 text-community" aria-hidden="true" />
-            Общий чат сообщества
+            Общий чат
           </h2>
-          <p className="mb-3 text-xs text-muted-foreground">
-            Отдельно от личных диалогов: здесь обсуждают встречи, а не знакомятся один на один.
-          </p>
           <SpaceChat
             messages={messages ?? []}
             canWrite={space.isMember}
