@@ -78,6 +78,23 @@ export async function saveProfileFile(userId: string, buffer: Buffer, type: Dete
   return { filePath, url: `${base}/${userId}/${name}` };
 }
 
+/** Сколько фото можно приложить к одному объявлению. */
+export const MAX_LISTING_PHOTOS = 6;
+
+/**
+ * Запись фото объявления. Лежит в отдельной папке listings/<userId>/,
+ * чтобы снимки из «Рядом» никогда не попадали в галерею профиля.
+ */
+export async function saveListingFile(userId: string, buffer: Buffer, type: DetectedType) {
+  const dir = path.join(env.MEDIA_DIR, "listings", userId);
+  await mkdir(dir, { recursive: true, mode: 0o755 });
+  const name = `${randomUUID()}.${type.ext}`;
+  const filePath = path.join(dir, name);
+  await writeFile(filePath, buffer, { mode: 0o644 });
+  const base = env.MEDIA_BASE_URL.replace(/\/$/, "");
+  return { filePath, url: `${base}/listings/${userId}/${name}` };
+}
+
 /** Запись приватного файла верификации: наружу не раздаётся никогда. */
 export async function savePrivateFile(userId: string, buffer: Buffer, ext: string) {
   const dir = path.join(env.VERIFICATION_DIR, userId);
