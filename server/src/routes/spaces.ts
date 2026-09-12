@@ -82,12 +82,13 @@ async function loadEvents(spaceId: string, userId: string) {
     id: string;
     space_id: string;
     title: string;
+    description: string;
     starts_at: Date;
     place: string;
     going_count: number;
     going: boolean;
   }>(
-    `SELECT e.id, e.space_id, e.title, e.starts_at, e.place,
+    `SELECT e.id, e.space_id, e.title, e.description, e.starts_at, e.place,
             (SELECT count(*) FROM event_rsvps r WHERE r.event_id = e.id AND r.going)::int AS going_count,
             EXISTS (SELECT 1 FROM event_rsvps r WHERE r.event_id = e.id AND r.user_id = $2 AND r.going) AS going
        FROM space_events e
@@ -99,6 +100,7 @@ async function loadEvents(spaceId: string, userId: string) {
     id: row.id,
     spaceId: row.space_id,
     title: row.title,
+    description: row.description,
     startsAt: row.starts_at.toISOString(),
     place: row.place,
     goingCount: row.going_count,
@@ -128,6 +130,8 @@ function toSpaceDto(row: SpaceRow) {
     joinQuestion: row.join_question ?? undefined,
     interests: row.interests ?? [],
     isMember: row.my_status === "member" || row.my_status === "host",
+    // Организатор: только он создаёт структурированные встречи.
+    isHost: row.my_status === "host",
     pendingRequest: row.my_status === "pending",
   };
 }
@@ -296,6 +300,41 @@ export async function spaceRoutes(app: FastifyInstance) {
     await query("DELETE FROM space_members WHERE space_id = $1 AND user_id = $2", [id, userId]);
     return loadSpaceDetail(id, userId);
   });
+
+  /**
+   * POST /api/spaces/:id/events — организатор создаёт структурированную встречу.
+   * Участники только отмечаются («Буду» / «Не смогу») через /rsvp.
+   */
+  app.post<{ Params: { id: string } }>(
+    "/:id/events",
+    { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } },
+    async (request) => {
+      const userId = currentUserId(request);
+      const { id } = idParam.parse(request.params);
+      const draft = z
+        .object({
+          title: z.string().min(3).max(160),
+          startsAt: z.string().datetime({ offset: true }),
+          place: z.string().max(200).default(""),
+          description: z.string().max(2000).default(""),
+        })
+        .parse(request.body);
+
+      const isHost = await queryOne(
+        "SELECT 1 FROM space_members WHERE space_id = $1 AND user_id = $2 AND status = 'host'",
+        [id, userId],
+      );
+      if (!isHost) throw forbidden("Встречи создаёт только организатор сообщества");
+
+      await query(
+        `INSERT INTO space_events (space_id, title, starts_at, place, description, created_by)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [id, draft.title, draft.startsAt, draft.place, draft.description, userId],
+      );
+
+      return loadSpaceDetail(id, userId);
+    },
+  );
 
   app.post<{ Params: { id: string; eventId: string } }>(
     "/:id/events/:eventId/rsvp",
