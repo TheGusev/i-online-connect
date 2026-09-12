@@ -26,7 +26,11 @@ export function useNotificationHistory(type?: NotificationFilter) {
   const query = useInfiniteQuery({
     queryKey: [...notificationsQueryKey, "history", type ?? "all"],
     queryFn: ({ pageParam }) =>
-      notificationsApi.getNotifications({ limit: 30, type, cursor: pageParam ?? undefined }),
+      notificationsApi.getNotifications({
+        limit: 30,
+        ...(type ? { type } : {}),
+        ...(pageParam ? { cursor: pageParam } : {}),
+      }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => (last.hasMore ? last.nextCursor : undefined),
     enabled: authed,

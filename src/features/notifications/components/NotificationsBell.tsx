@@ -2,12 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { Bell } from "lucide-react";
 import { useState } from "react";
 
-import {
-  describeNotification,
-  useMarkNotificationsRead,
-  useNotificationSocket,
-  useNotifications,
-} from "@/features/notifications/hooks";
+import { useMarkNotificationsRead, useNotificationSocket, useNotifications } from "@/features/notifications/hooks";
+import { NotificationItem } from "./NotificationItem";
 
 /** Колокольчик с живым счётчиком: клик по уведомлению ведёт на объявление. */
 export function NotificationsBell() {
@@ -62,65 +58,27 @@ export function NotificationsBell() {
               <p className="px-1 py-4 text-sm text-muted-foreground">Пока тихо — новостей нет.</p>
             ) : (
               <ul className="max-h-80 space-y-1 overflow-y-auto">
-                {items.map((item) => {
-                  const { title, listingId, conversationId } = describeNotification(item);
-                  const preview =
-                    item.kind === "new_message" && typeof item.payload?.["preview"] === "string"
-                      ? (item.payload["preview"] as string)
-                      : null;
-                  const content = (
-                    <span className="block">
-                      <span className="block text-sm leading-snug">{title}</span>
-                      {preview ? (
-                        <span className="mt-0.5 block truncate text-xs text-foreground/80">
-                          {preview}
-                        </span>
-                      ) : null}
-                      <span className="mt-0.5 block text-xs text-muted-foreground">
-                        {new Date(item.createdAt).toLocaleString("ru-RU", {
-                          day: "numeric",
-                          month: "short",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </span>
-                  );
-                  const linkClass = `block rounded-xl px-3 py-2 transition-colors hover:bg-secondary ${
-                    item.readAt ? "" : "bg-primary-soft/60"
-                  }`;
-                  const onPick = () => {
-                    setOpen(false);
-                    markRead.mutate([item.id]);
-                  };
-                  return (
-                    <li key={item.id}>
-                      {conversationId ? (
-                        <Link
-                          to="/chat/$id"
-                          params={{ id: conversationId }}
-                          onClick={onPick}
-                          className={linkClass}
-                        >
-                          {content}
-                        </Link>
-                      ) : listingId ? (
-                        <Link
-                          to="/nearby/$id"
-                          params={{ id: listingId }}
-                          onClick={onPick}
-                          className={linkClass}
-                        >
-                          {content}
-                        </Link>
-                      ) : (
-                        <span className="block rounded-xl px-3 py-2">{content}</span>
-                      )}
-                    </li>
-                  );
-                })}
+                {items.map((item) => (
+                  <li key={item.id}>
+                    <NotificationItem
+                      item={item}
+                      compact
+                      onPick={() => {
+                        setOpen(false);
+                        if (!item.readAt) markRead.mutate([item.id]);
+                      }}
+                    />
+                  </li>
+                ))}
               </ul>
             )}
+            <Link
+              to="/notifications"
+              onClick={() => setOpen(false)}
+              className="mt-2 block border-t border-border px-2 pt-3 text-center text-sm font-semibold text-primary"
+            >
+              Все уведомления
+            </Link>
           </div>
         </>
       ) : null}
