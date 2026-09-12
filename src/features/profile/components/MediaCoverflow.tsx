@@ -138,7 +138,7 @@ export function MediaCoverflow({
                   : `Показать кадр ${position + 1}`
               }
               aria-current={isCenter}
-              onClick={() => (isCenter ? undefined : setIndex(position))}
+              onClick={() => (isCenter ? setViewerOpen(true) : setIndex(position))}
               className="absolute left-1/2 top-1/2 h-full w-[58%] max-w-[17rem] overflow-hidden rounded-[1.75rem] border border-border bg-secondary shadow-soft transition-all duration-300 ease-out sm:w-[52%]"
               style={{
                 transform: `translate(-50%, -50%) translateX(${offset * 62}%) scale(${isCenter ? 1 : Math.abs(offset) === 1 ? 0.82 : 0.68})`,
