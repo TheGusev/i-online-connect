@@ -180,6 +180,21 @@ cron.schedule("0 4 * * *", () => {
   void runSeedRefresh(app.log);
 });
 
+// Дополнительно: одно обновление при старте, если демо-контент не освежался
+// больше суток. Так после деплоя лента сразу выглядит живой, не дожидаясь 04:00.
+// Отметка времени хранится в БД, поэтому частые рестарты PM2 задачу не разгоняют.
+void (async () => {
+  try {
+    const stale = await query<{ stale: boolean }>(
+      `SELECT COALESCE(max(created_at) < now() - interval '1 day', true) AS stale
+         FROM listings WHERE is_seed = true AND state = 'active'`,
+    );
+    if (stale[0]?.stale) await runSeedRefresh(app.log);
+  } catch (error) {
+    app.log.error(`[seed-refresh] проверка при старте не удалась: ${String(error)}`);
+  }
+})();
+
 
 
 // Корректное завершение: PM2 присылает SIGINT/SIGTERM при reload.
