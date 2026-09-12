@@ -65,7 +65,7 @@ export function ProfilePanel({
         type="button"
         aria-expanded={open}
         aria-controls={id}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={toggle}
         className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3.5 text-left"
       >
         <span className="min-w-0">
