@@ -47,7 +47,7 @@ Refresh-токен ставится в httpOnly-cookie `ya_refresh` (path `/api/
 | Метод | Путь | Тело | Ответ |
 | --- | --- | --- | --- |
 | GET | `/profiles/me` | — | `MyProfile` |
-| PATCH | `/profiles/me` | частичный `MyProfile` | `MyProfile` |
+| PATCH | `/profiles/me` | частичный `MyProfile`: `name`, `age`, `city`, `bio`, `intent`, `intentNote`, `interests`, `values`, `privacy` | `MyProfile` |
 | GET | `/profiles/:id` | — | `User` |
 | GET | `/profiles/:id/detail` | — | `ProfileDetail` |
 
