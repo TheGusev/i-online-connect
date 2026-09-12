@@ -188,3 +188,11 @@ pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" 2026-08-17.du
 | `support_requests.reply / replied_at / replied_by` | Ответ модератора, который ушёл заявителю письмом |
 
 Все изменения additive: новый enum, новые колонки с DEFAULT, новая таблица.
+
+## 013_push_subscriptions.sql — подписки на push
+
+`push_subscriptions` — по строке на устройство: `user_id` (→ `users`,
+`on delete cascade`), `endpoint` (уникальный), `p256dh`, `auth`, `user_agent`,
+`created_at`, `last_used_at`. Индекс по `user_id` — рассылка идёт по
+пользователю. Невалидные подписки (ответ push-сервера 404/410) удаляются
+автоматически при отправке.
