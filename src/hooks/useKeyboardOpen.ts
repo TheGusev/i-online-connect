@@ -12,12 +12,13 @@ import { useEffect, useState } from "react";
 function readViewport() {
   const viewport = window.visualViewport;
   const innerHeight = window.innerHeight;
-  if (!viewport) return { height: innerHeight, inset: 0 };
+  if (!viewport) return { height: innerHeight, inset: 0, top: 0 };
   const overlap = innerHeight - viewport.height - viewport.offsetTop;
   return {
     height: Math.round(viewport.height),
     // Меньше 80px — это адресная строка браузера, а не клавиатура.
     inset: overlap > 80 ? Math.round(overlap) : 0,
+    top: Math.round(viewport.offsetTop),
   };
 }
 
@@ -29,9 +30,10 @@ export function useKeyboardInset(): number {
     const root = document.documentElement;
 
     const update = () => {
-      const { height, inset: next } = readViewport();
+      const { height, inset: next, top } = readViewport();
       root.style.setProperty("--app-height", `${height}px`);
       root.style.setProperty("--keyboard-inset", `${next}px`);
+      root.style.setProperty("--viewport-top", `${top}px`);
       setInset((prev) => (prev === next ? prev : next));
     };
 

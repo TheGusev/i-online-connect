@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { RequireSession } from "@/features/auth/session";
-import { useKeyboardInset } from "@/hooks/useKeyboardOpen";
+import { useViewportHeightVar } from "@/hooks/useKeyboardOpen";
 
 
 import { BottomNav } from "./BottomNav";
@@ -23,14 +23,13 @@ export function AppShell({
   public?: boolean;
 }) {
   // Держит --app-height/--keyboard-inset актуальными на каждом экране.
-  const keyboardInset = useKeyboardInset();
+  useViewportHeightVar();
   const content = (
     <div className="app-viewport flex bg-background text-foreground">
       <SideNav />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         <main
-          style={keyboardInset ? { paddingBottom: `${keyboardInset + 16}px` } : undefined}
           className={`mx-auto w-full flex-1 px-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-6 lg:px-8 lg:pb-12 ${wide ? "max-w-6xl" : "max-w-3xl"}`}
         >
           {children}

@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Bell, CreditCard, Handshake, ShieldCheck, TriangleAlert, UserRound } from "lucide-react";
-import { useState } from "react";
+import { z } from "zod";
 
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { Card } from "@/components/ds";
@@ -14,6 +14,9 @@ import { SubscriptionSection } from "@/features/settings/components/Subscription
 import { useSettings } from "@/features/settings/hooks";
 
 export const Route = createFileRoute("/settings")({
+  validateSearch: z.object({
+    tab: z.enum(["account", "privacy", "needs", "notifications", "subscription", "danger"]).optional(),
+  }),
   head: () => ({
     meta: [
       { title: "Настройки — Я Онлайн" },
@@ -53,7 +56,9 @@ const sectionHints: Record<string, string> = {
 };
 
 function SettingsPage() {
-  const [active, setActive] = useState("account");
+  const { tab } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const active = tab ?? "account";
   const { data, isLoading } = useSettings();
   const activeMeta = sections.find((section) => section.id === active) ?? sections[0]!;
 
@@ -62,7 +67,11 @@ function SettingsPage() {
       <PageHeader title="Настройки" />
 
       <div className="grid gap-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10">
-        <SettingsNav sections={sections} active={active} onSelect={setActive} />
+        <SettingsNav
+          sections={sections}
+          active={active}
+          onSelect={(next) => void navigate({ search: { tab: next as typeof active }, replace: true })}
+        />
 
         <section aria-label={activeMeta.label} className="min-w-0 space-y-5">
           <header>
@@ -84,7 +93,9 @@ function SettingsPage() {
                 <SubscriptionSection subscription={data.subscription} />
               ) : null}
               {active === "danger" ? (
-                <DangerZoneSection onPause={() => setActive("privacy")} />
+                <DangerZoneSection
+                  onPause={() => void navigate({ search: { tab: "privacy" }, replace: true })}
+                />
               ) : null}
             </>
           )}

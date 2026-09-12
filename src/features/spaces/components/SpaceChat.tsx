@@ -4,7 +4,6 @@ import { SendHorizontal } from "lucide-react";
 import type { SpaceMessage } from "@/api";
 import { Avatar, Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
-import { useKeyboardInset } from "@/hooks/useKeyboardOpen";
 import { useSessionStore } from "@/store/useSessionStore";
 
 const timeFormatter = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -21,7 +20,6 @@ export function SpaceChat({
   onSend: (text: string) => void;
   sending?: boolean | undefined;
 }) {
-  const keyboardInset = useKeyboardInset();
   const myId = useSessionStore((s) => s.user?.id);
   const [text, setText] = useState("");
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -70,7 +68,6 @@ export function SpaceChat({
 
       <form
         className="sticky bottom-0 flex items-center gap-2 border-t border-border bg-card/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur"
-        style={keyboardInset > 0 ? { paddingBottom: keyboardInset + 12 } : undefined}
         onSubmit={(event) => {
           event.preventDefault();
           const value = text.trim();
