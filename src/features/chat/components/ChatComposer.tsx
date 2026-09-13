@@ -25,6 +25,8 @@ export function ChatComposer({
   onVoice,
   voiceSending = false,
   inputRef,
+  editing = false,
+  onCancelEdit,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -38,6 +40,9 @@ export function ChatComposer({
   onVoice?: (recording: VoiceRecording) => void;
   voiceSending?: boolean;
   inputRef?: RefObject<HTMLTextAreaElement | null>;
+  /** Идёт правка отправленного сообщения. */
+  editing?: boolean;
+  onCancelEdit?: () => void;
 }) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
   const pointerStartX = useRef(0);
@@ -48,6 +53,7 @@ export function ChatComposer({
     if (inputRef) inputRef.current = node;
   }, [inputRef]);
   const voice = useVoiceRecorder((recording) => onVoice?.(recording));
+
 
   const resize = useCallback(() => {
     const input = localRef.current;
