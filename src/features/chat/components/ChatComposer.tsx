@@ -1,4 +1,4 @@
-import { Mic, SendHorizontal, Square, X } from "lucide-react";
+import { Mic, Pencil, SendHorizontal, Square, X } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import type { ReactNode, RefObject } from "react";
 
@@ -25,6 +25,8 @@ export function ChatComposer({
   onVoice,
   voiceSending = false,
   inputRef,
+  editing = false,
+  onCancelEdit,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -38,6 +40,9 @@ export function ChatComposer({
   onVoice?: (recording: VoiceRecording) => void;
   voiceSending?: boolean;
   inputRef?: RefObject<HTMLTextAreaElement | null>;
+  /** Идёт правка отправленного сообщения. */
+  editing?: boolean;
+  onCancelEdit?: () => void;
 }) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
   const pointerStartX = useRef(0);
@@ -48,6 +53,7 @@ export function ChatComposer({
     if (inputRef) inputRef.current = node;
   }, [inputRef]);
   const voice = useVoiceRecorder((recording) => onVoice?.(recording));
+
 
   const resize = useCallback(() => {
     const input = localRef.current;
@@ -62,9 +68,23 @@ export function ChatComposer({
 
   return (
     <div>
+      {editing ? (
+        <div className="flex items-center gap-2 px-4 pt-2 text-xs text-primary-ink">
+          <Pencil className="size-3.5 shrink-0" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate">Изменение сообщения</span>
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="font-semibold text-muted-foreground underline-offset-2 hover:underline"
+          >
+            Отмена
+          </button>
+        </div>
+      ) : null}
       {voice.error ? (
         <p className="px-4 pt-2 text-xs text-destructive" role="alert">{voice.error}</p>
       ) : null}
+
       <form
         className={cn(
           "grid items-end gap-2 px-3 py-2.5 sm:px-4 sm:py-3",

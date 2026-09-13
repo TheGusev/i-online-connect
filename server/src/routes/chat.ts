@@ -13,8 +13,12 @@
  */
 import type { FastifyInstance } from "fastify";
 import { unlink } from "node:fs/promises";
+import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+
+import { env } from "../env.ts";
+
 
 import { query, queryOne, transaction } from "../db.ts";
 import { badRequest, forbidden, notFound } from "../http.ts";
@@ -25,6 +29,8 @@ import { publishUserEvent } from "../ws/notifications.ts";
 import { audioDurationMs, detectAudioType, MAX_VOICE_BYTES, saveVoiceFile } from "../media/store.ts";
 
 const idParam = z.object({ id: z.string().uuid() });
+const messageParams = z.object({ id: z.string().uuid(), messageId: z.string().uuid() });
+
 
 interface MessageRow {
   id: string;
@@ -37,24 +43,34 @@ interface MessageRow {
   media_mime: string | null;
   duration_ms: number | null;
   created_at: Date;
+  edited_at?: Date | null;
+  deleted_at?: Date | null;
   read_by_peer: boolean | null;
 }
 
 function toMessageDto(row: MessageRow) {
+  const deleted = Boolean(row.deleted_at);
   return {
     id: row.id,
     conversationId: row.conversation_id,
     authorId: row.author_id,
-    text: row.text,
+    text: deleted ? "" : row.text,
     kind: row.kind,
     clientTempId: row.client_temp_id ?? undefined,
-    mediaUrl: row.media_url ?? undefined,
-    mediaMime: row.media_mime ?? undefined,
-    durationMs: row.duration_ms ?? undefined,
+    mediaUrl: deleted ? undefined : (row.media_url ?? undefined),
+    mediaMime: deleted ? undefined : (row.media_mime ?? undefined),
+    durationMs: deleted ? undefined : (row.duration_ms ?? undefined),
     createdAt: row.created_at.toISOString(),
+    editedAt: row.edited_at ? row.edited_at.toISOString() : undefined,
+    deletedAt: row.deleted_at ? row.deleted_at.toISOString() : undefined,
     status: row.read_by_peer ? ("read" as const) : ("sent" as const),
   };
 }
+
+/** Сколько времени автор может править своё сообщение. */
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const EDIT_LIMIT = { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } };
+
 
 const SEND_LIMIT = { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } };
 
@@ -261,7 +277,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const limit = q.limit ?? 50;
     const rows = await query<MessageRow>(
       `SELECT m.id, m.conversation_id, m.author_id, m.text, m.kind, m.client_temp_id,
-              m.media_url, m.media_mime, m.duration_ms, m.created_at,
+              m.media_url, m.media_mime, m.duration_ms, m.created_at, m.edited_at, m.deleted_at,
               (m.author_id = $2 AND their.last_read_at IS NOT NULL
                  AND m.created_at <= their.last_read_at) AS read_by_peer
          FROM messages m
@@ -426,7 +442,7 @@ export async function chatRoutes(app: FastifyInstance) {
          WHERE client_temp_id IS NOT NULL
        DO UPDATE SET text = messages.text
        RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
-                 media_url, media_mime, duration_ms, created_at, false AS read_by_peer,
+                 media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, false AS read_by_peer,
                  (xmax = 0) AS inserted`,
       [id, userId, text, clientTempId ?? randomUUID()],
     );
@@ -467,7 +483,7 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const existing = await queryOne<MessageRow>(
       `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
-              media_url, media_mime, duration_ms, created_at, false AS read_by_peer
+              media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, false AS read_by_peer
          FROM messages
         WHERE conversation_id = $1 AND author_id = $2 AND client_temp_id = $3`,
       [id, userId, meta.clientTempId],
@@ -484,7 +500,7 @@ export async function chatRoutes(app: FastifyInstance) {
            (conversation_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms)
          VALUES ($1, $2, 'Голосовое сообщение', 'voice', $3, $4, $5, $6)
          RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
-                   media_url, media_mime, duration_ms, created_at, false AS read_by_peer`,
+                   media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, false AS read_by_peer`,
         [id, userId, meta.clientTempId, saved.url, audioType.mime, measuredDurationMs],
       );
       if (!row) throw badRequest("Не удалось сохранить голосовое сообщение");
@@ -518,6 +534,88 @@ export async function chatRoutes(app: FastifyInstance) {
     publishChatEvent(id, { type: "read", conversationId: id, authorId: userId });
     return reply.status(204).send();
   });
+
+  /** Правка своего текстового сообщения в течение суток. */
+  app.patch<{ Params: { id: string; messageId: string } }>(
+    "/conversations/:id/messages/:messageId",
+    EDIT_LIMIT,
+    async (request) => {
+      const userId = currentUserId(request);
+      const { id, messageId } = messageParams.parse(request.params);
+      const { text } = z.object({ text: z.string().min(1).max(4000) }).parse(request.body);
+      await assertConversationAccess(userId, id);
+
+      const current = await queryOne<MessageRow>(
+        `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
+                media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                false AS read_by_peer
+           FROM messages WHERE id = $1 AND conversation_id = $2`,
+        [messageId, id],
+      );
+      if (!current) throw notFound("Сообщение не найдено");
+      if (current.author_id !== userId) throw forbidden("Можно менять только свои сообщения");
+      if (current.deleted_at) throw badRequest("Сообщение удалено");
+      if (current.kind !== "text") throw badRequest("Изменять можно только текстовые сообщения");
+      if (Date.now() - current.created_at.getTime() > EDIT_WINDOW_MS) {
+        throw badRequest("Сообщение старше суток — его уже нельзя изменить");
+      }
+
+      const row = await queryOne<MessageRow>(
+        `UPDATE messages SET text = $1, edited_at = now()
+          WHERE id = $2 AND conversation_id = $3 AND author_id = $4
+        RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
+                  media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                  false AS read_by_peer`,
+        [text, messageId, id, userId],
+      );
+      if (!row) throw notFound("Сообщение не найдено");
+
+      const message = toMessageDto(row);
+      publishChatEvent(id, { type: "message-updated", conversationId: id, message });
+      return message;
+    },
+  );
+
+  /** Удаление своего сообщения: текст и медиа стираются у обоих участников. */
+  app.delete<{ Params: { id: string; messageId: string } }>(
+    "/conversations/:id/messages/:messageId",
+    EDIT_LIMIT,
+    async (request) => {
+      const userId = currentUserId(request);
+      const { id, messageId } = messageParams.parse(request.params);
+      await assertConversationAccess(userId, id);
+
+      const current = await queryOne<MessageRow>(
+        `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
+                media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                false AS read_by_peer
+           FROM messages WHERE id = $1 AND conversation_id = $2`,
+        [messageId, id],
+      );
+      if (!current) throw notFound("Сообщение не найдено");
+      if (current.author_id !== userId) throw forbidden("Можно удалять только свои сообщения");
+
+      if (!current.deleted_at) {
+        await query(
+          `UPDATE messages
+              SET text = '', media_url = NULL, media_mime = NULL, duration_ms = NULL,
+                  deleted_at = now()
+            WHERE id = $1 AND conversation_id = $2 AND author_id = $3`,
+          [messageId, id, userId],
+        );
+        // Файл голосового больше не нужен — освобождаем диск.
+        if (current.media_url) {
+          const relative = current.media_url.replace(/^.*\/voice\//, "");
+          await unlink(path.join(env.MEDIA_DIR, "voice", relative)).catch(() => undefined);
+        }
+      }
+
+      publishChatEvent(id, { type: "message-deleted", conversationId: id, messageId });
+      return { id: messageId, deleted: true as const };
+    },
+  );
+
+
 
   app.post<{ Params: { id: string } }>("/conversations/:id/meetings", SEND_LIMIT, async (request) => {
     const userId = currentUserId(request);

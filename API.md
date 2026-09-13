@@ -229,6 +229,20 @@ multipart с полями `file`, `durationMs`, `clientTempId`. Допустим
 MP4/AAC, до 10 МБ и 180 секунд. Ответ и WebSocket-событие используют обычный
 `Message` с `kind: "voice"`, `mediaUrl`, `mediaMime`, `durationMs`.
 
+Правка своего текста: `PATCH /api/chat/conversations/:id/messages/:messageId`
+с телом `{ text }`. Разрешено только автору, только для `kind: "text"` и только
+в течение суток после отправки, лимит 30 запросов в минуту. В ответе `Message`
+с полем `editedAt`.
+
+Удаление: `DELETE /api/chat/conversations/:id/messages/:messageId`. Разрешено
+только автору: строка остаётся в истории (курсоры не ломаются), но текст и медиа
+стираются, файл голосового удаляется с диска. Ответ `{ id, deleted: true }`,
+сообщение приходит с `deletedAt`.
+
+Оба действия рассылаются в комнату событиями `message-updated` (с `message`) и
+`message-deleted` (с `messageId`).
+
+
 Адрес: `VITE_WS_URL` + `/chat/:conversationId?token=<access token>`
 (в проде `wss://example.com/ws/chat/<id>?token=…`).
 

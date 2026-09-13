@@ -9,11 +9,14 @@ import type { MeetingKind, Message } from "@/api";
 import { Avatar, Button, TrustBadge } from "@/components/ds";
 import { MeetingSheet } from "@/features/chat/components/MeetingSheet";
 import { MessageBubble } from "@/features/chat/components/MessageBubble";
+import { MessageActions } from "@/features/chat/components/MessageActions";
 import { ChatComposer } from "@/features/chat/components/ChatComposer";
 import { SafetyMenu } from "@/features/chat/components/SafetyMenu";
 import { StarterChips } from "@/features/chat/components/StarterChips";
 import {
   useConversation,
+  useDeleteMessage,
+  useEditMessage,
   useMarkConversationRead,
   useMessageStarters,
   useMessages,
@@ -81,10 +84,14 @@ function ConversationPage() {
   const sendVoice = useSendVoiceMessage(id);
   const suggestMeeting = useSuggestMeeting(id);
   const markRead = useMarkConversationRead(id);
+  const editMessage = useEditMessage(id);
+  const deleteMessage = useDeleteMessage(id);
 
   const keyboardInset = useKeyboardInset();
   const [draft, setDraft] = useState("");
   const [meetingOpen, setMeetingOpen] = useState(false);
+  const [actionsFor, setActionsFor] = useState<Message | null>(null);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -109,6 +116,14 @@ function ConversationPage() {
           // Мы в диалоге — сразу помечаем прочитанным.
           markRead.mutate();
         }
+        void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+      }
+      if (event.type === "message-updated" && event.message) {
+        cache.upsert({ ...event.message, status: event.message.status ?? "sent" });
+        void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+      }
+      if (event.type === "message-deleted") {
+        void queryClient.invalidateQueries({ queryKey: ["chat", "messages", id] });
         void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
       }
       if (event.type === "read" && event.authorId && event.authorId !== myId && myId) {
@@ -184,7 +199,17 @@ function ConversationPage() {
 
   const submit = () => {
     const text = draft.trim();
-    if (!text || send.isPending) return;
+    if (!text) return;
+    if (editingMessage) {
+      if (editMessage.isPending) return;
+      if (text !== editingMessage.text) {
+        editMessage.mutate({ messageId: editingMessage.id, text, previous: editingMessage });
+      }
+      setEditingMessage(null);
+      setDraft("");
+      return;
+    }
+    if (send.isPending) return;
     send.mutate({ text, clientTempId: crypto.randomUUID() });
     setDraft("");
     inputRef.current?.focus();
@@ -310,7 +335,11 @@ function ConversationPage() {
                         </span>
                       </li>
                     ) : null}
-                    <MessageBubble message={message} onRetry={retry} />
+                    <MessageBubble
+                      message={message}
+                      onRetry={retry}
+                      onActions={setActionsFor}
+                    />
                   </Fragment>
                 );
               })}
@@ -350,7 +379,12 @@ function ConversationPage() {
             onSend={submit}
             onTyping={sendTyping}
             onFocus={() => scrollToBottom(false)}
-            sending={send.isPending}
+            sending={send.isPending || editMessage.isPending}
+            editing={Boolean(editingMessage)}
+            onCancelEdit={() => {
+              setEditingMessage(null);
+              setDraft("");
+            }}
             voiceSending={sendVoice.isPending}
             inputRef={inputRef}
             onVoice={(recording) => {
@@ -371,6 +405,24 @@ function ConversationPage() {
           />
         </div>
       </div>
+
+      <MessageActions
+        message={actionsFor}
+        mine={Boolean(actionsFor && actionsFor.authorId === myId)}
+        onClose={() => setActionsFor(null)}
+        onEdit={(message) => {
+          setEditingMessage(message);
+          setDraft(message.text);
+          inputRef.current?.focus();
+        }}
+        onDelete={(message) => {
+          if (editingMessage?.id === message.id) {
+            setEditingMessage(null);
+            setDraft("");
+          }
+          deleteMessage.mutate({ messageId: message.id, previous: message });
+        }}
+      />
 
       <MeetingSheet
         open={meetingOpen}
