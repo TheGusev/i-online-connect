@@ -1,4 +1,4 @@
-import { request } from "../client";
+import { request, upload } from "../client";
 import type { Conversation, MeetingKind, Message } from "../types";
 
 export interface MessagesPage {
@@ -46,10 +46,34 @@ export async function getMessageStarters(conversationId: string): Promise<string
   return request<string[]>(`/chat/conversations/${conversationId}/starters`);
 }
 
-export async function sendMessage(conversationId: string, text: string): Promise<Message> {
+export async function sendMessage(
+  conversationId: string,
+  text: string,
+  clientTempId: string,
+): Promise<Message> {
   return request<Message>(`/chat/conversations/${conversationId}/messages`, {
     method: "POST",
-    body: { text },
+    body: { text, clientTempId },
+  });
+}
+
+export async function sendVoiceMessage(
+  conversationId: string,
+  recording: Blob,
+  durationMs: number,
+  clientTempId: string,
+  onProgress?: (percent: number) => void,
+): Promise<Message> {
+  const form = new FormData();
+  form.append("durationMs", String(durationMs));
+  form.append("clientTempId", clientTempId);
+  const baseMime = recording.type.split(";")[0];
+  const extension = baseMime === "audio/mp4" ? "m4a" : "webm";
+  form.append("file", recording, `voice.${extension}`);
+  return upload<Message>(`/chat/conversations/${conversationId}/voice`, form, {
+    ...(onProgress ? { onProgress } : {}),
+    timeoutMs: 60_000,
+    timeoutMessage: "Голосовое сообщение не загрузилось за минуту — попробуйте ещё раз",
   });
 }
 

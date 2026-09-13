@@ -3,6 +3,8 @@ import { AlertCircle, Check, CheckCheck, CalendarHeart, Clock } from "lucide-rea
 import type { Message } from "@/api";
 import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/store/useSessionStore";
+import { mediaUrl } from "@/api";
+import { VoicePlayer } from "./VoicePlayer";
 
 function time(iso: string) {
   return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -19,6 +21,7 @@ export function MessageBubble({
   const myId = useSessionStore((s) => s.user?.id);
   const mine = message.authorId === myId || message.authorId === "me";
   const meeting = message.kind === "meeting";
+  const voice = message.kind === "voice";
   const failed = message.status === "failed";
 
   return (
@@ -45,7 +48,11 @@ export function MessageBubble({
             Приглашение на встречу
           </span>
         ) : null}
-        <p className="whitespace-pre-wrap">{message.text}</p>
+        {voice && message.mediaUrl ? (
+          <VoicePlayer src={mediaUrl(message.mediaUrl) ?? message.mediaUrl} duration={message.durationMs ?? 0} mine={mine} />
+        ) : (
+          <p className="whitespace-pre-wrap break-words">{message.text}</p>
+        )}
         <span
           className={cn(
             "mt-1.5 flex items-center justify-end gap-1 text-[11px]",

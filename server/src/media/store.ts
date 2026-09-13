@@ -6,6 +6,7 @@
  * Тип определяем по подписи в первых байтах — это единственный надёжный способ.
  */
 import { randomUUID } from "node:crypto";
+import { spawn } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -13,7 +14,7 @@ import { env } from "../env.ts";
 import { badRequest } from "../http.ts";
 
 export interface DetectedType {
-  kind: "photo" | "video";
+  kind: "photo" | "video" | "audio";
   mime: string;
   ext: string;
 }
@@ -57,14 +58,76 @@ export const MAX_PROFILE_VIDEOS = 1;
 
 /** Проверка размера под тип файла: у фото и видео разные лимиты. */
 export function assertSize(type: DetectedType, size: number) {
-  const limit = type.kind === "photo" ? MAX_PHOTO_BYTES : MAX_VIDEO_BYTES;
+  const limit = type.kind === "photo" ? MAX_PHOTO_BYTES : type.kind === "audio" ? MAX_VOICE_BYTES : MAX_VIDEO_BYTES;
   if (size > limit) {
     throw badRequest(
       type.kind === "photo"
         ? "Фото больше 8 МБ — выберите файл меньше"
-        : "Видео больше 40 МБ — запишите короче или снизьте качество",
+        : type.kind === "audio"
+          ? "Голосовое сообщение больше 10 МБ — запишите короче"
+          : "Видео больше 40 МБ — запишите короче или снизьте качество",
     );
   }
+}
+
+export const MAX_VOICE_BYTES = 10 * 1024 * 1024;
+
+export interface DetectedAudioType {
+  mime: "audio/webm" | "audio/mp4";
+  ext: "webm" | "m4a";
+}
+
+/** Голосовые браузера: WebM/Opus в Chromium, MP4/AAC в Safari. */
+export function detectAudioType(buffer: Buffer): DetectedAudioType | null {
+  if (buffer.length < 16) return null;
+  if (buffer[0] === 0x1a && buffer[1] === 0x45 && buffer[2] === 0xdf && buffer[3] === 0xa3) {
+    return { mime: "audio/webm", ext: "webm" };
+  }
+  if (ascii(buffer, 4, 4) === "ftyp") return { mime: "audio/mp4", ext: "m4a" };
+  return null;
+}
+
+export async function saveVoiceFile(userId: string, buffer: Buffer, type: DetectedAudioType) {
+  const dir = path.join(env.MEDIA_DIR, "voice", userId);
+  await mkdir(dir, { recursive: true, mode: 0o755 });
+  const name = `${randomUUID()}.${type.ext}`;
+  const filePath = path.join(dir, name);
+  await writeFile(filePath, buffer, { mode: 0o644 });
+  const base = env.MEDIA_BASE_URL.replace(/\/$/, "");
+  return { filePath, url: `${base}/voice/${userId}/${name}` };
+}
+
+/** Проверяем фактическую длительность через установленный ffmpeg, а не доверяем клиенту. */
+export function audioDurationMs(filePath: string): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const process = spawn(env.FFMPEG_PATH, ["-hide_banner", "-i", filePath, "-f", "null", "-"], {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    let stderr = "";
+    const timer = setTimeout(() => {
+      process.kill("SIGKILL");
+      reject(new Error("audio duration timeout"));
+    }, 10_000);
+    process.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    process.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    process.on("close", () => {
+      clearTimeout(timer);
+      const match = /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(stderr);
+      if (!match) {
+        reject(new Error("audio duration unavailable"));
+        return;
+      }
+      const hours = Number(match[1]);
+      const minutes = Number(match[2]);
+      const seconds = Number(match[3]);
+      resolve(Math.round((hours * 3600 + minutes * 60 + seconds) * 1000));
+    });
+  });
 }
 
 /** Запись файла профиля. Возвращает путь на диске и публичный URL. */

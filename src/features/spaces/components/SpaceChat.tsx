@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { SendHorizontal } from "lucide-react";
-
 import type { SpaceMessage } from "@/api";
-import { Avatar, Button } from "@/components/ds";
+import { Avatar } from "@/components/ds";
+import { ChatComposer } from "@/features/chat/components/ChatComposer";
 import { cn } from "@/lib/utils";
 import { useKeyboardOpen } from "@/hooks/useKeyboardOpen";
 import { useSessionStore } from "@/store/useSessionStore";
@@ -24,11 +23,16 @@ export function SpaceChat({
   const keyboardOpen = useKeyboardOpen();
   const myId = useSessionStore((s) => s.user?.id);
   const [text, setText] = useState("");
-  const endRef = useRef<HTMLDivElement | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = () => {
+    const scroller = scrollerRef.current;
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
+  };
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "nearest" });
-  }, [messages.length]);
+    scrollToBottom();
+  }, [messages.length, keyboardOpen]);
 
   return (
     <div
@@ -37,7 +41,7 @@ export function SpaceChat({
         keyboardOpen && "keyboard-viewport-fixed z-50 flex flex-col rounded-none border-0",
       )}
     >
-      <div className={cn("space-y-4 overflow-y-auto p-5", keyboardOpen ? "min-h-0 flex-1" : "max-h-96")}>
+      <div ref={scrollerRef} className={cn("space-y-4 overflow-y-auto overscroll-contain p-5", keyboardOpen ? "min-h-0 flex-1" : "max-h-96")}>
         {messages.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             В чате пока тихо. Можно поздороваться и спросить, как обычно проходят встречи.
@@ -70,38 +74,24 @@ export function SpaceChat({
             );
           })
         )}
-        <div ref={endRef} />
       </div>
 
-      <form
-        className="sticky bottom-0 flex items-center gap-2 border-t border-border bg-card/95 p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur"
-        onSubmit={(event) => {
-          event.preventDefault();
+      <div className={cn("shrink-0 border-t border-border bg-card/95 backdrop-blur", !keyboardOpen && "pb-[env(safe-area-inset-bottom)]")}>
+        <ChatComposer
+          value={text}
+          onChange={setText}
+          onFocus={scrollToBottom}
+          sending={sending ?? false}
+          disabled={!canWrite}
+          placeholder={canWrite ? "Написать в общий чат" : "Чат доступен участникам сообщества"}
+          onSend={() => {
           const value = text.trim();
           if (!value || !canWrite) return;
           onSend(value);
           setText("");
-        }}
-      >
-        <input
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-          disabled={!canWrite}
-          aria-label="Сообщение в чат сообщества"
-          placeholder={canWrite ? "Написать в общий чат" : "Чат доступен участникам сообщества"}
-          className="min-w-0 flex-1 rounded-full border border-input bg-background px-4 py-2.5 text-sm outline-none transition-colors focus:border-community focus:ring-4 focus:ring-community/12 disabled:opacity-60"
+          }}
         />
-        <Button
-          type="submit"
-          size="icon"
-          aria-label="Отправить"
-          loading={sending ?? false}
-          disabled={!canWrite || text.trim().length === 0}
-          className="bg-community text-community-foreground hover:bg-community/90"
-        >
-          <SendHorizontal aria-hidden="true" />
-        </Button>
-      </form>
+      </div>
     </div>
   );
 }
