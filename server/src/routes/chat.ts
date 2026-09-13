@@ -37,24 +37,34 @@ interface MessageRow {
   media_mime: string | null;
   duration_ms: number | null;
   created_at: Date;
+  edited_at?: Date | null;
+  deleted_at?: Date | null;
   read_by_peer: boolean | null;
 }
 
 function toMessageDto(row: MessageRow) {
+  const deleted = Boolean(row.deleted_at);
   return {
     id: row.id,
     conversationId: row.conversation_id,
     authorId: row.author_id,
-    text: row.text,
+    text: deleted ? "" : row.text,
     kind: row.kind,
     clientTempId: row.client_temp_id ?? undefined,
-    mediaUrl: row.media_url ?? undefined,
-    mediaMime: row.media_mime ?? undefined,
-    durationMs: row.duration_ms ?? undefined,
+    mediaUrl: deleted ? undefined : (row.media_url ?? undefined),
+    mediaMime: deleted ? undefined : (row.media_mime ?? undefined),
+    durationMs: deleted ? undefined : (row.duration_ms ?? undefined),
     createdAt: row.created_at.toISOString(),
+    editedAt: row.edited_at ? row.edited_at.toISOString() : undefined,
+    deletedAt: row.deleted_at ? row.deleted_at.toISOString() : undefined,
     status: row.read_by_peer ? ("read" as const) : ("sent" as const),
   };
 }
+
+/** Сколько времени автор может править своё сообщение. */
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const EDIT_LIMIT = { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } };
+
 
 const SEND_LIMIT = { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } };
 
