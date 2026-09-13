@@ -271,7 +271,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const limit = q.limit ?? 50;
     const rows = await query<MessageRow>(
       `SELECT m.id, m.conversation_id, m.author_id, m.text, m.kind, m.client_temp_id,
-              m.media_url, m.media_mime, m.duration_ms, m.created_at,
+              m.media_url, m.media_mime, m.duration_ms, m.created_at, m.edited_at, m.deleted_at,
               (m.author_id = $2 AND their.last_read_at IS NOT NULL
                  AND m.created_at <= their.last_read_at) AS read_by_peer
          FROM messages m
@@ -436,7 +436,7 @@ export async function chatRoutes(app: FastifyInstance) {
          WHERE client_temp_id IS NOT NULL
        DO UPDATE SET text = messages.text
        RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
-                 media_url, media_mime, duration_ms, created_at, false AS read_by_peer,
+                 media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, false AS read_by_peer,
                  (xmax = 0) AS inserted`,
       [id, userId, text, clientTempId ?? randomUUID()],
     );
@@ -477,7 +477,7 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const existing = await queryOne<MessageRow>(
       `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
-              media_url, media_mime, duration_ms, created_at, false AS read_by_peer
+              media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, false AS read_by_peer
          FROM messages
         WHERE conversation_id = $1 AND author_id = $2 AND client_temp_id = $3`,
       [id, userId, meta.clientTempId],
@@ -494,7 +494,7 @@ export async function chatRoutes(app: FastifyInstance) {
            (conversation_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms)
          VALUES ($1, $2, 'Голосовое сообщение', 'voice', $3, $4, $5, $6)
          RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
-                   media_url, media_mime, duration_ms, created_at, false AS read_by_peer`,
+                   media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, false AS read_by_peer`,
         [id, userId, meta.clientTempId, saved.url, audioType.mime, measuredDurationMs],
       );
       if (!row) throw badRequest("Не удалось сохранить голосовое сообщение");
