@@ -13,8 +13,12 @@
  */
 import type { FastifyInstance } from "fastify";
 import { unlink } from "node:fs/promises";
+import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
+
+import { env } from "../env.ts";
+
 
 import { query, queryOne, transaction } from "../db.ts";
 import { badRequest, forbidden, notFound } from "../http.ts";

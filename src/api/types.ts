@@ -55,7 +55,14 @@ export interface Message {
   mediaUrl?: string;
   mediaMime?: string;
   durationMs?: number;
+  /** Автор правил текст. */
+  editedAt?: string;
+  /** Автор удалил сообщение — текст и медиа стёрты. */
+  deletedAt?: string;
+  /** Только на клиенте: причина, по которой сообщение не ушло. */
+  errorMessage?: string;
 }
+
 
 /** Тип встречи в мини-форме «Предложить встречу». */
 export type MeetingKind = "coffee" | "walk" | "event";
