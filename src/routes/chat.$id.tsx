@@ -122,15 +122,8 @@ function ConversationPage() {
         cache.upsert({ ...event.message, status: event.message.status ?? "sent" });
         void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
       }
-      if (event.type === "message-deleted" && event.messageId) {
-        cache.upsert({
-          id: event.messageId,
-          conversationId: id,
-          authorId: "",
-          text: "",
-          createdAt: new Date().toISOString(),
-          deletedAt: new Date().toISOString(),
-        });
+      if (event.type === "message-deleted") {
+        void queryClient.invalidateQueries({ queryKey: ["chat", "messages", id] });
         void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
       }
       if (event.type === "read" && event.authorId && event.authorId !== myId && myId) {
