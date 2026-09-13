@@ -170,7 +170,7 @@ export function useSendMessage(conversationId: string) {
         kind: "text",
         createdAt: new Date().toISOString(),
         status: "failed",
-        errorMessage: error instanceof Error ? error.message : undefined,
+        ...(error instanceof Error ? { errorMessage: error.message } : {}),
       });
     },
   });
@@ -227,7 +227,7 @@ export function useSendVoiceMessage(conversationId: string) {
         durationMs: vars.recording.durationMs,
         createdAt: new Date().toISOString(),
         status: "failed",
-        errorMessage: error instanceof Error ? error.message : undefined,
+        ...(error instanceof Error ? { errorMessage: error.message } : {}),
       });
     },
   });
@@ -267,8 +267,6 @@ export function useDeleteMessage(conversationId: string) {
         ...previous,
         id: messageId,
         text: "",
-        mediaUrl: undefined,
-        durationMs: undefined,
         deletedAt: new Date().toISOString(),
       });
     },
