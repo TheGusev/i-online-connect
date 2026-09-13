@@ -473,10 +473,16 @@ export async function chatRoutes(app: FastifyInstance) {
       else if (part.fieldname === "clientTempId") clientTempId = String(part.value);
       else if (part.fieldname === "durationMs") durationValue = String(part.value);
     }
-    const meta = z.object({
-      clientTempId: z.string().uuid(),
-      durationMs: z.coerce.number().int().min(400).max(180_000),
-    }).parse({ clientTempId, durationMs: durationValue });
+    // Валидируем вручную, чтобы ответ 400 называл конкретное поле — иначе
+    // по общему «Ошибка валидации» невозможно понять, что именно не так.
+    if (!z.string().uuid().safeParse(clientTempId).success) {
+      throw badRequest("Голосовое отклонено: поле clientTempId должно быть UUID");
+    }
+    const durationMs = Number(durationValue);
+    if (!Number.isInteger(durationMs) || durationMs < 400 || durationMs > 180_000) {
+      throw badRequest("Голосовое отклонено: durationMs должен быть целым числом миллисекунд от 400 до 180000");
+    }
+    const meta = { clientTempId, durationMs };
     if (!buffer || buffer.length < 512) throw badRequest("Запись пустая — запишите голосовое ещё раз");
     const audioType = detectAudioType(buffer);
     if (!audioType) throw badRequest("Поддерживаются голосовые WebM/Opus и MP4/AAC");
