@@ -69,6 +69,9 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
       const mimeType = supportedMimeType();
       if (!mimeType) throw new Error("unsupported");
       const recorder = new MediaRecorder(stream, { mimeType });
+      // Диагностика на реальных устройствах: какой формат реально выдал
+      // браузер (на iPhone Safari это MP4/AAC, на Android — WebM/Opus).
+      console.info("[voice] MediaRecorder mimeType:", recorder.mimeType || mimeType || "по умолчанию");
       streamRef.current = stream;
       recorderRef.current = recorder;
       chunksRef.current = [];
