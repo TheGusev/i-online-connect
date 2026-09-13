@@ -529,6 +529,88 @@ export async function chatRoutes(app: FastifyInstance) {
     return reply.status(204).send();
   });
 
+  /** Правка своего текстового сообщения в течение суток. */
+  app.patch<{ Params: { id: string; messageId: string } }>(
+    "/conversations/:id/messages/:messageId",
+    EDIT_LIMIT,
+    async (request) => {
+      const userId = currentUserId(request);
+      const { id, messageId } = messageParams.parse(request.params);
+      const { text } = z.object({ text: z.string().min(1).max(4000) }).parse(request.body);
+      await assertConversationAccess(userId, id);
+
+      const current = await queryOne<MessageRow>(
+        `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
+                media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                false AS read_by_peer
+           FROM messages WHERE id = $1 AND conversation_id = $2`,
+        [messageId, id],
+      );
+      if (!current) throw notFound("Сообщение не найдено");
+      if (current.author_id !== userId) throw forbidden("Можно менять только свои сообщения");
+      if (current.deleted_at) throw badRequest("Сообщение удалено");
+      if (current.kind !== "text") throw badRequest("Изменять можно только текстовые сообщения");
+      if (Date.now() - current.created_at.getTime() > EDIT_WINDOW_MS) {
+        throw badRequest("Сообщение старше суток — его уже нельзя изменить");
+      }
+
+      const row = await queryOne<MessageRow>(
+        `UPDATE messages SET text = $1, edited_at = now()
+          WHERE id = $2 AND conversation_id = $3 AND author_id = $4
+        RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
+                  media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                  false AS read_by_peer`,
+        [text, messageId, id, userId],
+      );
+      if (!row) throw notFound("Сообщение не найдено");
+
+      const message = toMessageDto(row);
+      publishChatEvent(id, { type: "message-updated", conversationId: id, message });
+      return message;
+    },
+  );
+
+  /** Удаление своего сообщения: текст и медиа стираются у обоих участников. */
+  app.delete<{ Params: { id: string; messageId: string } }>(
+    "/conversations/:id/messages/:messageId",
+    EDIT_LIMIT,
+    async (request) => {
+      const userId = currentUserId(request);
+      const { id, messageId } = messageParams.parse(request.params);
+      await assertConversationAccess(userId, id);
+
+      const current = await queryOne<MessageRow>(
+        `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
+                media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                false AS read_by_peer
+           FROM messages WHERE id = $1 AND conversation_id = $2`,
+        [messageId, id],
+      );
+      if (!current) throw notFound("Сообщение не найдено");
+      if (current.author_id !== userId) throw forbidden("Можно удалять только свои сообщения");
+
+      if (!current.deleted_at) {
+        await query(
+          `UPDATE messages
+              SET text = '', media_url = NULL, media_mime = NULL, duration_ms = NULL,
+                  deleted_at = now()
+            WHERE id = $1 AND conversation_id = $2 AND author_id = $3`,
+          [messageId, id, userId],
+        );
+        // Файл голосового больше не нужен — освобождаем диск.
+        if (current.media_url) {
+          const relative = current.media_url.replace(/^.*\/voice\//, "");
+          await unlink(path.join(env.MEDIA_DIR, "voice", relative)).catch(() => undefined);
+        }
+      }
+
+      publishChatEvent(id, { type: "message-deleted", conversationId: id, messageId });
+      return { id: messageId, deleted: true as const };
+    },
+  );
+
+
+
   app.post<{ Params: { id: string } }>("/conversations/:id/meetings", SEND_LIMIT, async (request) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
