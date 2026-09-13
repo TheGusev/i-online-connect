@@ -1,4 +1,4 @@
-import { Mic, SendHorizontal, Square, X } from "lucide-react";
+import { Mic, Pencil, SendHorizontal, Square, X } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import type { ReactNode, RefObject } from "react";
 
