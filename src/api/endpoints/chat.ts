@@ -81,6 +81,26 @@ export async function markConversationRead(conversationId: string): Promise<void
   await request<void>(`/chat/conversations/${conversationId}/read`, { method: "POST" });
 }
 
+/** Изменить свой текст (доступно сутки после отправки). */
+export async function editMessage(
+  conversationId: string,
+  messageId: string,
+  text: string,
+): Promise<Message> {
+  return request<Message>(`/chat/conversations/${conversationId}/messages/${messageId}`, {
+    method: "PATCH",
+    body: { text },
+  });
+}
+
+/** Удалить своё сообщение у обоих участников. */
+export async function deleteMessage(conversationId: string, messageId: string): Promise<void> {
+  await request<{ id: string }>(`/chat/conversations/${conversationId}/messages/${messageId}`, {
+    method: "DELETE",
+  });
+}
+
+
 export async function suggestMeeting(
   conversationId: string,
   kind: MeetingKind,

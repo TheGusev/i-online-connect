@@ -6,11 +6,14 @@ import type { Message } from "@/api";
 export type ChatSocketStatus = "connecting" | "open" | "closed";
 
 export interface ChatSocketEvent {
-  type: "message" | "typing" | "read";
+  type: "message" | "typing" | "read" | "message-updated" | "message-deleted";
   conversationId: string;
   message?: Message;
+  /** Для события удаления сообщения. */
+  messageId?: string;
   authorId?: string;
 }
+
 
 interface UseChatSocketOptions {
   conversationId: string | null;
