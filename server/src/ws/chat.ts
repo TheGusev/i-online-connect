@@ -21,11 +21,13 @@ import { queryOne } from "../db.ts";
 import { verifyAccessToken } from "../auth/tokens.ts";
 
 export interface ChatSocketEvent {
-  type: "message" | "typing" | "read";
+  type: "message" | "typing" | "read" | "message-updated" | "message-deleted";
   conversationId: string;
   message?: unknown;
+  messageId?: string;
   authorId?: string;
 }
+
 
 const rooms = new Map<string, Map<WebSocket, string>>();
 
