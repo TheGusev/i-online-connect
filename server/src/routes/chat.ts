@@ -12,6 +12,8 @@
  * переписку, подставив id в URL.
  */
 import type { FastifyInstance } from "fastify";
+import { unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
 import { query, queryOne, transaction } from "../db.ts";
@@ -20,6 +22,7 @@ import { assertConversationAccess, currentUserId, requireAuth } from "../auth/mi
 import { isInRoom, publishChatEvent } from "../ws/chat.ts";
 import { sendPushToUser } from "../push/send.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
+import { audioDurationMs, detectAudioType, MAX_VOICE_BYTES, saveVoiceFile } from "../media/store.ts";
 
 const idParam = z.object({ id: z.string().uuid() });
 
@@ -28,7 +31,11 @@ interface MessageRow {
   conversation_id: string;
   author_id: string;
   text: string;
-  kind: "text" | "meeting";
+  kind: "text" | "meeting" | "voice";
+  client_temp_id: string | null;
+  media_url: string | null;
+  media_mime: string | null;
+  duration_ms: number | null;
   created_at: Date;
   read_by_peer: boolean | null;
 }
@@ -40,6 +47,10 @@ function toMessageDto(row: MessageRow) {
     authorId: row.author_id,
     text: row.text,
     kind: row.kind,
+    clientTempId: row.client_temp_id ?? undefined,
+    mediaUrl: row.media_url ?? undefined,
+    mediaMime: row.media_mime ?? undefined,
+    durationMs: row.duration_ms ?? undefined,
     createdAt: row.created_at.toISOString(),
     status: row.read_by_peer ? ("read" as const) : ("sent" as const),
   };
@@ -55,7 +66,7 @@ const SEND_LIMIT = { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } 
 async function notifyRecipient(
   conversationId: string,
   senderId: string,
-  message: { id: string; text: string; kind: "text" | "meeting" },
+  message: { id: string; text: string; kind: "text" | "meeting" | "voice" },
 ) {
   try {
     const recipient = await queryOne<{ user_id: string; is_seed: boolean; sender_name: string }>(
@@ -75,7 +86,11 @@ async function notifyRecipient(
     if (!recipient || recipient.is_seed) return;
     if (isInRoom(conversationId, recipient.user_id)) return;
 
-    const preview = message.kind === "meeting" ? "Предлагает встретиться" : message.text.slice(0, 120);
+    const preview = message.kind === "meeting"
+      ? "Предлагает встретиться"
+      : message.kind === "voice"
+        ? "Голосовое сообщение"
+        : message.text.slice(0, 120);
     const payload = {
       conversationId,
       messageId: message.id,
@@ -245,7 +260,8 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const limit = q.limit ?? 50;
     const rows = await query<MessageRow>(
-      `SELECT m.id, m.conversation_id, m.author_id, m.text, m.kind, m.created_at,
+      `SELECT m.id, m.conversation_id, m.author_id, m.text, m.kind, m.client_temp_id,
+              m.media_url, m.media_mime, m.duration_ms, m.created_at,
               (m.author_id = $2 AND their.last_read_at IS NOT NULL
                  AND m.created_at <= their.last_read_at) AS read_by_peer
          FROM messages m
@@ -396,30 +412,91 @@ export async function chatRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string } }>("/conversations/:id/messages", SEND_LIMIT, async (request) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
-    const { text } = z.object({ text: z.string().min(1).max(4000) }).parse(request.body);
+    const { text, clientTempId } = z.object({
+      text: z.string().min(1).max(4000),
+      clientTempId: z.string().uuid().optional(),
+    }).parse(request.body);
     await assertConversationAccess(userId, id);
     await assertNotBlockedInConversation(userId, id);
 
-    const row = await queryOne<{ id: string; created_at: Date }>(
-      `INSERT INTO messages (conversation_id, author_id, text)
-       VALUES ($1, $2, $3) RETURNING id, created_at`,
-      [id, userId, text],
+    const row = await queryOne<MessageRow & { inserted: boolean }>(
+      `INSERT INTO messages (conversation_id, author_id, text, client_temp_id)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (conversation_id, author_id, client_temp_id)
+         WHERE client_temp_id IS NOT NULL
+       DO UPDATE SET text = messages.text
+       RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
+                 media_url, media_mime, duration_ms, created_at, false AS read_by_peer,
+                 (xmax = 0) AS inserted`,
+      [id, userId, text, clientTempId ?? randomUUID()],
     );
     if (!row) throw notFound("Диалог не найден");
     await query("UPDATE conversations SET last_message_at = now() WHERE id = $1", [id]);
 
-    const message = {
-      id: row.id,
-      conversationId: id,
-      authorId: userId,
-      text,
-      kind: "text" as const,
-      createdAt: row.created_at.toISOString(),
-    };
+    const message = toMessageDto(row);
 
-    publishChatEvent(id, { type: "message", conversationId: id, message: { ...message, status: "sent" } });
-    void notifyRecipient(id, userId, message);
-    return { ...message, status: "sent" as const };
+    if (row.inserted) {
+      publishChatEvent(id, { type: "message", conversationId: id, message: { ...message, status: "sent" } });
+      void notifyRecipient(id, userId, message);
+    }
+    return message;
+  });
+
+  app.post<{ Params: { id: string } }>("/conversations/:id/voice", SEND_LIMIT, async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    await assertConversationAccess(userId, id);
+    await assertNotBlockedInConversation(userId, id);
+
+    const fields = request.parts({ limits: { fileSize: MAX_VOICE_BYTES, files: 1, fields: 3 } });
+    let buffer: Buffer | null = null;
+    let clientTempId = "";
+    let durationValue = "";
+    for await (const part of fields) {
+      if (part.type === "file") buffer = await part.toBuffer();
+      else if (part.fieldname === "clientTempId") clientTempId = String(part.value);
+      else if (part.fieldname === "durationMs") durationValue = String(part.value);
+    }
+    const meta = z.object({
+      clientTempId: z.string().uuid(),
+      durationMs: z.coerce.number().int().min(400).max(180_000),
+    }).parse({ clientTempId, durationMs: durationValue });
+    if (!buffer || buffer.length < 512) throw badRequest("Запись пустая — запишите голосовое ещё раз");
+    const audioType = detectAudioType(buffer);
+    if (!audioType) throw badRequest("Поддерживаются голосовые WebM/Opus и MP4/AAC");
+
+    const existing = await queryOne<MessageRow>(
+      `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
+              media_url, media_mime, duration_ms, created_at, false AS read_by_peer
+         FROM messages
+        WHERE conversation_id = $1 AND author_id = $2 AND client_temp_id = $3`,
+      [id, userId, meta.clientTempId],
+    );
+    if (existing) return toMessageDto(existing);
+
+    const saved = await saveVoiceFile(userId, buffer, audioType);
+    try {
+      const measuredDurationMs = await audioDurationMs(saved.filePath).catch(() => 0);
+      if (measuredDurationMs < 400) throw badRequest("Запись не содержит воспроизводимого звука");
+      if (measuredDurationMs > 180_500) throw badRequest("Голосовое сообщение может длиться не больше 3 минут");
+      const row = await queryOne<MessageRow>(
+        `INSERT INTO messages
+           (conversation_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms)
+         VALUES ($1, $2, 'Голосовое сообщение', 'voice', $3, $4, $5, $6)
+         RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
+                   media_url, media_mime, duration_ms, created_at, false AS read_by_peer`,
+        [id, userId, meta.clientTempId, saved.url, audioType.mime, measuredDurationMs],
+      );
+      if (!row) throw badRequest("Не удалось сохранить голосовое сообщение");
+      await query("UPDATE conversations SET last_message_at = now() WHERE id = $1", [id]);
+      const message = toMessageDto(row);
+      publishChatEvent(id, { type: "message", conversationId: id, message });
+      void notifyRecipient(id, userId, { id: row.id, text: row.text, kind: "voice" });
+      return message;
+    } catch (error) {
+      await unlink(saved.filePath).catch(() => undefined);
+      throw error;
+    }
   });
 
   app.post<{ Params: { id: string } }>("/conversations/:id/read", async (request, reply) => {

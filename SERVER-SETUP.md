@@ -131,6 +131,11 @@ sudo apt -y install postgresql postgresql-contrib
 sudo systemctl enable --now postgresql
 ```
 
+После обновления приложения запустите `cd server && npm run migrate`: миграции
+`015_voice_kind.sql` и `016_voice_messages.sql` применяются последовательно,
+поскольку новое значение PostgreSQL enum нельзя использовать в той же
+транзакции, где оно было добавлено.
+
 Проверьте, что база слушает только loopback
 (`/etc/postgresql/16/main/postgresql.conf`):
 

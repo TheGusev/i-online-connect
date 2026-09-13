@@ -220,6 +220,15 @@ refresh-токены (выход на других устройствах). Уд
 
 ## WebSocket-чат
 
+Текст отправляется через `POST /api/chat/conversations/:id/messages` с телом
+`{ text, clientTempId? }`. UUID `clientTempId` делает повтор после обрыва связи
+идемпотентным: сервер вернёт уже созданное сообщение вместо дубля.
+
+Голосовое отправляется через `POST /api/chat/conversations/:id/voice` как
+multipart с полями `file`, `durationMs`, `clientTempId`. Допустимы WebM/Opus и
+MP4/AAC, до 10 МБ и 180 секунд. Ответ и WebSocket-событие используют обычный
+`Message` с `kind: "voice"`, `mediaUrl`, `mediaMime`, `durationMs`.
+
 Адрес: `VITE_WS_URL` + `/chat/:conversationId?token=<access token>`
 (в проде `wss://example.com/ws/chat/<id>?token=…`).
 

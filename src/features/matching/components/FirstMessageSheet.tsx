@@ -40,7 +40,7 @@ export function FirstMessageSheet({
     try {
       const id = conversationId ?? (await chatApi.openConversation(match.id)).conversationId;
       const body = text.trim();
-      if (body) await chatApi.sendMessage(id, body);
+      if (body) await chatApi.sendMessage(id, body, crypto.randomUUID());
       void queryClient.invalidateQueries({ queryKey: ["chat"] });
       onClose();
       void navigate({ to: "/chat/$id", params: { id } });

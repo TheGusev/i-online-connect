@@ -9,6 +9,7 @@ import { useCallback } from "react";
 
 import { chatApi } from "@/api";
 import type { MeetingKind, Message } from "@/api";
+import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
 import type { MessagesPage } from "@/api/endpoints/chat";
 import { useSessionStore } from "@/store/useSessionStore";
 
@@ -80,11 +81,16 @@ export function useMessagesCache(conversationId: string) {
   const upsert = useCallback(
     (message: Message, replaceId?: string) =>
       mutate((items) => {
-        const idx = items.findIndex((m) => m.id === message.id || (replaceId && m.id === replaceId));
-        if (idx === -1) return [...items, message];
+        const idx = items.findIndex(
+          (m) =>
+            m.id === message.id ||
+            (replaceId && m.id === replaceId) ||
+            (message.clientTempId && m.clientTempId === message.clientTempId),
+        );
+        if (idx === -1) return [...items.filter((m) => m.id !== message.id), message];
         const next = items.slice();
         next[idx] = { ...next[idx], ...message };
-        return next;
+        return next.filter((item, itemIndex) => itemIndex === idx || item.id !== message.id);
       }),
     [mutate],
   );
@@ -125,10 +131,6 @@ export function useMessageStarters(conversationId: string, enabled: boolean) {
   });
 }
 
-function tempId() {
-  return `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
 /** Оптимистичная отправка: пузырь появляется сразу со статусом «отправляется». */
 export function useSendMessage(conversationId: string) {
   const queryClient = useQueryClient();
@@ -136,12 +138,13 @@ export function useSendMessage(conversationId: string) {
   const myId = useSessionStore((s) => s.user?.id ?? "me");
 
   return useMutation({
-    mutationFn: ({ text }: { text: string; retryId?: string }) =>
-      chatApi.sendMessage(conversationId, text),
-    onMutate: ({ text, retryId }) => {
-      const id = retryId ?? tempId();
+    mutationFn: ({ text, clientTempId }: { text: string; clientTempId: string; retryId?: string }) =>
+      chatApi.sendMessage(conversationId, text, clientTempId),
+    onMutate: ({ text, clientTempId, retryId }) => {
+      const id = retryId ?? `tmp-${clientTempId}`;
       cache.upsert({
         id,
+        clientTempId,
         conversationId,
         authorId: myId,
         text,
@@ -160,10 +163,66 @@ export function useSendMessage(conversationId: string) {
       if (!ctx) return;
       cache.upsert({
         id: ctx.id,
+        clientTempId: vars.clientTempId,
         conversationId,
         authorId: myId,
         text: vars.text,
         kind: "text",
+        createdAt: new Date().toISOString(),
+        status: "failed",
+      });
+    },
+  });
+}
+
+/** Голосовое проходит через тот же optimistic cache и статусы, что текст. */
+export function useSendVoiceMessage(conversationId: string) {
+  const queryClient = useQueryClient();
+  const cache = useMessagesCache(conversationId);
+  const myId = useSessionStore((s) => s.user?.id ?? "me");
+
+  return useMutation({
+    mutationFn: ({ recording, clientTempId }: { recording: VoiceRecording; clientTempId: string }) =>
+      chatApi.sendVoiceMessage(
+        conversationId,
+        recording.blob,
+        recording.durationMs,
+        clientTempId,
+      ),
+    onMutate: ({ recording, clientTempId }) => {
+      const id = `tmp-${clientTempId}`;
+      const previewUrl = URL.createObjectURL(recording.blob);
+      cache.upsert({
+        id,
+        clientTempId,
+        conversationId,
+        authorId: myId,
+        text: "Голосовое сообщение",
+        kind: "voice",
+        mediaUrl: previewUrl,
+        mediaMime: recording.mimeType,
+        durationMs: recording.durationMs,
+        createdAt: new Date().toISOString(),
+        status: "sending",
+      });
+      return { id, previewUrl };
+    },
+    onSuccess: (message, _vars, ctx) => {
+      if (ctx?.previewUrl) URL.revokeObjectURL(ctx.previewUrl);
+      cache.upsert({ ...message, status: message.status ?? "sent" }, ctx?.id);
+      void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+    },
+    onError: (_error, vars, ctx) => {
+      if (!ctx) return;
+      URL.revokeObjectURL(ctx.previewUrl);
+      cache.upsert({
+        id: ctx.id,
+        clientTempId: vars.clientTempId,
+        conversationId,
+        authorId: myId,
+        text: "Голосовое сообщение",
+        kind: "voice",
+        durationMs: vars.recording.durationMs,
         createdAt: new Date().toISOString(),
         status: "failed",
       });

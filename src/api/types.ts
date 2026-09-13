@@ -43,13 +43,18 @@ export type MessageStatus = "sending" | "sent" | "read" | "failed";
 
 export interface Message {
   id: string;
+  /** Идентификатор попытки клиента: связывает optimistic-пузырь, HTTP и WebSocket. */
+  clientTempId?: string;
   conversationId: string;
   authorId: string;
   text: string;
   createdAt: string;
   status?: MessageStatus;
-  /** Системное сообщение: приглашение на встречу и подобное. */
-  kind?: "text" | "meeting";
+  /** Системное или голосовое сообщение. */
+  kind?: "text" | "meeting" | "voice";
+  mediaUrl?: string;
+  mediaMime?: string;
+  durationMs?: number;
 }
 
 /** Тип встречи в мини-форме «Предложить встречу». */

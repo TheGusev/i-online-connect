@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 /**
  * Мобильная клавиатура и высота экрана.
@@ -22,36 +22,53 @@ function readViewport() {
   };
 }
 
-/** Единственный подписчик на visualViewport: держит CSS-переменные и inset. */
+let viewportInset = 0;
+let listening = false;
+const listeners = new Set<() => void>();
+
+function updateViewport() {
+  const { height, inset, top } = readViewport();
+  const root = document.documentElement;
+  root.style.setProperty("--app-height", `${height}px`);
+  root.style.setProperty("--keyboard-inset", `${inset}px`);
+  root.style.setProperty("--viewport-top", `${top}px`);
+  if (viewportInset !== inset) {
+    viewportInset = inset;
+    listeners.forEach((listener) => listener());
+  }
+}
+
+function startListening() {
+  if (listening || typeof window === "undefined") return;
+  listening = true;
+  updateViewport();
+  window.visualViewport?.addEventListener("resize", updateViewport);
+  window.visualViewport?.addEventListener("scroll", updateViewport);
+  window.addEventListener("resize", updateViewport);
+  window.addEventListener("orientationchange", updateViewport);
+}
+
+function stopListening() {
+  if (!listening || typeof window === "undefined") return;
+  listening = false;
+  window.visualViewport?.removeEventListener("resize", updateViewport);
+  window.visualViewport?.removeEventListener("scroll", updateViewport);
+  window.removeEventListener("resize", updateViewport);
+  window.removeEventListener("orientationchange", updateViewport);
+}
+
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  startListening();
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) stopListening();
+  };
+}
+
+/** Все потребители делят одну подписку visualViewport, без дублирования обработчиков. */
 export function useKeyboardInset(): number {
-  const [inset, setInset] = useState(0);
-
-  useEffect(() => {
-    const root = document.documentElement;
-
-    const update = () => {
-      const { height, inset: next, top } = readViewport();
-      root.style.setProperty("--app-height", `${height}px`);
-      root.style.setProperty("--keyboard-inset", `${next}px`);
-      root.style.setProperty("--viewport-top", `${top}px`);
-      setInset((prev) => (prev === next ? prev : next));
-    };
-
-    update();
-    const viewport = window.visualViewport;
-    viewport?.addEventListener("resize", update);
-    viewport?.addEventListener("scroll", update);
-    window.addEventListener("resize", update);
-    window.addEventListener("orientationchange", update);
-    return () => {
-      viewport?.removeEventListener("resize", update);
-      viewport?.removeEventListener("scroll", update);
-      window.removeEventListener("resize", update);
-      window.removeEventListener("orientationchange", update);
-    };
-  }, []);
-
-  return inset;
+  return useSyncExternalStore(subscribe, () => viewportInset, () => 0);
 }
 
 /** Открыта ли клавиатура — для скрытия нижней навигации. */

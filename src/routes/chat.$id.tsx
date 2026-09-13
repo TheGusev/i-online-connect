@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarHeart, SendHorizontal, WifiOff } from "lucide-react";
+import { ArrowLeft, CalendarHeart, WifiOff } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useKeyboardInset } from "@/hooks/useKeyboardOpen";
@@ -9,6 +9,7 @@ import type { MeetingKind, Message } from "@/api";
 import { Avatar, Button, TrustBadge } from "@/components/ds";
 import { MeetingSheet } from "@/features/chat/components/MeetingSheet";
 import { MessageBubble } from "@/features/chat/components/MessageBubble";
+import { ChatComposer } from "@/features/chat/components/ChatComposer";
 import { SafetyMenu } from "@/features/chat/components/SafetyMenu";
 import { StarterChips } from "@/features/chat/components/StarterChips";
 import {
@@ -18,6 +19,7 @@ import {
   useMessages,
   useMessagesCache,
   useSendMessage,
+  useSendVoiceMessage,
   useSuggestMeeting,
 } from "@/features/chat/hooks";
 import { badgeLevel } from "@/features/chat/trust";
@@ -76,6 +78,7 @@ function ConversationPage() {
   const { messages, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useMessages(id);
   const cache = useMessagesCache(id);
   const send = useSendMessage(id);
+  const sendVoice = useSendVoiceMessage(id);
   const suggestMeeting = useSuggestMeeting(id);
   const markRead = useMarkConversationRead(id);
 
@@ -181,14 +184,26 @@ function ConversationPage() {
 
   const submit = () => {
     const text = draft.trim();
-    if (!text) return;
-    send.mutate({ text });
+    if (!text || send.isPending) return;
+    send.mutate({ text, clientTempId: crypto.randomUUID() });
     setDraft("");
     inputRef.current?.focus();
   };
 
   const retry = (message: Message) => {
-    send.mutate({ text: message.text, retryId: message.id });
+    if (message.kind === "voice") {
+      const variables = sendVoice.variables;
+      if (!sendVoice.isPending && variables && variables.clientTempId === message.clientTempId) {
+        sendVoice.mutate(variables);
+      }
+      return;
+    }
+    if (send.isPending) return;
+    send.mutate({
+      text: message.text,
+      clientTempId: message.clientTempId ?? crypto.randomUUID(),
+      retryId: message.id,
+    });
   };
 
   return (
@@ -329,44 +344,31 @@ function ConversationPage() {
             />
           ) : null}
 
-          <form
-            className="flex items-end gap-2 px-4 py-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              submit();
+          <ChatComposer
+            value={draft}
+            onChange={setDraft}
+            onSend={submit}
+            onTyping={sendTyping}
+            onFocus={() => scrollToBottom(false)}
+            sending={send.isPending}
+            voiceSending={sendVoice.isPending}
+            inputRef={inputRef}
+            onVoice={(recording) => {
+              if (sendVoice.isPending) return;
+              sendVoice.mutate({ recording, clientTempId: crypto.randomUUID() });
             }}
-          >
-            <Button
-              type="button"
-              variant="secondary"
-              size="icon"
-              aria-label="Предложить встречу"
-              onClick={() => setMeetingOpen(true)}
-            >
-              <CalendarHeart aria-hidden="true" />
-            </Button>
-            <textarea
-              ref={inputRef}
-              rows={1}
-              value={draft}
-              onFocus={() => scrollToBottom(false)}
-              onChange={(event) => {
-                setDraft(event.target.value);
-                if (event.target.value.trim()) sendTyping();
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  submit();
-                }
-              }}
-              placeholder="Напишите сообщение…"
-              className="max-h-32 min-h-11 flex-1 resize-none rounded-3xl border border-input bg-background px-4 py-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-            <Button type="submit" size="icon" aria-label="Отправить" disabled={!draft.trim()}>
-              <SendHorizontal aria-hidden="true" />
-            </Button>
-          </form>
+            leading={(
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                aria-label="Предложить встречу"
+                onClick={() => setMeetingOpen(true)}
+              >
+                <CalendarHeart aria-hidden="true" />
+              </Button>
+            )}
+          />
         </div>
       </div>
 
