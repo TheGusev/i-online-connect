@@ -159,7 +159,7 @@ export function useSendMessage(conversationId: string) {
       void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
       void queryClient.invalidateQueries({ queryKey: ["chat", "conversation", conversationId] });
     },
-    onError: (_error, vars, ctx) => {
+    onError: (error, vars, ctx) => {
       if (!ctx) return;
       cache.upsert({
         id: ctx.id,
@@ -170,10 +170,12 @@ export function useSendMessage(conversationId: string) {
         kind: "text",
         createdAt: new Date().toISOString(),
         status: "failed",
+        errorMessage: error instanceof Error ? error.message : undefined,
       });
     },
   });
 }
+
 
 /** Голосовое проходит через тот же optimistic cache и статусы, что текст. */
 export function useSendVoiceMessage(conversationId: string) {
@@ -212,7 +214,7 @@ export function useSendVoiceMessage(conversationId: string) {
       cache.upsert({ ...message, status: message.status ?? "sent" }, ctx?.id);
       void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
     },
-    onError: (_error, vars, ctx) => {
+    onError: (error, vars, ctx) => {
       if (!ctx) return;
       URL.revokeObjectURL(ctx.previewUrl);
       cache.upsert({
@@ -225,10 +227,60 @@ export function useSendVoiceMessage(conversationId: string) {
         durationMs: vars.recording.durationMs,
         createdAt: new Date().toISOString(),
         status: "failed",
+        errorMessage: error instanceof Error ? error.message : undefined,
       });
     },
   });
 }
+
+/** Правка своего текста: пузырь обновляется сразу, при ошибке возвращается прежний. */
+export function useEditMessage(conversationId: string) {
+  const queryClient = useQueryClient();
+  const cache = useMessagesCache(conversationId);
+
+  return useMutation({
+    mutationFn: ({ messageId, text }: { messageId: string; text: string; previous: Message }) =>
+      chatApi.editMessage(conversationId, messageId, text),
+    onMutate: ({ messageId, text, previous }) => {
+      cache.upsert({ ...previous, id: messageId, text, editedAt: new Date().toISOString() });
+    },
+    onSuccess: (message) => {
+      cache.upsert({ ...message, status: message.status ?? "sent" });
+      void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+    },
+    onError: (_error, vars) => {
+      cache.upsert(vars.previous);
+    },
+  });
+}
+
+/** Удаление своего сообщения: на месте остаётся пометка «Сообщение удалено». */
+export function useDeleteMessage(conversationId: string) {
+  const queryClient = useQueryClient();
+  const cache = useMessagesCache(conversationId);
+
+  return useMutation({
+    mutationFn: ({ messageId }: { messageId: string; previous: Message }) =>
+      chatApi.deleteMessage(conversationId, messageId),
+    onMutate: ({ messageId, previous }) => {
+      cache.upsert({
+        ...previous,
+        id: messageId,
+        text: "",
+        mediaUrl: undefined,
+        durationMs: undefined,
+        deletedAt: new Date().toISOString(),
+      });
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+    },
+    onError: (_error, vars) => {
+      cache.upsert(vars.previous);
+    },
+  });
+}
+
 
 export function useSuggestMeeting(conversationId: string) {
   const queryClient = useQueryClient();
