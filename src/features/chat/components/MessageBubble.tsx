@@ -97,13 +97,13 @@ export function MessageBubble({
           clearHold();
           swipe.handlers.onTouchMove?.(event);
         }}
-        onTouchEnd={(event) => {
+        onTouchEnd={() => {
           clearHold();
-          swipe.handlers.onTouchEnd?.(event);
+          swipe.handlers.onTouchEnd?.();
         }}
-        onTouchCancel={(event) => {
+        onTouchCancel={() => {
           clearHold();
-          swipe.handlers.onTouchCancel?.(event);
+          swipe.handlers.onTouchCancel?.();
         }}
         style={{
           transform: swipe.offset ? `translateX(${swipe.offset}px)` : undefined,
