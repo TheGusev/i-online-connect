@@ -69,8 +69,17 @@ const webmPath = path.join(mediaDir, "sample.webm");
 const m4aPath = path.join(mediaDir, "sample.m4a");
 execFileSync("ffmpeg", ["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=2", "-c:a", "libopus", webmPath], { stdio: "pipe" });
 execFileSync("ffmpeg", ["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=2", "-c:a", "aac", m4aPath], { stdio: "pipe" });
+// Потоковая запись без длительности в заголовке — так пишет MediaRecorder
+// в браузере (WebM без Duration, на iOS фрагментированный MP4).
+const livePath = path.join(mediaDir, "sample-live.webm");
+execFileSync(
+  "ffmpeg",
+  ["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=2", "-c:a", "libopus", "-f", "webm", "-live", "1", livePath],
+  { stdio: "pipe" },
+);
 const webm = readFileSync(webmPath);
 const m4a = readFileSync(m4aPath);
+const liveWebm = readFileSync(livePath);
 
 // Собирает multipart/form-data точно как браузер: поля, затем файл, без
 // ручного Content-Type в XHR (boundary ставит сам браузер).
@@ -144,6 +153,13 @@ assert.match(junk.json().message ?? "", /WebM|MP4/i);
 const mp4 = await sendVoice(bob.token, { buffer: m4a, name: "voice.m4a", type: "audio/mp4", clientTempId: crypto.randomUUID(), durationMs: 2000 });
 assert.equal(mp4.statusCode, 200, `валидный MP4: получен ${mp4.statusCode}: ${mp4.body}`);
 assert.equal(mp4.json().mediaMime, "audio/mp4");
+
+// 7.1 Запись без длительности в заголовке (как в браузере) — раньше падала
+// с «Запись не содержит воспроизводимого звука», теперь должна приниматься.
+const live = await sendVoice(bob.token, { buffer: liveWebm, name: "voice.webm", type: "audio/webm", clientTempId: crypto.randomUUID(), durationMs: 2000 });
+assert.equal(live.statusCode, 200, `потоковый WebM без Duration: ${live.statusCode}: ${live.body}`);
+assert.ok(live.json().durationMs >= 1500, `длительность измерена по декодированию: ${live.json().durationMs}`);
+
 
 // 8. Чужой диалог → 403.
 const outsider = await makeUser("voice-outsider@test.local");

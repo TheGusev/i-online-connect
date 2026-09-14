@@ -88,6 +88,8 @@ export function ChatComposer({
       <form
         className={cn(
           "grid items-end gap-2 px-3 py-2.5 sm:px-4 sm:py-3",
+          // Долгое нажатие для записи не должно вызывать лупу и меню выделения iOS.
+          "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]",
           leading ? "grid-cols-[auto_minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1fr)_auto]",
         )}
         onSubmit={(event) => {
@@ -97,7 +99,7 @@ export function ChatComposer({
       >
         {leading ? <div className="shrink-0">{leading}</div> : null}
         {voice.recording ? (
-          <div className="flex h-11 min-w-0 items-center gap-2 rounded-3xl border border-destructive/40 bg-destructive/10 px-3">
+          <div className="flex h-11 min-w-0 select-none items-center gap-2 rounded-3xl border border-destructive/40 bg-destructive/10 px-3 [-webkit-touch-callout:none] [-webkit-user-select:none]">
             <span className="size-2 shrink-0 animate-pulse rounded-full bg-destructive" />
             <span className="shrink-0 text-sm font-semibold text-destructive">{durationLabel(voice.seconds)}</span>
             <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">Сдвиньте влево для отмены</span>
@@ -142,7 +144,13 @@ export function ChatComposer({
             variant={voice.recording ? "danger" : "secondary"}
             aria-label={voice.recording ? "Отпустить и отправить запись" : "Удерживайте для записи голосового сообщения"}
             disabled={disabled || voiceSending}
-            className={cn("shrink-0 touch-none", voice.recording && "animate-pulse")}
+            draggable={false}
+            onContextMenu={(event) => event.preventDefault()}
+            className={cn(
+              "shrink-0 touch-none select-none",
+              "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]",
+              voice.recording && "animate-pulse",
+            )}
             onPointerDown={(event) => {
               pointerStartX.current = event.clientX;
               pointerHeld.current = true;
