@@ -174,4 +174,12 @@ export function installChunkRecovery() {
   window.addEventListener("unhandledrejection", (event) => {
     if (isChunkError(event.reason)) recover();
   });
+
+  // Сторож запуска: часть ошибок загрузки кода роутер проглатывает молча,
+  // и экран просто остаётся пустым. Если за BOOT_TIMEOUT_MS приложение
+  // не отрисовалось — восстанавливаемся тем же путём.
+  bootTimer = setTimeout(() => {
+    bootTimer = null;
+    if (!appLoaded) recover();
+  }, BOOT_TIMEOUT_MS);
 }
