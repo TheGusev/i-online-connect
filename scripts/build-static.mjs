@@ -60,7 +60,11 @@ async function main() {
   await mkdir(outDir, { recursive: true });
   await cp(clientDir, outDir, { recursive: true });
 
-  const shell = await readFile(shellPath, "utf8");
+  const version = buildVersion();
+
+  // Версия сборки вшивается в сам документ: так открытая страница знает, из
+  // какой сборки она пришла, и может сравнить себя с /version.json.
+  const shell = (await readFile(shellPath, "utf8")).replaceAll("__APP_VERSION__", version);
   await writeFile(path.join(outDir, "index.html"), shell, "utf8");
 
   // Служебные файлы: не нужны при раздаче через Nginx.
