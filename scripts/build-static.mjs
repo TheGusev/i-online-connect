@@ -72,7 +72,6 @@ async function main() {
   await rm(path.join(outDir, "_headers"), { force: true });
   await rm(path.join(outDir, ".vite"), { recursive: true, force: true });
 
-  const version = buildVersion();
   await writeFile(
     path.join(outDir, "version.json"),
     `${JSON.stringify({ version, builtAt: new Date().toISOString() }, null, 2)}\n`,
