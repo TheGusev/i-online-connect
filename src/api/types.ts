@@ -61,6 +61,19 @@ export interface Message {
   deletedAt?: string;
   /** Только на клиенте: причина, по которой сообщение не ушло. */
   errorMessage?: string;
+  /** Сообщение, на которое отвечает это. */
+  replyToId?: string;
+  /** Короткая цитата исходного сообщения. */
+  replyTo?: MessageQuote;
+}
+
+/** Цитата: минимум для плашки и пузыря ответа. */
+export interface MessageQuote {
+  id: string;
+  authorId: string;
+  kind?: "text" | "meeting" | "voice";
+  text: string;
+  deleted?: boolean;
 }
 
 

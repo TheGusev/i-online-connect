@@ -9,7 +9,15 @@ function formatDuration(seconds: number) {
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
 }
 
-export function VoicePlayer({ src, duration, mine }: { src: string; duration: number; mine: boolean }) {
+export function VoicePlayer({
+  src,
+  duration,
+  mine,
+}: {
+  src: string;
+  duration: number;
+  mine: boolean;
+}) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
@@ -51,18 +59,35 @@ export function VoicePlayer({ src, duration, mine }: { src: string; duration: nu
           }
         }}
       >
-        {playing ? <Pause className="size-4" aria-hidden="true" /> : <Play className="size-4" aria-hidden="true" />}
+        {playing ? (
+          <Pause className="size-4" aria-hidden="true" />
+        ) : (
+          <Play className="size-4" aria-hidden="true" />
+        )}
       </Button>
       <div className="min-w-0 flex-1">
-        <div className={cn("h-1 overflow-hidden rounded-full", mine ? "bg-primary-foreground/25" : "bg-secondary")}>
+        <div
+          className={cn(
+            "h-1 overflow-hidden rounded-full",
+            mine ? "bg-primary-foreground/25" : "bg-secondary",
+          )}
+        >
           <progress
-            className={cn("block h-full w-full accent-primary", mine && "accent-primary-foreground")}
+            className={cn(
+              "block h-full w-full accent-primary",
+              mine && "accent-primary-foreground",
+            )}
             max={100}
             value={progress}
             aria-label="Прогресс голосового сообщения"
           />
         </div>
-        <p className={cn("mt-1 text-[11px]", mine ? "text-primary-foreground/75" : "text-muted-foreground")}>
+        <p
+          className={cn(
+            "mt-1 text-[11px]",
+            mine ? "text-primary-foreground/75" : "text-muted-foreground",
+          )}
+        >
           {formatDuration(current || total)}
         </p>
       </div>

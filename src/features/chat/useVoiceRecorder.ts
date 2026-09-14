@@ -115,7 +115,10 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
       const recorder = new MediaRecorder(stream, { mimeType });
       // Диагностика на реальных устройствах: какой формат реально выдал
       // браузер (на iPhone Safari это MP4/AAC, на Android — WebM/Opus).
-      console.info("[voice] MediaRecorder mimeType:", recorder.mimeType || mimeType || "по умолчанию");
+      console.info(
+        "[voice] MediaRecorder mimeType:",
+        recorder.mimeType || mimeType || "по умолчанию",
+      );
       streamRef.current = stream;
       recorderRef.current = recorder;
       chunksRef.current = [];
@@ -150,7 +153,16 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
         if (cancelledRef.current) return;
         void measureBlobDurationMs(blob).then((measuredMs) => {
           const durationMs = Math.min(MAX_VOICE_SECONDS * 1000, measuredMs || heldMs);
-          console.info("[voice] blob:", blob.size, "байт", blob.type, "длительность(мс):", measuredMs, "удержание(мс):", heldMs);
+          console.info(
+            "[voice] blob:",
+            blob.size,
+            "байт",
+            blob.type,
+            "длительность(мс):",
+            measuredMs,
+            "удержание(мс):",
+            heldMs,
+          );
           if (blob.size < 512 || durationMs < MIN_VOICE_MS) {
             setError("Запись слишком короткая. Удерживайте микрофон чуть дольше.");
             return;
@@ -176,11 +188,14 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
     return () => window.clearInterval(timer);
   }, [recording, stop]);
 
-  useEffect(() => () => {
-    cancelledRef.current = true;
-    if (recorderRef.current?.state === "recording") recorderRef.current.stop();
-    cleanup();
-  }, [cleanup]);
+  useEffect(
+    () => () => {
+      cancelledRef.current = true;
+      if (recorderRef.current?.state === "recording") recorderRef.current.stop();
+      cleanup();
+    },
+    [cleanup],
+  );
 
   return { supported: voiceRecordingSupported(), recording, seconds, error, setError, start, stop };
 }

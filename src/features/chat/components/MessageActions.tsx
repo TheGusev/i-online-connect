@@ -1,4 +1,4 @@
-import { Copy, Pencil, Trash2, X } from "lucide-react";
+import { Copy, Pencil, Reply, Trash2, X } from "lucide-react";
 import { useEffect } from "react";
 
 import type { Message } from "@/api";
@@ -27,12 +27,14 @@ export function MessageActions({
   onClose,
   onEdit,
   onDelete,
+  onReply,
 }: {
   message: Message | null;
   mine: boolean;
   onClose: () => void;
   onEdit: (message: Message) => void;
   onDelete: (message: Message) => void;
+  onReply?: (message: Message) => void;
 }) {
   useEffect(() => {
     if (!message) return;
@@ -63,6 +65,23 @@ export function MessageActions({
         className="w-full max-w-sm rounded-3xl border border-border bg-card p-2 shadow-glow"
         onClick={(event) => event.stopPropagation()}
       >
+        {onReply &&
+        !message.deletedAt &&
+        message.status !== "sending" &&
+        message.status !== "failed" ? (
+          <button
+            type="button"
+            className={item}
+            onClick={() => {
+              onReply(message);
+              onClose();
+            }}
+          >
+            <Reply className="size-4" aria-hidden="true" />
+            Ответить
+          </button>
+        ) : null}
+
         {copyable ? (
           <button
             type="button"

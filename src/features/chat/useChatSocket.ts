@@ -14,7 +14,6 @@ export interface ChatSocketEvent {
   authorId?: string;
 }
 
-
 interface UseChatSocketOptions {
   conversationId: string | null;
   onEvent?: (event: ChatSocketEvent) => void;
@@ -35,7 +34,9 @@ export function resolveWsUrl(): string {
   if (WS_URL) return WS_URL.replace(/\/$/, "");
   if (typeof window === "undefined") return "";
   try {
-    const base = API_URL ? new URL(API_URL, window.location.origin) : new URL(window.location.origin);
+    const base = API_URL
+      ? new URL(API_URL, window.location.origin)
+      : new URL(window.location.origin);
     const protocol = base.protocol === "https:" ? "wss:" : "ws:";
     return `${protocol}//${base.host}/ws`;
   } catch {

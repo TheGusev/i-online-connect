@@ -46,9 +46,50 @@ interface MessageRow {
   edited_at?: Date | null;
   deleted_at?: Date | null;
   read_by_peer: boolean | null;
+  reply_to_id?: string | null;
 }
 
-function toMessageDto(row: MessageRow) {
+interface ReplyRow {
+  id: string;
+  author_id: string;
+  text: string;
+  kind: "text" | "meeting" | "voice";
+  deleted_at: Date | null;
+}
+
+/** Короткая цитата: только то, что нужно нарисовать над пузырём. */
+function toReplyDto(row: ReplyRow) {
+  const deleted = Boolean(row.deleted_at);
+  return {
+    id: row.id,
+    authorId: row.author_id,
+    kind: row.kind,
+    text: deleted ? "" : row.text.slice(0, 160),
+    deleted,
+  };
+}
+
+/** Цитаты для страницы истории — одним запросом, без N+1. */
+async function loadReplies(ids: string[]) {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map<string, ReturnType<typeof toReplyDto>>();
+  const rows = await query<ReplyRow>(
+    `SELECT id, author_id, text, kind, deleted_at FROM messages WHERE id = ANY($1::uuid[])`,
+    [unique],
+  );
+  return new Map(rows.map((row) => [row.id, toReplyDto(row)]));
+}
+
+async function loadReply(id: string | null | undefined) {
+  if (!id) return undefined;
+  const row = await queryOne<ReplyRow>(
+    `SELECT id, author_id, text, kind, deleted_at FROM messages WHERE id = $1`,
+    [id],
+  );
+  return row ? toReplyDto(row) : undefined;
+}
+
+function toMessageDto(row: MessageRow, replyTo?: ReturnType<typeof toReplyDto> | undefined) {
   const deleted = Boolean(row.deleted_at);
   return {
     id: row.id,
@@ -64,7 +105,20 @@ function toMessageDto(row: MessageRow) {
     editedAt: row.edited_at ? row.edited_at.toISOString() : undefined,
     deletedAt: row.deleted_at ? row.deleted_at.toISOString() : undefined,
     status: row.read_by_peer ? ("read" as const) : ("sent" as const),
+    replyToId: row.reply_to_id ?? undefined,
+    replyTo,
   };
+}
+
+/** Ответ возможен только на сообщение того же диалога. */
+async function assertReplyTarget(conversationId: string, replyToId: string | undefined) {
+  if (!replyToId) return null;
+  const row = await queryOne<{ id: string }>(
+    "SELECT id FROM messages WHERE id = $1 AND conversation_id = $2",
+    [replyToId, conversationId],
+  );
+  if (!row) throw badRequest("Сообщение, на которое вы отвечаете, не найдено в этом диалоге");
+  return row.id;
 }
 
 /** Сколько времени автор может править своё сообщение. */
@@ -278,6 +332,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const rows = await query<MessageRow>(
       `SELECT m.id, m.conversation_id, m.author_id, m.text, m.kind, m.client_temp_id,
               m.media_url, m.media_mime, m.duration_ms, m.created_at, m.edited_at, m.deleted_at,
+              m.reply_to_id,
               (m.author_id = $2 AND their.last_read_at IS NOT NULL
                  AND m.created_at <= their.last_read_at) AS read_by_peer
          FROM messages m
@@ -292,8 +347,13 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const hasMore = rows.length > limit;
     const page = rows.slice(0, limit).reverse();
+    const replies = await loadReplies(
+      page.map((row) => row.reply_to_id).filter((value): value is string => Boolean(value)),
+    );
     return {
-      items: page.map(toMessageDto),
+      items: page.map((row) =>
+        toMessageDto(row, row.reply_to_id ? replies.get(row.reply_to_id) : undefined),
+      ),
       hasMore,
       nextBefore: hasMore && page[0] ? page[0].created_at.toISOString() : null,
     };
@@ -428,28 +488,31 @@ export async function chatRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string } }>("/conversations/:id/messages", SEND_LIMIT, async (request) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
-    const { text, clientTempId } = z.object({
+    const { text, clientTempId, replyToId } = z.object({
       text: z.string().min(1).max(4000),
       clientTempId: z.string().uuid().optional(),
+      replyToId: z.string().uuid().optional(),
     }).parse(request.body);
     await assertConversationAccess(userId, id);
     await assertNotBlockedInConversation(userId, id);
+    const replyTarget = await assertReplyTarget(id, replyToId);
 
     const row = await queryOne<MessageRow & { inserted: boolean }>(
-      `INSERT INTO messages (conversation_id, author_id, text, client_temp_id)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO messages (conversation_id, author_id, text, client_temp_id, reply_to_id)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (conversation_id, author_id, client_temp_id)
          WHERE client_temp_id IS NOT NULL
        DO UPDATE SET text = messages.text
        RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
-                 media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, false AS read_by_peer,
+                 media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                 reply_to_id, false AS read_by_peer,
                  (xmax = 0) AS inserted`,
-      [id, userId, text, clientTempId ?? randomUUID()],
+      [id, userId, text, clientTempId ?? randomUUID(), replyTarget],
     );
     if (!row) throw notFound("Диалог не найден");
     await query("UPDATE conversations SET last_message_at = now() WHERE id = $1", [id]);
 
-    const message = toMessageDto(row);
+    const message = toMessageDto(row, await loadReply(row.reply_to_id));
 
     if (row.inserted) {
       publishChatEvent(id, { type: "message", conversationId: id, message: { ...message, status: "sent" } });
@@ -464,14 +527,16 @@ export async function chatRoutes(app: FastifyInstance) {
     await assertConversationAccess(userId, id);
     await assertNotBlockedInConversation(userId, id);
 
-    const fields = request.parts({ limits: { fileSize: MAX_VOICE_BYTES, files: 1, fields: 3 } });
+    const fields = request.parts({ limits: { fileSize: MAX_VOICE_BYTES, files: 1, fields: 4 } });
     let buffer: Buffer | null = null;
     let clientTempId = "";
     let durationValue = "";
+    let replyToValue = "";
     for await (const part of fields) {
       if (part.type === "file") buffer = await part.toBuffer();
       else if (part.fieldname === "clientTempId") clientTempId = String(part.value);
       else if (part.fieldname === "durationMs") durationValue = String(part.value);
+      else if (part.fieldname === "replyToId") replyToValue = String(part.value);
     }
     // Валидируем вручную, чтобы ответ 400 называл конкретное поле — иначе
     // по общему «Ошибка валидации» невозможно понять, что именно не так.
@@ -487,14 +552,20 @@ export async function chatRoutes(app: FastifyInstance) {
     const audioType = detectAudioType(buffer);
     if (!audioType) throw badRequest("Поддерживаются голосовые WebM/Opus и MP4/AAC");
 
+    const replyToId = replyToValue && z.string().uuid().safeParse(replyToValue).success
+      ? replyToValue
+      : undefined;
+    const replyTarget = await assertReplyTarget(id, replyToId);
+
     const existing = await queryOne<MessageRow>(
       `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
-              media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, false AS read_by_peer
+              media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+              reply_to_id, false AS read_by_peer
          FROM messages
         WHERE conversation_id = $1 AND author_id = $2 AND client_temp_id = $3`,
       [id, userId, meta.clientTempId],
     );
-    if (existing) return toMessageDto(existing);
+    if (existing) return toMessageDto(existing, await loadReply(existing.reply_to_id));
 
     const saved = await saveVoiceFile(userId, buffer, audioType);
     try {
@@ -503,15 +574,16 @@ export async function chatRoutes(app: FastifyInstance) {
       if (measuredDurationMs > 180_500) throw badRequest("Голосовое сообщение может длиться не больше 3 минут");
       const row = await queryOne<MessageRow>(
         `INSERT INTO messages
-           (conversation_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms)
-         VALUES ($1, $2, 'Голосовое сообщение', 'voice', $3, $4, $5, $6)
+           (conversation_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms, reply_to_id)
+         VALUES ($1, $2, 'Голосовое сообщение', 'voice', $3, $4, $5, $6, $7)
          RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
-                   media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, false AS read_by_peer`,
-        [id, userId, meta.clientTempId, saved.url, audioType.mime, measuredDurationMs],
+                   media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                   reply_to_id, false AS read_by_peer`,
+        [id, userId, meta.clientTempId, saved.url, audioType.mime, measuredDurationMs, replyTarget],
       );
       if (!row) throw badRequest("Не удалось сохранить голосовое сообщение");
       await query("UPDATE conversations SET last_message_at = now() WHERE id = $1", [id]);
-      const message = toMessageDto(row);
+      const message = toMessageDto(row, await loadReply(row.reply_to_id));
       publishChatEvent(id, { type: "message", conversationId: id, message });
       void notifyRecipient(id, userId, { id: row.id, text: row.text, kind: "voice" });
       return message;
@@ -571,12 +643,12 @@ export async function chatRoutes(app: FastifyInstance) {
           WHERE id = $2 AND conversation_id = $3 AND author_id = $4
         RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
                   media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
-                  false AS read_by_peer`,
+                  reply_to_id, false AS read_by_peer`,
         [text, messageId, id, userId],
       );
       if (!row) throw notFound("Сообщение не найдено");
 
-      const message = toMessageDto(row);
+      const message = toMessageDto(row, await loadReply(row.reply_to_id));
       publishChatEvent(id, { type: "message-updated", conversationId: id, message });
       return message;
     },
