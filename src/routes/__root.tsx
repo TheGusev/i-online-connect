@@ -273,11 +273,15 @@ function ChunkErrorScreen() {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const outletRef = useRef<HTMLDivElement | null>(null);
+  // Единственная подписка на visualViewport для всего приложения:
+  // держит --vvh / --vv-top / --vv-keyboard актуальными на любом экране.
+  useViewportHeightVar();
   const chunkFatal = useSyncExternalStore(
     subscribeChunkRecovery,
     isChunkRecoveryFatal,
     () => false,
   );
+
 
   // Service worker нужен только для push-уведомлений: регистрируем после
   // гидратации, чтобы не мешать первой отрисовке.
