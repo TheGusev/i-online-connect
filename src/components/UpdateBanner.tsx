@@ -10,7 +10,7 @@ import { useAppVersion } from "@/hooks/useAppVersion";
  * перезагружает автоматически: пользователь сам решает, когда обновиться.
  */
 export function UpdateBanner() {
-  const { updateAvailable, dismiss } = useAppVersion();
+  const { updateAvailable, dismiss, applyUpdate } = useAppVersion();
 
   if (!updateAvailable) return null;
 
@@ -23,7 +23,7 @@ export function UpdateBanner() {
         <p className="flex-1 text-sm text-foreground">
           Вышло обновление — можно продолжить и обновить позже.
         </p>
-        <Button size="sm" onClick={() => window.location.reload()}>
+        <Button size="sm" onClick={applyUpdate}>
           <RefreshCw aria-hidden="true" />
           Обновить
         </Button>
