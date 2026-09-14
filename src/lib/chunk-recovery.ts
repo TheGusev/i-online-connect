@@ -106,6 +106,9 @@ function recover() {
     return;
   }
 
+  // Перезагрузка идёт под фирменным экраном загрузки, а не под пустотой.
+  keepSplash();
+
   void (async () => {
     try {
       const registration = await navigator.serviceWorker?.getRegistration();
@@ -131,6 +134,7 @@ function isOwnBundleUrl(raw: string): boolean {
 /** Сбросить флаг: приложение успешно загрузилось. */
 export function markAppLoaded() {
   appLoaded = true;
+  hideSplash();
   if (bootTimer) {
     clearTimeout(bootTimer);
     bootTimer = null;
