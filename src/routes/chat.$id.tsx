@@ -1,7 +1,15 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CalendarHeart, WifiOff } from "lucide-react";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { useKeyboardInset } from "@/hooks/useViewportHeight";
 
@@ -98,6 +106,8 @@ function ConversationPage() {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
+  const [scrollReadyFor, setScrollReadyFor] = useState<string | null>(null);
+  const initialScrollReady = scrollReadyFor === id;
 
   const isEmptyThread = (messages?.length ?? 0) === 0;
   const { data: starters, isPending: startersPending } = useMessageStarters(
@@ -162,24 +172,44 @@ function ConversationPage() {
     markRead.mutate();
   }, [conversation, markRead]);
 
-  // Автопрокрутка вниз при новых сообщениях (но не при подгрузке истории вверх).
+  // Первую страницу сразу ставим в конец до показа истории. Плавная прокрутка здесь
+  // успевала показать середину диалога и активировать верхний sentinel.
   const lastId = messages?.[messages.length - 1]?.id;
   const scrollToBottom = useCallback((smooth = true) => {
     const el = scrollerRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
   }, []);
+  useLayoutEffect(() => {
+    if (isPending || !messages || initialScrollReady) return;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    scroller.scrollTop = scroller.scrollHeight;
+    setScrollReadyFor(id);
+
+    // Повторяем после завершения ближайшей раскладки (шрифты/аудио могут уточнить высоту).
+    const frame = requestAnimationFrame(() => {
+      if (scrollerRef.current === scroller) scroller.scrollTop = scroller.scrollHeight;
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [id, initialScrollReady, isPending, messages]);
+
+  // Автопрокрутка вниз при новых сообщениях (но не при подгрузке истории вверх).
   useEffect(() => {
+    if (!initialScrollReady) return;
     scrollToBottom();
-  }, [lastId, typing, scrollToBottom]);
+  }, [initialScrollReady, lastId, typing, scrollToBottom]);
 
   // Клавиатура сократила видимую область — держим последнее сообщение в кадре.
   useEffect(() => {
+    if (!initialScrollReady) return;
     scrollToBottom(false);
-  }, [keyboardInset, scrollToBottom]);
+  }, [initialScrollReady, keyboardInset, scrollToBottom]);
 
   // Подгрузка ранних сообщений при прокрутке к верху с сохранением позиции.
   useEffect(() => {
+    if (!initialScrollReady) return;
     const sentinel = topSentinelRef.current;
     if (!sentinel || !hasNextPage) return;
     const scroller = scrollerRef.current;
@@ -199,7 +229,7 @@ function ConversationPage() {
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [initialScrollReady, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const participant = conversation?.participant;
   const shared = useMemo(() => conversation?.sharedInterests ?? [], [conversation]);
@@ -322,7 +352,9 @@ function ConversationPage() {
 
       <main
         ref={scrollerRef}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [-webkit-overflow-scrolling:touch]"
+        className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [-webkit-overflow-scrolling:touch] ${
+          !isPending && messages && !initialScrollReady ? "invisible" : ""
+        }`}
       >
         <div className="mx-auto flex w-full max-w-3xl flex-col">
           {shared.length > 0 ? (
