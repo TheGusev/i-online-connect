@@ -39,8 +39,8 @@ self.addEventListener("push", (event) => {
   const title = data.title || "Я Онлайн";
   const options = {
     body: data.body || "",
-    icon: "/favicon.png",
-    badge: "/favicon.png",
+    icon: "/ya-online-icon-v2-192.png",
+    badge: "/ya-online-favicon-v2-64.png",
     tag: data.tag || "ya-online",
     renotify: true,
     data: { url: data.url || "/" },
