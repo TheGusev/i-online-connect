@@ -128,6 +128,11 @@ function isOwnBundleUrl(raw: string): boolean {
 
 /** Сбросить флаг: приложение успешно загрузилось. */
 export function markAppLoaded() {
+  appLoaded = true;
+  if (bootTimer) {
+    clearTimeout(bootTimer);
+    bootTimer = null;
+  }
   try {
     sessionStorage.removeItem(RELOAD_FLAG);
   } catch {
