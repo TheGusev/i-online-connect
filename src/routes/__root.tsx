@@ -107,6 +107,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:site_name", content: "Я Онлайн" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      // Версия сборки документа: подставляется scripts/build-static.mjs.
+      // По ней страница понимает, что открыта старая закешированная копия.
+      { name: "app-version", content: "__APP_VERSION__" },
     ],
     links: [
       {
@@ -187,14 +190,47 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** Экран вместо белого, если код приложения не загрузился даже после перезагрузки. */
+function ChunkErrorScreen() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="max-w-sm text-center">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          Не удалось загрузить обновление
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Похоже, проблема со связью. Проверьте интернет и попробуйте снова.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-6 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
+        >
+          Обновить
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const chunkFatal = useSyncExternalStore(
+    subscribeChunkRecovery,
+    isChunkRecoveryFatal,
+    () => false,
+  );
 
   // Service worker нужен только для push-уведомлений: регистрируем после
   // гидратации, чтобы не мешать первой отрисовке.
   useEffect(() => {
+    installChunkRecovery();
+    // Приложение стартовало — снимаем флаг аварийной перезагрузки.
+    markAppLoaded();
     void ensureServiceWorker();
   }, []);
+
+  if (chunkFatal) return <ChunkErrorScreen />;
 
   return (
     <QueryClientProvider client={queryClient}>
