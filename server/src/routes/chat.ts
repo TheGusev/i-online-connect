@@ -552,14 +552,20 @@ export async function chatRoutes(app: FastifyInstance) {
     const audioType = detectAudioType(buffer);
     if (!audioType) throw badRequest("Поддерживаются голосовые WebM/Opus и MP4/AAC");
 
+    const replyToId = replyToValue && z.string().uuid().safeParse(replyToValue).success
+      ? replyToValue
+      : undefined;
+    const replyTarget = await assertReplyTarget(id, replyToId);
+
     const existing = await queryOne<MessageRow>(
       `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
-              media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, false AS read_by_peer
+              media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+              reply_to_id, false AS read_by_peer
          FROM messages
         WHERE conversation_id = $1 AND author_id = $2 AND client_temp_id = $3`,
       [id, userId, meta.clientTempId],
     );
-    if (existing) return toMessageDto(existing);
+    if (existing) return toMessageDto(existing, await loadReply(existing.reply_to_id));
 
     const saved = await saveVoiceFile(userId, buffer, audioType);
     try {
@@ -568,15 +574,16 @@ export async function chatRoutes(app: FastifyInstance) {
       if (measuredDurationMs > 180_500) throw badRequest("Голосовое сообщение может длиться не больше 3 минут");
       const row = await queryOne<MessageRow>(
         `INSERT INTO messages
-           (conversation_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms)
-         VALUES ($1, $2, 'Голосовое сообщение', 'voice', $3, $4, $5, $6)
+           (conversation_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms, reply_to_id)
+         VALUES ($1, $2, 'Голосовое сообщение', 'voice', $3, $4, $5, $6, $7)
          RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
-                   media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, false AS read_by_peer`,
-        [id, userId, meta.clientTempId, saved.url, audioType.mime, measuredDurationMs],
+                   media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                   reply_to_id, false AS read_by_peer`,
+        [id, userId, meta.clientTempId, saved.url, audioType.mime, measuredDurationMs, replyTarget],
       );
       if (!row) throw badRequest("Не удалось сохранить голосовое сообщение");
       await query("UPDATE conversations SET last_message_at = now() WHERE id = $1", [id]);
-      const message = toMessageDto(row);
+      const message = toMessageDto(row, await loadReply(row.reply_to_id));
       publishChatEvent(id, { type: "message", conversationId: id, message });
       void notifyRecipient(id, userId, { id: row.id, text: row.text, kind: "voice" });
       return message;
