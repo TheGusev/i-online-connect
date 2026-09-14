@@ -144,7 +144,13 @@ export function ChatComposer({
             variant={voice.recording ? "danger" : "secondary"}
             aria-label={voice.recording ? "Отпустить и отправить запись" : "Удерживайте для записи голосового сообщения"}
             disabled={disabled || voiceSending}
-            className={cn("shrink-0 touch-none", voice.recording && "animate-pulse")}
+            draggable={false}
+            onContextMenu={(event) => event.preventDefault()}
+            className={cn(
+              "shrink-0 touch-none select-none",
+              "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]",
+              voice.recording && "animate-pulse",
+            )}
             onPointerDown={(event) => {
               pointerStartX.current = event.clientX;
               pointerHeld.current = true;
