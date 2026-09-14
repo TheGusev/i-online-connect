@@ -356,9 +356,23 @@ server {
         try_files $uri =404;
     }
 
-    # 2. index.html не кешируем, иначе клиенты залипнут на старой сборке
+    # 2. HTML, service worker и файл версии не кешируем никогда, иначе
+    #    установленное на телефон приложение залипнет на старой сборке
+    #    (ссылки на удалённые /assets/* → белый экран после деплоя).
     location = /index.html {
         add_header Cache-Control "no-store" always;
+    }
+
+    location = /sw.js {
+        add_header Cache-Control "no-cache" always;
+    }
+
+    location = /version.json {
+        add_header Cache-Control "no-store" always;
+    }
+
+    location = /manifest.webmanifest {
+        add_header Cache-Control "no-cache" always;
     }
 
     # 3. Жёсткий лимит на вход: защита от перебора паролей
