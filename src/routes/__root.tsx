@@ -118,8 +118,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "icon", href: "/favicon.png", type: "image/png" },
-      { rel: "apple-touch-icon", href: "/favicon.png" },
+      { rel: "icon", href: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+      { rel: "icon", href: "/favicon-64.png", type: "image/png", sizes: "64x64" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -155,6 +156,35 @@ function RootShell({ children }: { children: ReactNode }) {
     <html lang="ru">
       <head>
         <HeadContent />
+        {/* Стили экрана загрузки — инлайном, чтобы он был виден сразу,
+            не дожидаясь загрузки основной таблицы стилей и кода приложения. */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              #app-splash{position:fixed;inset:0;z-index:9998;display:flex;flex-direction:column;
+                align-items:center;justify-content:center;gap:1.5rem;background:#0B0F1A;
+                transition:opacity .35s ease,visibility .35s ease}
+              #app-splash.is-hidden{opacity:0;visibility:hidden;pointer-events:none}
+              #app-splash .splash-mark{width:5.5rem;height:5.5rem;border-radius:1.375rem;
+                display:flex;align-items:center;justify-content:center;color:#fff;
+                font:800 2.5rem/1 Manrope,system-ui,-apple-system,sans-serif;
+                background:linear-gradient(135deg,#FF4D8D,#FF9EC4);
+                box-shadow:0 0 2.5rem rgba(255,77,141,.45);
+                animation:splash-pulse 1.6s ease-in-out infinite}
+              #app-splash .splash-dots{display:flex;gap:.4rem}
+              #app-splash .splash-dots i{width:.5rem;height:.5rem;border-radius:999px;
+                background:#FF4D8D;animation:splash-dot 1.2s ease-in-out infinite}
+              #app-splash .splash-dots i:nth-child(2){animation-delay:.15s}
+              #app-splash .splash-dots i:nth-child(3){animation-delay:.3s}
+              @keyframes splash-pulse{0%,100%{transform:scale(1);box-shadow:0 0 2rem rgba(255,77,141,.35)}
+                50%{transform:scale(1.06);box-shadow:0 0 3.25rem rgba(255,77,141,.6)}}
+              @keyframes splash-dot{0%,100%{opacity:.25;transform:translateY(0)}
+                50%{opacity:1;transform:translateY(-.25rem)}}
+              @media (prefers-reduced-motion:reduce){
+                #app-splash .splash-mark,#app-splash .splash-dots i{animation:none}}
+            `,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -184,6 +214,16 @@ function RootShell({ children }: { children: ReactNode }) {
             />
           </div>
         </noscript>
+        {/* Фирменный экран загрузки: виден мгновенно и плавно исчезает,
+            когда приложение готово рисовать содержимое (см. src/lib/splash.ts). */}
+        <div id="app-splash" aria-hidden="true">
+          <span className="splash-mark">Я</span>
+          <span className="splash-dots">
+            <i />
+            <i />
+            <i />
+          </span>
+        </div>
         {children}
         <Scripts />
       </body>

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { keepSplash } from "@/lib/splash";
+
 /**
  * Обновление открытых вкладок и установленного PWA.
  *
@@ -24,6 +26,8 @@ function documentVersion(): string | null {
 }
 
 async function hardReload() {
+  // Пока идёт перезагрузка — держим фирменный экран загрузки, а не пустоту.
+  keepSplash();
   try {
     const registration = await navigator.serviceWorker?.getRegistration();
     await registration?.update();
