@@ -8,12 +8,19 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { SessionRestore } from "@/features/auth/session";
 import { ensureServiceWorker } from "@/features/notifications/usePushSubscription";
+import {
+  installChunkRecovery,
+  isChunkRecoveryFatal,
+  markAppLoaded,
+  recoverStalledRoute,
+  subscribeChunkRecovery,
+} from "@/lib/chunk-recovery";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -101,6 +108,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:site_name", content: "Я Онлайн" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      // Версия сборки документа: подставляется scripts/build-static.mjs.
+      // По ней страница понимает, что открыта старая закешированная копия.
+      { name: "app-version", content: "__APP_VERSION__" },
     ],
     links: [
       {
@@ -181,14 +191,71 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+/** Экран вместо белого, если код приложения не загрузился даже после перезагрузки. */
+function ChunkErrorScreen() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="max-w-sm text-center">
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          Не удалось загрузить обновление
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Похоже, проблема со связью. Проверьте интернет и попробуйте снова.
+        </p>
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-6 inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground"
+        >
+          Обновить
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const outletRef = useRef<HTMLDivElement | null>(null);
+  const chunkFatal = useSyncExternalStore(
+    subscribeChunkRecovery,
+    isChunkRecoveryFatal,
+    () => false,
+  );
 
   // Service worker нужен только для push-уведомлений: регистрируем после
   // гидратации, чтобы не мешать первой отрисовке.
   useEffect(() => {
+    installChunkRecovery();
     void ensureServiceWorker();
   }, []);
+
+  // Сторож экрана: приложение считается запущенным только когда содержимое
+  // маршрута реально отрисовалось. Иначе (старый index.html после деплоя —
+  // кода маршрута на сервере уже нет) восстанавливаемся перезагрузкой.
+  useEffect(() => {
+    const check = () => {
+      if (outletRef.current?.firstElementChild) {
+        markAppLoaded();
+        return true;
+      }
+      return false;
+    };
+    if (check()) return;
+    const poll = window.setInterval(() => {
+      if (check()) window.clearInterval(poll);
+    }, 500);
+    const timer = window.setTimeout(() => {
+      window.clearInterval(poll);
+      if (!check()) recoverStalledRoute();
+    }, 9000);
+    return () => {
+      window.clearInterval(poll);
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  if (chunkFatal) return <ChunkErrorScreen />;
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -196,7 +263,9 @@ function RootComponent() {
       {/* Восстанавливаем сессию по токену до отрисовки приватных экранов. */}
       <SessionRestore />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div ref={outletRef} className="contents">
+        <Outlet />
+      </div>
       <Toaster position="top-center" />
       {/* Мягкое обновление: баннер вместо принудительного reload. */}
       <UpdateBanner />

@@ -113,14 +113,30 @@ server {
         try_files $uri =404;
     }
 
-    # 2. SPA-роутинг: любой маршрут отдаёт index.html
+    # 2. SPA-роутинг: любой маршрут отдаёт index.html.
+    #    Cache-Control обязателен здесь: установленное PWA открывает "/",
+    #    и без no-store вебвью отдаёт старый HTML со ссылками на удалённые
+    #    файлы сборки — это и есть белый экран после деплоя.
     location / {
+        add_header Cache-Control "no-store" always;
         try_files $uri $uri/ /index.html;
     }
 
-    # index.html не кешируем, иначе клиенты залипнут на старой сборке
+    # index.html, service worker и файл версии не кешируем никогда
     location = /index.html {
-        add_header Cache-Control "no-store";
+        add_header Cache-Control "no-store" always;
+    }
+
+    location = /sw.js {
+        add_header Cache-Control "no-cache" always;
+    }
+
+    location = /version.json {
+        add_header Cache-Control "no-store" always;
+    }
+
+    location = /manifest.webmanifest {
+        add_header Cache-Control "no-cache" always;
     }
 
     # 3. REST API -> Node.js backend (PM2)

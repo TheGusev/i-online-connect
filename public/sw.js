@@ -9,7 +9,23 @@ self.addEventListener("install", () => {
 });
 
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    (async () => {
+      // На устройствах, где раньше стояла кеширующая версия воркера, мусор мог
+      // остаться и продолжает отдавать удалённые файлы сборки — вычищаем.
+      try {
+        const names = await caches.keys();
+        await Promise.allSettled(names.map((name) => caches.delete(name)));
+      } catch (_error) {
+        // Cache Storage недоступен — не критично.
+      }
+      await self.clients.claim();
+      const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of windows) {
+        client.postMessage({ type: "sw-activated" });
+      }
+    })(),
+  );
 });
 
 self.addEventListener("push", (event) => {
