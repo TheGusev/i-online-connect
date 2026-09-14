@@ -3,7 +3,7 @@ import type { SpaceMessage } from "@/api";
 import { Avatar } from "@/components/ds";
 import { ChatComposer } from "@/features/chat/components/ChatComposer";
 import { cn } from "@/lib/utils";
-import { useKeyboardOpen } from "@/hooks/useKeyboardOpen";
+import { useKeyboardOpen } from "@/hooks/useViewportHeight";
 import { useSessionStore } from "@/store/useSessionStore";
 
 const timeFormatter = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" });
