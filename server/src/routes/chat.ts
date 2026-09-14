@@ -332,6 +332,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const rows = await query<MessageRow>(
       `SELECT m.id, m.conversation_id, m.author_id, m.text, m.kind, m.client_temp_id,
               m.media_url, m.media_mime, m.duration_ms, m.created_at, m.edited_at, m.deleted_at,
+              m.reply_to_id,
               (m.author_id = $2 AND their.last_read_at IS NOT NULL
                  AND m.created_at <= their.last_read_at) AS read_by_peer
          FROM messages m
@@ -346,8 +347,13 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const hasMore = rows.length > limit;
     const page = rows.slice(0, limit).reverse();
+    const replies = await loadReplies(
+      page.map((row) => row.reply_to_id).filter((value): value is string => Boolean(value)),
+    );
     return {
-      items: page.map(toMessageDto),
+      items: page.map((row) =>
+        toMessageDto(row, row.reply_to_id ? replies.get(row.reply_to_id) : undefined),
+      ),
       hasMore,
       nextBefore: hasMore && page[0] ? page[0].created_at.toISOString() : null,
     };
