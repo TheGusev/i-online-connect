@@ -10,6 +10,8 @@
  * sessionStorage, поэтому цикла перезагрузок не будет: при повторном сбое
  * показываем понятный экран с кнопкой «Обновить».
  */
+import { hideSplash, keepSplash } from "@/lib/splash";
+
 const RELOAD_FLAG = "ya-online:chunk-reload";
 
 const CHUNK_ERROR_PATTERNS = [
