@@ -8,7 +8,7 @@ import {
 import { useCallback } from "react";
 
 import { chatApi } from "@/api";
-import type { MeetingKind, Message } from "@/api";
+import type { MeetingKind, Message, MessageQuote } from "@/api";
 import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
 import type { MessagesPage } from "@/api/endpoints/chat";
 import { useSessionStore } from "@/store/useSessionStore";
@@ -138,9 +138,17 @@ export function useSendMessage(conversationId: string) {
   const myId = useSessionStore((s) => s.user?.id ?? "me");
 
   return useMutation({
-    mutationFn: ({ text, clientTempId }: { text: string; clientTempId: string; retryId?: string }) =>
-      chatApi.sendMessage(conversationId, text, clientTempId),
-    onMutate: ({ text, clientTempId, retryId }) => {
+    mutationFn: ({
+      text,
+      clientTempId,
+      replyTo,
+    }: {
+      text: string;
+      clientTempId: string;
+      retryId?: string;
+      replyTo?: MessageQuote | undefined;
+    }) => chatApi.sendMessage(conversationId, text, clientTempId, replyTo?.id),
+    onMutate: ({ text, clientTempId, retryId, replyTo }) => {
       const id = retryId ?? `tmp-${clientTempId}`;
       cache.upsert({
         id,
@@ -151,6 +159,7 @@ export function useSendMessage(conversationId: string) {
         kind: "text",
         createdAt: new Date().toISOString(),
         status: "sending",
+        ...(replyTo ? { replyToId: replyTo.id, replyTo } : {}),
       });
       return { id };
     },
@@ -170,6 +179,7 @@ export function useSendMessage(conversationId: string) {
         kind: "text",
         createdAt: new Date().toISOString(),
         status: "failed",
+        ...(vars.replyTo ? { replyToId: vars.replyTo.id, replyTo: vars.replyTo } : {}),
         ...(error instanceof Error ? { errorMessage: error.message } : {}),
       });
     },
@@ -184,14 +194,23 @@ export function useSendVoiceMessage(conversationId: string) {
   const myId = useSessionStore((s) => s.user?.id ?? "me");
 
   return useMutation({
-    mutationFn: ({ recording, clientTempId }: { recording: VoiceRecording; clientTempId: string }) =>
+    mutationFn: ({
+      recording,
+      clientTempId,
+      replyTo,
+    }: {
+      recording: VoiceRecording;
+      clientTempId: string;
+      replyTo?: MessageQuote | undefined;
+    }) =>
       chatApi.sendVoiceMessage(
         conversationId,
         recording.blob,
         recording.durationMs,
         clientTempId,
+        replyTo?.id,
       ),
-    onMutate: ({ recording, clientTempId }) => {
+    onMutate: ({ recording, clientTempId, replyTo }) => {
       const id = `tmp-${clientTempId}`;
       const previewUrl = URL.createObjectURL(recording.blob);
       cache.upsert({
@@ -206,6 +225,7 @@ export function useSendVoiceMessage(conversationId: string) {
         durationMs: recording.durationMs,
         createdAt: new Date().toISOString(),
         status: "sending",
+        ...(replyTo ? { replyToId: replyTo.id, replyTo } : {}),
       });
       return { id, previewUrl };
     },
@@ -227,6 +247,7 @@ export function useSendVoiceMessage(conversationId: string) {
         durationMs: vars.recording.durationMs,
         createdAt: new Date().toISOString(),
         status: "failed",
+        ...(vars.replyTo ? { replyToId: vars.replyTo.id, replyTo: vars.replyTo } : {}),
         ...(error instanceof Error ? { errorMessage: error.message } : {}),
       });
     },
