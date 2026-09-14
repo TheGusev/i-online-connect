@@ -135,9 +135,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      { rel: "icon", href: "/favicon-32.png", type: "image/png", sizes: "32x32" },
-      { rel: "icon", href: "/favicon-64.png", type: "image/png", sizes: "64x64" },
-      { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" },
+      {
+        rel: "icon",
+        href: "/ya-online-favicon-v2-32.png",
+        type: "image/png",
+        sizes: "32x32",
+      },
+      {
+        rel: "icon",
+        href: "/ya-online-favicon-v2-64.png",
+        type: "image/png",
+        sizes: "64x64",
+      },
+      {
+        rel: "apple-touch-icon",
+        href: "/ya-online-apple-v2-180.png",
+        sizes: "180x180",
+      },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
@@ -184,8 +198,10 @@ function RootShell({ children }: { children: ReactNode }) {
               #app-splash.is-hidden{opacity:0;visibility:hidden;pointer-events:none}
               #app-splash .splash-mark{width:5.5rem;height:5.5rem;border-radius:1.375rem;
                 display:flex;align-items:center;justify-content:center;color:#fff;
-                font:800 2.5rem/1 Manrope,system-ui,-apple-system,sans-serif;
+                font:800 2.65rem/1 Manrope,system-ui,-apple-system,sans-serif;
                 background:linear-gradient(135deg,#FF4D8D,#FF9EC4);
+                text-shadow:0 .08em .12em rgba(151,18,72,.38),0 0 .06em rgba(255,255,255,.7);
+                -webkit-text-stroke:.035em rgba(255,255,255,.92);
                 box-shadow:0 0 2.5rem rgba(255,77,141,.45);
                 animation:splash-pulse 1.6s ease-in-out infinite}
               #app-splash .splash-dots{display:flex;gap:.4rem}
