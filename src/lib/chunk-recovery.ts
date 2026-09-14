@@ -140,6 +140,14 @@ export function markAppLoaded() {
   }
 }
 
+/**
+ * Экран маршрута так и не отрисовался (роутер молча проглотил ошибку загрузки
+ * чанка) — восстанавливаемся тем же путём, что и при явной ошибке.
+ */
+export function recoverStalledRoute() {
+  recover();
+}
+
 export function isChunkRecoveryFatal() {
   return fatal;
 }
