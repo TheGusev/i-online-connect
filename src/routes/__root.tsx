@@ -14,6 +14,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { SessionRestore } from "@/features/auth/session";
 import { ensureServiceWorker } from "@/features/notifications/usePushSubscription";
+import { useViewportHeightVar } from "@/hooks/useViewportHeight";
 import {
   handleChunkLoadFailure,
   installChunkRecovery,
