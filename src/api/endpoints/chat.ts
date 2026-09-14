@@ -50,10 +50,11 @@ export async function sendMessage(
   conversationId: string,
   text: string,
   clientTempId: string,
+  replyToId?: string,
 ): Promise<Message> {
   return request<Message>(`/chat/conversations/${conversationId}/messages`, {
     method: "POST",
-    body: { text, clientTempId },
+    body: { text, clientTempId, ...(replyToId ? { replyToId } : {}) },
   });
 }
 
@@ -62,11 +63,13 @@ export async function sendVoiceMessage(
   recording: Blob,
   durationMs: number,
   clientTempId: string,
+  replyToId?: string,
   onProgress?: (percent: number) => void,
 ): Promise<Message> {
   const form = new FormData();
   form.append("durationMs", String(durationMs));
   form.append("clientTempId", clientTempId);
+  if (replyToId) form.append("replyToId", replyToId);
   const baseMime = recording.type.split(";")[0];
   const extension = baseMime === "audio/mp4" ? "m4a" : "webm";
   form.append("file", recording, `voice.${extension}`);
