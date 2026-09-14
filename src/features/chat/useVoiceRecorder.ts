@@ -1,11 +1,52 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 export const MAX_VOICE_SECONDS = 180;
+/** Короче этого не отправляем — сервер всё равно отклонит запись без звука. */
+export const MIN_VOICE_MS = 500;
 
 export interface VoiceRecording {
   blob: Blob;
   durationMs: number;
   mimeType: string;
+}
+
+/**
+ * Реальная длительность записи в браузере: контейнер потоковой записи часто
+ * не содержит длительности, поэтому ждём метаданные у <audio> и проверяем сами.
+ */
+function measureBlobDurationMs(blob: Blob): Promise<number> {
+  return new Promise((resolve) => {
+    if (typeof Audio === "undefined" || typeof URL.createObjectURL !== "function") {
+      resolve(0);
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const audio = new Audio();
+    let done = false;
+    const finish = (value: number) => {
+      if (done) return;
+      done = true;
+      window.clearTimeout(timer);
+      URL.revokeObjectURL(url);
+      resolve(Number.isFinite(value) && value > 0 ? Math.round(value * 1000) : 0);
+    };
+    const timer = window.setTimeout(() => finish(0), 2500);
+    audio.preload = "metadata";
+    audio.onloadedmetadata = () => {
+      if (audio.duration === Infinity) {
+        // Safari/Chrome для потоковой записи сначала отдают Infinity — досматриваем до конца.
+        audio.currentTime = 1e101;
+        audio.ontimeupdate = () => {
+          audio.ontimeupdate = null;
+          finish(audio.duration);
+        };
+        return;
+      }
+      finish(audio.duration);
+    };
+    audio.onerror = () => finish(0);
+    audio.src = url;
+  });
 }
 
 function supportedMimeType(): string | undefined {
