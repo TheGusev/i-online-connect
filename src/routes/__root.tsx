@@ -215,6 +215,7 @@ function ChunkErrorScreen() {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const outletRef = useRef<HTMLDivElement | null>(null);
   const chunkFatal = useSyncExternalStore(
     subscribeChunkRecovery,
     isChunkRecoveryFatal,
@@ -230,6 +231,15 @@ function RootComponent() {
     void ensureServiceWorker();
   }, []);
 
+  // Сторож экрана: если содержимое маршрута так и не появилось, значит его код
+  // не загрузился (старый index.html после деплоя) — восстанавливаемся.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      if (!outletRef.current?.firstElementChild) recoverStalledRoute();
+    }, 9000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   if (chunkFatal) return <ChunkErrorScreen />;
 
   return (
@@ -238,7 +248,9 @@ function RootComponent() {
       {/* Восстанавливаем сессию по токену до отрисовки приватных экранов. */}
       <SessionRestore />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-      <Outlet />
+      <div ref={outletRef} className="contents">
+        <Outlet />
+      </div>
       <Toaster position="top-center" />
       {/* Мягкое обновление: баннер вместо принудительного reload. */}
       <UpdateBanner />
