@@ -46,9 +46,50 @@ interface MessageRow {
   edited_at?: Date | null;
   deleted_at?: Date | null;
   read_by_peer: boolean | null;
+  reply_to_id?: string | null;
 }
 
-function toMessageDto(row: MessageRow) {
+interface ReplyRow {
+  id: string;
+  author_id: string;
+  text: string;
+  kind: "text" | "meeting" | "voice";
+  deleted_at: Date | null;
+}
+
+/** Короткая цитата: только то, что нужно нарисовать над пузырём. */
+function toReplyDto(row: ReplyRow) {
+  const deleted = Boolean(row.deleted_at);
+  return {
+    id: row.id,
+    authorId: row.author_id,
+    kind: row.kind,
+    text: deleted ? "" : row.text.slice(0, 160),
+    deleted,
+  };
+}
+
+/** Цитаты для страницы истории — одним запросом, без N+1. */
+async function loadReplies(ids: string[]) {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map<string, ReturnType<typeof toReplyDto>>();
+  const rows = await query<ReplyRow>(
+    `SELECT id, author_id, text, kind, deleted_at FROM messages WHERE id = ANY($1::uuid[])`,
+    [unique],
+  );
+  return new Map(rows.map((row) => [row.id, toReplyDto(row)]));
+}
+
+async function loadReply(id: string | null | undefined) {
+  if (!id) return undefined;
+  const row = await queryOne<ReplyRow>(
+    `SELECT id, author_id, text, kind, deleted_at FROM messages WHERE id = $1`,
+    [id],
+  );
+  return row ? toReplyDto(row) : undefined;
+}
+
+function toMessageDto(row: MessageRow, replyTo?: ReturnType<typeof toReplyDto> | undefined) {
   const deleted = Boolean(row.deleted_at);
   return {
     id: row.id,
@@ -64,7 +105,20 @@ function toMessageDto(row: MessageRow) {
     editedAt: row.edited_at ? row.edited_at.toISOString() : undefined,
     deletedAt: row.deleted_at ? row.deleted_at.toISOString() : undefined,
     status: row.read_by_peer ? ("read" as const) : ("sent" as const),
+    replyToId: row.reply_to_id ?? undefined,
+    replyTo,
   };
+}
+
+/** Ответ возможен только на сообщение того же диалога. */
+async function assertReplyTarget(conversationId: string, replyToId: string | undefined) {
+  if (!replyToId) return null;
+  const row = await queryOne<{ id: string }>(
+    "SELECT id FROM messages WHERE id = $1 AND conversation_id = $2",
+    [replyToId, conversationId],
+  );
+  if (!row) throw badRequest("Сообщение, на которое вы отвечаете, не найдено в этом диалоге");
+  return row.id;
 }
 
 /** Сколько времени автор может править своё сообщение. */
