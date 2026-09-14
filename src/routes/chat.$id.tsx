@@ -5,10 +5,10 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 
 import { useKeyboardInset } from "@/hooks/useKeyboardOpen";
 
-import type { MeetingKind, Message } from "@/api";
+import type { MeetingKind, Message, MessageQuote } from "@/api";
 import { Avatar, Button, TrustBadge } from "@/components/ds";
 import { MeetingSheet } from "@/features/chat/components/MeetingSheet";
-import { MessageBubble } from "@/features/chat/components/MessageBubble";
+import { MessageBubble, quotePreview } from "@/features/chat/components/MessageBubble";
 import { MessageActions } from "@/features/chat/components/MessageActions";
 import { ChatComposer } from "@/features/chat/components/ChatComposer";
 import { SafetyMenu } from "@/features/chat/components/SafetyMenu";
@@ -92,6 +92,7 @@ function ConversationPage() {
   const [meetingOpen, setMeetingOpen] = useState(false);
   const [actionsFor, setActionsFor] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [replyTo, setReplyTo] = useState<MessageQuote | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -210,9 +211,37 @@ function ConversationPage() {
       return;
     }
     if (send.isPending) return;
-    send.mutate({ text, clientTempId: crypto.randomUUID() });
+    send.mutate({
+      text,
+      clientTempId: crypto.randomUUID(),
+      ...(replyTo ? { replyTo } : {}),
+    });
+    setReplyTo(null);
     setDraft("");
     inputRef.current?.focus();
+  };
+
+  /** Цитата для плашки и оптимистичного пузыря. */
+  const startReply = (message: Message) => {
+    setEditingMessage(null);
+    setReplyTo({
+      id: message.id,
+      authorId: message.authorId,
+      ...(message.kind ? { kind: message.kind } : {}),
+      text: message.text,
+    });
+    inputRef.current?.focus();
+  };
+
+  /** Переход к исходному сообщению с короткой подсветкой. */
+  const jumpToMessage = (messageId: string) => {
+    const node = document.getElementById(`message-${messageId}`);
+    if (!node) return;
+    node.scrollIntoView({ behavior: "smooth", block: "center" });
+    node.classList.add("ring-2", "ring-primary/60", "rounded-3xl");
+    window.setTimeout(() => {
+      node.classList.remove("ring-2", "ring-primary/60", "rounded-3xl");
+    }, 1200);
   };
 
   const retry = (message: Message) => {
@@ -339,6 +368,9 @@ function ConversationPage() {
                       message={message}
                       onRetry={retry}
                       onActions={setActionsFor}
+                      onReply={startReply}
+                      onQuoteClick={jumpToMessage}
+                      {...(participant?.name ? { participantName: participant.name } : {})}
                     />
                   </Fragment>
                 );
@@ -385,11 +417,25 @@ function ConversationPage() {
               setEditingMessage(null);
               setDraft("");
             }}
+            replyTo={
+              replyTo
+                ? {
+                    authorName: replyTo.authorId === myId ? "Вы" : (participant?.name ?? "Собеседник"),
+                    preview: quotePreview(replyTo),
+                  }
+                : null
+            }
+            onCancelReply={() => setReplyTo(null)}
             voiceSending={sendVoice.isPending}
             inputRef={inputRef}
             onVoice={(recording) => {
               if (sendVoice.isPending) return;
-              sendVoice.mutate({ recording, clientTempId: crypto.randomUUID() });
+              sendVoice.mutate({
+                recording,
+                clientTempId: crypto.randomUUID(),
+                ...(replyTo ? { replyTo } : {}),
+              });
+              setReplyTo(null);
             }}
             leading={(
               <Button
@@ -410,6 +456,7 @@ function ConversationPage() {
         message={actionsFor}
         mine={Boolean(actionsFor && actionsFor.authorId === myId)}
         onClose={() => setActionsFor(null)}
+        onReply={startReply}
         onEdit={(message) => {
           setEditingMessage(message);
           setDraft(message.text);
