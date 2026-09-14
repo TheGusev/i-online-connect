@@ -97,11 +97,14 @@ export function installChunkRecovery() {
   window.addEventListener(
     "error",
     (event) => {
-      const target = event.target as HTMLElement | null;
+      const target = event.target as (HTMLElement & { src?: string; href?: string }) | null;
       const tag = target?.tagName?.toLowerCase();
-      // Не загрузился <script type="module"> или <link rel=stylesheet> — тот же случай.
+      // Не загрузился наш <script type="module"> или <link rel=stylesheet> —
+      // тот же случай. Сторонние скрипты (счётчик Метрики) игнорируем:
+      // из-за блокировщика они падают штатно и перезагрузка не нужна.
       if (tag === "script" || tag === "link") {
-        recover();
+        const url = target?.src || target?.href || "";
+        if (url && isOwnBundleUrl(url)) recover();
         return;
       }
       if (isChunkError(event.error) || isChunkError(event.message)) recover();
