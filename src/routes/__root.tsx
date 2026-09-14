@@ -15,12 +15,15 @@ import { UpdateBanner } from "@/components/UpdateBanner";
 import { SessionRestore } from "@/features/auth/session";
 import { ensureServiceWorker } from "@/features/notifications/usePushSubscription";
 import {
+  handleChunkLoadFailure,
   installChunkRecovery,
+  isChunkLoadError,
   isChunkRecoveryFatal,
   markAppLoaded,
   recoverStalledRoute,
   subscribeChunkRecovery,
 } from "@/lib/chunk-recovery";
+import { keepSplash } from "@/lib/splash";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -56,9 +59,22 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   console.error(error);
   const router = useRouter();
+  // Не загрузился код экрана (после деплоя чанк с прежним хэшем удалён) —
+  // не показываем ошибку, а один раз тихо перезагружаемся под сплэшем.
+  const isChunkFailure = isChunkLoadError(error);
+
   useEffect(() => {
+    if (isChunkFailure) {
+      handleChunkLoadFailure(error);
+      return;
+    }
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
-  }, [error]);
+  }, [error, isChunkFailure]);
+
+  if (isChunkFailure) {
+    keepSplash();
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">

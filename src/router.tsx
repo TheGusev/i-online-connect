@@ -2,7 +2,7 @@ import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import { routeTree } from "./routeTree.gen";
 import { initI18n } from "./i18n";
-import { installChunkRecovery } from "./lib/chunk-recovery";
+import { handleChunkLoadFailure, installChunkRecovery } from "./lib/chunk-recovery";
 
 // Ловим ошибки загрузки чанков как можно раньше: старый закешированный
 // index.html после деплоя ссылается на удалённые файлы сборки.
@@ -20,6 +20,11 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
+    // Ошибки загрузки чанка маршрута роутер обрабатывает внутри себя и не
+    // отдаёт в window — ловим их здесь той же одноразовой защитой.
+    defaultOnCatch: (error) => {
+      handleChunkLoadFailure(error);
+    },
   });
 
   return router;
