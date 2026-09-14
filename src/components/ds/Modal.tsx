@@ -36,7 +36,7 @@ export function Modal({
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="viewport-overlay z-50 flex items-center justify-center p-4">
       <button
         aria-label="Закрыть"
         onClick={onClose}
