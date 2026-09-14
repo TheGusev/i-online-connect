@@ -22,14 +22,8 @@ export const getRouter = () => {
     defaultPreloadStaleTime: 0,
     // Ошибки загрузки чанка маршрута роутер обрабатывает внутри себя и не
     // отдаёт в window — ловим их здесь той же одноразовой защитой.
-    onError: (error) => {
+    defaultOnCatch: (error) => {
       handleChunkLoadFailure(error);
-    },
-    defaultErrorComponent: ({ error }) => {
-      // Последний рубеж: чанк не загрузился — тихо перезагружаемся под
-      // фирменным экраном загрузки вместо надписи об ошибке.
-      if (handleChunkLoadFailure(error)) return null;
-      throw error;
     },
   });
 
