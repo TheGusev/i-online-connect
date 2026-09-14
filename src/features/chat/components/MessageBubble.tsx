@@ -1,26 +1,48 @@
-import { AlertCircle, Check, CheckCheck, CalendarHeart, Clock } from "lucide-react";
+import { AlertCircle, Check, CheckCheck, CalendarHeart, Clock, Reply } from "lucide-react";
 import { useRef } from "react";
 
-import type { Message } from "@/api";
+import type { Message, MessageQuote } from "@/api";
 import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/store/useSessionStore";
 import { mediaUrl } from "@/api";
 import { VoicePlayer } from "./VoicePlayer";
+import { useSwipeMessage } from "@/features/chat/useSwipeMessage";
 
 function time(iso: string) {
   return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
+/** Короткий текст цитаты: голос и встреча подписываются словами. */
+export function quotePreview(quote: MessageQuote) {
+  if (quote.deleted) return "Сообщение удалено";
+  if (quote.kind === "voice") return "Голосовое сообщение";
+  if (quote.kind === "meeting") return "Приглашение на встречу";
+  return quote.text || "Сообщение";
+}
+
+/** Блокировки системного выделения и лупы iOS при удержании и свайпе. */
+const NO_SELECT =
+  "select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]";
+
 export function MessageBubble({
   message,
   onRetry,
   onActions,
+  onReply,
+  onQuoteClick,
+  participantName,
 }: {
   message: Message;
   /** Повторить отправку, если сообщение не ушло. */
   onRetry?: (message: Message) => void;
-  /** Долгое нажатие или правый клик — меню действий. */
+  /** Долгое нажатие, правый клик или свайп влево — меню действий. */
   onActions?: (message: Message) => void;
+  /** Свайп вправо — ответить на сообщение. */
+  onReply?: (message: Message) => void;
+  /** Нажатие на цитату — переход к исходному сообщению. */
+  onQuoteClick?: (messageId: string) => void;
+  /** Имя собеседника для подписи цитаты. */
+  participantName?: string;
 }) {
   const myId = useSessionStore((s) => s.user?.id);
   const mine = message.authorId === myId || message.authorId === "me";
@@ -39,23 +61,58 @@ export function MessageBubble({
     holdTimer.current = null;
   };
 
+  const replyable =
+    Boolean(onReply) && !deleted && message.status !== "sending" && message.status !== "failed";
+  const swipe = useSwipeMessage({
+    enabled: replyable || Boolean(onActions),
+    ...(replyable ? { onSwipeRight: () => onReply?.(message) } : {}),
+    ...(onActions && !deleted ? { onSwipeLeft: openActions } : {}),
+  });
+
+  const quote = message.replyTo;
+
   return (
-    <li className={cn("flex", mine ? "justify-end" : "justify-start")}>
+    <li
+      id={`message-${message.id}`}
+      className={cn("flex scroll-mt-24 transition-shadow", mine ? "justify-end" : "justify-start")}
+    >
+      {swipe.offset > 12 ? (
+        <span className="mr-1 self-center text-primary" aria-hidden="true">
+          <Reply className="size-4" />
+        </span>
+      ) : null}
       <div
+        draggable={false}
         onContextMenu={(event) => {
-          if (!onActions || deleted) return;
           event.preventDefault();
+          if (!onActions || deleted) return;
           openActions();
         }}
-        onTouchStart={() => {
+        onTouchStart={(event) => {
           clearHold();
           holdTimer.current = setTimeout(openActions, 450);
+          swipe.handlers.onTouchStart?.(event);
         }}
-        onTouchEnd={clearHold}
-        onTouchMove={clearHold}
-        onTouchCancel={clearHold}
+        onTouchMove={(event) => {
+          clearHold();
+          swipe.handlers.onTouchMove?.(event);
+        }}
+        onTouchEnd={(event) => {
+          clearHold();
+          swipe.handlers.onTouchEnd?.(event);
+        }}
+        onTouchCancel={(event) => {
+          clearHold();
+          swipe.handlers.onTouchCancel?.(event);
+        }}
+        style={{
+          transform: swipe.offset ? `translateX(${swipe.offset}px)` : undefined,
+          transition: swipe.offset ? undefined : "transform 160ms ease-out",
+        }}
         className={cn(
-          "max-w-[78%] rounded-3xl px-4 py-3 text-sm leading-relaxed shadow-soft",
+          "max-w-[78%] touch-pan-y rounded-3xl px-4 py-3 text-sm leading-relaxed shadow-soft",
+          // Долгое нажатие и свайп не должны вызывать выделение текста и лупу iOS.
+          NO_SELECT,
           mine
             ? "rounded-br-lg bg-primary text-primary-foreground"
             : "rounded-bl-lg border border-border bg-card text-foreground",
@@ -65,6 +122,24 @@ export function MessageBubble({
           deleted && "border border-dashed border-border bg-secondary/40 text-muted-foreground",
         )}
       >
+        {quote ? (
+          <button
+            type="button"
+            onClick={() => onQuoteClick?.(quote.id)}
+            className={cn(
+              "mb-2 flex w-full flex-col items-start gap-0.5 rounded-2xl border-l-2 px-2.5 py-1.5 text-left text-xs",
+              NO_SELECT,
+              mine
+                ? "border-primary-foreground/60 bg-primary-foreground/10 text-primary-foreground/85"
+                : "border-primary bg-secondary/70 text-muted-foreground",
+            )}
+          >
+            <span className="font-semibold">
+              {quote.authorId === myId ? "Вы" : (participantName ?? "Собеседник")}
+            </span>
+            <span className="line-clamp-2 break-words opacity-90">{quotePreview(quote)}</span>
+          </button>
+        ) : null}
         {deleted ? (
           <p className="italic">Сообщение удалено</p>
         ) : (
@@ -131,4 +206,3 @@ export function MessageBubble({
     </li>
   );
 }
-
