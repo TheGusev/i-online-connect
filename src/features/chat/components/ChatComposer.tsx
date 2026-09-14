@@ -53,12 +53,14 @@ export function ChatComposer({
   const pointerStartX = useRef(0);
   const pointerHeld = useRef(false);
   const cancelGesture = useRef(false);
-  const setInputRef = useCallback((node: HTMLTextAreaElement | null) => {
-    localRef.current = node;
-    if (inputRef) inputRef.current = node;
-  }, [inputRef]);
+  const setInputRef = useCallback(
+    (node: HTMLTextAreaElement | null) => {
+      localRef.current = node;
+      if (inputRef) inputRef.current = node;
+    },
+    [inputRef],
+  );
   const voice = useVoiceRecorder((recording) => onVoice?.(recording));
-
 
   const resize = useCallback(() => {
     const input = localRef.current;
@@ -104,7 +106,9 @@ export function ChatComposer({
         </div>
       ) : null}
       {voice.error ? (
-        <p className="px-4 pt-2 text-xs text-destructive" role="alert">{voice.error}</p>
+        <p className="px-4 pt-2 text-xs text-destructive" role="alert">
+          {voice.error}
+        </p>
       ) : null}
 
       <form
@@ -123,8 +127,12 @@ export function ChatComposer({
         {voice.recording ? (
           <div className="flex h-11 min-w-0 select-none items-center gap-2 rounded-3xl border border-destructive/40 bg-destructive/10 px-3 [-webkit-touch-callout:none] [-webkit-user-select:none]">
             <span className="size-2 shrink-0 animate-pulse rounded-full bg-destructive" />
-            <span className="shrink-0 text-sm font-semibold text-destructive">{durationLabel(voice.seconds)}</span>
-            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">Сдвиньте влево для отмены</span>
+            <span className="shrink-0 text-sm font-semibold text-destructive">
+              {durationLabel(voice.seconds)}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+              Сдвиньте влево для отмены
+            </span>
             <X className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
           </div>
         ) : (
@@ -164,7 +172,11 @@ export function ChatComposer({
             type="button"
             size="icon"
             variant={voice.recording ? "danger" : "secondary"}
-            aria-label={voice.recording ? "Отпустить и отправить запись" : "Удерживайте для записи голосового сообщения"}
+            aria-label={
+              voice.recording
+                ? "Отпустить и отправить запись"
+                : "Удерживайте для записи голосового сообщения"
+            }
             disabled={disabled || voiceSending}
             draggable={false}
             onContextMenu={(event) => event.preventDefault()}
@@ -183,11 +195,13 @@ export function ChatComposer({
               });
             }}
             onPointerMove={(event) => {
-              if (voice.recording && event.clientX - pointerStartX.current < -80) cancelGesture.current = true;
+              if (voice.recording && event.clientX - pointerStartX.current < -80)
+                cancelGesture.current = true;
             }}
             onPointerUp={(event) => {
               pointerHeld.current = false;
-              if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+              if (event.currentTarget.hasPointerCapture(event.pointerId))
+                event.currentTarget.releasePointerCapture(event.pointerId);
               voice.stop(cancelGesture.current);
             }}
             onPointerCancel={() => {

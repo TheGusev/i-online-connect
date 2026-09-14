@@ -69,7 +69,9 @@ function sameDay(a: string, b: string) {
   const x = new Date(a);
   const y = new Date(b);
   return (
-    x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate()
+    x.getFullYear() === y.getFullYear() &&
+    x.getMonth() === y.getMonth() &&
+    x.getDate() === y.getDate()
   );
 }
 
@@ -134,7 +136,11 @@ function ConversationPage() {
     [id, myId, cache, markRead, queryClient],
   );
 
-  const { typing, status: socketStatus, sendTyping } = useChatSocket({
+  const {
+    typing,
+    status: socketStatus,
+    sendTyping,
+  } = useChatSocket({
     conversationId: id,
     onEvent: onSocketEvent,
   });
@@ -261,9 +267,7 @@ function ConversationPage() {
   };
 
   return (
-    <div
-      className="keyboard-viewport-fixed flex flex-col overflow-hidden bg-background text-foreground"
-    >
+    <div className="keyboard-viewport-fixed flex flex-col overflow-hidden bg-background text-foreground">
       <header className="shrink-0 border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-3 py-2.5">
           <Link
@@ -321,70 +325,70 @@ function ConversationPage() {
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [-webkit-overflow-scrolling:touch]"
       >
         <div className="mx-auto flex w-full max-w-3xl flex-col">
-        {shared.length > 0 ? (
-          <p className="mb-4 rounded-2xl bg-primary-soft/50 px-4 py-2.5 text-xs text-primary-ink">
-            Общее у вас: {shared.join(", ")}
-          </p>
-        ) : null}
-
-        {isPending ? (
-          <p className="m-auto text-sm text-muted-foreground">Загружаем сообщения…</p>
-        ) : isEmptyThread ? (
-          <div className="m-auto max-w-sm text-center">
-            <p className="text-sm text-muted-foreground">
-              Диалог ещё не начат. Напишите первое сообщение — или начните с подсказки ниже.
+          {shared.length > 0 ? (
+            <p className="mb-4 rounded-2xl bg-primary-soft/50 px-4 py-2.5 text-xs text-primary-ink">
+              Общее у вас: {shared.join(", ")}
             </p>
-          </div>
-        ) : (
-          <>
-            <div ref={topSentinelRef} className="h-px" />
-            {hasNextPage ? (
-              <div className="mb-3 flex justify-center">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  disabled={isFetchingNextPage}
-                  onClick={() => void fetchNextPage()}
-                >
-                  {isFetchingNextPage ? "Загружаем…" : "Показать более ранние"}
-                </Button>
-              </div>
-            ) : null}
-            <ul className="flex-1 space-y-3">
-              {messages?.map((message, index) => {
-                const prev = messages[index - 1];
-                const showDay = !prev || !sameDay(prev.createdAt, message.createdAt);
-                return (
-                  <Fragment key={message.id}>
-                    {showDay ? (
-                      <li className="flex justify-center py-1">
-                        <span className="hud-label rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">
-                          {dayLabel(message.createdAt)}
-                        </span>
-                      </li>
-                    ) : null}
-                    <MessageBubble
-                      message={message}
-                      onRetry={retry}
-                      onActions={setActionsFor}
-                      onReply={startReply}
-                      onQuoteClick={jumpToMessage}
-                      {...(participant?.name ? { participantName: participant.name } : {})}
-                    />
-                  </Fragment>
-                );
-              })}
-              {typing ? (
-                <li className="flex justify-start">
-                  <span className="rounded-3xl rounded-bl-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-                    печатает…
-                  </span>
-                </li>
+          ) : null}
+
+          {isPending ? (
+            <p className="m-auto text-sm text-muted-foreground">Загружаем сообщения…</p>
+          ) : isEmptyThread ? (
+            <div className="m-auto max-w-sm text-center">
+              <p className="text-sm text-muted-foreground">
+                Диалог ещё не начат. Напишите первое сообщение — или начните с подсказки ниже.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div ref={topSentinelRef} className="h-px" />
+              {hasNextPage ? (
+                <div className="mb-3 flex justify-center">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={isFetchingNextPage}
+                    onClick={() => void fetchNextPage()}
+                  >
+                    {isFetchingNextPage ? "Загружаем…" : "Показать более ранние"}
+                  </Button>
+                </div>
               ) : null}
-            </ul>
-          </>
-        )}
+              <ul className="flex-1 space-y-3">
+                {messages?.map((message, index) => {
+                  const prev = messages[index - 1];
+                  const showDay = !prev || !sameDay(prev.createdAt, message.createdAt);
+                  return (
+                    <Fragment key={message.id}>
+                      {showDay ? (
+                        <li className="flex justify-center py-1">
+                          <span className="hud-label rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">
+                            {dayLabel(message.createdAt)}
+                          </span>
+                        </li>
+                      ) : null}
+                      <MessageBubble
+                        message={message}
+                        onRetry={retry}
+                        onActions={setActionsFor}
+                        onReply={startReply}
+                        onQuoteClick={jumpToMessage}
+                        {...(participant?.name ? { participantName: participant.name } : {})}
+                      />
+                    </Fragment>
+                  );
+                })}
+                {typing ? (
+                  <li className="flex justify-start">
+                    <span className="rounded-3xl rounded-bl-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+                      печатает…
+                    </span>
+                  </li>
+                ) : null}
+              </ul>
+            </>
+          )}
         </div>
       </main>
 
@@ -420,7 +424,8 @@ function ConversationPage() {
             replyTo={
               replyTo
                 ? {
-                    authorName: replyTo.authorId === myId ? "Вы" : (participant?.name ?? "Собеседник"),
+                    authorName:
+                      replyTo.authorId === myId ? "Вы" : (participant?.name ?? "Собеседник"),
                     preview: quotePreview(replyTo),
                   }
                 : null
@@ -437,7 +442,7 @@ function ConversationPage() {
               });
               setReplyTo(null);
             }}
-            leading={(
+            leading={
               <Button
                 type="button"
                 variant="secondary"
@@ -447,7 +452,7 @@ function ConversationPage() {
               >
                 <CalendarHeart aria-hidden="true" />
               </Button>
-            )}
+            }
           />
         </div>
       </div>

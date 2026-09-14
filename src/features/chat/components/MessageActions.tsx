@@ -65,7 +65,10 @@ export function MessageActions({
         className="w-full max-w-sm rounded-3xl border border-border bg-card p-2 shadow-glow"
         onClick={(event) => event.stopPropagation()}
       >
-        {onReply && !message.deletedAt && message.status !== "sending" && message.status !== "failed" ? (
+        {onReply &&
+        !message.deletedAt &&
+        message.status !== "sending" &&
+        message.status !== "failed" ? (
           <button
             type="button"
             className={item}

@@ -110,7 +110,9 @@ export function useMessagesCache(conversationId: string) {
               pages: previous.pages.map((page) => ({
                 ...page,
                 items: page.items.map((m) =>
-                  m.authorId === myId && m.status === "sent" ? { ...m, status: "read" as const } : m,
+                  m.authorId === myId && m.status === "sent"
+                    ? { ...m, status: "read" as const }
+                    : m,
                 ),
               })),
             }
@@ -185,7 +187,6 @@ export function useSendMessage(conversationId: string) {
     },
   });
 }
-
 
 /** Голосовое проходит через тот же optimistic cache и статусы, что текст. */
 export function useSendVoiceMessage(conversationId: string) {
@@ -299,7 +300,6 @@ export function useDeleteMessage(conversationId: string) {
     },
   });
 }
-
 
 export function useSuggestMeeting(conversationId: string) {
   const queryClient = useQueryClient();
