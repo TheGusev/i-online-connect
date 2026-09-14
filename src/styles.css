@@ -505,26 +505,29 @@
 
 /*
  * Высота экрана по visualViewport: при открытой клавиатуре layout не
- * растягивается и не уезжает вверх. Переменные обновляет useKeyboardInset.
+ * растягивается и не уезжает вверх. Переменные пишет useViewportHeight —
+ * единственное место в приложении, которое подписано на visualViewport.
  */
 :root {
-  --app-height: 100dvh;
-  --keyboard-inset: 0px;
-  --viewport-top: 0px;
+  --vvh: 100dvh;
+  --vv-keyboard: 0px;
+  --vv-top: 0px;
 }
 
 .app-viewport {
-  min-height: var(--app-height, 100dvh);
+  min-height: var(--vvh, 100dvh);
 }
 
 /* Полоса ввода, приподнятая над клавиатурой. */
 .keyboard-inset-bottom {
-  padding-bottom: calc(var(--keyboard-inset, 0px) + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--vv-keyboard, 0px) + env(safe-area-inset-bottom));
 }
 
-.keyboard-viewport-fixed {
+/* Полноэкранный слой, привязанный к видимой области, а не к 100vh. */
+.keyboard-viewport-fixed,
+.viewport-overlay {
   position: fixed;
   inset-inline: 0;
-  top: var(--viewport-top, 0px);
-  height: var(--app-height, 100dvh);
+  top: var(--vv-top, 0px);
+  height: var(--vvh, 100dvh);
 }

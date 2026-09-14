@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import { RequireSession } from "@/features/auth/session";
-import { useViewportHeightVar } from "@/hooks/useKeyboardOpen";
+import { useViewportHeightVar } from "@/hooks/useViewportHeight";
 
 
 import { BottomNav } from "./BottomNav";

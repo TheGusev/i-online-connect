@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CalendarHeart, WifiOff } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useKeyboardInset } from "@/hooks/useKeyboardOpen";
+import { useKeyboardInset } from "@/hooks/useViewportHeight";
 
 import type { MeetingKind, Message, MessageQuote } from "@/api";
 import { Avatar, Button, TrustBadge } from "@/components/ds";

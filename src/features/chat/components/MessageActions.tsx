@@ -55,7 +55,7 @@ export function MessageActions({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-background/70 p-3 backdrop-blur-sm sm:items-center"
+      className="viewport-overlay z-50 flex items-end justify-center bg-background/70 p-3 backdrop-blur-sm sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-label="Действия с сообщением"

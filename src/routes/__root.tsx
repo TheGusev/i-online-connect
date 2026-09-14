@@ -14,6 +14,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { SessionRestore } from "@/features/auth/session";
 import { ensureServiceWorker } from "@/features/notifications/usePushSubscription";
+import { useViewportHeightVar } from "@/hooks/useViewportHeight";
 import {
   handleChunkLoadFailure,
   installChunkRecovery,
@@ -114,7 +115,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "viewport",
         content:
-          "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content",
+          "width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content",
       },
       { title: "Я Онлайн" },
       // Тёмная тема: адресная строка телефона не должна оставаться светлой.
@@ -273,11 +274,15 @@ function ChunkErrorScreen() {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const outletRef = useRef<HTMLDivElement | null>(null);
+  // Единственная подписка на visualViewport для всего приложения:
+  // держит --vvh / --vv-top / --vv-keyboard актуальными на любом экране.
+  useViewportHeightVar();
   const chunkFatal = useSyncExternalStore(
     subscribeChunkRecovery,
     isChunkRecoveryFatal,
     () => false,
   );
+
 
   // Service worker нужен только для push-уведомлений: регистрируем после
   // гидратации, чтобы не мешать первой отрисовке.

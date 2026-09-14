@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 
 import { useUnreadChatCount } from "@/features/chat/hooks";
-import { useKeyboardOpen } from "@/hooks/useKeyboardOpen";
+import { useKeyboardOpen } from "@/hooks/useViewportHeight";
 import { useSessionStore } from "@/store/useSessionStore";
 
 import { navItems } from "./nav-items";
