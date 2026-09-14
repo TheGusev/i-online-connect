@@ -69,8 +69,17 @@ const webmPath = path.join(mediaDir, "sample.webm");
 const m4aPath = path.join(mediaDir, "sample.m4a");
 execFileSync("ffmpeg", ["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=2", "-c:a", "libopus", webmPath], { stdio: "pipe" });
 execFileSync("ffmpeg", ["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=2", "-c:a", "aac", m4aPath], { stdio: "pipe" });
+// Потоковая запись без длительности в заголовке — так пишет MediaRecorder
+// в браузере (WebM без Duration, на iOS фрагментированный MP4).
+const livePath = path.join(mediaDir, "sample-live.webm");
+execFileSync(
+  "ffmpeg",
+  ["-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=2", "-c:a", "libopus", "-f", "webm", "-live", "1", livePath],
+  { stdio: "pipe" },
+);
 const webm = readFileSync(webmPath);
 const m4a = readFileSync(m4aPath);
+const liveWebm = readFileSync(livePath);
 
 // Собирает multipart/form-data точно как браузер: поля, затем файл, без
 // ручного Content-Type в XHR (boundary ставит сам браузер).
