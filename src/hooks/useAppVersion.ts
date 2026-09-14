@@ -63,8 +63,16 @@ export function useAppVersion() {
             void hardReload();
             return;
           }
-          // Перезагрузка не помогла — не молчим, показываем баннер.
+          // Перезагрузка не помогла (например, сервер отдаёт старый HTML) —
+          // не зацикливаемся, а показываем баннер с ручной кнопкой.
           setUpdateAvailable(true);
+          return;
+        }
+        // Документ совпал с сервером — снимаем флаг аварийной перезагрузки.
+        try {
+          sessionStorage.removeItem(STALE_RELOAD_FLAG);
+        } catch {
+          // ignore
         }
         return;
       }
@@ -76,11 +84,6 @@ export function useAppVersion() {
   }, []);
 
   useEffect(() => {
-    try {
-      sessionStorage.removeItem(STALE_RELOAD_FLAG);
-    } catch {
-      // ignore
-    }
     void check();
     const timer = window.setInterval(() => void check(), CHECK_INTERVAL_MS);
     const onVisible = () => {
