@@ -23,6 +23,11 @@ const CHUNK_ERROR_PATTERNS = [
   "importing a module script failed",
   "unable to preload css",
   "failed to load module script",
+  // Формулировки Safari/iOS и внутренняя детекция TanStack Router.
+  "module not found",
+  "dynamically imported module",
+  "module script failed",
+  "import failed",
 ];
 
 /** Сколько ждём первый рендер приложения, прежде чем считать это белым экраном. */
@@ -152,6 +157,26 @@ export function markAppLoaded() {
  */
 export function recoverStalledRoute() {
   recover();
+}
+
+/** Это ошибка загрузки кода приложения (а не обычный сбой в данных)? */
+export function isChunkLoadError(value: unknown): boolean {
+  if (isChunkError(value)) return true;
+  const cause = (value as { cause?: unknown } | null)?.cause;
+  return cause ? isChunkError(cause) : false;
+}
+
+/**
+ * Единая точка восстановления для ошибок, которые TanStack Router
+ * обрабатывает внутри себя (router.onError, errorComponent) и поэтому не
+ * доводит до window-перехватчиков. Использует тот же одноразовый флаг.
+ *
+ * Возвращает true, если ошибка распознана как сбой загрузки кода.
+ */
+export function handleChunkLoadFailure(value: unknown): boolean {
+  if (!isChunkLoadError(value)) return false;
+  recover();
+  return true;
 }
 
 export function isChunkRecoveryFatal() {
