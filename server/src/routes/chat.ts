@@ -527,14 +527,16 @@ export async function chatRoutes(app: FastifyInstance) {
     await assertConversationAccess(userId, id);
     await assertNotBlockedInConversation(userId, id);
 
-    const fields = request.parts({ limits: { fileSize: MAX_VOICE_BYTES, files: 1, fields: 3 } });
+    const fields = request.parts({ limits: { fileSize: MAX_VOICE_BYTES, files: 1, fields: 4 } });
     let buffer: Buffer | null = null;
     let clientTempId = "";
     let durationValue = "";
+    let replyToValue = "";
     for await (const part of fields) {
       if (part.type === "file") buffer = await part.toBuffer();
       else if (part.fieldname === "clientTempId") clientTempId = String(part.value);
       else if (part.fieldname === "durationMs") durationValue = String(part.value);
+      else if (part.fieldname === "replyToId") replyToValue = String(part.value);
     }
     // Валидируем вручную, чтобы ответ 400 называл конкретное поле — иначе
     // по общему «Ошибка валидации» невозможно понять, что именно не так.
