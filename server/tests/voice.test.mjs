@@ -154,6 +154,13 @@ const mp4 = await sendVoice(bob.token, { buffer: m4a, name: "voice.m4a", type: "
 assert.equal(mp4.statusCode, 200, `валидный MP4: получен ${mp4.statusCode}: ${mp4.body}`);
 assert.equal(mp4.json().mediaMime, "audio/mp4");
 
+// 7.1 Запись без длительности в заголовке (как в браузере) — раньше падала
+// с «Запись не содержит воспроизводимого звука», теперь должна приниматься.
+const live = await sendVoice(bob.token, { buffer: liveWebm, name: "voice.webm", type: "audio/webm", clientTempId: crypto.randomUUID(), durationMs: 2000 });
+assert.equal(live.statusCode, 200, `потоковый WebM без Duration: ${live.statusCode}: ${live.body}`);
+assert.ok(live.json().durationMs >= 1500, `длительность измерена по декодированию: ${live.json().durationMs}`);
+
+
 // 8. Чужой диалог → 403.
 const outsider = await makeUser("voice-outsider@test.local");
 const denied = await sendVoice(outsider.token, { buffer: webm, name: "voice.webm", type: "audio/webm", clientTempId: crypto.randomUUID(), durationMs: 2000 });
