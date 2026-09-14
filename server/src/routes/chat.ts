@@ -643,12 +643,12 @@ export async function chatRoutes(app: FastifyInstance) {
           WHERE id = $2 AND conversation_id = $3 AND author_id = $4
         RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
                   media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
-                  false AS read_by_peer`,
+                  reply_to_id, false AS read_by_peer`,
         [text, messageId, id, userId],
       );
       if (!row) throw notFound("Сообщение не найдено");
 
-      const message = toMessageDto(row);
+      const message = toMessageDto(row, await loadReply(row.reply_to_id));
       publishChatEvent(id, { type: "message-updated", conversationId: id, message });
       return message;
     },
