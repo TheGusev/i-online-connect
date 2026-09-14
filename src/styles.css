@@ -530,4 +530,20 @@
   inset-inline: 0;
   top: var(--vv-top, 0px);
   height: var(--vvh, 100dvh);
+  max-height: var(--vvh, 100dvh);
+  overflow: hidden;
+}
+
+/*
+ * iOS Safari/PWA увеличивает всю страницу при фокусе на поле с текстом
+ * меньше 16px. Сохраняем масштаб 1:1, не запрещая ручное масштабирование.
+ */
+@supports (-webkit-touch-callout: none) {
+  @media (max-width: 767px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    textarea,
+    select {
+      font-size: 16px;
+    }
+  }
 }
