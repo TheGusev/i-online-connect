@@ -18,6 +18,7 @@ import {
   installChunkRecovery,
   isChunkRecoveryFatal,
   markAppLoaded,
+  recoverStalledRoute,
   subscribeChunkRecovery,
 } from "@/lib/chunk-recovery";
 
