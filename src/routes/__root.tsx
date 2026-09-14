@@ -227,18 +227,32 @@ function RootComponent() {
   // гидратации, чтобы не мешать первой отрисовке.
   useEffect(() => {
     installChunkRecovery();
-    // Приложение стартовало — снимаем флаг аварийной перезагрузки.
-    markAppLoaded();
     void ensureServiceWorker();
   }, []);
 
-  // Сторож экрана: если содержимое маршрута так и не появилось, значит его код
-  // не загрузился (старый index.html после деплоя) — восстанавливаемся.
+  // Сторож экрана: приложение считается запущенным только когда содержимое
+  // маршрута реально отрисовалось. Иначе (старый index.html после деплоя —
+  // кода маршрута на сервере уже нет) восстанавливаемся перезагрузкой.
   useEffect(() => {
+    const check = () => {
+      if (outletRef.current?.firstElementChild) {
+        markAppLoaded();
+        return true;
+      }
+      return false;
+    };
+    if (check()) return;
+    const poll = window.setInterval(() => {
+      if (check()) window.clearInterval(poll);
+    }, 500);
     const timer = window.setTimeout(() => {
-      if (!outletRef.current?.firstElementChild) recoverStalledRoute();
+      window.clearInterval(poll);
+      if (!check()) recoverStalledRoute();
     }, 9000);
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearInterval(poll);
+      window.clearTimeout(timer);
+    };
   }, []);
 
   if (chunkFatal) return <ChunkErrorScreen />;
