@@ -28,7 +28,6 @@ export function ChatComposer({
   editing = false,
   onCancelEdit,
   replyTo,
-  replyAuthorName,
   onCancelReply,
 }: {
   value: string;
@@ -48,7 +47,6 @@ export function ChatComposer({
   onCancelEdit?: () => void;
   /** Цитата: на какое сообщение отвечаем. */
   replyTo?: { authorName: string; preview: string } | null;
-  replyAuthorName?: string;
   onCancelReply?: () => void;
 }) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
