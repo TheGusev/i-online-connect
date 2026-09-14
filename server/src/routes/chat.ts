@@ -488,28 +488,31 @@ export async function chatRoutes(app: FastifyInstance) {
   app.post<{ Params: { id: string } }>("/conversations/:id/messages", SEND_LIMIT, async (request) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
-    const { text, clientTempId } = z.object({
+    const { text, clientTempId, replyToId } = z.object({
       text: z.string().min(1).max(4000),
       clientTempId: z.string().uuid().optional(),
+      replyToId: z.string().uuid().optional(),
     }).parse(request.body);
     await assertConversationAccess(userId, id);
     await assertNotBlockedInConversation(userId, id);
+    const replyTarget = await assertReplyTarget(id, replyToId);
 
     const row = await queryOne<MessageRow & { inserted: boolean }>(
-      `INSERT INTO messages (conversation_id, author_id, text, client_temp_id)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO messages (conversation_id, author_id, text, client_temp_id, reply_to_id)
+       VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (conversation_id, author_id, client_temp_id)
          WHERE client_temp_id IS NOT NULL
        DO UPDATE SET text = messages.text
        RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
-                 media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, false AS read_by_peer,
+                 media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                 reply_to_id, false AS read_by_peer,
                  (xmax = 0) AS inserted`,
-      [id, userId, text, clientTempId ?? randomUUID()],
+      [id, userId, text, clientTempId ?? randomUUID(), replyTarget],
     );
     if (!row) throw notFound("Диалог не найден");
     await query("UPDATE conversations SET last_message_at = now() WHERE id = $1", [id]);
 
-    const message = toMessageDto(row);
+    const message = toMessageDto(row, await loadReply(row.reply_to_id));
 
     if (row.inserted) {
       publishChatEvent(id, { type: "message", conversationId: id, message: { ...message, status: "sent" } });
