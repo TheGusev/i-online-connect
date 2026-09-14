@@ -86,6 +86,7 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
   const chunksRef = useRef<Blob[]>([]);
   const startedAtRef = useRef(0);
   const cancelledRef = useRef(false);
+  const pendingStopRef = useRef(false);
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
