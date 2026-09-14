@@ -72,6 +72,17 @@ function recover() {
   })();
 }
 
+/** Наш ли это файл сборки (а не сторонний скрипт вроде счётчика). */
+function isOwnBundleUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw, window.location.href);
+    if (url.origin !== window.location.origin) return false;
+    return /\.(js|mjs|css)$/i.test(url.pathname) || url.pathname.startsWith("/assets/");
+  } catch {
+    return false;
+  }
+}
+
 /** Сбросить флаг: приложение успешно загрузилось. */
 export function markAppLoaded() {
   try {
