@@ -1,4 +1,4 @@
-import { Mic, Pencil, SendHorizontal, Square, X } from "lucide-react";
+import { Mic, Pencil, Reply, SendHorizontal, Square, X } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import type { ReactNode, RefObject } from "react";
 
@@ -27,6 +27,9 @@ export function ChatComposer({
   inputRef,
   editing = false,
   onCancelEdit,
+  replyTo,
+  replyAuthorName,
+  onCancelReply,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -43,6 +46,10 @@ export function ChatComposer({
   /** Идёт правка отправленного сообщения. */
   editing?: boolean;
   onCancelEdit?: () => void;
+  /** Цитата: на какое сообщение отвечаем. */
+  replyTo?: { authorName: string; preview: string } | null;
+  replyAuthorName?: string;
+  onCancelReply?: () => void;
 }) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
   const pointerStartX = useRef(0);
@@ -78,6 +85,23 @@ export function ChatComposer({
             className="font-semibold text-muted-foreground underline-offset-2 hover:underline"
           >
             Отмена
+          </button>
+        </div>
+      ) : null}
+      {replyTo ? (
+        <div className="flex items-center gap-2 px-4 pt-2 text-xs [-webkit-touch-callout:none] [-webkit-user-select:none]">
+          <Reply className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+          <span className="min-w-0 flex-1 truncate">
+            <span className="font-semibold text-primary-ink">{replyTo.authorName}</span>
+            <span className="text-muted-foreground"> · {replyTo.preview}</span>
+          </span>
+          <button
+            type="button"
+            aria-label="Отменить ответ"
+            onClick={onCancelReply}
+            className="shrink-0 text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-4" aria-hidden="true" />
           </button>
         </div>
       ) : null}
