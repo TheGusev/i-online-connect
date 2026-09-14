@@ -97,7 +97,16 @@ export async function saveVoiceFile(userId: string, buffer: Buffer, type: Detect
   return { filePath, url: `${base}/voice/${userId}/${name}` };
 }
 
-/** Проверяем фактическую длительность через установленный ffmpeg, а не доверяем клиенту. */
+function hmsToMs(hours: string, minutes: string, seconds: string) {
+  return Math.round((Number(hours) * 3600 + Number(minutes) * 60 + Number(seconds)) * 1000);
+}
+
+/**
+ * Проверяем фактическую длительность через установленный ffmpeg, а не доверяем клиенту.
+ * Заголовок потоковой записи (MediaRecorder: WebM без длительности, фрагментированный
+ * MP4 на iOS) часто не содержит `Duration`, поэтому дополнительно берём последнее
+ * `time=` из прогресса декодирования — это длительность реально декодированного звука.
+ */
 export function audioDurationMs(filePath: string): Promise<number> {
   return new Promise((resolve, reject) => {
     const process = spawn(env.FFMPEG_PATH, ["-hide_banner", "-i", filePath, "-f", "null", "-"], {
@@ -117,15 +126,18 @@ export function audioDurationMs(filePath: string): Promise<number> {
     });
     process.on("close", () => {
       clearTimeout(timer);
-      const match = /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(stderr);
-      if (!match) {
+      const header = /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(stderr);
+      const headerMs = header ? hmsToMs(header[1]!, header[2]!, header[3]!) : 0;
+      let decodedMs = 0;
+      for (const match of stderr.matchAll(/time=\s*(\d+):(\d+):(\d+(?:\.\d+)?)/g)) {
+        decodedMs = Math.max(decodedMs, hmsToMs(match[1]!, match[2]!, match[3]!));
+      }
+      const durationMs = Math.max(headerMs, decodedMs);
+      if (durationMs <= 0) {
         reject(new Error("audio duration unavailable"));
         return;
       }
-      const hours = Number(match[1]);
-      const minutes = Number(match[2]);
-      const seconds = Number(match[3]);
-      resolve(Math.round((hours * 3600 + minutes * 60 + seconds) * 1000));
+      resolve(durationMs);
     });
   });
 }
