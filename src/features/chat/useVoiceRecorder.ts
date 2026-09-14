@@ -100,6 +100,8 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
     cancelledRef.current = cancel;
     const recorder = recorderRef.current;
     if (recorder?.state === "recording") recorder.stop();
+    // Кнопку отпустили раньше, чем рекордер реально стартовал — остановим в onstart.
+    else if (recorder) pendingStopRef.current = true;
   }, []);
 
   const start = useCallback(async () => {
@@ -117,7 +119,8 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
       recorderRef.current = recorder;
       chunksRef.current = [];
       cancelledRef.current = false;
-      startedAtRef.current = Date.now();
+      pendingStopRef.current = false;
+      startedAtRef.current = 0;
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
       };
@@ -126,22 +129,36 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
         setRecording(false);
         cleanup();
       };
+      // Таймер и индикатор включаем только когда рекордер реально пишет звук,
+      // иначе интерфейс показывает больше, чем попало в файл.
+      recorder.onstart = () => {
+        startedAtRef.current = Date.now();
+        setSeconds(0);
+        setRecording(true);
+        if (pendingStopRef.current) {
+          pendingStopRef.current = false;
+          if (recorder.state === "recording") recorder.stop();
+        }
+      };
       recorder.onstop = () => {
-        const durationMs = Math.min(MAX_VOICE_SECONDS * 1000, Date.now() - startedAtRef.current);
+        const heldMs = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType });
         setRecording(false);
         setSeconds(0);
         cleanup();
         if (cancelledRef.current) return;
-        if (blob.size < 512 || durationMs < 400) {
-          setError("Запись слишком короткая. Удерживайте микрофон чуть дольше.");
-          return;
-        }
-        onRecorded({ blob, durationMs, mimeType: blob.type || mimeType });
+        void measureBlobDurationMs(blob).then((measuredMs) => {
+          const durationMs = Math.min(MAX_VOICE_SECONDS * 1000, measuredMs || heldMs);
+          console.info("[voice] blob:", blob.size, "байт", blob.type, "длительность(мс):", measuredMs, "удержание(мс):", heldMs);
+          if (blob.size < 512 || durationMs < MIN_VOICE_MS) {
+            setError("Запись слишком короткая. Удерживайте микрофон чуть дольше.");
+            return;
+          }
+          onRecorded({ blob, durationMs, mimeType: blob.type || mimeType });
+        });
       };
       recorder.start();
       setSeconds(0);
-      setRecording(true);
     } catch (cause) {
       cleanup();
       setError(microphoneError(cause));
