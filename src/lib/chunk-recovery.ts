@@ -23,14 +23,57 @@ const CHUNK_ERROR_PATTERNS = [
   "failed to load module script",
 ];
 
+/** Сколько ждём первый рендер приложения, прежде чем считать это белым экраном. */
+const BOOT_TIMEOUT_MS = 9000;
+
 let installed = false;
 let fatal = false;
+let appLoaded = false;
+let bootTimer: ReturnType<typeof setTimeout> | null = null;
 const listeners = new Set<() => void>();
+
+/** Аварийный экран без React: приложение так и не смогло запуститься. */
+function renderStandaloneFallback() {
+  if (typeof document === "undefined") return;
+  if (document.getElementById("ya-online-boot-error")) return;
+  const box = document.createElement("div");
+  box.id = "ya-online-boot-error";
+  box.setAttribute(
+    "style",
+    "position:fixed;inset:0;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center;background:#0B0F1A;color:#F5F7FF;font-family:system-ui,-apple-system,sans-serif",
+  );
+  const title = document.createElement("h1");
+  title.textContent = "Не удалось загрузить обновление";
+  title.setAttribute("style", "margin:0;font-size:20px;font-weight:700");
+  const text = document.createElement("p");
+  text.textContent = "Проверьте соединение и попробуйте открыть приложение заново.";
+  text.setAttribute("style", "margin:0;font-size:15px;opacity:.75;max-width:22rem");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = "Обновить";
+  button.setAttribute(
+    "style",
+    "border:0;border-radius:999px;padding:12px 24px;font-size:15px;font-weight:600;background:#FF4D8D;color:#0B0F1A",
+  );
+  button.addEventListener("click", () => {
+    try {
+      sessionStorage.removeItem(RELOAD_FLAG);
+    } catch {
+      // ignore
+    }
+    window.location.reload();
+  });
+  box.append(title, text, button);
+  document.body.append(box);
+}
 
 function markFatal() {
   if (fatal) return;
   fatal = true;
   for (const listener of listeners) listener();
+  // React не смонтировался — рисуем экран вручную, иначе пользователь
+  // так и останется на пустом экране.
+  if (!appLoaded) renderStandaloneFallback();
 }
 
 function isChunkError(value: unknown): boolean {
