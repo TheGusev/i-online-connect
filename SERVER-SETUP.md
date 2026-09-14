@@ -401,8 +401,11 @@ server {
         proxy_send_timeout 3600s;
     }
 
-    # 6. SPA-роутинг: любой маршрут отдаёт index.html
+    # 6. SPA-роутинг: любой маршрут отдаёт index.html.
+    #    no-store обязателен: PWA открывает "/", и закешированный HTML
+    #    ссылается на удалённые после деплоя файлы сборки.
     location / {
+        add_header Cache-Control "no-store" always;
         try_files $uri $uri/ /index.html;
     }
 
