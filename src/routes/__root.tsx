@@ -214,6 +214,16 @@ function RootShell({ children }: { children: ReactNode }) {
             />
           </div>
         </noscript>
+        {/* Фирменный экран загрузки: виден мгновенно и плавно исчезает,
+            когда приложение готово рисовать содержимое (см. src/lib/splash.ts). */}
+        <div id="app-splash" aria-hidden="true">
+          <span className="splash-mark">Я</span>
+          <span className="splash-dots">
+            <i />
+            <i />
+            <i />
+          </span>
+        </div>
         {children}
         <Scripts />
       </body>
