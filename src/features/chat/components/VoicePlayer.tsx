@@ -22,6 +22,7 @@ export function VoicePlayer({
   mine: boolean;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const peaks = useVoicePeaks(src, WAVE_BARS);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
 
