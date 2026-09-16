@@ -185,7 +185,7 @@ export function ChatComposer({
           <Button
             type="button"
             size="icon"
-            variant={voice.recording ? "danger" : "secondary"}
+            variant={voice.recording ? "primary" : "secondary"}
             aria-label={
               voice.recording
                 ? "Отпустить и отправить запись"
