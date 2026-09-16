@@ -145,6 +145,24 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
       cancelledRef.current = false;
       pendingStopRef.current = false;
       startedAtRef.current = 0;
+      // Анализатор поверх того же потока: второй запрос микрофона не нужен.
+      try {
+        const Ctx =
+          window.AudioContext ??
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (Ctx) {
+          const ctx = new Ctx();
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 512;
+          analyser.smoothingTimeConstant = 0.8;
+          ctx.createMediaStreamSource(stream).connect(analyser);
+          audioCtxRef.current = ctx;
+          analyserRef.current = analyser;
+          sampleRef.current = new Float32Array(analyser.fftSize);
+        }
+      } catch {
+        // Без визуализации запись всё равно работает.
+      }
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
       };
