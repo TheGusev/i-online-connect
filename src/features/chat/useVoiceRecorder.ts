@@ -91,10 +91,30 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sampleRef = useRef<Float32Array | null>(null);
+
   const cleanup = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     recorderRef.current = null;
+    analyserRef.current = null;
+    sampleRef.current = null;
+    const ctx = audioCtxRef.current;
+    audioCtxRef.current = null;
+    if (ctx && ctx.state !== "closed") void ctx.close();
+  }, []);
+
+  /** Текущая громкость 0..1 из уже открытого потока — отдельный доступ не нужен. */
+  const getLevel = useCallback(() => {
+    const analyser = analyserRef.current;
+    const sample = sampleRef.current;
+    if (!analyser || !sample) return 0;
+    analyser.getFloatTimeDomainData(sample);
+    let sum = 0;
+    for (let i = 0; i < sample.length; i += 1) sum += sample[i]! * sample[i]!;
+    return Math.sqrt(sum / sample.length);
   }, []);
 
   const stop = useCallback((cancel = false) => {
