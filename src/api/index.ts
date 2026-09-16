@@ -14,4 +14,6 @@ export * as supportApi from "./endpoints/support";
 export * as listingsApi from "./endpoints/listings";
 export * as notificationsApi from "./endpoints/notifications";
 export * as pushApi from "./endpoints/push";
+export * as presenceApi from "./endpoints/presence";
+export type { PresenceSummary } from "./endpoints/presence";
 export type { SupportTopic, SupportRequestPayload } from "./endpoints/support";
