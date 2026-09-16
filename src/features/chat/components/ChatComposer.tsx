@@ -123,17 +123,30 @@ export function ChatComposer({
           if (!sending && !voice.recording) onSend();
         }}
       >
-        {leading ? <div className="shrink-0">{leading}</div> : null}
+        {leading ? (
+          <div className="shrink-0">
+            {voice.recording ? (
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                aria-label="Отменить запись"
+                onClick={() => voice.stop(true)}
+                className="shrink-0 border border-primary/60 bg-background text-primary shadow-glow hover:bg-primary/10"
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
+            ) : (
+              leading
+            )}
+          </div>
+        ) : null}
         {voice.recording ? (
-          <div className="flex h-11 min-w-0 select-none items-center gap-2 rounded-3xl border border-destructive/40 bg-destructive/10 px-3 [-webkit-touch-callout:none] [-webkit-user-select:none]">
-            <span className="size-2 shrink-0 animate-pulse rounded-full bg-destructive" />
-            <span className="shrink-0 text-sm font-semibold text-destructive">
+          <div className="flex h-11 min-w-0 select-none items-center gap-2 rounded-3xl border border-primary/40 bg-primary/10 px-3 shadow-glow [-webkit-touch-callout:none] [-webkit-user-select:none]">
+            <span className="shrink-0 text-sm font-semibold tabular-nums text-primary-ink">
               {durationLabel(voice.seconds)}
             </span>
-            <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-              Сдвиньте влево для отмены
-            </span>
-            <X className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <LiveVoiceWave getLevel={voice.getLevel} />
           </div>
         ) : (
           <textarea
