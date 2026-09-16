@@ -545,3 +545,46 @@
     font-size: 16px;
   }
 }
+
+/*
+ * Кольцо вокруг аватара: ровный замкнутый круг фирменного розового цвета
+ * с мягкой пульсацией. Размер самого аватара не меняется — кольцо рисуется
+ * рамкой и тенью на обёртке.
+ */
+.avatar-ring {
+  display: inline-flex;
+  border-radius: 50%;
+  padding: 2px;
+  border: 2px solid var(--primary);
+  background-clip: padding-box;
+  animation: avatar-ring-pulse 2.6s ease-in-out infinite;
+  transition:
+    box-shadow 220ms ease,
+    transform 220ms ease;
+}
+
+.avatar-ring:hover {
+  box-shadow: 0 0 0 3px oklch(0.68 0.2 358 / 30%), 0 0 22px 4px oklch(0.68 0.2 358 / 45%);
+}
+
+.avatar-ring:active {
+  animation: none;
+  transform: scale(0.97);
+  box-shadow: 0 0 0 5px oklch(0.68 0.2 358 / 40%), 0 0 32px 8px oklch(0.68 0.2 358 / 70%);
+}
+
+@keyframes avatar-ring-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 oklch(0.68 0.2 358 / 35%), 0 0 10px 0 oklch(0.68 0.2 358 / 30%);
+  }
+  50% {
+    box-shadow: 0 0 0 4px oklch(0.68 0.2 358 / 18%), 0 0 20px 4px oklch(0.68 0.2 358 / 55%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-ring {
+    animation: none;
+  }
+}
