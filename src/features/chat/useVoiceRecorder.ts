@@ -93,7 +93,7 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const sampleRef = useRef<Float32Array | null>(null);
+  const sampleRef = useRef<Float32Array<ArrayBuffer> | null>(null);
 
   const cleanup = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
