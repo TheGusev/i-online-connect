@@ -91,10 +91,30 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const sampleRef = useRef<Float32Array<ArrayBuffer> | null>(null);
+
   const cleanup = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
     recorderRef.current = null;
+    analyserRef.current = null;
+    sampleRef.current = null;
+    const ctx = audioCtxRef.current;
+    audioCtxRef.current = null;
+    if (ctx && ctx.state !== "closed") void ctx.close();
+  }, []);
+
+  /** Текущая громкость 0..1 из уже открытого потока — отдельный доступ не нужен. */
+  const getLevel = useCallback(() => {
+    const analyser = analyserRef.current;
+    const sample = sampleRef.current;
+    if (!analyser || !sample) return 0;
+    analyser.getFloatTimeDomainData(sample);
+    let sum = 0;
+    for (let i = 0; i < sample.length; i += 1) sum += sample[i]! * sample[i]!;
+    return Math.sqrt(sum / sample.length);
   }, []);
 
   const stop = useCallback((cancel = false) => {
@@ -125,6 +145,24 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
       cancelledRef.current = false;
       pendingStopRef.current = false;
       startedAtRef.current = 0;
+      // Анализатор поверх того же потока: второй запрос микрофона не нужен.
+      try {
+        const Ctx =
+          window.AudioContext ??
+          (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (Ctx) {
+          const ctx = new Ctx();
+          const analyser = ctx.createAnalyser();
+          analyser.fftSize = 512;
+          analyser.smoothingTimeConstant = 0.8;
+          ctx.createMediaStreamSource(stream).connect(analyser);
+          audioCtxRef.current = ctx;
+          analyserRef.current = analyser;
+          sampleRef.current = new Float32Array(analyser.fftSize);
+        }
+      } catch {
+        // Без визуализации запись всё равно работает.
+      }
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
       };
@@ -197,5 +235,14 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
     [cleanup],
   );
 
-  return { supported: voiceRecordingSupported(), recording, seconds, error, setError, start, stop };
+  return {
+    supported: voiceRecordingSupported(),
+    recording,
+    seconds,
+    error,
+    setError,
+    start,
+    stop,
+    getLevel,
+  };
 }
