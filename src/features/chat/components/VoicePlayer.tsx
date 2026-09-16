@@ -3,6 +3,9 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
+import { VoiceWaveform, useVoicePeaks } from "@/features/chat/components/VoiceWave";
+
+const WAVE_BARS = 32;
 
 function formatDuration(seconds: number) {
   const safe = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
