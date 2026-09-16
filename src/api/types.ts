@@ -114,6 +114,8 @@ export interface SpaceMember {
   avatarUrl?: string | undefined;
   /** Организатор сообщества. */
   host?: boolean | undefined;
+  /** В сети сейчас — то же окно в 5 минут, что и у presence-счётчика. */
+  online?: boolean | undefined;
 }
 
 export interface SpaceMessage {
