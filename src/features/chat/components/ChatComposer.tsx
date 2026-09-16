@@ -5,6 +5,7 @@ import type { ReactNode, RefObject } from "react";
 import { Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
 import { useVoiceRecorder, type VoiceRecording } from "@/features/chat/useVoiceRecorder";
+import { LiveVoiceWave } from "@/features/chat/components/VoiceWave";
 
 const MAX_TEXTAREA_HEIGHT = 128;
 
