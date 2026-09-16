@@ -235,5 +235,14 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
     [cleanup],
   );
 
-  return { supported: voiceRecordingSupported(), recording, seconds, error, setError, start, stop };
+  return {
+    supported: voiceRecordingSupported(),
+    recording,
+    seconds,
+    error,
+    setError,
+    start,
+    stop,
+    getLevel,
+  };
 }
