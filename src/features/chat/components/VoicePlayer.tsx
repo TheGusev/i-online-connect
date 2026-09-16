@@ -66,22 +66,10 @@ export function VoicePlayer({
         )}
       </Button>
       <div className="min-w-0 flex-1">
-        <div
-          className={cn(
-            "h-1 overflow-hidden rounded-full",
-            mine ? "bg-primary-foreground/25" : "bg-secondary",
-          )}
-        >
-          <progress
-            className={cn(
-              "block h-full w-full accent-primary",
-              mine && "accent-primary-foreground",
-            )}
-            max={100}
-            value={progress}
-            aria-label="Прогресс голосового сообщения"
-          />
-        </div>
+        <VoiceWaveform peaks={peaks} progress={progress} bars={WAVE_BARS} mine={mine} />
+        <span className="sr-only" role="progressbar" aria-valuenow={Math.round(progress)}>
+          Прогресс голосового сообщения
+        </span>
         <p
           className={cn(
             "mt-1 text-[11px]",
