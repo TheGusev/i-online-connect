@@ -197,7 +197,9 @@ export function ChatComposer({
             className={cn(
               "shrink-0 touch-none select-none",
               "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]",
-              voice.recording && "animate-pulse",
+              voice.recording
+                ? "bg-primary text-primary-foreground shadow-glow animate-pulse"
+                : "border border-primary/40 text-primary hover:bg-primary/10",
             )}
             onPointerDown={(event) => {
               pointerStartX.current = event.clientX;
