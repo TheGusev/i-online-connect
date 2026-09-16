@@ -142,11 +142,18 @@ async function loadSpaceDetail(spaceId: string, userId: string) {
   const row = await queryOne<SpaceRow>(`${SPACE_SELECT} WHERE s.id = $2`, [userId, spaceId]);
   if (!row) throw notFound("Сообщество не найдено");
 
-  const members = await query<{ id: string; name: string; avatar_url: string | null; host: boolean }>(
+  const members = await query<{
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    host: boolean;
+    online: boolean;
+  }>(
     `SELECT u.id, p.name,
             (SELECT url FROM profile_media WHERE user_id = u.id AND kind = 'photo'
               ORDER BY is_primary DESC, position LIMIT 1) AS avatar_url,
-            sm.status = 'host' AS host
+            sm.status = 'host' AS host,
+            u.last_seen_at > now() - interval '5 minutes' AS online
        FROM space_members sm
        JOIN users u    ON u.id = sm.user_id AND u.deleted_at IS NULL
        JOIN profiles p ON p.user_id = u.id
@@ -166,6 +173,7 @@ async function loadSpaceDetail(spaceId: string, userId: string) {
       name: m.name,
       avatarUrl: m.avatar_url ?? undefined,
       host: m.host,
+      online: m.online,
     })),
     events,
     nextEvent: events[0],
