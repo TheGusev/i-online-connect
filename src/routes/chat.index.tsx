@@ -36,10 +36,7 @@ function ChatListPage() {
 
   return (
     <AppShell>
-      <PageHeader
-        title="Диалоги"
-        description="Никаких таймеров ответа: отвечайте, когда у вас есть силы на разговор."
-      />
+      <PageHeader title="Диалоги" />
 
       {isPending ? (
         <div className="space-y-3">
@@ -48,14 +45,14 @@ function ChatListPage() {
           <ListItemSkeleton />
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6">
           {awaiting.length > 0 ? (
             <section>
-              <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                <Inbox className="size-4" aria-hidden="true" />
+              <h2 className="mb-2.5 flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                <Inbox className="size-3.5" aria-hidden="true" />
                 Ожидают ответа
               </h2>
-              <ul className="space-y-3">
+              <ul className="space-y-2.5">
                 {awaiting.map((conversation, index) => (
                   <Reveal as="li" key={conversation.id} delay={index * 60}>
                     <ConversationCard conversation={conversation} />
@@ -66,8 +63,8 @@ function ChatListPage() {
           ) : null}
 
           <section>
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              <MessagesSquare className="size-4" aria-hidden="true" />
+            <h2 className="mb-2.5 flex items-center gap-2 px-1 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+              <MessagesSquare className="size-3.5" aria-hidden="true" />
               Активные диалоги
             </h2>
             {active.length === 0 ? (
@@ -75,7 +72,7 @@ function ChatListPage() {
                 Пока пусто. Новые диалоги появятся здесь после первого сообщения.
               </p>
             ) : (
-              <ul className="space-y-3">
+              <ul className="space-y-2.5">
                 {active.map((conversation, index) => (
                   <Reveal as="li" key={conversation.id} delay={index * 60}>
                     <ConversationCard conversation={conversation} />

@@ -50,6 +50,8 @@ export interface TrustBadgeProps {
   withTooltip?: boolean;
   /** Сторона, куда раскрывается тултип. */
   align?: "left" | "right";
+  /** Показывать только значок, сохраняя доступное название. */
+  iconOnly?: boolean;
 }
 
 export function TrustBadge({
@@ -58,14 +60,17 @@ export function TrustBadge({
   className,
   withTooltip = false,
   align = "left",
+  iconOnly = false,
 }: TrustBadgeProps) {
   const { label, className: tone, icon: Icon, meaning, next } = trustLevelConfig[level];
   const [open, setOpen] = useState(false);
   const tooltipId = useId();
 
   const badgeClass = cn(
-    "inline-flex items-center gap-1.5 rounded-full border font-semibold",
-    size === "sm" ? "px-2 py-0.5 text-[11px]" : "px-3 py-1 text-xs",
+    "inline-flex items-center justify-center rounded-full border font-semibold",
+    iconOnly
+      ? size === "sm" ? "size-5" : "size-6"
+      : size === "sm" ? "gap-1.5 px-2 py-0.5 text-[11px]" : "gap-1.5 px-3 py-1 text-xs",
     tone,
     className,
   );
@@ -75,7 +80,7 @@ export function TrustBadge({
     return (
       <span className={badgeClass}>
         <Icon className={iconClass} aria-hidden="true" />
-        {label}
+        <span className={iconOnly ? "sr-only" : undefined}>{label}</span>
       </span>
     );
   }

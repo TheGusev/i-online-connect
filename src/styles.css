@@ -588,3 +588,28 @@
     animation: none;
   }
 }
+
+/* Тонкий спокойный контур непрочитанного диалога. */
+.conversation-card-unread {
+  animation: conversation-card-glow 3.2s ease-in-out infinite;
+}
+
+@keyframes conversation-card-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 color-mix(in oklab, var(--primary) 18%, transparent),
+      var(--shadow-soft);
+  }
+  50% {
+    box-shadow:
+      0 0 0 2px color-mix(in oklab, var(--primary) 14%, transparent),
+      0 0 16px color-mix(in oklab, var(--primary) 22%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conversation-card-unread {
+    animation: none;
+  }
+}
