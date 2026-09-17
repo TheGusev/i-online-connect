@@ -23,26 +23,31 @@ export function ConversationCard({ conversation }: { conversation: Conversation 
       to="/chat/$id"
       params={{ id: conversation.id }}
       className={cn(
-        "flex items-center gap-3 rounded-3xl border border-border bg-card p-4 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lift",
-        unread && "border-primary/30 bg-primary-soft/40",
+        "flex min-h-[3.75rem] items-center gap-3.5 rounded-[1.25rem] border border-border/60 bg-card/40 px-4 py-2.5 shadow-soft backdrop-blur-md transition-[border-color,background-color,box-shadow] duration-200 hover:border-primary/25 hover:bg-card/60",
+        unread && "conversation-card-unread min-h-[5.375rem] border-primary/60 bg-card/75 py-3",
       )}
     >
       <Avatar
         name={conversation.participant.name}
         src={conversation.participant.avatarUrl ?? null}
-        size="lg"
+        size={unread ? "md" : "sm"}
         online={conversation.participant.online}
       />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate font-semibold text-foreground">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className={cn("truncate text-sm text-foreground", unread ? "font-semibold" : "font-medium")}>
             {conversation.participant.name}
           </span>
-          <TrustBadge level={badgeLevel(conversation.participant.trustLevel)} size="sm" />
+          <TrustBadge
+            level={badgeLevel(conversation.participant.trustLevel)}
+            size="sm"
+            iconOnly
+          />
         </div>
         <p
           className={cn(
-            "mt-1 truncate text-sm",
+            "truncate text-sm",
+            unread && "mt-0.5",
             unread ? "font-medium text-foreground" : "text-muted-foreground",
           )}
         >
@@ -50,17 +55,15 @@ export function ConversationCard({ conversation }: { conversation: Conversation 
           {preview}
         </p>
       </div>
-      <div className="flex shrink-0 flex-col items-end gap-1.5">
-        <span className="text-xs text-muted-foreground">
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <span className="text-[10px] font-medium text-muted-foreground">
           {timeLabel(conversation.lastMessageAt)}
         </span>
         {unread ? (
           <span className="grid min-w-5 place-items-center rounded-full bg-primary px-1.5 py-0.5 text-[11px] font-bold text-primary-foreground">
             {conversation.unreadCount}
           </span>
-        ) : (
-          <span className="text-[11px] text-muted-foreground">Прочитано</span>
-        )}
+        ) : null}
       </div>
     </Link>
   );
