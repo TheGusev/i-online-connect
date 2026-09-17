@@ -66,8 +66,8 @@ export function ParticipantsCarousel({
               >
                 <span
                   className={cn(
-                    "rounded-full ring-2 transition-shadow duration-200",
-                    isActive ? "ring-primary shadow-glow" : "ring-border",
+                    "inline-flex rounded-full border-2 p-0.5 transition-shadow duration-200",
+                    isActive ? "border-primary shadow-glow" : "border-primary/40",
                   )}
                 >
                   <Avatar
