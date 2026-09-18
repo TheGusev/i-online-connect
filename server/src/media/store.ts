@@ -62,10 +62,10 @@ export function assertSize(type: DetectedType, size: number) {
   if (size > limit) {
     throw badRequest(
       type.kind === "photo"
-        ? "Фото больше 8 МБ — выберите файл меньше"
+        ? "фото больше 8 МБ — выберите файл меньше"
         : type.kind === "audio"
-          ? "Голосовое сообщение больше 10 МБ — запишите короче"
-          : "Видео больше 40 МБ — запишите короче или снизьте качество",
+          ? "голосовое сообщение больше 10 МБ — запишите коротче"
+          : "видео больше 40 МБ — запишите короче или снизьте качество",
     );
   }
 }
@@ -193,4 +193,51 @@ export function mediaPathFromUrl(url: string): string | null {
   // Защита от «../»: путь должен остаться внутри MEDIA_DIR.
   const resolved = path.resolve(env.MEDIA_DIR, relative);
   return resolved.startsWith(path.resolve(env.MEDIA_DIR)) ? resolved : null;
+}
+
+/**
+ * Перекодирует голосовое сообщение в AAC/M4A через ffmpeg.
+ *
+ * WebM/Opus, который пишет MediaRecorder в Chrome/Android, не воспроизводится
+ * в Safari/iOS ни через <audio>, ни через AudioContext.decodeAudioData —
+ * WebKit не поддерживает контейнер WebM вовсе. AAC/M4A играет одинаково на
+ * iOS и Android, поэтому после сохранения оригинала перекодируем в него и
+ * раздаём только результат — независимо от того, чем записал отправитель.
+ */
+export async function transcodeVoiceToAac(
+  inputPath: string,
+  userId: string,
+): Promise<{ filePath: string; url: string }> {
+  const dir = path.dirname(inputPath);
+  const outName = `${randomUUID()}.m4a`;
+  const outPath = path.join(dir, outName);
+  await new Promise<void>((resolve, reject) => {
+    const proc = spawn(
+      env.FFMPEG_PATH,
+      ["-y", "-i", inputPath, "-vn", "-c:a", "aac", "-b:a", "64k", "-ar", "44100", outPath],
+      { stdio: ["ignore", "ignore", "pipe"] },
+    );
+    let stderr = "";
+    const timer = setTimeout(() => {
+      proc.kill("SIGKILL");
+      reject(new Error("voice transcode timeout"));
+    }, 20_000);
+    proc.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    proc.on("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    proc.on("close", (code) => {
+      clearTimeout(timer);
+      if (code !== 0) {
+        reject(new Error(`ffmpeg transcode exit ${code}: ${stderr.slice(-400)}`));
+        return;
+      }
+      resolve();
+    });
+  });
+  const base = env.MEDIA_BASE_URL.replace(/\/$/, "");
+  return { filePath: outPath, url: `${base}/voice/${userId}/${outName}` };
 }
