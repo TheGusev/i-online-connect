@@ -563,6 +563,12 @@
     transform 220ms ease;
 }
 
+/* Маленькие фото (список диалогов, карточки): ореол тоньше. */
+.avatar-ring-sm {
+  padding: 1.5px;
+  border-width: 1.5px;
+}
+
 .avatar-ring:hover {
   box-shadow: 0 0 0 3px oklch(0.68 0.2 358 / 30%), 0 0 22px 4px oklch(0.68 0.2 358 / 45%);
 }

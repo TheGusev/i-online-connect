@@ -52,7 +52,15 @@ export function Avatar({
   const resolved = failed ? undefined : mediaUrl(src);
 
   return (
-    <div className={cn("relative inline-flex shrink-0", className)}>
+    <div
+      className={cn(
+        "relative inline-flex shrink-0",
+        // Онлайн показываем розовым пульсирующим ореолом вместо зелёной точки.
+        online && (size === "xs" || size === "sm" ? "avatar-ring avatar-ring-sm" : "avatar-ring"),
+        className,
+      )}
+      {...(online ? { title: "Сейчас в сети" } : {})}
+    >
       <div
         className={cn(
           "flex items-center justify-center overflow-hidden rounded-full bg-primary-soft font-bold text-primary-ink ring-2 ring-card",
@@ -83,9 +91,7 @@ export function Avatar({
           <span className="sr-only">Подтверждён</span>
         </span>
       )}
-      {online && !verified && (
-        <span className="absolute -bottom-0.5 -right-0.5 size-3 rounded-full bg-success ring-2 ring-card" />
-      )}
+      {online && <span className="sr-only">Сейчас в сети</span>}
     </div>
   );
 }
