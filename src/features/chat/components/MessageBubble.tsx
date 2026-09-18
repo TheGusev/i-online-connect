@@ -71,6 +71,25 @@ export function MessageBubble({
 
   const quote = message.replyTo;
 
+  // Время и галочки: у голосовых показываем их в одной строке с длительностью.
+  const stamp = (
+    <>
+      {message.editedAt && !deleted ? <span className="opacity-80">изменено</span> : null}
+      {time(message.createdAt)}
+      {mine && !deleted ? (
+        message.status === "sending" ? (
+          <Clock className="size-3.5" aria-label="Отправляется" />
+        ) : message.status === "read" ? (
+          <CheckCheck className="size-3.5" aria-label="Прочитано" />
+        ) : (
+          <Check className="size-3.5" aria-label="Отправлено" />
+        )
+      ) : null}
+    </>
+  );
+  const voiceInline = voice && Boolean(message.mediaUrl) && !deleted && !failed;
+
+
   return (
     <li
       id={`message-${message.id}`}
