@@ -201,28 +201,10 @@ export function ChatComposer({
                 ? "bg-primary text-primary-foreground shadow-glow animate-pulse"
                 : "border border-primary/40 text-primary hover:bg-primary/10",
             )}
-            onPointerDown={(event) => {
-              pointerStartX.current = event.clientX;
-              pointerHeld.current = true;
-              cancelGesture.current = false;
-              event.currentTarget.setPointerCapture(event.pointerId);
-              void voice.start().then(() => {
-                if (!pointerHeld.current) voice.stop(cancelGesture.current);
-              });
-            }}
-            onPointerMove={(event) => {
-              if (voice.recording && event.clientX - pointerStartX.current < -80)
-                cancelGesture.current = true;
-            }}
-            onPointerUp={(event) => {
-              pointerHeld.current = false;
-              if (event.currentTarget.hasPointerCapture(event.pointerId))
-                event.currentTarget.releasePointerCapture(event.pointerId);
-              voice.stop(cancelGesture.current);
-            }}
-            onPointerCancel={() => {
-              pointerHeld.current = false;
-              voice.stop(true);
+            onClick={() => {
+              // Одно нажатие — старт записи, повторное — отправка.
+              if (voice.recording) voice.stop(false);
+              else void voice.start();
             }}
             onKeyDown={(event) => {
               if (event.key !== "Enter" && event.key !== " ") return;
