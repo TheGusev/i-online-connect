@@ -16,10 +16,13 @@ export function VoicePlayer({
   src,
   duration,
   mine,
+  meta,
 }: {
   src: string;
   duration: number;
   mine: boolean;
+  /** Время отправки и галочки — в одной строке с длительностью. */
+  meta?: React.ReactNode;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { audioUrl, peaks, error, retry } = useVoiceAudio(src, WAVE_BARS);
