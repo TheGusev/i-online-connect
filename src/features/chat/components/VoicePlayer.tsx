@@ -16,10 +16,13 @@ export function VoicePlayer({
   src,
   duration,
   mine,
+  meta,
 }: {
   src: string;
   duration: number;
   mine: boolean;
+  /** Время отправки и галочки — в одной строке с длительностью. */
+  meta?: React.ReactNode;
 }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const { audioUrl, peaks, error, retry } = useVoiceAudio(src, WAVE_BARS);
@@ -62,13 +65,13 @@ export function VoicePlayer({
   };
 
   return (
-    <div className="flex min-w-48 items-center gap-2.5">
+    <div className="flex min-w-44 items-center gap-2">
       {audioUrl ? <audio ref={audioRef} src={audioUrl} preload="metadata" /> : null}
       <Button
         type="button"
         size="icon"
         variant={mine ? "secondary" : "ghost"}
-        className="size-9 shrink-0"
+        className="size-8 shrink-0"
         aria-label={
           failed
             ? "Повторить загрузку голосового сообщения"
@@ -110,14 +113,17 @@ export function VoicePlayer({
         <span className="sr-only" role="progressbar" aria-valuenow={Math.round(progress)}>
           Прогресс голосового сообщения
         </span>
-        <p
+        <div
           className={cn(
-            "mt-1 text-[11px]",
+            "mt-0.5 flex items-center justify-between gap-2 text-[11px]",
             mine ? "text-primary-foreground/75" : "text-muted-foreground",
           )}
         >
-          {failed ? "Не удалось загрузить — нажмите, чтобы повторить" : formatDuration(current || total)}
-        </p>
+          <span className="truncate">
+            {failed ? "Не удалось загрузить — нажмите, чтобы повторить" : formatDuration(current || total)}
+          </span>
+          {meta ? <span className="flex shrink-0 items-center gap-1">{meta}</span> : null}
+        </div>
       </div>
     </div>
   );

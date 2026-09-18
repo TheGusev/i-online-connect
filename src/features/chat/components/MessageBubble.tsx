@@ -71,6 +71,25 @@ export function MessageBubble({
 
   const quote = message.replyTo;
 
+  // Время и галочки: у голосовых показываем их в одной строке с длительностью.
+  const stamp = (
+    <>
+      {message.editedAt && !deleted ? <span className="opacity-80">изменено</span> : null}
+      {time(message.createdAt)}
+      {mine && !deleted ? (
+        message.status === "sending" ? (
+          <Clock className="size-3.5" aria-label="Отправляется" />
+        ) : message.status === "read" ? (
+          <CheckCheck className="size-3.5" aria-label="Прочитано" />
+        ) : (
+          <Check className="size-3.5" aria-label="Отправлено" />
+        )
+      ) : null}
+    </>
+  );
+  const voiceInline = voice && Boolean(message.mediaUrl) && !deleted && !failed;
+
+
   return (
     <li
       id={`message-${message.id}`}
@@ -116,6 +135,9 @@ export function MessageBubble({
           mine
             ? "rounded-br-lg bg-primary text-primary-foreground"
             : "rounded-bl-lg border border-border bg-card text-foreground",
+          // Голосовые компактнее и без лишней рамки вокруг плеера.
+          voiceInline && "px-3 py-2",
+          voiceInline && !mine && "border-transparent bg-card/70",
           meeting && !mine && "border-primary/25 bg-gradient-warm",
           message.status === "sending" && "opacity-70",
           failed && "ring-2 ring-destructive/60",
@@ -160,6 +182,7 @@ export function MessageBubble({
                 src={mediaUrl(message.mediaUrl) ?? message.mediaUrl}
                 duration={message.durationMs ?? 0}
                 mine={mine}
+                {...(voiceInline ? { meta: stamp } : {})}
               />
             ) : (
               <p className="whitespace-pre-wrap break-words">{message.text}</p>
@@ -170,6 +193,7 @@ export function MessageBubble({
           className={cn(
             "mt-1.5 flex items-center justify-end gap-1 text-[11px]",
             mine && !deleted ? "text-primary-foreground/75" : "text-muted-foreground",
+            voiceInline && "hidden",
           )}
         >
           {failed ? (
@@ -187,19 +211,7 @@ export function MessageBubble({
               ) : null}
             </button>
           ) : (
-            <>
-              {message.editedAt && !deleted ? <span className="opacity-80">изменено</span> : null}
-              {time(message.createdAt)}
-              {mine && !deleted ? (
-                message.status === "sending" ? (
-                  <Clock className="size-3.5" aria-label="Отправляется" />
-                ) : message.status === "read" ? (
-                  <CheckCheck className="size-3.5" aria-label="Прочитано" />
-                ) : (
-                  <Check className="size-3.5" aria-label="Отправлено" />
-                )
-              ) : null}
-            </>
+            stamp
           )}
         </span>
       </div>

@@ -201,10 +201,8 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
             "удержание(мс):",
             heldMs,
           );
-          if (blob.size < 512 || durationMs < MIN_VOICE_MS) {
-            setError("Запись слишком короткая. Удерживайте микрофон чуть дольше.");
-            return;
-          }
+          // Слишком короткую запись просто не отправляем — без предупреждений.
+          if (blob.size < 512 || durationMs < MIN_VOICE_MS) return;
           onRecorded({ blob, durationMs, mimeType: blob.type || mimeType });
         });
       };

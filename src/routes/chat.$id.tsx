@@ -303,7 +303,7 @@ function ConversationPage() {
           <Link
             to="/chat"
             aria-label="К списку диалогов"
-            className="grid size-10 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            className="grid size-10 place-items-center rounded-full border border-primary/40 text-primary transition-[background-color,box-shadow] hover:bg-primary/10 active:shadow-glow"
           >
             <ArrowLeft className="size-5" aria-hidden="true" />
           </Link>

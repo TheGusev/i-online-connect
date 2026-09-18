@@ -77,7 +77,6 @@ export function TopBar() {
                 src={user.avatarUrl ?? null}
                 size="sm"
                 verified={level !== "new"}
-                online={user.online}
               />
             </Link>
           </div>
