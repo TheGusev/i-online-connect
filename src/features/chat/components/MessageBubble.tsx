@@ -135,6 +135,9 @@ export function MessageBubble({
           mine
             ? "rounded-br-lg bg-primary text-primary-foreground"
             : "rounded-bl-lg border border-border bg-card text-foreground",
+          // Голосовые компактнее и без лишней рамки вокруг плеера.
+          voiceInline && "px-3 py-2",
+          voiceInline && !mine && "border-transparent bg-card/70",
           meeting && !mine && "border-primary/25 bg-gradient-warm",
           message.status === "sending" && "opacity-70",
           failed && "ring-2 ring-destructive/60",
@@ -179,6 +182,7 @@ export function MessageBubble({
                 src={mediaUrl(message.mediaUrl) ?? message.mediaUrl}
                 duration={message.durationMs ?? 0}
                 mine={mine}
+                {...(voiceInline ? { meta: stamp } : {})}
               />
             ) : (
               <p className="whitespace-pre-wrap break-words">{message.text}</p>
