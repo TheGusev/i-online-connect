@@ -193,6 +193,7 @@ export function MessageBubble({
           className={cn(
             "mt-1.5 flex items-center justify-end gap-1 text-[11px]",
             mine && !deleted ? "text-primary-foreground/75" : "text-muted-foreground",
+            voiceInline && "hidden",
           )}
         >
           {failed ? (
@@ -210,19 +211,7 @@ export function MessageBubble({
               ) : null}
             </button>
           ) : (
-            <>
-              {message.editedAt && !deleted ? <span className="opacity-80">изменено</span> : null}
-              {time(message.createdAt)}
-              {mine && !deleted ? (
-                message.status === "sending" ? (
-                  <Clock className="size-3.5" aria-label="Отправляется" />
-                ) : message.status === "read" ? (
-                  <CheckCheck className="size-3.5" aria-label="Прочитано" />
-                ) : (
-                  <Check className="size-3.5" aria-label="Отправлено" />
-                )
-              ) : null}
-            </>
+            stamp
           )}
         </span>
       </div>
