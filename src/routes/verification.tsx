@@ -284,7 +284,7 @@ function VerificationPage() {
     <AppShell>
       <Link
         to="/profile/me"
-        className="mb-4 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-primary transition-opacity hover:opacity-80"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />В профиль
       </Link>

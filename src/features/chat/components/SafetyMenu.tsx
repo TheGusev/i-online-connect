@@ -25,7 +25,7 @@ export function SafetyMenu({
         aria-label="Безопасность диалога"
         aria-expanded={menuOpen}
         onClick={() => setMenuOpen((prev) => !prev)}
-        className="grid size-10 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+        className="grid size-10 place-items-center rounded-full border border-primary/40 text-primary transition-[background-color,box-shadow] hover:bg-primary/10 active:shadow-glow"
       >
         <ShieldCheck className="size-5" aria-hidden="true" />
       </button>

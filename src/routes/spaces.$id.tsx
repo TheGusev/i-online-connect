@@ -93,7 +93,7 @@ function SpaceDetailPage() {
     <AppShell wide>
       <Link
         to="/spaces"
-        className="mb-3 inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+        className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-primary transition-opacity hover:opacity-80"
       >
         <ArrowLeft className="size-4" aria-hidden="true" />
         Пространства
