@@ -51,9 +51,6 @@ export function ChatComposer({
   onCancelReply?: () => void;
 }) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
-  const pointerStartX = useRef(0);
-  const pointerHeld = useRef(false);
-  const cancelGesture = useRef(false);
   const setInputRef = useCallback(
     (node: HTMLTextAreaElement | null) => {
       localRef.current = node;
@@ -188,8 +185,8 @@ export function ChatComposer({
             variant={voice.recording ? "primary" : "secondary"}
             aria-label={
               voice.recording
-                ? "Отпустить и отправить запись"
-                : "Удерживайте для записи голосового сообщения"
+                ? "Отправить голосовое сообщение"
+                : "Записать голосовое сообщение"
             }
             disabled={disabled || voiceSending}
             draggable={false}
