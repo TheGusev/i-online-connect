@@ -589,7 +589,7 @@ export async function chatRoutes(app: FastifyInstance) {
          RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
                    media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
                    reply_to_id, false AS read_by_peer`,
-        [id, userId, meta.clientTempId, saved.url, audioType.mime, measuredDurationMs, replyTarget],
+        [id, userId, meta.clientTempId, playable.url, playableMime, measuredDurationMs, replyTarget],
       );
       if (!row) throw badRequest("Не удалось сохранить голосовое сообщение");
       await query("UPDATE conversations SET last_message_at = now() WHERE id = $1", [id]);
@@ -599,6 +599,9 @@ export async function chatRoutes(app: FastifyInstance) {
       return message;
     } catch (error) {
       await unlink(saved.filePath).catch(() => undefined);
+      if (playable.filePath !== saved.filePath) {
+        await unlink(playable.filePath).catch(() => undefined);
+      }
       throw error;
     }
   });
