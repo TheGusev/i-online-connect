@@ -568,10 +568,20 @@ export async function chatRoutes(app: FastifyInstance) {
     if (existing) return toMessageDto(existing, await loadReply(existing.reply_to_id));
 
     const saved = await saveVoiceFile(userId, buffer, audioType);
+    // Раздаём только AAC/M4A: WebM/Opus от Android не играет в Safari/iOS,
+    // а фрагментированный MP4 от iOS — не везде на Android.
+    let playable = saved;
+    let playableMime: "audio/webm" | "audio/mp4" = audioType.mime;
     try {
       const measuredDurationMs = await audioDurationMs(saved.filePath).catch(() => 0);
       if (measuredDurationMs < 400) throw badRequest("Запись не содержит воспроизводимого звука");
       if (measuredDurationMs > 180_500) throw badRequest("Голосовое сообщение может длиться не больше 3 минут");
+      const converted = await transcodeVoiceToAac(saved.filePath, userId).catch(() => null);
+      if (converted) {
+        playable = converted;
+        playableMime = "audio/mp4";
+        await unlink(saved.filePath).catch(() => undefined);
+      }
       const row = await queryOne<MessageRow>(
         `INSERT INTO messages
            (conversation_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms, reply_to_id)
