@@ -76,6 +76,8 @@ const schema = z.object({
   AI_API_URL: z.string().default("https://ai.gateway.lovable.dev/v1"),
   AI_API_KEY: z.string().default(""),
   AI_VISION_MODEL: z.string().default("openai/gpt-5.6-sol"),
+  // Расшифровка голосовых сообщений в текст (тот же AI_API_KEY).
+  AI_TRANSCRIBE_MODEL: z.string().default("google/gemini-3.5-transcribe"),
   // Порог уверенности, с которого доверяем автоматическому решению.
   FACE_MATCH_MIN_CONFIDENCE: z.coerce.number().int().min(50).max(100).default(80),
   FFMPEG_PATH: z.string().default("ffmpeg"),
