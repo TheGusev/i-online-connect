@@ -214,7 +214,23 @@ export async function transcodeVoiceToAac(
   await new Promise<void>((resolve, reject) => {
     const proc = spawn(
       env.FFMPEG_PATH,
-      ["-y", "-i", inputPath, "-vn", "-c:a", "aac", "-b:a", "64k", "-ar", "44100", outPath],
+      [
+        "-y",
+        "-i",
+        inputPath,
+        "-vn",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "64k",
+        "-ar",
+        "44100",
+        "-ac",
+        "1",
+        "-movflags",
+        "+faststart",
+        outPath,
+      ],
       { stdio: ["ignore", "ignore", "pipe"] },
     );
     let stderr = "";

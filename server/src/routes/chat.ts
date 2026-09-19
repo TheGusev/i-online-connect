@@ -26,7 +26,13 @@ import { assertConversationAccess, currentUserId, requireAuth } from "../auth/mi
 import { isInRoom, publishChatEvent } from "../ws/chat.ts";
 import { sendPushToUser } from "../push/send.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
-import { audioDurationMs, detectAudioType, MAX_VOICE_BYTES, saveVoiceFile } from "../media/store.ts";
+import {
+  audioDurationMs,
+  detectAudioType,
+  MAX_VOICE_BYTES,
+  saveVoiceFile,
+  transcodeVoiceToAac,
+} from "../media/store.ts";
 
 const idParam = z.object({ id: z.string().uuid() });
 const messageParams = z.object({ id: z.string().uuid(), messageId: z.string().uuid() });
@@ -568,10 +574,20 @@ export async function chatRoutes(app: FastifyInstance) {
     if (existing) return toMessageDto(existing, await loadReply(existing.reply_to_id));
 
     const saved = await saveVoiceFile(userId, buffer, audioType);
+    // Раздаём только AAC/M4A: WebM/Opus от Android не играет в Safari/iOS,
+    // а фрагментированный MP4 от iOS — не везде на Android.
+    let playable = saved;
+    let playableMime: "audio/webm" | "audio/mp4" = audioType.mime;
     try {
       const measuredDurationMs = await audioDurationMs(saved.filePath).catch(() => 0);
       if (measuredDurationMs < 400) throw badRequest("Запись не содержит воспроизводимого звука");
       if (measuredDurationMs > 180_500) throw badRequest("Голосовое сообщение может длиться не больше 3 минут");
+      const converted = await transcodeVoiceToAac(saved.filePath, userId).catch(() => null);
+      if (converted) {
+        playable = converted;
+        playableMime = "audio/mp4";
+        await unlink(saved.filePath).catch(() => undefined);
+      }
       const row = await queryOne<MessageRow>(
         `INSERT INTO messages
            (conversation_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms, reply_to_id)
@@ -579,7 +595,7 @@ export async function chatRoutes(app: FastifyInstance) {
          RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
                    media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
                    reply_to_id, false AS read_by_peer`,
-        [id, userId, meta.clientTempId, saved.url, audioType.mime, measuredDurationMs, replyTarget],
+        [id, userId, meta.clientTempId, playable.url, playableMime, measuredDurationMs, replyTarget],
       );
       if (!row) throw badRequest("Не удалось сохранить голосовое сообщение");
       await query("UPDATE conversations SET last_message_at = now() WHERE id = $1", [id]);
@@ -589,6 +605,9 @@ export async function chatRoutes(app: FastifyInstance) {
       return message;
     } catch (error) {
       await unlink(saved.filePath).catch(() => undefined);
+      if (playable.filePath !== saved.filePath) {
+        await unlink(playable.filePath).catch(() => undefined);
+      }
       throw error;
     }
   });

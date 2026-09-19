@@ -15,7 +15,8 @@
     "seed": "node scripts/seed-demo.mjs",
     "seed:clear": "node scripts/clear-seed.mjs",
     "seed:refresh": "node --experimental-strip-types src/seed/refresh.ts",
-    "split-listing-media": "node scripts/split-listing-media.mjs"
+    "split-listing-media": "node scripts/split-listing-media.mjs",
+    "voice:convert": "node scripts/convert-voice-legacy.mjs"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
