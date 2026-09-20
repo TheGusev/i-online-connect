@@ -14,15 +14,13 @@ export function CategoryChips({
   allowEmpty?: boolean;
 }) {
   return (
-    // На мобильном чипы едут в одну строку с прокруткой (девять категорий
-    // переносом заняли бы половину экрана), с sm: — обычный перенос.
-    <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-5">
       {allowEmpty ? (
         <Chip
           selected={value === null}
           onClick={() => onChange(null)}
           size="sm"
-          className="shrink-0 snap-start"
+          className="min-h-9 min-w-0 justify-center px-1.5 text-center text-[10px] leading-tight sm:text-xs"
         >
           Все
         </Chip>
@@ -33,7 +31,7 @@ export function CategoryChips({
           key={id}
           size="sm"
           selected={value === id}
-          className="shrink-0 snap-start"
+          className="min-h-9 min-w-0 justify-center px-1.5 text-center text-[10px] leading-tight sm:text-xs"
           onClick={() => onChange(allowEmpty && value === id ? null : id)}
         >
           <Icon className="size-3.5" aria-hidden="true" />
