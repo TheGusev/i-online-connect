@@ -19,17 +19,23 @@ export function Toggle({ checked, onChange, label, disabled, className }: Toggle
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={cn(
-        "relative h-7 w-12 shrink-0 rounded-full transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50",
-        checked ? "bg-primary" : "bg-muted",
+        "relative h-11 w-14 shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50",
         className,
       )}
     >
       <span
         className={cn(
-          "absolute top-1 size-5 rounded-full bg-card shadow-soft transition-all duration-200",
-          checked ? "left-6" : "left-1",
+          "absolute inset-x-0 top-1.5 h-8 rounded-full border transition-[border-color,background-color,box-shadow] duration-200",
+          checked ? "border-primary bg-primary shadow-glow" : "border-primary/70 bg-muted",
         )}
-      />
+      >
+        <span
+          className={cn(
+            "absolute top-1 size-5 rounded-full bg-foreground shadow-soft transition-[left] duration-200",
+            checked ? "left-7" : "left-1",
+          )}
+        />
+      </span>
     </button>
   );
 }
@@ -49,7 +55,7 @@ export function ToggleRow({
   disabled?: boolean | undefined;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-4">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-4">
       <div className="min-w-0">
         <p className="font-medium text-foreground">{title}</p>
         {description ? (

@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Compass, Plus, Users } from "lucide-react";
+import { Compass, Users } from "lucide-react";
 
 import type { SpaceDraft } from "@/api";
 import { AppShell } from "@/components/layout/AppShell";
@@ -80,24 +80,13 @@ function SpacesPage() {
         </p>
       </header>
 
-      <div className="mb-6 flex flex-wrap items-center gap-3">
+      <div className="mb-6">
         <SpacesTabs
           value={tab}
           onChange={(next) => {
             setTab(next);
           }}
         />
-        {tab !== "create" ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => setTab("create")}
-            className="text-community-ink"
-          >
-            <Plus aria-hidden="true" />
-            Создать пространство
-          </Button>
-        ) : null}
       </div>
 
       {tab === "create" ? (

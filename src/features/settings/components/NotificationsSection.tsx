@@ -62,7 +62,7 @@ function PushRow() {
     state === "unavailable";
 
   return (
-    <Card className="px-6 py-2">
+    <Card className="border-primary/40 px-4 py-1 shadow-glow sm:px-6">
       <ToggleRow
         title="Push-уведомления на устройство"
         description={hint()}

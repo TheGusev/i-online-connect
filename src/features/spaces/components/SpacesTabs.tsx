@@ -20,7 +20,7 @@ export function SpacesTabs({
     <div
       role="tablist"
       aria-label="Разделы пространств"
-      className="-mx-1 flex gap-1 overflow-x-auto rounded-full border border-border bg-card p-1 shadow-soft"
+      className="grid w-full grid-cols-4 gap-1 rounded-2xl border border-border bg-card p-1 shadow-soft"
     >
       {tabs.map((tab) => {
         const active = tab.id === value;
@@ -32,7 +32,7 @@ export function SpacesTabs({
             aria-selected={active}
             onClick={() => onChange(tab.id)}
             className={cn(
-              "shrink-0 rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.1em] transition-colors duration-200",
+              "min-w-0 rounded-xl px-1 py-2 text-[10px] font-bold uppercase transition-colors duration-200 sm:px-3 sm:text-xs",
               active
                 ? "bg-community text-community-foreground shadow-glow"
                 : "text-muted-foreground hover:bg-community-soft hover:text-community-ink",
