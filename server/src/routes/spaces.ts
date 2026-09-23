@@ -25,6 +25,7 @@ import {
   MAX_VOICE_BYTES,
   assertSize,
   detectMediaType,
+  mediaPathFromUrl,
   saveProfileFile,
   saveVoiceFile,
   transcodeVoiceToAac,
@@ -323,8 +324,8 @@ export async function spaceRoutes(app: FastifyInstance) {
     );
     await query("DELETE FROM spaces WHERE id = $1", [id]);
     for (const item of media) {
-      const relative = item.media_url.replace(/^.*\/voice\//, "");
-      if (relative !== item.media_url) await unlink(`${process.env.MEDIA_DIR ?? ""}/voice/${relative}`).catch(() => undefined);
+      const filePath = mediaPathFromUrl(item.media_url);
+      if (filePath) await unlink(filePath).catch(() => undefined);
     }
     return reply.status(204).send();
   });
@@ -371,6 +372,17 @@ export async function spaceRoutes(app: FastifyInstance) {
       [id, userId, inviteeId],
     );
     return { invited: true };
+  });
+
+  app.post<{ Params: { id: string } }>("/:id/invite/decline", async (request, reply) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    await query(
+      `UPDATE space_invites SET status = 'declined', responded_at = now()
+        WHERE space_id = $1 AND invitee_id = $2 AND status = 'pending'`,
+      [id, userId],
+    );
+    return reply.status(204).send();
   });
 
   app.post<{ Params: { id: string } }>("/:id/join", async (request) => {
