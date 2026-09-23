@@ -93,8 +93,8 @@ export function SpaceChat({
           onFocus={scrollToBottom}
           sending={sending ?? false}
           disabled={!canWrite}
-          onVoice={canWrite ? onVoice : undefined}
-          voiceSending={voiceSending}
+          {...(canWrite ? { onVoice } : {})}
+          {...(voiceSending !== undefined ? { voiceSending } : {})}
           placeholder={canWrite ? "Написать в общий чат" : "Чат доступен участникам сообщества"}
           onSend={() => {
           const value = text.trim();
