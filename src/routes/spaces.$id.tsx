@@ -3,7 +3,6 @@ import { ArrowLeft, BadgeCheck, CalendarDays, Lock, MapPin, MessagesSquare, User
 import { useEffect, useState } from "react";
 import { z } from "zod";
 
-import { WaveHeading } from "@/components/landing/WaveHeading";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button, Chip, MediaImage, ProfileCardSkeleton } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
@@ -59,7 +58,7 @@ function SpaceDetailPage() {
   const { id } = Route.useParams();
   const { eventId } = Route.useSearch();
   const { data: space, isPending, isError } = useSpace(id);
-  const { data: messages } = useSpaceMessages(id);
+  const { data: messages } = useSpaceMessages(id, Boolean(space?.isMember));
   const join = useJoinSpace(id);
   const leave = useLeaveSpace(id);
   const rsvp = useRsvpEvent(id);
@@ -115,40 +114,33 @@ function SpaceDetailPage() {
         Пространства
       </Link>
 
-      {/* Обложка: название и все метаданные одной строкой — без отдельного блока-заголовка. */}
-      <Reveal className="relative overflow-hidden rounded-3xl border border-border shadow-soft">
-        <div className="relative aspect-[16/9] sm:aspect-[16/6]">
-          <MediaImage src={space.coverUrl} alt={space.title} className="size-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
-
+      <Reveal className="flex flex-col items-center px-3 pb-1 text-center">
+        <div className="relative">
+          <MediaImage
+            src={space.coverUrl}
+            alt={space.title}
+            className="size-28 rounded-full border-2 border-primary/70 object-cover shadow-glow sm:size-32"
+          />
           {space.verifiedCommunity ? (
-            <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-community px-2.5 py-1 text-[11px] font-semibold text-community-foreground shadow-soft">
-              <BadgeCheck className="size-3.5" aria-hidden="true" />
-              Проверенное
+            <span className="absolute bottom-1 right-1 grid size-7 place-items-center rounded-full border-2 border-background bg-primary text-primary-foreground">
+              <BadgeCheck className="size-4" aria-label="Проверенное пространство" />
             </span>
           ) : null}
-
-          <div className="absolute inset-x-3 bottom-3">
-            <WaveHeading as="h1" className="text-xl font-bold tracking-tight sm:text-3xl">
-              {space.title}
-            </WaveHeading>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground sm:text-xs">
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="size-3.5" aria-hidden="true" />
-                {space.city} · {space.distanceKm} км
-              </span>
-              <span aria-hidden="true">·</span>
-              <span>{categoryLabels[space.category]}</span>
-              <span aria-hidden="true">·</span>
-              <span>{formatLabels[space.format]}</span>
-              <span aria-hidden="true">·</span>
-              <span className="inline-flex items-center gap-1">
-                <CalendarDays className="size-3.5" aria-hidden="true" />
-                {cadenceLabels[space.cadence]}
-              </span>
-            </p>
-          </div>
         </div>
+        <div className="mt-3 flex items-center justify-center gap-2">
+          <h1 className="text-xl font-bold text-foreground sm:text-2xl">{space.title}</h1>
+          {space.isPrivate ? <Lock className="size-4 text-primary" aria-label="Закрытое пространство" /> : null}
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">{space.membersCount} участников</p>
+        <p className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden="true" />{space.city} · {space.distanceKm} км</span>
+          <span aria-hidden="true">·</span>
+          <span>{categoryLabels[space.category]}</span>
+          <span aria-hidden="true">·</span>
+          <span>{formatLabels[space.format]}</span>
+          <span aria-hidden="true">·</span>
+          <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" aria-hidden="true" />{cadenceLabels[space.cadence]}</span>
+        </p>
       </Reveal>
 
       {/* Статус участия и вход — компактной строкой сразу под обложкой. */}

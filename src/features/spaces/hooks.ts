@@ -108,10 +108,11 @@ export function spaceMessagesQueryKey(id: string) {
   return ["spaces", "messages", id] as const;
 }
 
-export function useSpaceMessages(id: string) {
+export function useSpaceMessages(id: string, enabled = true) {
   return useQuery({
     queryKey: spaceMessagesQueryKey(id),
     queryFn: () => spacesApi.getSpaceMessages(id),
+    enabled,
   });
 }
 
