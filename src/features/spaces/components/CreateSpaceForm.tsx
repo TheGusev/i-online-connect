@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import type { SpaceCadence, SpaceCategory, SpaceDraft, SpaceFormat } from "@/api";
 import { mediaUrl, spacesApi } from "@/api";
-import { Button, Input, MediaImage, Select, TextArea } from "@/components/ds";
+import { Button, Input, MediaImage, Select, TextArea, ToggleRow } from "@/components/ds";
 import { cadenceLabels, categoryLabels, formatLabels } from "@/features/spaces/labels";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +36,7 @@ export function CreateSpaceForm({
   const [format, setFormat] = useState<SpaceFormat>("offline");
   const [cadence, setCadence] = useState<SpaceCadence>("biweekly");
   const [city, setCity] = useState("Новосибирск");
+  const [isPrivate, setIsPrivate] = useState(false);
   const [coverUrl, setCoverUrl] = useState<string>(covers[0]!);
   const [uploading, setUploading] = useState(false);
   // Ошибки показываем только после попытки отправки: пустая форма не «краснеет».
@@ -81,6 +82,7 @@ export function CreateSpaceForm({
           format,
           cadence,
           city: city.trim(),
+          isPrivate,
           coverUrl,
         });
       }}
@@ -126,6 +128,15 @@ export function CreateSpaceForm({
           value={city}
           onChange={(event) => setCity(event.target.value)}
           {...(touched && cityError ? { error: cityError } : {})}
+        />
+      </div>
+
+      <div className="rounded-2xl border border-border px-4">
+        <ToggleRow
+          title="Закрытое пространство"
+          description="Его увидят только приглашённые люди и участники."
+          checked={isPrivate}
+          onChange={setIsPrivate}
         />
       </div>
 

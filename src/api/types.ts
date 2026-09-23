@@ -124,6 +124,11 @@ export interface SpaceMessage {
   authorId: string;
   authorName: string;
   text: string;
+  kind?: "text" | "voice";
+  clientTempId?: string;
+  mediaUrl?: string;
+  mediaMime?: string;
+  durationMs?: number;
   createdAt: string;
 }
 
@@ -147,12 +152,16 @@ export interface Space {
   joinPolicy: SpaceJoinPolicy;
   /** Вопрос организатора при входе, если joinPolicy = question. */
   joinQuestion?: string | undefined;
+  /** Закрытое пространство видно только участникам и приглашённым. */
+  isPrivate: boolean;
   interests: string[];
   isMember: boolean;
   /** Вы организатор: можно создавать встречи. */
   isHost?: boolean | undefined;
   /** Заявка отправлена организатору и ждёт ответа. */
   pendingRequest?: boolean | undefined;
+  /** Текущего пользователя пригласил организатор. */
+  invited?: boolean | undefined;
   nextEvent?: SpaceEvent | undefined;
 }
 
@@ -180,7 +189,14 @@ export interface SpaceDraft {
   format: SpaceFormat;
   cadence: SpaceCadence;
   city: string;
+  isPrivate: boolean;
   coverUrl?: string | undefined;
+}
+
+export interface SpaceInviteCandidate {
+  id: string;
+  name: string;
+  avatarUrl?: string | undefined;
 }
 
 export interface Session {

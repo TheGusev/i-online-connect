@@ -78,8 +78,9 @@ export async function assertConversationAccess(
 /** Является ли пользователь участником сообщества. */
 export async function assertSpaceMembership(userId: string, spaceId: string): Promise<void> {
   const row = await queryOne(
-    `SELECT 1 FROM space_members
-      WHERE space_id = $1 AND user_id = $2 AND status IN ('member', 'host')`,
+    `SELECT 1 FROM space_members sm
+      JOIN spaces s ON s.id = sm.space_id
+     WHERE sm.space_id = $1 AND sm.user_id = $2 AND sm.status IN ('member', 'host')`,
     [spaceId, userId],
   );
   if (!row) throw forbidden("Нужно быть участником сообщества");
