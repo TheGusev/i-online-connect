@@ -1,11 +1,10 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, BadgeCheck, CalendarDays, MapPin, MessagesSquare } from "lucide-react";
-import { useEffect } from "react";
+import { ArrowLeft, BadgeCheck, CalendarDays, Lock, MapPin, MessagesSquare, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 
-import { WaveHeading } from "@/components/landing/WaveHeading";
 import { AppShell } from "@/components/layout/AppShell";
-import { Chip, MediaImage, ProfileCardSkeleton } from "@/components/ds";
+import { Button, Chip, MediaImage, ProfileCardSkeleton } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { ProfilePanel } from "@/features/profile/components/ProfilePanel";
 import { CreateEventForm } from "@/features/spaces/components/CreateEventForm";
@@ -14,14 +13,22 @@ import { JoinPanel } from "@/features/spaces/components/JoinPanel";
 import { MembershipBadge } from "@/features/spaces/components/MembershipBadge";
 import { ParticipantsCarousel } from "@/features/spaces/components/ParticipantsCarousel";
 import { SpaceChat } from "@/features/spaces/components/SpaceChat";
+import { SpaceInviteDialog } from "@/features/spaces/components/SpaceInviteDialog";
+import { SpaceOwnerMenu } from "@/features/spaces/components/SpaceOwnerMenu";
 import {
   useCreateSpaceEvent,
+  useDeclineSpaceInvite,
+  useDeleteSpace,
+  useInviteCandidates,
+  useInviteToSpace,
   useJoinSpace,
   useLeaveSpace,
   useRsvpEvent,
   useSendSpaceMessage,
+  useSendSpaceVoiceMessage,
   useSpace,
   useSpaceMessages,
+  useUpdateSpacePrivacy,
 } from "@/features/spaces/hooks";
 import { cadenceLabels, categoryLabels, formatLabels } from "@/features/spaces/labels";
 import { mediaUrl } from "@/api";
@@ -51,12 +58,20 @@ function SpaceDetailPage() {
   const { id } = Route.useParams();
   const { eventId } = Route.useSearch();
   const { data: space, isPending, isError } = useSpace(id);
-  const { data: messages } = useSpaceMessages(id);
+  const { data: messages } = useSpaceMessages(id, Boolean(space?.isMember));
   const join = useJoinSpace(id);
   const leave = useLeaveSpace(id);
   const rsvp = useRsvpEvent(id);
   const sendMessage = useSendSpaceMessage(id);
+  const sendVoice = useSendSpaceVoiceMessage(id);
   const createEvent = useCreateSpaceEvent(id);
+  const updatePrivacy = useUpdateSpacePrivacy(id);
+  const deleteSpace = useDeleteSpace(id);
+  const declineInvite = useDeclineSpaceInvite(id);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteQuery, setInviteQuery] = useState("");
+  const candidates = useInviteCandidates(id, inviteQuery, inviteOpen);
+  const invite = useInviteToSpace(id);
 
   useEffect(() => {
     if (!eventId || !space) return;
@@ -99,40 +114,33 @@ function SpaceDetailPage() {
         Пространства
       </Link>
 
-      {/* Обложка: название и все метаданные одной строкой — без отдельного блока-заголовка. */}
-      <Reveal className="relative overflow-hidden rounded-3xl border border-border shadow-soft">
-        <div className="relative aspect-[16/9] sm:aspect-[16/6]">
-          <MediaImage src={space.coverUrl} alt={space.title} className="size-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
-
+      <Reveal className="flex flex-col items-center px-3 pb-1 text-center">
+        <div className="relative">
+          <MediaImage
+            src={space.coverUrl}
+            alt={space.title}
+            className="size-28 rounded-full border-2 border-primary/70 object-cover shadow-glow sm:size-32"
+          />
           {space.verifiedCommunity ? (
-            <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-community px-2.5 py-1 text-[11px] font-semibold text-community-foreground shadow-soft">
-              <BadgeCheck className="size-3.5" aria-hidden="true" />
-              Проверенное
+            <span className="absolute bottom-1 right-1 grid size-7 place-items-center rounded-full border-2 border-background bg-primary text-primary-foreground">
+              <BadgeCheck className="size-4" aria-label="Проверенное пространство" />
             </span>
           ) : null}
-
-          <div className="absolute inset-x-3 bottom-3">
-            <WaveHeading as="h1" className="text-xl font-bold tracking-tight sm:text-3xl">
-              {space.title}
-            </WaveHeading>
-            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground sm:text-xs">
-              <span className="inline-flex items-center gap-1">
-                <MapPin className="size-3.5" aria-hidden="true" />
-                {space.city} · {space.distanceKm} км
-              </span>
-              <span aria-hidden="true">·</span>
-              <span>{categoryLabels[space.category]}</span>
-              <span aria-hidden="true">·</span>
-              <span>{formatLabels[space.format]}</span>
-              <span aria-hidden="true">·</span>
-              <span className="inline-flex items-center gap-1">
-                <CalendarDays className="size-3.5" aria-hidden="true" />
-                {cadenceLabels[space.cadence]}
-              </span>
-            </p>
-          </div>
         </div>
+        <div className="mt-3 flex items-center justify-center gap-2">
+          <h1 className="text-xl font-bold text-foreground sm:text-2xl">{space.title}</h1>
+          {space.isPrivate ? <Lock className="size-4 text-primary" aria-label="Закрытое пространство" /> : null}
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">{space.membersCount} участников</p>
+        <p className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden="true" />{space.city} · {space.distanceKm} км</span>
+          <span aria-hidden="true">·</span>
+          <span>{categoryLabels[space.category]}</span>
+          <span aria-hidden="true">·</span>
+          <span>{formatLabels[space.format]}</span>
+          <span aria-hidden="true">·</span>
+          <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" aria-hidden="true" />{cadenceLabels[space.cadence]}</span>
+        </p>
       </Reveal>
 
       {/* Статус участия и вход — компактной строкой сразу под обложкой. */}
@@ -151,13 +159,34 @@ function SpaceDetailPage() {
             onLeave={() => leave.mutate()}
           />
         )}
+        <div className="flex items-center gap-2">
+        {space.isHost ? (
+          <SpaceOwnerMenu
+            isPrivate={space.isPrivate}
+            updatingPrivacy={updatePrivacy.isPending}
+            deleting={deleteSpace.isPending}
+            onInvite={() => setInviteOpen(true)}
+            onPrivacyChange={(value) => updatePrivacy.mutate(value)}
+            onDelete={() => deleteSpace.mutate(undefined, { onSuccess: () => window.location.assign("/spaces") })}
+          />
+        ) : null}
         {space.isHost ? (
           <CreateEventForm
             submitting={createEvent.isPending}
             onSubmit={(draft) => createEvent.mutate(draft)}
           />
         ) : null}
+        </div>
       </div>
+
+      {space.invited && !space.isMember ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-2xl border border-primary/40 bg-primary/10 p-3 shadow-glow">
+          <UserPlus className="size-4 text-primary" aria-hidden="true" />
+          <p className="min-w-0 flex-1 text-sm text-foreground">Организатор приглашает вас присоединиться.</p>
+          <Button size="sm" loading={join.isPending} onClick={() => join.mutate(undefined)}>Вступить</Button>
+          <Button size="sm" variant="ghost" loading={declineInvite.isPending} onClick={() => declineInvite.mutate()}>Отклонить</Button>
+        </div>
+      ) : null}
 
       {/* Участники: ряд аватаров со свайпом и переходом в анкету. */}
       <section className="mt-4">
@@ -205,15 +234,28 @@ function SpaceDetailPage() {
           <h2 className="hud-title mb-2 inline-flex items-center gap-2">
             <MessagesSquare className="size-4 text-community" aria-hidden="true" />
             Общий чат
+            {space.isPrivate ? <Lock className="size-3.5 text-primary" aria-label="Закрытое пространство" /> : null}
           </h2>
           <SpaceChat
             messages={messages ?? []}
             canWrite={space.isMember}
             sending={sendMessage.isPending}
+            voiceSending={sendVoice.isPending}
             onSend={(text) => sendMessage.mutate(text)}
+            onVoice={(recording) => sendVoice.mutate({ recording, clientTempId: crypto.randomUUID() })}
           />
         </Reveal>
       </div>
+      <SpaceInviteDialog
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        query={inviteQuery}
+        onQueryChange={setInviteQuery}
+        candidates={candidates.data ?? []}
+        loading={candidates.isFetching}
+        invitingId={invite.isPending ? invite.variables : undefined}
+        onInvite={(userId) => invite.mutate(userId)}
+      />
     </AppShell>
   );
 }

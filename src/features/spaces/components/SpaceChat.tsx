@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { SpaceMessage } from "@/api";
 import { Avatar } from "@/components/ds";
 import { ChatComposer } from "@/features/chat/components/ChatComposer";
+import { VoicePlayer } from "@/features/chat/components/VoicePlayer";
+import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
 import { cn } from "@/lib/utils";
 import { useKeyboardOpen } from "@/hooks/useViewportHeight";
 import { useSessionStore } from "@/store/useSessionStore";
@@ -13,12 +15,16 @@ export function SpaceChat({
   messages,
   canWrite,
   onSend,
+  onVoice,
   sending,
+  voiceSending,
 }: {
   messages: SpaceMessage[];
   canWrite: boolean;
   onSend: (text: string) => void;
+  onVoice: (recording: VoiceRecording) => void;
   sending?: boolean | undefined;
+  voiceSending?: boolean | undefined;
 }) {
   const keyboardOpen = useKeyboardOpen();
   const myId = useSessionStore((s) => s.user?.id);
@@ -59,16 +65,20 @@ export function SpaceChat({
                   <p className="text-xs text-muted-foreground">
                     {message.authorName} · {timeFormatter.format(new Date(message.createdAt))}
                   </p>
-                  <p
+                  <div
                     className={cn(
                       "mt-1 rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
-                      mine
-                        ? "bg-community text-community-foreground"
-                        : "bg-secondary text-secondary-foreground",
+                      mine ? "bg-community text-community-foreground" : "bg-secondary text-secondary-foreground",
                     )}
                   >
-                    {message.text}
-                  </p>
+                    {message.kind === "voice" && message.mediaUrl ? (
+                      <VoicePlayer
+                        src={message.mediaUrl}
+                        duration={message.durationMs ?? 0}
+                        mine={mine}
+                      />
+                    ) : message.text}
+                  </div>
                 </div>
               </div>
             );
@@ -83,6 +93,8 @@ export function SpaceChat({
           onFocus={scrollToBottom}
           sending={sending ?? false}
           disabled={!canWrite}
+          {...(canWrite ? { onVoice } : {})}
+          {...(voiceSending !== undefined ? { voiceSending } : {})}
           placeholder={canWrite ? "Написать в общий чат" : "Чат доступен участникам сообщества"}
           onSend={() => {
           const value = text.trim();
