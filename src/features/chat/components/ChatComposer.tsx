@@ -167,7 +167,7 @@ export function ChatComposer({
             className="min-h-11 min-w-0 resize-none rounded-3xl border border-input bg-background px-4 py-3 text-base leading-5 outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 sm:text-sm"
           />
         )}
-        {value.trim() || !onVoice || !voice.supported ? (
+        {value.trim() || !onVoice ? (
           <Button
             type="submit"
             size="icon"

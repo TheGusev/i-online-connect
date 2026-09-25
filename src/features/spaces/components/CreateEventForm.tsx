@@ -11,16 +11,27 @@ import { BottomSheet, Button, Input, TextArea } from "@/components/ds";
 export function CreateEventForm({
   onSubmit,
   submitting,
+  open: controlledOpen,
+  onOpenChange,
+  hideTrigger = false,
 }: {
   onSubmit: (draft: SpaceEventDraft) => void;
   submitting?: boolean | undefined;
+  open?: boolean | undefined;
+  onOpenChange?: ((open: boolean) => void) | undefined;
+  hideTrigger?: boolean | undefined;
 }) {
-  const [open, setOpen] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [startsAt, setStartsAt] = useState("");
   const [place, setPlace] = useState("");
   const [description, setDescription] = useState("");
   const [online, setOnline] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = (value: boolean) => {
+    setLocalOpen(value);
+    onOpenChange?.(value);
+  };
 
   const valid = title.trim().length >= 3 && startsAt.length > 0;
 
@@ -43,10 +54,12 @@ export function CreateEventForm({
 
   return (
     <>
-      <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
-        <CalendarPlus aria-hidden="true" />
-        Создать встречу
-      </Button>
+      {!hideTrigger ? (
+        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+          <CalendarPlus aria-hidden="true" />
+          Создать встречу
+        </Button>
+      ) : null}
 
       <BottomSheet
         open={open}

@@ -1,5 +1,4 @@
 import { Search, UserPlus } from "lucide-react";
-import { useState } from "react";
 
 import type { SpaceInviteCandidate } from "@/api";
 import { Avatar, Button, Input, Modal } from "@/components/ds";
@@ -23,8 +22,6 @@ export function SpaceInviteDialog({
   invitingId?: string | undefined;
   onInvite: (userId: string) => void;
 }) {
-  const [invited, setInvited] = useState<string[]>([]);
-
   return (
     <Modal
       open={open}
@@ -51,7 +48,6 @@ export function SpaceInviteDialog({
       ) : (
         <ul className="space-y-2">
           {candidates.map((candidate) => {
-            const done = invited.includes(candidate.id);
             return (
               <li
                 key={candidate.id}
@@ -63,16 +59,12 @@ export function SpaceInviteDialog({
                 </div>
                 <Button
                   size="sm"
-                  variant={done ? "secondary" : "primary"}
+                  variant="primary"
                   loading={invitingId === candidate.id}
-                  disabled={done}
-                  onClick={() => {
-                    onInvite(candidate.id);
-                    setInvited((current) => [...current, candidate.id]);
-                  }}
+                  onClick={() => onInvite(candidate.id)}
                 >
                   <UserPlus aria-hidden="true" />
-                  {done ? "Отправлено" : "Пригласить"}
+                  Пригласить
                 </Button>
               </li>
             );

@@ -1,13 +1,14 @@
-import { Lock, MoreHorizontal, Trash2, Unlock, UserPlus } from "lucide-react";
+import { CalendarPlus, Lock, MoreHorizontal, Trash2, Unlock, UserPlus } from "lucide-react";
 import { useState } from "react";
 
-import { Button, Modal } from "@/components/ds";
+import { BottomSheet, Button, Modal } from "@/components/ds";
 
 export function SpaceOwnerMenu({
   isPrivate,
   updatingPrivacy,
   deleting,
   onInvite,
+  onCreateEvent,
   onPrivacyChange,
   onDelete,
 }: {
@@ -15,6 +16,7 @@ export function SpaceOwnerMenu({
   updatingPrivacy: boolean;
   deleting: boolean;
   onInvite: () => void;
+  onCreateEvent: () => void;
   onPrivacyChange: (isPrivate: boolean) => void;
   onDelete: () => void;
 }) {
@@ -23,10 +25,16 @@ export function SpaceOwnerMenu({
 
   return (
     <>
-      <Button size="icon" variant="ghost" aria-label="Управление пространством" onClick={() => setOpen(true)}>
+      <Button
+        size="icon"
+        variant="ghost"
+        aria-label="Управление пространством"
+        onClick={() => setOpen(true)}
+        className="size-12 text-primary"
+      >
         <MoreHorizontal aria-hidden="true" />
       </Button>
-      <Modal open={open} onClose={() => setOpen(false)} title="Управление пространством">
+      <BottomSheet open={open} onClose={() => setOpen(false)} title="Управление сообществом">
         <div className="grid gap-2">
           <Button
             variant="secondary"
@@ -38,6 +46,17 @@ export function SpaceOwnerMenu({
           >
             <UserPlus aria-hidden="true" />
             Пригласить человека
+          </Button>
+          <Button
+            variant="secondary"
+            fullWidth
+            onClick={() => {
+              setOpen(false);
+              onCreateEvent();
+            }}
+          >
+            <CalendarPlus aria-hidden="true" />
+            Создать встречу
           </Button>
           <Button
             variant="secondary"
@@ -60,7 +79,7 @@ export function SpaceOwnerMenu({
             Удалить пространство
           </Button>
         </div>
-      </Modal>
+      </BottomSheet>
       <Modal
         open={confirmDelete}
         onClose={() => setConfirmDelete(false)}
