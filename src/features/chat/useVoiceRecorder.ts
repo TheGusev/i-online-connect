@@ -125,7 +125,11 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
   }, []);
 
   const start = useCallback(async () => {
-    if (!voiceRecordingSupported() || recording) return;
+    if (recording) return;
+    if (!voiceRecordingSupported()) {
+      setError("Запись голосовых не поддерживается в этом браузере.");
+      return;
+    }
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
