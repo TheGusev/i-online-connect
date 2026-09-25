@@ -61,8 +61,7 @@ export function voiceRecordingSupported() {
     typeof window !== "undefined" &&
     window.isSecureContext &&
     Boolean(navigator.mediaDevices?.getUserMedia) &&
-    typeof MediaRecorder !== "undefined" &&
-    Boolean(supportedMimeType())
+    typeof MediaRecorder !== "undefined"
   );
 }
 
@@ -131,8 +130,11 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mimeType = supportedMimeType();
-      if (!mimeType) throw new Error("unsupported");
-      const recorder = new MediaRecorder(stream, { mimeType });
+      // Некоторые версии Safari умеют MediaRecorder, но возвращают false для
+      // всех isTypeSupported. В таком случае браузер сам выбирает MP4/AAC.
+      const recorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
       // Диагностика на реальных устройствах: какой формат реально выдал
       // браузер (на iPhone Safari это MP4/AAC, на Android — WebM/Opus).
       console.info(
@@ -184,7 +186,8 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
       };
       recorder.onstop = () => {
         const heldMs = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
-        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType });
+        const outputType = recorder.mimeType || mimeType || chunksRef.current[0]?.type || "audio/mp4";
+        const blob = new Blob(chunksRef.current, { type: outputType });
         setRecording(false);
         setSeconds(0);
         cleanup();
@@ -203,7 +206,7 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
           );
           // Слишком короткую запись просто не отправляем — без предупреждений.
           if (blob.size < 512 || durationMs < MIN_VOICE_MS) return;
-          onRecorded({ blob, durationMs, mimeType: blob.type || mimeType });
+          onRecorded({ blob, durationMs, mimeType: blob.type || outputType });
         });
       };
       recorder.start();

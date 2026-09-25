@@ -7,6 +7,7 @@ import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
 import { cn } from "@/lib/utils";
 import { useKeyboardOpen } from "@/hooks/useViewportHeight";
 import { useSessionStore } from "@/store/useSessionStore";
+import { mediaUrl } from "@/api";
 
 const timeFormatter = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" });
 
@@ -18,6 +19,7 @@ export function SpaceChat({
   onVoice,
   sending,
   voiceSending,
+  error,
 }: {
   messages: SpaceMessage[];
   canWrite: boolean;
@@ -25,6 +27,7 @@ export function SpaceChat({
   onVoice: (recording: VoiceRecording) => void;
   sending?: boolean | undefined;
   voiceSending?: boolean | undefined;
+  error?: string | null | undefined;
 }) {
   const keyboardOpen = useKeyboardOpen();
   const myId = useSessionStore((s) => s.user?.id);
@@ -43,11 +46,11 @@ export function SpaceChat({
   return (
     <div
       className={cn(
-        "overflow-hidden rounded-3xl border border-border bg-card shadow-soft",
+        "overflow-hidden border-y border-border bg-background",
         keyboardOpen && "keyboard-viewport-fixed z-50 flex flex-col rounded-none border-0",
       )}
     >
-      <div ref={scrollerRef} className={cn("space-y-4 overflow-y-auto overscroll-contain p-5", keyboardOpen ? "min-h-0 flex-1" : "max-h-96")}>
+      <div ref={scrollerRef} className={cn("space-y-3 overflow-y-auto overscroll-contain px-1 py-4", keyboardOpen ? "min-h-0 flex-1" : "min-h-36 max-h-80")}>
         {messages.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             В чате пока тихо. Можно поздороваться и спросить, как обычно проходят встречи.
@@ -58,7 +61,7 @@ export function SpaceChat({
             return (
               <div
                 key={message.id}
-                className={cn("flex gap-3", mine && "flex-row-reverse text-right")}
+                className={cn("flex gap-2", mine && "flex-row-reverse text-right")}
               >
                 <Avatar name={message.authorName} size="sm" />
                 <div className="min-w-0 max-w-[80%]">
@@ -67,13 +70,13 @@ export function SpaceChat({
                   </p>
                   <div
                     className={cn(
-                      "mt-1 rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed",
+                      "mt-1 rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
                       mine ? "bg-community text-community-foreground" : "bg-secondary text-secondary-foreground",
                     )}
                   >
                     {message.kind === "voice" && message.mediaUrl ? (
                       <VoicePlayer
-                        src={message.mediaUrl}
+                        src={mediaUrl(message.mediaUrl) ?? message.mediaUrl}
                         duration={message.durationMs ?? 0}
                         mine={mine}
                       />
@@ -86,7 +89,8 @@ export function SpaceChat({
         )}
       </div>
 
-      <div className={cn("shrink-0 border-t border-border bg-card/95 backdrop-blur", !keyboardOpen && "pb-[env(safe-area-inset-bottom)]")}>
+      <div className={cn("shrink-0 bg-background/95 backdrop-blur", !keyboardOpen && "pb-[env(safe-area-inset-bottom)]")}>
+        {error ? <p className="px-4 pt-2 text-xs text-destructive" role="alert">{error}</p> : null}
         <ChatComposer
           value={text}
           onChange={setText}

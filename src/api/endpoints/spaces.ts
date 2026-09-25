@@ -101,7 +101,8 @@ export async function sendSpaceVoiceMessage(
   form.append("durationMs", String(durationMs));
   form.append("clientTempId", clientTempId);
   const baseMime = recording.type.split(";")[0];
-  form.append("file", recording, baseMime === "audio/mp4" ? "voice.m4a" : "voice.webm");
+  const fileName = baseMime === "audio/webm" ? "voice.webm" : "voice.m4a";
+  form.append("file", recording, fileName);
   return upload<SpaceMessage>(`/spaces/${spaceId}/voice`, form, {
     timeoutMs: 60_000,
     timeoutMessage: "Голосовое не загрузилось за минуту — попробуйте ещё раз",
