@@ -68,20 +68,19 @@ export function SpaceChat({
                   <p className="text-xs text-muted-foreground">
                     {message.authorName} · {timeFormatter.format(new Date(message.createdAt))}
                   </p>
-                  <div
-                    className={cn(
-                      "mt-1 rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
-                      mine ? "bg-community text-community-foreground" : "bg-secondary text-secondary-foreground",
-                    )}
-                  >
-                    {message.kind === "voice" && message.mediaUrl ? (
+                  {message.kind === "voice" && message.mediaUrl ? (
+                    <div className={cn("mt-1 text-sm", mine ? "text-primary-ink" : "text-foreground")}>
                       <VoicePlayer
                         src={mediaUrl(message.mediaUrl) ?? message.mediaUrl}
                         duration={message.durationMs ?? 0}
-                        mine={mine}
+                        mine={false}
                       />
-                    ) : message.text}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className={cn("mt-1 rounded-2xl px-3.5 py-2 text-sm leading-relaxed", mine ? "bg-community text-community-foreground" : "bg-secondary text-secondary-foreground")}>
+                      {message.text}
+                    </div>
+                  )}
                 </div>
               </div>
             );

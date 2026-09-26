@@ -203,12 +203,6 @@ export function ChatComposer({
               if (voice.recording) voice.stop(false);
               else void voice.start();
             }}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter" && event.key !== " ") return;
-              event.preventDefault();
-              if (voice.recording) voice.stop(false);
-              else void voice.start();
-            }}
           >
             {voice.recording ? <Square aria-hidden="true" /> : <Mic aria-hidden="true" />}
           </Button>
