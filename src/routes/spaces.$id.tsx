@@ -172,16 +172,16 @@ function SpaceDetailPage() {
             </span>
           ) : space.isMember ? (
             <Button size="sm" variant="ghost" loading={leave.isPending} onClick={() => leave.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось выйти")) })}>Выйти</Button>
-          ) : (
-            <JoinPanel space={space} pending={join.isPending || leave.isPending} onJoin={(answer) => join.mutate(answer)} onLeave={() => leave.mutate()} />
+          ) : space.invited ? null : (
+            <JoinPanel space={space} pending={join.isPending || leave.isPending} onJoin={(answer) => join.mutate(answer, { onError: (error) => toast.error(messageOf(error, "Не удалось вступить")) })} onLeave={() => leave.mutate()} />
           )}
         </div>
 
         {space.invited && !space.isMember ? (
           <div className="mt-2 flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 p-2.5">
             <p className="min-w-0 flex-1 text-sm">Вас приглашают присоединиться.</p>
-            <Button size="sm" loading={join.isPending} onClick={() => join.mutate(undefined)}>Вступить</Button>
-            <Button size="sm" variant="ghost" loading={declineInvite.isPending} onClick={() => declineInvite.mutate()}>Отклонить</Button>
+            <Button size="sm" loading={join.isPending} onClick={() => join.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось вступить")) })}>Вступить</Button>
+            <Button size="sm" variant="ghost" loading={declineInvite.isPending} onClick={() => declineInvite.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось отклонить приглашение")) })}>Отклонить</Button>
           </div>
         ) : null}
 
@@ -197,11 +197,11 @@ function SpaceDetailPage() {
               {space.interests.map((interest) => <Chip key={interest} variant="outline" size="sm">{interest}</Chip>)}
             </div>
           ) : null}
-          <div className="mt-3 flex -space-x-2">
+          <div className="mt-3 flex max-w-full overflow-x-auto -space-x-2">
             {space.members.map((member) => (
               <Button key={member.id} asChild size="icon" variant="ghost" className="size-10 rounded-full" title={member.name}>
                 <Link to="/profile/$id" params={{ id: member.id }} aria-label={`Анкета: ${member.name}`}>
-                  <Avatar name={member.name} src={member.avatarUrl ?? null} size="sm" className="rounded-full border-2 border-card" />
+                  <Avatar name={member.name} src={mediaUrl(member.avatarUrl) ?? null} size="sm" className="rounded-full border-2 border-card" />
                 </Link>
               </Button>
             ))}
