@@ -51,6 +51,7 @@ function measureBlobDurationMs(blob: Blob): Promise<number> {
 
 function supportedMimeType(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
+  if (typeof MediaRecorder.isTypeSupported !== "function") return undefined;
   return ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) =>
     MediaRecorder.isTypeSupported(type),
   );
@@ -86,6 +87,7 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
   const startedAtRef = useRef(0);
   const cancelledRef = useRef(false);
   const pendingStopRef = useRef(false);
+  const startingRef = useRef(false);
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -125,11 +127,12 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
   }, []);
 
   const start = useCallback(async () => {
-    if (recording) return;
+    if (recording || startingRef.current) return;
     if (!voiceRecordingSupported()) {
       setError("Запись голосовых не поддерживается в этом браузере.");
       return;
     }
+    startingRef.current = true;
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -175,11 +178,13 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
       recorder.onerror = () => {
         setError("Запись прервалась. Попробуйте ещё раз.");
         setRecording(false);
+        startingRef.current = false;
         cleanup();
       };
       // Таймер и индикатор включаем только когда рекордер реально пишет звук,
       // иначе интерфейс показывает больше, чем попало в файл.
       recorder.onstart = () => {
+        startingRef.current = false;
         startedAtRef.current = Date.now();
         setSeconds(0);
         setRecording(true);
@@ -216,6 +221,7 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
       recorder.start();
       setSeconds(0);
     } catch (cause) {
+      startingRef.current = false;
       cleanup();
       setError(microphoneError(cause));
     }

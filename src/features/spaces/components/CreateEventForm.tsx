@@ -15,7 +15,7 @@ export function CreateEventForm({
   onOpenChange,
   hideTrigger = false,
 }: {
-  onSubmit: (draft: SpaceEventDraft) => void;
+  onSubmit: (draft: SpaceEventDraft) => Promise<void>;
   submitting?: boolean | undefined;
   open?: boolean | undefined;
   onOpenChange?: ((open: boolean) => void) | undefined;
@@ -35,15 +35,19 @@ export function CreateEventForm({
 
   const valid = title.trim().length >= 3 && startsAt.length > 0;
 
-  const submit = () => {
+  const submit = async () => {
     if (!valid) return;
-    onSubmit({
-      title: title.trim(),
-      // datetime-local отдаёт время без зоны — приводим к ISO с зоной устройства.
-      startsAt: new Date(startsAt).toISOString(),
-      place: online ? "Онлайн" : place.trim(),
-      description: description.trim(),
-    });
+    try {
+      await onSubmit({
+        title: title.trim(),
+        // datetime-local отдаёт время без зоны — приводим к ISO с зоной устройства.
+        startsAt: new Date(startsAt).toISOString(),
+        place: online ? "Онлайн" : place.trim(),
+        description: description.trim(),
+      });
+    } catch {
+      return;
+    }
     setOpen(false);
     setTitle("");
     setStartsAt("");
@@ -92,7 +96,7 @@ export function CreateEventForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
-        <Button fullWidth disabled={!valid} loading={submitting ?? false} onClick={submit}>
+        <Button fullWidth disabled={!valid} loading={submitting ?? false} onClick={() => void submit()}>
           Опубликовать встречу
         </Button>
       </BottomSheet>

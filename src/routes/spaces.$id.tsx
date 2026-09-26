@@ -97,7 +97,7 @@ function SpaceDetailPage() {
       : null;
 
   return (
-    <AppShell wide>
+    <AppShell wide focused>
       <div className="mx-auto w-full max-w-3xl">
         <header className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-border pb-3">
           <Button asChild size="icon" variant="ghost" className="size-11 text-primary">
@@ -171,17 +171,17 @@ function SpaceDetailPage() {
               <Crown className="size-3.5" aria-hidden="true" />Вы организатор
             </span>
           ) : space.isMember ? (
-            <Button size="sm" variant="ghost" loading={leave.isPending} onClick={() => leave.mutate()}>Выйти</Button>
-          ) : (
-            <JoinPanel space={space} pending={join.isPending || leave.isPending} onJoin={(answer) => join.mutate(answer)} onLeave={() => leave.mutate()} />
+            <Button size="sm" variant="ghost" loading={leave.isPending} onClick={() => leave.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось выйти")) })}>Выйти</Button>
+          ) : space.invited ? null : (
+            <JoinPanel space={space} pending={join.isPending || leave.isPending} onJoin={(answer) => join.mutate(answer, { onError: (error) => toast.error(messageOf(error, "Не удалось вступить")) })} onLeave={() => leave.mutate()} />
           )}
         </div>
 
         {space.invited && !space.isMember ? (
           <div className="mt-2 flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 p-2.5">
             <p className="min-w-0 flex-1 text-sm">Вас приглашают присоединиться.</p>
-            <Button size="sm" loading={join.isPending} onClick={() => join.mutate(undefined)}>Вступить</Button>
-            <Button size="sm" variant="ghost" loading={declineInvite.isPending} onClick={() => declineInvite.mutate()}>Отклонить</Button>
+            <Button size="sm" loading={join.isPending} onClick={() => join.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось вступить")) })}>Вступить</Button>
+            <Button size="sm" variant="ghost" loading={declineInvite.isPending} onClick={() => declineInvite.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось отклонить приглашение")) })}>Отклонить</Button>
           </div>
         ) : null}
 
@@ -197,7 +197,16 @@ function SpaceDetailPage() {
               {space.interests.map((interest) => <Chip key={interest} variant="outline" size="sm">{interest}</Chip>)}
             </div>
           ) : null}
-          <p className="mt-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="mt-3 flex max-w-full overflow-x-auto -space-x-2">
+            {space.members.map((member) => (
+              <Button key={member.id} asChild size="icon" variant="ghost" className="size-10 rounded-full" title={member.name}>
+                <Link to="/profile/$id" params={{ id: member.id }} aria-label={`Анкета: ${member.name}`}>
+                  <Avatar name={member.name} src={mediaUrl(member.avatarUrl) ?? null} size="sm" className="rounded-full border-2 border-card" />
+                </Link>
+              </Button>
+            ))}
+          </div>
+          <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
             <UsersRound className="size-4 text-primary" aria-hidden="true" />
             {space.membersCount} участников · организует {space.hostName}
           </p>
@@ -216,7 +225,7 @@ function SpaceDetailPage() {
             sending={sendMessage.isPending}
             voiceSending={sendVoice.isPending}
             error={chatError}
-            onSend={(text) => sendMessage.mutate(text)}
+            onSend={(text) => sendMessage.mutateAsync(text).then(() => undefined)}
             onVoice={(recording) => sendVoice.mutate({ recording, clientTempId: crypto.randomUUID() })}
           />
         </section>
@@ -235,9 +244,11 @@ function SpaceDetailPage() {
           open={eventOpen}
           onOpenChange={setEventOpen}
           submitting={createEvent.isPending}
-          onSubmit={(draft) => createEvent.mutate(draft, {
-            onSuccess: () => toast.success("Встреча опубликована"),
-            onError: (error) => toast.error(messageOf(error, "Не удалось создать встречу")),
+          onSubmit={(draft) => createEvent.mutateAsync(draft).then(() => {
+            toast.success("Встреча опубликована");
+          }).catch((error: unknown) => {
+            toast.error(messageOf(error, "Не удалось создать встречу"));
+            throw error;
           })}
         />
       ) : null}

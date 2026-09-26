@@ -23,7 +23,7 @@ export function SpaceChat({
 }: {
   messages: SpaceMessage[];
   canWrite: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string) => Promise<void>;
   onVoice: (recording: VoiceRecording) => void;
   sending?: boolean | undefined;
   voiceSending?: boolean | undefined;
@@ -50,7 +50,7 @@ export function SpaceChat({
         keyboardOpen && "keyboard-viewport-fixed z-50 flex flex-col rounded-none border-0",
       )}
     >
-      <div ref={scrollerRef} className={cn("space-y-3 overflow-y-auto overscroll-contain px-1 py-4", keyboardOpen ? "min-h-0 flex-1" : "min-h-36 max-h-80")}>
+      <div ref={scrollerRef} className={cn("space-y-3 overflow-y-auto overscroll-contain px-1 py-4", keyboardOpen ? "min-h-0 flex-1" : "min-h-28 max-h-[clamp(7rem,calc(100dvh-34rem),24rem)]")}>
         {messages.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             В чате пока тихо. Можно поздороваться и спросить, как обычно проходят встречи.
@@ -68,20 +68,19 @@ export function SpaceChat({
                   <p className="text-xs text-muted-foreground">
                     {message.authorName} · {timeFormatter.format(new Date(message.createdAt))}
                   </p>
-                  <div
-                    className={cn(
-                      "mt-1 rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
-                      mine ? "bg-community text-community-foreground" : "bg-secondary text-secondary-foreground",
-                    )}
-                  >
-                    {message.kind === "voice" && message.mediaUrl ? (
+                  {message.kind === "voice" && message.mediaUrl ? (
+                    <div className={cn("mt-1 text-sm", mine ? "text-primary-ink" : "text-foreground")}>
                       <VoicePlayer
                         src={mediaUrl(message.mediaUrl) ?? message.mediaUrl}
                         duration={message.durationMs ?? 0}
-                        mine={mine}
+                        mine={false}
                       />
-                    ) : message.text}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className={cn("mt-1 rounded-2xl px-3.5 py-2 text-sm leading-relaxed", mine ? "bg-community text-community-foreground" : "bg-secondary text-secondary-foreground")}>
+                      {message.text}
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -101,10 +100,9 @@ export function SpaceChat({
           {...(voiceSending !== undefined ? { voiceSending } : {})}
           placeholder={canWrite ? "Написать в общий чат" : "Чат доступен участникам сообщества"}
           onSend={() => {
-          const value = text.trim();
-          if (!value || !canWrite) return;
-          onSend(value);
-          setText("");
+            const value = text.trim();
+            if (!value || !canWrite) return;
+            void onSend(value).then(() => setText((current) => current === text ? "" : current)).catch(() => undefined);
           }}
         />
       </div>
