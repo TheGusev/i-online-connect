@@ -23,7 +23,7 @@ export function SpaceChat({
 }: {
   messages: SpaceMessage[];
   canWrite: boolean;
-  onSend: (text: string) => void;
+  onSend: (text: string) => Promise<void>;
   onVoice: (recording: VoiceRecording) => void;
   sending?: boolean | undefined;
   voiceSending?: boolean | undefined;
@@ -101,10 +101,9 @@ export function SpaceChat({
           {...(voiceSending !== undefined ? { voiceSending } : {})}
           placeholder={canWrite ? "Написать в общий чат" : "Чат доступен участникам сообщества"}
           onSend={() => {
-          const value = text.trim();
-          if (!value || !canWrite) return;
-          onSend(value);
-          setText("");
+            const value = text.trim();
+            if (!value || !canWrite) return;
+            void onSend(value).then(() => setText((current) => current === text ? "" : current)).catch(() => undefined);
           }}
         />
       </div>

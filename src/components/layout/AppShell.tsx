@@ -17,10 +17,12 @@ export function AppShell({
   children,
   wide = false,
   public: isPublic = false,
+  focused = false,
 }: {
   children: ReactNode;
   wide?: boolean;
   public?: boolean;
+  focused?: boolean;
 }) {
   // Держит --app-height/--keyboard-inset актуальными на каждом экране.
   useViewportHeightVar();
@@ -28,15 +30,15 @@ export function AppShell({
     <div className="app-viewport flex bg-background text-foreground">
       <SideNav />
       <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar />
+        {!focused ? <TopBar /> : null}
         <main
-          className={`mx-auto w-full flex-1 px-4 pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-6 lg:px-8 lg:pb-12 ${wide ? "max-w-6xl" : "max-w-3xl"}`}
+          className={`mx-auto w-full flex-1 px-4 ${focused ? "pb-[env(safe-area-inset-bottom)] pt-3" : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-6 lg:pb-12"} lg:px-8 ${wide ? "max-w-6xl" : "max-w-3xl"}`}
         >
           {children}
         </main>
       </div>
 
-      <BottomNav />
+      {!focused ? <BottomNav /> : null}
     </div>
   );
 
