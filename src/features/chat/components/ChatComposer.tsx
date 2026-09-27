@@ -114,14 +114,16 @@ export function ChatComposer({
           "grid items-end gap-2 px-3 py-2.5 sm:px-4 sm:py-3",
           // Долгое нажатие для записи не должно вызывать лупу и меню выделения iOS.
           "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]",
-          leading ? "grid-cols-[auto_minmax(0,1fr)_auto]" : "grid-cols-[minmax(0,1fr)_auto]",
+          leading || voice.recording
+            ? "grid-cols-[auto_minmax(0,1fr)_auto]"
+            : "grid-cols-[minmax(0,1fr)_auto]",
         )}
         onSubmit={(event) => {
           event.preventDefault();
           if (!sending && !voice.recording) onSend();
         }}
       >
-        {leading ? (
+        {leading || voice.recording ? (
           <div className="shrink-0">
             {voice.recording ? (
               <Button
