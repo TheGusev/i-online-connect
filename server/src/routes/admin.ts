@@ -567,7 +567,7 @@ export async function adminRoutes(app: FastifyInstance) {
     const params: (string | number)[] = [];
     if (state) {
       params.push(state);
-      where.push(`l.state = $${params.length}::listing_state`);
+      where.push(`(CASE WHEN l.state = 'active' AND l.expires_at <= now() THEN 'expired'::listing_state ELSE l.state END) = $${params.length}::listing_state`);
     }
     if (q) {
       params.push(`%${q}%`);
@@ -583,7 +583,9 @@ export async function adminRoutes(app: FastifyInstance) {
     params.push(limit, (page - 1) * limit);
     const rows = await query(
       `SELECT l.id, l.author_id, l.category, l.city, l.title, l.description,
-              l.price_minor, l.currency, l.state, l.expires_at, l.created_at,
+               l.price_minor, l.currency,
+               CASE WHEN l.state = 'active' AND l.expires_at <= now() THEN 'expired'::listing_state ELSE l.state END AS state,
+               l.expires_at, l.created_at,
               l.is_seed, p.name AS author_name, p.trust_level
          FROM listings l
          LEFT JOIN profiles p ON p.user_id = l.author_id
@@ -746,7 +748,7 @@ export async function adminRoutes(app: FastifyInstance) {
              WHERE created_at > now() - ($1 || ' days')::interval) AS messages,
            (SELECT count(*)::text FROM listings
              WHERE created_at > now() - ($1 || ' days')::interval) AS listings,
-           (SELECT count(*)::text FROM listings WHERE state = 'active') AS listings_active,
+            (SELECT count(*)::text FROM listings WHERE state = 'active' AND expires_at > now()) AS listings_active,
            (SELECT count(*)::text FROM reports WHERE state IN ('new', 'in_review')) AS reports_open,
            (SELECT count(*)::text FROM verifications WHERE status = 'pending') AS verifications_pending,
            (SELECT count(*)::text FROM support_requests WHERE status <> 'closed') AS support_open`,
