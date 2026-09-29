@@ -8,6 +8,7 @@ import {
   formatEventDate,
   formatLabels,
   formatMembers,
+  formatSpaceAge,
 } from "@/features/spaces/labels";
 
 export function SpaceCard({ space }: { space: Space }) {
@@ -56,6 +57,7 @@ export function SpaceCard({ space }: { space: Space }) {
           <span>
             {formatLabels[space.format]} · {cadenceLabels[space.cadence].toLowerCase()}
           </span>
+          <span>{formatSpaceAge(space.createdAt)}</span>
         </div>
 
         {space.nextEvent ? (

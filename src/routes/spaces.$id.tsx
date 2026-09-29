@@ -29,7 +29,7 @@ import {
   useSpaceMessages,
   useUpdateSpacePrivacy,
 } from "@/features/spaces/hooks";
-import { categoryLabels, formatLabels } from "@/features/spaces/labels";
+import { categoryLabels, formatLabels, formatSpaceAge } from "@/features/spaces/labels";
 
 export const Route = createFileRoute("/spaces/$id")({
   validateSearch: z.object({ eventId: z.string().uuid().optional() }),
@@ -163,6 +163,8 @@ function SpaceDetailPage() {
           <span className="shrink-0 text-muted-foreground">{categoryLabels[space.category]}</span>
           <span className="h-5 w-px shrink-0 bg-border" />
           <span className="shrink-0 text-muted-foreground">{formatLabels[space.format]}</span>
+           <span className="h-5 w-px shrink-0 bg-border" />
+           <span className="shrink-0 text-muted-foreground">{formatSpaceAge(space.createdAt)}</span>
         </div>
 
         <div className="mt-2 flex items-center gap-2">

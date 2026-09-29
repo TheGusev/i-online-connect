@@ -62,7 +62,7 @@ const coverUrlSchema = z
   );
 
 const SPACE_SELECT = `
-  SELECT s.id, s.title, s.description, s.topic, s.cover_url, s.category, s.format, s.cadence,
+   SELECT s.id, s.created_at, s.title, s.description, s.topic, s.cover_url, s.category, s.format, s.cadence,
           s.city, s.verified_community, s.join_policy, s.join_question, s.is_seed, s.is_private,
          hp.name AS host_name,
          (SELECT count(*) FROM space_members sm
@@ -82,6 +82,7 @@ const SPACE_SELECT = `
 
 interface SpaceRow {
   id: string;
+  created_at: Date;
   title: string;
   description: string;
   topic: string;
@@ -136,6 +137,7 @@ async function loadEvents(spaceId: string, userId: string) {
 function toSpaceDto(row: SpaceRow) {
   return {
     id: row.id,
+    createdAt: row.created_at.toISOString(),
     title: row.title,
     description: row.description,
     topic: row.topic,

@@ -33,6 +33,11 @@ export function formatEventDate(iso: string) {
   return dateFormatter.format(new Date(iso));
 }
 
+export function formatSpaceAge(iso: string, now = Date.now()) {
+  const elapsedHours = Math.max(0, Math.floor((now - Date.parse(iso)) / 3_600_000));
+  return `Создано: ${elapsedHours < 24 ? `${elapsedHours}ч` : `${Math.floor(elapsedHours / 24)}д`}`;
+}
+
 export function formatMembers(count: number) {
   const mod10 = count % 10;
   const mod100 = count % 100;

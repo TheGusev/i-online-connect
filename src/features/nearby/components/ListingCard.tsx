@@ -4,6 +4,7 @@ import { MapPin, MessageCircle } from "lucide-react";
 import type { Listing } from "@/api";
 import { Card, MediaImage, TrustBadge } from "@/components/ds";
 import { badgeLevel } from "@/features/chat/trust";
+import { ListingCountdown } from "./ListingCountdown";
 
 import { categoryLabel, formatDate, formatPrice, priceApplies } from "../labels";
 
@@ -80,6 +81,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
           <div className="flex min-w-0 items-center gap-1.5 text-[11px]">
             <span className="truncate font-semibold">{listing.author.name}</span>
             <TrustBadge level={badgeLevel(listing.author.trustLevel)} size="sm" />
+          </div>
+          <div className="text-[11px] font-semibold text-primary">
+            {listing.state === "active" ? <ListingCountdown expiresAt={listing.expiresAt} /> : listing.state === "expired" ? "Срок истёк" : null}
           </div>
         </div>
       </Link>
