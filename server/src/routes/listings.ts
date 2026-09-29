@@ -91,6 +91,7 @@ const createSchema = z.object({
   district: z.string().trim().max(120).optional(),
   mediaIds: z.array(z.string().uuid()).max(MAX_LISTING_PHOTOS).optional(),
   expiresInDays: z.number().int().min(1).max(90).optional(),
+  expiresInMinutes: z.union([z.literal(15), z.literal(30), z.literal(60), z.literal(180), z.literal(360), z.literal(1440)]).optional(),
 });
 
 const patchSchema = z.object({
@@ -104,7 +105,8 @@ const patchSchema = z.object({
 
 const LISTING_SELECT = `
   SELECT l.id, l.category, l.city, l.district, l.title, l.description, l.price_minor, l.currency,
-         l.state, l.expires_at, l.created_at, l.is_seed,
+         CASE WHEN l.state = 'active' AND l.expires_at <= now() THEN 'expired'::listing_state ELSE l.state END AS state,
+         l.expires_at, l.created_at, l.is_seed,
          l.author_id,
          p.name        AS author_name,
          p.trust_level AS author_trust,
@@ -398,8 +400,8 @@ export async function listingRoutes(app: FastifyInstance) {
 
       const row = await queryOne<{ id: string }>(
         `INSERT INTO listings (author_id, category, city, district, title, description, price_minor, expires_at)
-         VALUES ($1, $2::need_category, $3, $8, $4, $5, $6,
-                 now() + make_interval(days => $7::int))
+          VALUES ($1, $2::need_category, $3, $8, $4, $5, $6,
+                  now() + make_interval(mins => $7::int))
          RETURNING id`,
         [
           userId,
@@ -408,7 +410,7 @@ export async function listingRoutes(app: FastifyInstance) {
           draft.title,
           draft.description ?? "",
           draft.priceMinor ?? null,
-          draft.expiresInDays ?? 30,
+          draft.expiresInMinutes ?? (draft.expiresInDays ?? 30) * 1440,
           draft.district ?? "",
         ],
       );
@@ -493,7 +495,7 @@ export async function listingRoutes(app: FastifyInstance) {
         state: string;
         title: string;
         is_seed: boolean;
-      }>("SELECT author_id, state, title, is_seed FROM listings WHERE id = $1", [id]);
+      }>("SELECT author_id, CASE WHEN state = 'active' AND expires_at <= now() THEN 'expired'::listing_state ELSE state END AS state, title, is_seed FROM listings WHERE id = $1", [id]);
       if (!listing) throw notFound("Объявление не найдено");
       if (listing.is_seed) {
         throw badRequest(

@@ -41,7 +41,7 @@ function NewListingPage() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [district, setDistrict] = useState("");
-  const [days, setDays] = useState("7");
+  const [minutes, setMinutes] = useState("60");
   const [photos, setPhotos] = useState<ListingPhoto[]>([]);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -77,7 +77,7 @@ function NewListingPage() {
         priceMinor,
         district: district.trim() || undefined,
         mediaIds: photos.map((item) => item.id),
-        expiresInDays: Number(days),
+        expiresInMinutes: Number(minutes) as 15 | 30 | 60 | 180 | 360 | 1440,
       },
       {
         onSuccess: (listing) => {
@@ -193,12 +193,15 @@ function NewListingPage() {
 
         <Select
           label="Срок актуальности"
-          value={days}
-          onChange={(event) => setDays(event.target.value)}
+          value={minutes}
+          onChange={(event) => setMinutes(event.target.value)}
           options={[
-            { value: "7", label: "7 дней" },
-            { value: "14", label: "14 дней" },
-            { value: "30", label: "30 дней" },
+            { value: "15", label: "15 минут" },
+            { value: "30", label: "30 минут" },
+            { value: "60", label: "1 час" },
+            { value: "180", label: "3 часа" },
+            { value: "360", label: "6 часов" },
+            { value: "1440", label: "24 часа" },
           ]}
         />
 

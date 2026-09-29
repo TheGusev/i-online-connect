@@ -134,6 +134,7 @@ export interface SpaceMessage {
 
 export interface Space {
   id: string;
+  createdAt: string;
   title: string;
   description: string;
   membersCount: number;
@@ -450,6 +451,7 @@ export interface ListingDraft {
   district?: string | undefined;
   mediaIds?: string[];
   expiresInDays?: number;
+  expiresInMinutes?: 15 | 30 | 60 | 180 | 360 | 1440;
 }
 
 export type AppNotificationKind = "listing_match" | "listing_response";
