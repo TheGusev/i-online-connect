@@ -18,14 +18,20 @@ import { z } from "zod";
 import { query, queryOne, transaction } from "../db.ts";
 import { badRequest, forbidden, notFound } from "../http.ts";
 import { assertSpaceMembership, currentUserId, requireAuth } from "../auth/middleware.ts";
+import { assertVerified } from "../auth/verified.ts";
 import {
+  assertChatMediaSize,
   audioDurationMs,
   detectAudioType,
+  MAX_CHAT_VIDEO_BYTES,
+  MAX_CHAT_VIDEO_MS,
   MAX_PHOTO_BYTES,
   MAX_VOICE_BYTES,
   assertSize,
   detectMediaType,
+  mediaDurationMs,
   mediaPathFromUrl,
+  saveChatMediaFile,
   saveProfileFile,
   saveVoiceFile,
   transcodeVoiceToAac,
@@ -35,6 +41,39 @@ import { publishUserEvent } from "../ws/notifications.ts";
 
 const idParam = z.object({ id: z.string().uuid() });
 const SEND_LIMIT = { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } };
+
+/** Типы сообщений общего чата сообщества. */
+type SpaceMessageKind = "text" | "voice" | "image" | "video";
+
+interface SpaceMessageRow {
+  id: string;
+  space_id: string;
+  author_id: string;
+  author_name: string;
+  text: string;
+  kind: SpaceMessageKind;
+  client_temp_id: string | null;
+  media_url: string | null;
+  media_mime: string | null;
+  duration_ms: number | null;
+  created_at: Date;
+}
+
+function toSpaceMessageDto(row: SpaceMessageRow) {
+  return {
+    id: row.id,
+    spaceId: row.space_id,
+    authorId: row.author_id,
+    authorName: row.author_name,
+    text: row.text,
+    kind: row.kind,
+    clientTempId: row.client_temp_id ?? undefined,
+    mediaUrl: row.media_url ?? undefined,
+    mediaMime: row.media_mime ?? undefined,
+    durationMs: row.duration_ms ?? undefined,
+    createdAt: row.created_at.toISOString(),
+  };
+}
 
 async function assertSpaceHost(userId: string, spaceId: string) {
   const row = await queryOne(
@@ -567,19 +606,7 @@ export async function spaceRoutes(app: FastifyInstance) {
     const { id } = idParam.parse(request.params);
     await assertSpaceMembership(userId, id);
 
-    const rows = await query<{
-      id: string;
-      space_id: string;
-      author_id: string;
-      author_name: string;
-      text: string;
-      kind: "text" | "voice";
-      client_temp_id: string | null;
-      media_url: string | null;
-      media_mime: string | null;
-      duration_ms: number | null;
-      created_at: Date;
-    }>(
+    const rows = await query<SpaceMessageRow>(
       `SELECT m.id, m.space_id, m.author_id, p.name AS author_name, m.text, m.kind,
               m.client_temp_id, m.media_url, m.media_mime, m.duration_ms, m.created_at
          FROM space_messages m
@@ -590,19 +617,7 @@ export async function spaceRoutes(app: FastifyInstance) {
       [id],
     );
 
-    return rows.map((row) => ({
-      id: row.id,
-      spaceId: row.space_id,
-      authorId: row.author_id,
-      authorName: row.author_name,
-      text: row.text,
-      kind: row.kind,
-      clientTempId: row.client_temp_id ?? undefined,
-      mediaUrl: row.media_url ?? undefined,
-      mediaMime: row.media_mime ?? undefined,
-      durationMs: row.duration_ms ?? undefined,
-      createdAt: row.created_at.toISOString(),
-    }));
+    return rows.map(toSpaceMessageDto);
   });
 
   app.post<{ Params: { id: string } }>("/:id/messages", async (request) => {
@@ -653,24 +668,14 @@ export async function spaceRoutes(app: FastifyInstance) {
     if (!buffer || buffer.length < 512) throw badRequest("Запись пустая");
     const audioType = detectAudioType(buffer);
     if (!audioType) throw badRequest("Поддерживаются голосовые WebM/Opus и MP4/AAC");
-    const existing = await queryOne<{
-      id: string; space_id: string; author_id: string; author_name: string; text: string;
-      kind: "text" | "voice"; client_temp_id: string | null; media_url: string | null;
-      media_mime: string | null; duration_ms: number | null; created_at: Date;
-    }>(
+    const existing = await queryOne<SpaceMessageRow>(
       `SELECT m.id, m.space_id, m.author_id, p.name AS author_name, m.text, m.kind,
               m.client_temp_id, m.media_url, m.media_mime, m.duration_ms, m.created_at
          FROM space_messages m JOIN profiles p ON p.user_id = m.author_id
         WHERE m.space_id = $1 AND m.author_id = $2 AND m.client_temp_id = $3`,
       [id, userId, clientTempId],
     );
-    if (existing) return {
-      id: existing.id, spaceId: existing.space_id, authorId: existing.author_id,
-      authorName: existing.author_name, text: existing.text, kind: existing.kind,
-      clientTempId: existing.client_temp_id ?? undefined, mediaUrl: existing.media_url ?? undefined,
-      mediaMime: existing.media_mime ?? undefined, durationMs: existing.duration_ms ?? undefined,
-      createdAt: existing.created_at.toISOString(),
-    };
+    if (existing) return toSpaceMessageDto(existing);
 
     const saved = await saveVoiceFile(userId, buffer, audioType);
     let playable = saved;
@@ -706,6 +711,85 @@ export async function spaceRoutes(app: FastifyInstance) {
     } catch (error) {
       await unlink(saved.filePath).catch(() => undefined);
       if (playable.filePath !== saved.filePath) await unlink(playable.filePath).catch(() => undefined);
+      throw error;
+    }
+  });
+
+  /**
+   * POST /api/spaces/:id/media — фото или видео в общий чат сообщества.
+   * Доступно только участникам с подтверждённым профилем.
+   */
+  app.post<{ Params: { id: string } }>("/:id/media", SEND_LIMIT, async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    await assertSpaceMembership(userId, id);
+    await assertVerified(userId);
+
+    const parts = request.parts({
+      limits: { fileSize: MAX_CHAT_VIDEO_BYTES, files: 1, fields: 2 },
+    });
+    let buffer: Buffer | null = null;
+    let clientTempId = "";
+    for await (const part of parts) {
+      if (part.type === "file") buffer = await part.toBuffer();
+      else if (part.fieldname === "clientTempId") clientTempId = String(part.value);
+    }
+    if (!z.string().uuid().safeParse(clientTempId).success) {
+      throw badRequest("Вложение отклонено: поле clientTempId должно быть UUID");
+    }
+    if (!buffer || buffer.length < 512) throw badRequest("Файл пустой — выберите другой");
+    const type = detectMediaType(buffer);
+    if (!type || type.kind === "audio") {
+      throw badRequest("Поддерживаем фото JPEG/PNG/WebP и видео MP4/WebM");
+    }
+    assertChatMediaSize(type, buffer.length);
+
+    const existing = await queryOne<SpaceMessageRow>(
+      `SELECT m.id, m.space_id, m.author_id, p.name AS author_name, m.text, m.kind,
+              m.client_temp_id, m.media_url, m.media_mime, m.duration_ms, m.created_at
+         FROM space_messages m JOIN profiles p ON p.user_id = m.author_id
+        WHERE m.space_id = $1 AND m.author_id = $2 AND m.client_temp_id = $3`,
+      [id, userId, clientTempId],
+    );
+    if (existing) return toSpaceMessageDto(existing);
+
+    const saved = await saveChatMediaFile(userId, buffer, type);
+    try {
+      let durationMs: number | null = null;
+      if (type.kind === "video") {
+        const measured = await mediaDurationMs(saved.filePath).catch(() => 0);
+        if (measured < 200) throw badRequest("Не удалось прочитать видео — попробуйте другой файл");
+        if (measured > MAX_CHAT_VIDEO_MS + 1000) {
+          throw badRequest("Видео длиннее 60 секунд — обрежьте его и отправьте снова");
+        }
+        durationMs = Math.min(measured, MAX_CHAT_VIDEO_MS + 1000);
+      }
+      const kind = type.kind === "photo" ? "image" : "video";
+      const row = await queryOne<SpaceMessageRow>(
+        `WITH inserted AS (
+           INSERT INTO space_messages
+             (space_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING id, space_id, author_id, text, kind, client_temp_id,
+                     media_url, media_mime, duration_ms, created_at
+         )
+         SELECT inserted.*, p.name AS author_name
+           FROM inserted JOIN profiles p ON p.user_id = inserted.author_id`,
+        [
+          id,
+          userId,
+          kind === "image" ? "Фото" : "Видео",
+          kind,
+          clientTempId,
+          saved.url,
+          type.mime,
+          durationMs,
+        ],
+      );
+      if (!row) throw badRequest("Не удалось сохранить вложение");
+      return toSpaceMessageDto(row);
+    } catch (error) {
+      await unlink(saved.filePath).catch(() => undefined);
       throw error;
     }
   });
