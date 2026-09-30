@@ -108,3 +108,21 @@ export async function sendSpaceVoiceMessage(
     timeoutMessage: "Голосовое не загрузилось за минуту — попробуйте ещё раз",
   });
 }
+
+/** Фото или видео в общий чат сообщества: для подтверждённых участников. */
+export async function sendSpaceMediaMessage(
+  spaceId: string,
+  file: File,
+  clientTempId: string,
+  onProgress?: (percent: number) => void,
+): Promise<SpaceMessage> {
+  const form = new FormData();
+  form.append("clientTempId", clientTempId);
+  form.append("file", file, file.name || "attachment");
+  return upload<SpaceMessage>(`/spaces/${spaceId}/media`, form, {
+    ...(onProgress ? { onProgress } : {}),
+    timeoutMs: 180_000,
+    timeoutMessage: "Вложение не загрузилось — проверьте связь и попробуйте ещё раз",
+  });
+}
+

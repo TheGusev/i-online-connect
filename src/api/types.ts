@@ -50,8 +50,8 @@ export interface Message {
   text: string;
   createdAt: string;
   status?: MessageStatus;
-  /** Системное или голосовое сообщение. */
-  kind?: "text" | "meeting" | "voice";
+  /** Системное, голосовое или вложение (фото, видео). */
+  kind?: "text" | "meeting" | "voice" | "image" | "video";
   mediaUrl?: string;
   mediaMime?: string;
   durationMs?: number;
@@ -71,7 +71,7 @@ export interface Message {
 export interface MessageQuote {
   id: string;
   authorId: string;
-  kind?: "text" | "meeting" | "voice";
+  kind?: "text" | "meeting" | "voice" | "image" | "video";
   text: string;
   deleted?: boolean;
 }
@@ -124,7 +124,7 @@ export interface SpaceMessage {
   authorId: string;
   authorName: string;
   text: string;
-  kind?: "text" | "voice";
+  kind?: "text" | "voice" | "image" | "video";
   clientTempId?: string;
   mediaUrl?: string;
   mediaMime?: string;
