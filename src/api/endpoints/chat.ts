@@ -80,6 +80,26 @@ export async function sendVoiceMessage(
   });
 }
 
+/** Фото или видео в личный диалог: доступно подтверждённым профилям. */
+export async function sendMediaMessage(
+  conversationId: string,
+  file: File,
+  clientTempId: string,
+  replyToId?: string,
+  onProgress?: (percent: number) => void,
+): Promise<Message> {
+  const form = new FormData();
+  form.append("clientTempId", clientTempId);
+  if (replyToId) form.append("replyToId", replyToId);
+  form.append("file", file, file.name || "attachment");
+  return upload<Message>(`/chat/conversations/${conversationId}/media`, form, {
+    ...(onProgress ? { onProgress } : {}),
+    timeoutMs: 180_000,
+    timeoutMessage: "Вложение не загрузилось — проверьте связь и попробуйте ещё раз",
+  });
+}
+
+
 export async function markConversationRead(conversationId: string): Promise<void> {
   await request<void>(`/chat/conversations/${conversationId}/read`, { method: "POST" });
 }

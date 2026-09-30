@@ -13,23 +13,27 @@
  */
 import type { FastifyInstance } from "fastify";
 import { unlink } from "node:fs/promises";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-
-import { env } from "../env.ts";
-
 
 import { query, queryOne, transaction } from "../db.ts";
 import { badRequest, forbidden, notFound } from "../http.ts";
 import { assertConversationAccess, currentUserId, requireAuth } from "../auth/middleware.ts";
+import { assertVerified } from "../auth/verified.ts";
 import { isInRoom, publishChatEvent } from "../ws/chat.ts";
 import { sendPushToUser } from "../push/send.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 import {
+  assertChatMediaSize,
   audioDurationMs,
   detectAudioType,
+  detectMediaType,
+  MAX_CHAT_VIDEO_BYTES,
+  MAX_CHAT_VIDEO_MS,
   MAX_VOICE_BYTES,
+  mediaDurationMs,
+  mediaPathFromUrl,
+  saveChatMediaFile,
   saveVoiceFile,
   transcodeVoiceToAac,
 } from "../media/store.ts";
@@ -37,13 +41,15 @@ import {
 const idParam = z.object({ id: z.string().uuid() });
 const messageParams = z.object({ id: z.string().uuid(), messageId: z.string().uuid() });
 
+/** Типы сообщений личного диалога (enum message_kind в БД). */
+type MessageKind = "text" | "meeting" | "voice" | "image" | "video";
 
 interface MessageRow {
   id: string;
   conversation_id: string;
   author_id: string;
   text: string;
-  kind: "text" | "meeting" | "voice";
+  kind: MessageKind;
   client_temp_id: string | null;
   media_url: string | null;
   media_mime: string | null;
@@ -59,7 +65,7 @@ interface ReplyRow {
   id: string;
   author_id: string;
   text: string;
-  kind: "text" | "meeting" | "voice";
+  kind: MessageKind;
   deleted_at: Date | null;
 }
 
@@ -142,7 +148,7 @@ const SEND_LIMIT = { config: { rateLimit: { max: 60, timeWindow: "1 minute" } } 
 async function notifyRecipient(
   conversationId: string,
   senderId: string,
-  message: { id: string; text: string; kind: "text" | "meeting" | "voice" },
+  message: { id: string; text: string; kind: MessageKind },
 ) {
   try {
     const recipient = await queryOne<{ user_id: string; is_seed: boolean; sender_name: string }>(
@@ -166,7 +172,11 @@ async function notifyRecipient(
       ? "Предлагает встретиться"
       : message.kind === "voice"
         ? "Голосовое сообщение"
-        : message.text.slice(0, 120);
+        : message.kind === "image"
+          ? "Фото"
+          : message.kind === "video"
+            ? "Видео"
+            : message.text.slice(0, 120);
     const payload = {
       conversationId,
       messageId: message.id,
@@ -612,6 +622,97 @@ export async function chatRoutes(app: FastifyInstance) {
     }
   });
 
+  /**
+   * POST /conversations/:id/media — фото или видео в личный диалог.
+   * Только для подтверждённых профилей: проверка на сервере, а не на фронте.
+   */
+  app.post<{ Params: { id: string } }>("/conversations/:id/media", SEND_LIMIT, async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    await assertConversationAccess(userId, id);
+    await assertNotBlockedInConversation(userId, id);
+    await assertVerified(userId);
+
+    const parts = request.parts({
+      limits: { fileSize: MAX_CHAT_VIDEO_BYTES, files: 1, fields: 3 },
+    });
+    let buffer: Buffer | null = null;
+    let clientTempId = "";
+    let replyToValue = "";
+    for await (const part of parts) {
+      if (part.type === "file") buffer = await part.toBuffer();
+      else if (part.fieldname === "clientTempId") clientTempId = String(part.value);
+      else if (part.fieldname === "replyToId") replyToValue = String(part.value);
+    }
+    if (!z.string().uuid().safeParse(clientTempId).success) {
+      throw badRequest("Вложение отклонено: поле clientTempId должно быть UUID");
+    }
+    if (!buffer || buffer.length < 512) throw badRequest("Файл пустой — выберите другой");
+    // Content-Type от клиента не проверяем: тип определяется по содержимому файла.
+    const type = detectMediaType(buffer);
+    if (!type || type.kind === "audio") {
+      throw badRequest("Поддерживаем фото JPEG/PNG/WebP и видео MP4/WebM");
+    }
+    assertChatMediaSize(type, buffer.length);
+
+    const replyToId =
+      replyToValue && z.string().uuid().safeParse(replyToValue).success ? replyToValue : undefined;
+    const replyTarget = await assertReplyTarget(id, replyToId);
+
+    const existing = await queryOne<MessageRow>(
+      `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
+              media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+              reply_to_id, false AS read_by_peer
+         FROM messages
+        WHERE conversation_id = $1 AND author_id = $2 AND client_temp_id = $3`,
+      [id, userId, clientTempId],
+    );
+    if (existing) return toMessageDto(existing, await loadReply(existing.reply_to_id));
+
+    const saved = await saveChatMediaFile(userId, buffer, type);
+    try {
+      let durationMs: number | null = null;
+      if (type.kind === "video") {
+        const measured = await mediaDurationMs(saved.filePath).catch(() => 0);
+        if (measured < 200) throw badRequest("Не удалось прочитать видео — попробуйте другой файл");
+        if (measured > MAX_CHAT_VIDEO_MS + 1000) {
+          throw badRequest("Видео длиннее 60 секунд — обрежьте его и отправьте снова");
+        }
+        durationMs = Math.min(measured, MAX_CHAT_VIDEO_MS + 1000);
+      }
+      const kind = type.kind === "photo" ? "image" : "video";
+      const row = await queryOne<MessageRow>(
+        `INSERT INTO messages
+           (conversation_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms, reply_to_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
+                   media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                   reply_to_id, false AS read_by_peer`,
+        [
+          id,
+          userId,
+          kind === "image" ? "Фото" : "Видео",
+          kind,
+          clientTempId,
+          saved.url,
+          type.mime,
+          durationMs,
+          replyTarget,
+        ],
+      );
+      if (!row) throw badRequest("Не удалось сохранить вложение");
+      await query("UPDATE conversations SET last_message_at = now() WHERE id = $1", [id]);
+      const message = toMessageDto(row, await loadReply(row.reply_to_id));
+      publishChatEvent(id, { type: "message", conversationId: id, message });
+      void notifyRecipient(id, userId, { id: row.id, text: row.text, kind });
+      return message;
+    } catch (error) {
+      await unlink(saved.filePath).catch(() => undefined);
+      throw error;
+    }
+  });
+
+
   app.post<{ Params: { id: string } }>("/conversations/:id/read", async (request, reply) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
@@ -700,10 +801,10 @@ export async function chatRoutes(app: FastifyInstance) {
             WHERE id = $1 AND conversation_id = $2 AND author_id = $3`,
           [messageId, id, userId],
         );
-        // Файл голосового больше не нужен — освобождаем диск.
+        // Файл вложения больше не нужен — освобождаем диск.
         if (current.media_url) {
-          const relative = current.media_url.replace(/^.*\/voice\//, "");
-          await unlink(path.join(env.MEDIA_DIR, "voice", relative)).catch(() => undefined);
+          const filePath = mediaPathFromUrl(current.media_url);
+          if (filePath) await unlink(filePath).catch(() => undefined);
         }
       }
 

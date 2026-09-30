@@ -10,10 +10,13 @@ import { ZodError } from "zod";
 
 export class HttpError extends Error {
   statusCode: number;
-  constructor(statusCode: number, message: string) {
+  /** Машиночитаемая причина: клиент может показать особый экран (например, верификацию). */
+  code?: string;
+  constructor(statusCode: number, message: string, code?: string) {
     super(message);
     this.name = "HttpError";
     this.statusCode = statusCode;
+    if (code) this.code = code;
   }
 }
 
@@ -27,7 +30,9 @@ export const conflict = (message = "Конфликт данных") => new HttpE
 export function registerErrorHandler(app: FastifyInstance) {
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof HttpError) {
-      return reply.status(error.statusCode).send({ message: error.message });
+      return reply
+        .status(error.statusCode)
+        .send({ message: error.message, ...(error.code ? { error: error.code } : {}) });
     }
 
     // Ошибки валидации zod (schema.parse в роутах) — это ошибка клиента, а не сервера.

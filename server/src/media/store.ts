@@ -153,6 +153,43 @@ export async function saveProfileFile(userId: string, buffer: Buffer, type: Dete
   return { filePath, url: `${base}/${userId}/${name}` };
 }
 
+/**
+ * Фото и видео, отправленные в чат.
+ *
+ * Лимиты согласованы с client_max_body_size 45m в Nginx: фото до 15 МБ,
+ * видео до 45 МБ и не длиннее 60 секунд. Длительность видео проверяем тем же
+ * ffmpeg, что и у голосовых — клиенту здесь верить нельзя.
+ */
+export const MAX_CHAT_PHOTO_BYTES = 15 * 1024 * 1024;
+export const MAX_CHAT_VIDEO_BYTES = 45 * 1024 * 1024;
+export const MAX_CHAT_VIDEO_MS = 60_000;
+
+/** Длительность любого медиафайла (видео и аудио читаются одинаково). */
+export const mediaDurationMs = audioDurationMs;
+
+export function assertChatMediaSize(type: DetectedType, size: number) {
+  if (type.kind === "photo" && size > MAX_CHAT_PHOTO_BYTES) {
+    throw badRequest("Фото больше 15 МБ — выберите файл меньше");
+  }
+  if (type.kind === "video" && size > MAX_CHAT_VIDEO_BYTES) {
+    throw badRequest("Видео больше 45 МБ — снимите короче или снизьте качество");
+  }
+}
+
+/**
+ * Файл из чата: отдельная папка chat/<userId>/, чтобы вложения переписки
+ * никогда не попадали в галерею профиля.
+ */
+export async function saveChatMediaFile(userId: string, buffer: Buffer, type: DetectedType) {
+  const dir = path.join(env.MEDIA_DIR, "chat", userId);
+  await mkdir(dir, { recursive: true, mode: 0o755 });
+  const name = `${randomUUID()}.${type.ext}`;
+  const filePath = path.join(dir, name);
+  await writeFile(filePath, buffer, { mode: 0o644 });
+  const base = env.MEDIA_BASE_URL.replace(/\/$/, "");
+  return { filePath, url: `${base}/chat/${userId}/${name}` };
+}
+
 /** Сколько фото можно приложить к одному объявлению. */
 export const MAX_LISTING_PHOTOS = 6;
 
