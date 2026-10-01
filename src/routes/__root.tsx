@@ -7,6 +7,7 @@ import {
   useLocation,
   HeadContent,
   Scripts,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 
