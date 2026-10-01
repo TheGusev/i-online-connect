@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/store/useSessionStore";
 import { mediaUrl } from "@/api";
 import { VoicePlayer } from "./VoicePlayer";
+import { MediaAttachment } from "./MediaAttachment";
 import { useSwipeMessage } from "@/features/chat/useSwipeMessage";
 
 function time(iso: string) {
@@ -16,6 +17,8 @@ function time(iso: string) {
 export function quotePreview(quote: MessageQuote) {
   if (quote.deleted) return "Сообщение удалено";
   if (quote.kind === "voice") return "Голосовое сообщение";
+  if (quote.kind === "image") return "Фото";
+  if (quote.kind === "video") return "Видео";
   if (quote.kind === "meeting") return "Приглашение на встречу";
   return quote.text || "Сообщение";
 }
@@ -48,6 +51,7 @@ export function MessageBubble({
   const mine = message.authorId === myId || message.authorId === "me";
   const meeting = message.kind === "meeting";
   const voice = message.kind === "voice";
+  const media = message.kind === "image" || message.kind === "video";
   const failed = message.status === "failed";
   const deleted = Boolean(message.deletedAt);
   const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -138,6 +142,8 @@ export function MessageBubble({
           // Голосовые компактнее и без лишней рамки вокруг плеера.
           voiceInline && "px-3 py-2",
           voiceInline && !mine && "border-transparent bg-card/70",
+          // Фото и видео занимают пузырь целиком — отступы минимальные.
+          media && !deleted && "px-1.5 pb-1.5 pt-1.5",
           meeting && !mine && "border-primary/25 bg-gradient-warm",
           message.status === "sending" && "opacity-70",
           failed && "ring-2 ring-destructive/60",
@@ -183,6 +189,13 @@ export function MessageBubble({
                 duration={message.durationMs ?? 0}
                 mine={mine}
                 {...(voiceInline ? { meta: stamp } : {})}
+              />
+            ) : media && message.mediaUrl ? (
+              <MediaAttachment
+                kind={message.kind === "video" ? "video" : "image"}
+                src={message.mediaUrl}
+                durationMs={message.durationMs}
+                className="w-[min(18rem,70vw)]"
               />
             ) : (
               <p className="whitespace-pre-wrap break-words">{message.text}</p>
