@@ -10,6 +10,7 @@ import { useCallback } from "react";
 import { chatApi } from "@/api";
 import type { MeetingKind, Message, MessageQuote } from "@/api";
 import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
+import type { PreparedMedia } from "@/features/chat/media";
 import type { MessagesPage } from "@/api/endpoints/chat";
 import { useSessionStore } from "@/store/useSessionStore";
 

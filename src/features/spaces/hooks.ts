@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { spacesApi } from "@/api";
 import type { SpaceDraft, SpaceEventDraft, SpaceMessage } from "@/api";
 import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
+import type { PreparedMedia } from "@/features/chat/media";
 
 export const spacesQueryOptions = {
   queryKey: ["spaces"] as const,

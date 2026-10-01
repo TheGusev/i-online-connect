@@ -21,6 +21,7 @@ import { MessageActions } from "@/features/chat/components/MessageActions";
 import { ChatComposer } from "@/features/chat/components/ChatComposer";
 import { SafetyMenu } from "@/features/chat/components/SafetyMenu";
 import { StarterChips } from "@/features/chat/components/StarterChips";
+import { useVerificationStatus } from "@/features/trust/hooks";
 import {
   useConversation,
   useDeleteMessage,
@@ -28,6 +29,7 @@ import {
   useMarkConversationRead,
   useMessageStarters,
   useMessages,
+  useSendMediaMessage,
   useMessagesCache,
   useSendMessage,
   useSendVoiceMessage,
