@@ -35,6 +35,9 @@ export function ChatComposer({
   onCancelEdit,
   replyTo,
   onCancelReply,
+  onMedia,
+  mediaSending = false,
+  mediaHint,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -54,8 +57,15 @@ export function ChatComposer({
   /** Цитата: на какое сообщение отвечаем. */
   replyTo?: { authorName: string; preview: string } | null;
   onCancelReply?: () => void;
+  /** Выбранное фото или видео готово к отправке. */
+  onMedia?: (media: PreparedMedia) => void;
+  mediaSending?: boolean;
+  /** Почему кнопка вложения недоступна (например, нужна верификация). */
+  mediaHint?: string;
 }) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [mediaError, setMediaError] = useState<string | null>(null);
   const setInputRef = useCallback(
     (node: HTMLTextAreaElement | null) => {
       localRef.current = node;
@@ -64,6 +74,17 @@ export function ChatComposer({
     [inputRef],
   );
   const voice = useVoiceRecorder((recording) => onVoice?.(recording));
+
+  /** Выбор файла: проверяем и уменьшаем фото до отправки. */
+  const pickMedia = async (file: File | undefined) => {
+    if (!file || !onMedia) return;
+    setMediaError(null);
+    try {
+      onMedia(await prepareChatMedia(file));
+    } catch (error) {
+      setMediaError(error instanceof Error ? error.message : "Не удалось подготовить вложение");
+    }
+  };
 
   const resize = useCallback(() => {
     const input = localRef.current;
