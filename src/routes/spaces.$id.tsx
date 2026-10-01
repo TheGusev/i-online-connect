@@ -24,12 +24,14 @@ import {
   useLeaveSpace,
   useRsvpEvent,
   useSendSpaceMessage,
+  useSendSpaceMediaMessage,
   useSendSpaceVoiceMessage,
   useSpace,
   useSpaceMessages,
   useUpdateSpacePrivacy,
 } from "@/features/spaces/hooks";
 import { categoryLabels, formatLabels, formatSpaceAge } from "@/features/spaces/labels";
+import { useVerificationStatus } from "@/features/trust/hooks";
 
 export const Route = createFileRoute("/spaces/$id")({
   validateSearch: z.object({ eventId: z.string().uuid().optional() }),
