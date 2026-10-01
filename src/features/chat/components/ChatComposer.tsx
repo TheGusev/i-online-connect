@@ -1,11 +1,16 @@
-import { Mic, Pencil, Reply, SendHorizontal, Square, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
+import { ImagePlus, Mic, Pencil, Reply, SendHorizontal, Square, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 
 import { Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
 import { useVoiceRecorder, type VoiceRecording } from "@/features/chat/useVoiceRecorder";
 import { LiveVoiceWave } from "@/features/chat/components/VoiceWave";
+import {
+  CHAT_MEDIA_ACCEPT,
+  prepareChatMedia,
+  type PreparedMedia,
+} from "@/features/chat/media";
 
 const MAX_TEXTAREA_HEIGHT = 128;
 
@@ -30,6 +35,9 @@ export function ChatComposer({
   onCancelEdit,
   replyTo,
   onCancelReply,
+  onMedia,
+  mediaSending = false,
+  mediaHint,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -49,8 +57,15 @@ export function ChatComposer({
   /** Цитата: на какое сообщение отвечаем. */
   replyTo?: { authorName: string; preview: string } | null;
   onCancelReply?: () => void;
+  /** Выбранное фото или видео готово к отправке. */
+  onMedia?: (media: PreparedMedia) => void;
+  mediaSending?: boolean;
+  /** Почему кнопка вложения недоступна (например, нужна верификация). */
+  mediaHint?: string;
 }) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [mediaError, setMediaError] = useState<string | null>(null);
   const setInputRef = useCallback(
     (node: HTMLTextAreaElement | null) => {
       localRef.current = node;
@@ -59,6 +74,17 @@ export function ChatComposer({
     [inputRef],
   );
   const voice = useVoiceRecorder((recording) => onVoice?.(recording));
+
+  /** Выбор файла: проверяем и уменьшаем фото до отправки. */
+  const pickMedia = async (file: File | undefined) => {
+    if (!file || !onMedia) return;
+    setMediaError(null);
+    try {
+      onMedia(await prepareChatMedia(file));
+    } catch (error) {
+      setMediaError(error instanceof Error ? error.message : "Не удалось подготовить вложение");
+    }
+  };
 
   const resize = useCallback(() => {
     const input = localRef.current;
@@ -103,9 +129,9 @@ export function ChatComposer({
           </button>
         </div>
       ) : null}
-      {voice.error ? (
+      {voice.error || mediaError ? (
         <p className="px-4 pt-2 text-xs text-destructive" role="alert">
-          {voice.error}
+          {voice.error ?? mediaError}
         </p>
       ) : null}
 
@@ -114,7 +140,7 @@ export function ChatComposer({
           "grid items-end gap-2 px-3 py-2.5 sm:px-4 sm:py-3",
           // Долгое нажатие для записи не должно вызывать лупу и меню выделения iOS.
           "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]",
-          leading || voice.recording
+          leading || onMedia || voice.recording
             ? "grid-cols-[auto_minmax(0,1fr)_auto]"
             : "grid-cols-[minmax(0,1fr)_auto]",
         )}
@@ -123,8 +149,8 @@ export function ChatComposer({
           if (!sending && !voice.recording) onSend();
         }}
       >
-        {leading || voice.recording ? (
-          <div className="shrink-0">
+        {leading || onMedia || voice.recording ? (
+          <div className="flex shrink-0 items-center gap-1">
             {voice.recording ? (
               <Button
                 type="button"
@@ -137,7 +163,37 @@ export function ChatComposer({
                 <Trash2 aria-hidden="true" />
               </Button>
             ) : (
-              leading
+              <>
+                {onMedia ? (
+                  <>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept={CHAT_MEDIA_ACCEPT}
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = "";
+                        void pickMedia(file);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="secondary"
+                      aria-label="Отправить фото или видео"
+                      {...(mediaHint ? { title: mediaHint } : {})}
+                      loading={mediaSending}
+                      disabled={disabled || mediaSending}
+                      onClick={() => fileRef.current?.click()}
+                      className="shrink-0 border border-primary/40 text-primary hover:bg-primary/10"
+                    >
+                      <ImagePlus aria-hidden="true" />
+                    </Button>
+                  </>
+                ) : null}
+                {leading}
+              </>
             )}
           </div>
         ) : null}

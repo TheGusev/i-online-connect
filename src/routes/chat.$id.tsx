@@ -21,6 +21,7 @@ import { MessageActions } from "@/features/chat/components/MessageActions";
 import { ChatComposer } from "@/features/chat/components/ChatComposer";
 import { SafetyMenu } from "@/features/chat/components/SafetyMenu";
 import { StarterChips } from "@/features/chat/components/StarterChips";
+import { useVerificationStatus } from "@/features/trust/hooks";
 import {
   useConversation,
   useDeleteMessage,
@@ -28,6 +29,7 @@ import {
   useMarkConversationRead,
   useMessageStarters,
   useMessages,
+  useSendMediaMessage,
   useMessagesCache,
   useSendMessage,
   useSendVoiceMessage,
@@ -92,6 +94,10 @@ function ConversationPage() {
   const cache = useMessagesCache(id);
   const send = useSendMessage(id);
   const sendVoice = useSendVoiceMessage(id);
+  const sendMedia = useSendMediaMessage(id);
+  // Фото и видео доступны после видео-подтверждения профиля: так меньше анонимного спама.
+  const verification = useVerificationStatus();
+  const canSendMedia = verification.data?.status === "verified";
   const suggestMeeting = useSuggestMeeting(id);
   const markRead = useMarkConversationRead(id);
   const editMessage = useEditMessage(id);
@@ -464,6 +470,20 @@ function ConversationPage() {
             }
             onCancelReply={() => setReplyTo(null)}
             voiceSending={sendVoice.isPending}
+            mediaSending={sendMedia.isPending}
+            {...(canSendMedia
+              ? {
+                  onMedia: (media) => {
+                    if (sendMedia.isPending) return;
+                    sendMedia.mutate({
+                      media,
+                      clientTempId: crypto.randomUUID(),
+                      ...(replyTo ? { replyTo } : {}),
+                    });
+                    setReplyTo(null);
+                  },
+                }
+              : {})}
             inputRef={inputRef}
             onVoice={(recording) => {
               if (sendVoice.isPending) return;

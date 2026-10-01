@@ -10,6 +10,7 @@ import { useCallback } from "react";
 import { chatApi } from "@/api";
 import type { MeetingKind, Message, MessageQuote } from "@/api";
 import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
+import type { PreparedMedia } from "@/features/chat/media";
 import type { MessagesPage } from "@/api/endpoints/chat";
 import { useSessionStore } from "@/store/useSessionStore";
 
@@ -254,6 +255,65 @@ export function useSendVoiceMessage(conversationId: string) {
     },
   });
 }
+
+/** Фото и видео: тот же optimistic-пузырь, превью — локальный blob до ответа сервера. */
+export function useSendMediaMessage(conversationId: string) {
+  const queryClient = useQueryClient();
+  const cache = useMessagesCache(conversationId);
+  const myId = useSessionStore((s) => s.user?.id ?? "me");
+
+  return useMutation({
+    mutationFn: ({
+      media,
+      clientTempId,
+      replyTo,
+    }: {
+      media: PreparedMedia;
+      clientTempId: string;
+      replyTo?: MessageQuote | undefined;
+    }) => chatApi.sendMediaMessage(conversationId, media.file, clientTempId, replyTo?.id),
+    onMutate: ({ media, clientTempId, replyTo }) => {
+      const id = `tmp-${clientTempId}`;
+      cache.upsert({
+        id,
+        clientTempId,
+        conversationId,
+        authorId: myId,
+        text: media.kind === "image" ? "Фото" : "Видео",
+        kind: media.kind,
+        mediaUrl: media.previewUrl,
+        mediaMime: media.file.type,
+        ...(media.durationMs ? { durationMs: media.durationMs } : {}),
+        createdAt: new Date().toISOString(),
+        status: "sending",
+        ...(replyTo ? { replyToId: replyTo.id, replyTo } : {}),
+      });
+      return { id, previewUrl: media.previewUrl };
+    },
+    onSuccess: (message, _vars, ctx) => {
+      if (ctx?.previewUrl) URL.revokeObjectURL(ctx.previewUrl);
+      cache.upsert({ ...message, status: message.status ?? "sent" }, ctx?.id);
+      void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+    },
+    onError: (error, vars, ctx) => {
+      if (!ctx) return;
+      URL.revokeObjectURL(ctx.previewUrl);
+      cache.upsert({
+        id: ctx.id,
+        clientTempId: vars.clientTempId,
+        conversationId,
+        authorId: myId,
+        text: vars.media.kind === "image" ? "Фото" : "Видео",
+        kind: vars.media.kind,
+        createdAt: new Date().toISOString(),
+        status: "failed",
+        ...(vars.replyTo ? { replyToId: vars.replyTo.id, replyTo: vars.replyTo } : {}),
+        ...(error instanceof Error ? { errorMessage: error.message } : {}),
+      });
+    },
+  });
+}
+
 
 /** Правка своего текста: пузырь обновляется сразу, при ошибке возвращается прежний. */
 export function useEditMessage(conversationId: string) {

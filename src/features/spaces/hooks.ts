@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { spacesApi } from "@/api";
 import type { SpaceDraft, SpaceEventDraft, SpaceMessage } from "@/api";
 import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
+import type { PreparedMedia } from "@/features/chat/media";
 
 export const spacesQueryOptions = {
   queryKey: ["spaces"] as const,
@@ -139,6 +140,25 @@ export function useSendSpaceVoiceMessage(id: string) {
         ...(previous ?? []),
         message,
       ]);
+    },
+  });
+}
+
+/** Фото и видео в общий чат сообщества. */
+export function useSendSpaceMediaMessage(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ media, clientTempId }: { media: PreparedMedia; clientTempId: string }) =>
+      spacesApi.sendSpaceMediaMessage(id, media.file, clientTempId),
+    onSuccess: (message, vars) => {
+      URL.revokeObjectURL(vars.media.previewUrl);
+      queryClient.setQueryData<SpaceMessage[]>(spaceMessagesQueryKey(id), (previous) => [
+        ...(previous ?? []),
+        message,
+      ]);
+    },
+    onError: (_error, vars) => {
+      URL.revokeObjectURL(vars.media.previewUrl);
     },
   });
 }
