@@ -1,11 +1,16 @@
-import { Mic, Pencil, Reply, SendHorizontal, Square, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
+import { ImagePlus, Mic, Pencil, Reply, SendHorizontal, Square, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 
 import { Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
 import { useVoiceRecorder, type VoiceRecording } from "@/features/chat/useVoiceRecorder";
 import { LiveVoiceWave } from "@/features/chat/components/VoiceWave";
+import {
+  CHAT_MEDIA_ACCEPT,
+  prepareChatMedia,
+  type PreparedMedia,
+} from "@/features/chat/media";
 
 const MAX_TEXTAREA_HEIGHT = 128;
 
