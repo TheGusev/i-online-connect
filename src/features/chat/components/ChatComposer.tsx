@@ -129,9 +129,9 @@ export function ChatComposer({
           </button>
         </div>
       ) : null}
-      {voice.error ? (
+      {voice.error || mediaError ? (
         <p className="px-4 pt-2 text-xs text-destructive" role="alert">
-          {voice.error}
+          {voice.error ?? mediaError}
         </p>
       ) : null}
 
@@ -140,7 +140,7 @@ export function ChatComposer({
           "grid items-end gap-2 px-3 py-2.5 sm:px-4 sm:py-3",
           // Долгое нажатие для записи не должно вызывать лупу и меню выделения iOS.
           "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]",
-          leading || voice.recording
+          leading || onMedia || voice.recording
             ? "grid-cols-[auto_minmax(0,1fr)_auto]"
             : "grid-cols-[minmax(0,1fr)_auto]",
         )}
@@ -149,8 +149,8 @@ export function ChatComposer({
           if (!sending && !voice.recording) onSend();
         }}
       >
-        {leading || voice.recording ? (
-          <div className="shrink-0">
+        {leading || onMedia || voice.recording ? (
+          <div className="flex shrink-0 items-center gap-1">
             {voice.recording ? (
               <Button
                 type="button"
@@ -163,7 +163,37 @@ export function ChatComposer({
                 <Trash2 aria-hidden="true" />
               </Button>
             ) : (
-              leading
+              <>
+                {onMedia ? (
+                  <>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      accept={CHAT_MEDIA_ACCEPT}
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = "";
+                        void pickMedia(file);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="secondary"
+                      aria-label="Отправить фото или видео"
+                      {...(mediaHint ? { title: mediaHint } : {})}
+                      loading={mediaSending}
+                      disabled={disabled || mediaSending}
+                      onClick={() => fileRef.current?.click()}
+                      className="shrink-0 border border-primary/40 text-primary hover:bg-primary/10"
+                    >
+                      <ImagePlus aria-hidden="true" />
+                    </Button>
+                  </>
+                ) : null}
+                {leading}
+              </>
             )}
           </div>
         ) : null}
