@@ -142,3 +142,22 @@ export function useSendSpaceVoiceMessage(id: string) {
     },
   });
 }
+
+/** Фото и видео в общий чат сообщества. */
+export function useSendSpaceMediaMessage(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ media, clientTempId }: { media: PreparedMedia; clientTempId: string }) =>
+      spacesApi.sendSpaceMediaMessage(id, media.file, clientTempId),
+    onSuccess: (message, vars) => {
+      URL.revokeObjectURL(vars.media.previewUrl);
+      queryClient.setQueryData<SpaceMessage[]>(spaceMessagesQueryKey(id), (previous) => [
+        ...(previous ?? []),
+        message,
+      ]);
+    },
+    onError: (_error, vars) => {
+      URL.revokeObjectURL(vars.media.previewUrl);
+    },
+  });
+}
