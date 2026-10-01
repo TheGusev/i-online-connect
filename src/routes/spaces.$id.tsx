@@ -62,6 +62,10 @@ function SpaceDetailPage() {
   const rsvp = useRsvpEvent(id);
   const sendMessage = useSendSpaceMessage(id);
   const sendVoice = useSendSpaceVoiceMessage(id);
+  const sendMedia = useSendSpaceMediaMessage(id);
+  // Фото и видео в общий чат — только подтверждённым участникам.
+  const verification = useVerificationStatus();
+  const canSendMedia = verification.data?.status === "verified";
   const createEvent = useCreateSpaceEvent(id);
   const updatePrivacy = useUpdateSpacePrivacy(id);
   const deleteSpace = useDeleteSpace(id);
@@ -96,7 +100,9 @@ function SpaceDetailPage() {
     ? messageOf(sendMessage.error, "Сообщение не отправилось")
     : sendVoice.error
       ? messageOf(sendVoice.error, "Голосовое не отправилось")
-      : null;
+      : sendMedia.error
+        ? messageOf(sendMedia.error, "Вложение не отправилось")
+        : null;
 
   return (
     <AppShell wide focused>
@@ -228,6 +234,13 @@ function SpaceDetailPage() {
             canWrite={space.isMember}
             sending={sendMessage.isPending}
             voiceSending={sendVoice.isPending}
+            mediaSending={sendMedia.isPending}
+            {...(canSendMedia
+              ? {
+                  onMedia: (media) =>
+                    sendMedia.mutate({ media, clientTempId: crypto.randomUUID() }),
+                }
+              : {})}
             error={chatError}
             onSend={(text) => sendMessage.mutateAsync(text).then(() => undefined)}
             onVoice={(recording) => sendVoice.mutate({ recording, clientTempId: crypto.randomUUID() })}
