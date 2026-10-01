@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import type { SpaceMessage } from "@/api";
 import { Avatar } from "@/components/ds";
 import { ChatComposer } from "@/features/chat/components/ChatComposer";
+import { MediaAttachment } from "@/features/chat/components/MediaAttachment";
 import { VoicePlayer } from "@/features/chat/components/VoicePlayer";
+import type { PreparedMedia } from "@/features/chat/media";
 import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
 import { cn } from "@/lib/utils";
 import { useKeyboardOpen } from "@/hooks/useViewportHeight";
@@ -17,16 +19,21 @@ export function SpaceChat({
   canWrite,
   onSend,
   onVoice,
+  onMedia,
   sending,
   voiceSending,
+  mediaSending,
   error,
 }: {
   messages: SpaceMessage[];
   canWrite: boolean;
   onSend: (text: string) => Promise<void>;
   onVoice: (recording: VoiceRecording) => void;
+  /** Фото и видео: только для подтверждённых участников. */
+  onMedia?: ((media: PreparedMedia) => void) | undefined;
   sending?: boolean | undefined;
   voiceSending?: boolean | undefined;
+  mediaSending?: boolean | undefined;
   error?: string | null | undefined;
 }) {
   const keyboardOpen = useKeyboardOpen();
