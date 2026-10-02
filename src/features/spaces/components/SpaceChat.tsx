@@ -68,6 +68,7 @@ export function SpaceChat({
             return (
               <div
                 key={message.id}
+                id={`message-${message.id}`}
                 className={cn("flex gap-2", mine && "flex-row-reverse text-right")}
               >
                 <Avatar name={message.authorName} size="sm" />

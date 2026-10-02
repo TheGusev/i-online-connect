@@ -142,6 +142,9 @@ function SpaceDetailPage() {
             </div>
           </div>
 
+          {space.isMember || space.isHost ? (
+            <div className="absolute right-14 top-0 sm:static" />
+          ) : null}
           {space.isHost ? (
             <SpaceOwnerMenu
               isPrivate={space.isPrivate}
