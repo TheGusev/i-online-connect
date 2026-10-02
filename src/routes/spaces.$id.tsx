@@ -11,6 +11,7 @@ import { ProfilePanel } from "@/features/profile/components/ProfilePanel";
 import { CreateEventForm } from "@/features/spaces/components/CreateEventForm";
 import { EventList } from "@/features/spaces/components/EventList";
 import { JoinPanel } from "@/features/spaces/components/JoinPanel";
+import { MediaGallery, MediaGalleryButton } from "@/features/chat/components/MediaGallery";
 import { SpaceChat } from "@/features/spaces/components/SpaceChat";
 import { SpaceInviteDialog } from "@/features/spaces/components/SpaceInviteDialog";
 import { SpaceOwnerMenu } from "@/features/spaces/components/SpaceOwnerMenu";
@@ -71,6 +72,7 @@ function SpaceDetailPage() {
   const deleteSpace = useDeleteSpace(id);
   const declineInvite = useDeclineSpaceInvite(id);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [eventOpen, setEventOpen] = useState(false);
   const [inviteQuery, setInviteQuery] = useState("");
   const candidates = useInviteCandidates(id, inviteQuery, inviteOpen);
@@ -142,9 +144,8 @@ function SpaceDetailPage() {
             </div>
           </div>
 
-          {space.isMember || space.isHost ? (
-            <div className="absolute right-14 top-0 sm:static" />
-          ) : null}
+          <div className="flex items-center gap-1.5">
+          {space.isMember ? <MediaGalleryButton onClick={() => setGalleryOpen(true)} className="size-11" /> : null}
           {space.isHost ? (
             <SpaceOwnerMenu
               isPrivate={space.isPrivate}
@@ -161,8 +162,10 @@ function SpaceDetailPage() {
                 onError: (error) => toast.error(messageOf(error, "Не удалось удалить сообщество")),
               })}
             />
-          ) : <span className="size-11" />}
+          ) : space.isMember ? null : <span className="size-11" />}
+          </div>
         </header>
+        <MediaGallery scope="space" id={id} open={galleryOpen} onClose={() => setGalleryOpen(false)} />
 
         <div className="mt-2 flex min-h-12 items-center gap-2 overflow-x-auto rounded-full border border-border bg-card px-3 py-2 text-sm [scrollbar-width:none]">
           <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1.5 font-semibold text-primary-ink">

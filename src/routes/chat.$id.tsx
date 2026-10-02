@@ -107,6 +107,7 @@ function ConversationPage() {
   const keyboardInset = useKeyboardInset();
   const [draft, setDraft] = useState("");
   const [meetingOpen, setMeetingOpen] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [actionsFor, setActionsFor] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyTo, setReplyTo] = useState<MessageQuote | null>(null);
