@@ -470,3 +470,19 @@ export interface NotificationFeed {
   hasMore: boolean;
   nextCursor: string | null;
 }
+
+/** Элемент галереи фото и видео диалога или сообщества. */
+export interface GalleryItem {
+  id: string;
+  kind: "image" | "video";
+  mediaUrl: string;
+  durationMs?: number;
+  createdAt: string;
+  authorId: string;
+  authorName: string;
+}
+
+export interface GalleryPage {
+  items: GalleryItem[];
+  nextCursor: string | null;
+}

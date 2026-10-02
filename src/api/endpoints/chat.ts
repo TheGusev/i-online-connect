@@ -134,3 +134,15 @@ export async function suggestMeeting(
     body: { kind, text },
   });
 }
+
+/** Галерея: фото и видео, новые сверху. */
+export async function getConversationMedia(
+  id: string,
+  kind?: "image" | "video",
+  before?: string | null,
+): Promise<import("../types").GalleryPage> {
+  const params = new URLSearchParams({ limit: "60" });
+  if (kind) params.set("kind", kind);
+  if (before) params.set("before", before);
+  return request<import("../types").GalleryPage>(`/chat/conversations/${id}/media?${params}`);
+}
