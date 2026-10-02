@@ -126,3 +126,15 @@ export async function sendSpaceMediaMessage(
   });
 }
 
+
+/** Галерея: фото и видео, новые сверху. */
+export async function getSpaceMedia(
+  id: string,
+  kind?: "image" | "video",
+  before?: string | null,
+): Promise<import("../types").GalleryPage> {
+  const params = new URLSearchParams({ limit: "60" });
+  if (kind) params.set("kind", kind);
+  if (before) params.set("before", before);
+  return request<import("../types").GalleryPage>(`/spaces/${id}/media?${params}`);
+}

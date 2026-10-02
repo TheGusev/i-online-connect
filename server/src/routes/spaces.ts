@@ -601,6 +601,37 @@ export async function spaceRoutes(app: FastifyInstance) {
     },
   );
 
+  // Галерея: все фото и видео общего чата, новые сверху, с курсором по дате.
+  app.get<{ Params: { id: string } }>("/:id/media", async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    const q = z.object({
+      kind: z.enum(["image", "video"]).optional(),
+      before: z.string().datetime({ offset: true }).optional(),
+      limit: z.coerce.number().int().min(1).max(100).optional(),
+    }).parse(request.query ?? {});
+    await assertSpaceMembership(userId, id);
+    const limit = q.limit ?? 60;
+    const rows = await query<{ id: string; kind: string; media_url: string; duration_ms: number | null; created_at: Date; author_id: string; author_name: string }>(
+      `SELECT m.id, m.kind, m.media_url, m.duration_ms, m.created_at, m.author_id, p.name AS author_name
+         FROM space_messages m JOIN profiles p ON p.user_id = m.author_id
+        WHERE m.space_id = $1 AND m.kind IN ('image', 'video') AND m.media_url IS NOT NULL
+          AND ($2::text IS NULL OR m.kind = $2::text)
+          AND ($3::timestamptz IS NULL OR m.created_at < $3::timestamptz)
+        ORDER BY m.created_at DESC, m.id DESC
+        LIMIT $4`,
+      [id, q.kind ?? null, q.before ?? null, limit + 1],
+    );
+    const page = rows.slice(0, limit);
+    return {
+      items: page.map((r) => ({
+        id: r.id, kind: r.kind, mediaUrl: r.media_url, durationMs: r.duration_ms ?? undefined,
+        createdAt: r.created_at.toISOString(), authorId: r.author_id, authorName: r.author_name,
+      })),
+      nextCursor: rows.length > limit ? page[page.length - 1]!.created_at.toISOString() : null,
+    };
+  });
+
   app.get<{ Params: { id: string } }>("/:id/messages", async (request) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);

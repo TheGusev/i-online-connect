@@ -19,6 +19,7 @@ import { MeetingSheet } from "@/features/chat/components/MeetingSheet";
 import { MessageBubble, quotePreview } from "@/features/chat/components/MessageBubble";
 import { MessageActions } from "@/features/chat/components/MessageActions";
 import { ChatComposer } from "@/features/chat/components/ChatComposer";
+import { MediaGallery, MediaGalleryButton } from "@/features/chat/components/MediaGallery";
 import { SafetyMenu } from "@/features/chat/components/SafetyMenu";
 import { StarterChips } from "@/features/chat/components/StarterChips";
 import { useVerificationStatus } from "@/features/trust/hooks";
@@ -106,6 +107,7 @@ function ConversationPage() {
   const keyboardInset = useKeyboardInset();
   const [draft, setDraft] = useState("");
   const [meetingOpen, setMeetingOpen] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   const [actionsFor, setActionsFor] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyTo, setReplyTo] = useState<MessageQuote | null>(null);
@@ -343,10 +345,12 @@ function ConversationPage() {
             <span className="flex-1 text-sm text-muted-foreground">Загружаем диалог…</span>
           )}
 
+          <MediaGalleryButton onClick={() => setGalleryOpen(true)} />
           <SafetyMenu
             participantName={participant?.name ?? "Собеседник"}
             participantId={participant?.id ?? "unknown"}
           />
+          <MediaGallery scope="conversation" id={id} open={galleryOpen} onClose={() => setGalleryOpen(false)} />
         </div>
         {socketStatus === "closed" ? (
           <p className="flex items-center justify-center gap-1.5 border-t border-border bg-secondary/60 px-3 py-1 text-[11px] text-muted-foreground">
