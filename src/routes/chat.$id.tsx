@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarHeart, WifiOff } from "lucide-react";
+import { ArrowLeft, BadgeCheck, CalendarHeart, Sparkles, WifiOff } from "lucide-react";
 import {
   Fragment,
   useCallback,
@@ -14,7 +14,7 @@ import {
 import { useKeyboardInset } from "@/hooks/useViewportHeight";
 
 import type { MeetingKind, Message, MessageQuote } from "@/api";
-import { Avatar, Button, TrustBadge } from "@/components/ds";
+import { Avatar, Button } from "@/components/ds";
 import { MeetingSheet } from "@/features/chat/components/MeetingSheet";
 import { MessageBubble, quotePreview } from "@/features/chat/components/MessageBubble";
 import { MessageActions } from "@/features/chat/components/MessageActions";
@@ -36,7 +36,6 @@ import {
   useSendVoiceMessage,
   useSuggestMeeting,
 } from "@/features/chat/hooks";
-import { badgeLevel } from "@/features/chat/trust";
 import { useChatSocket, type ChatSocketEvent } from "@/features/chat/useChatSocket";
 import { useSessionStore } from "@/store/useSessionStore";
 
