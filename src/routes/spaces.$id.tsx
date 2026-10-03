@@ -1,10 +1,12 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, BadgeCheck, CalendarDays, Crown, Lock, MapPin, MessagesSquare, ShieldCheck, UsersRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { mediaUrl } from "@/api";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
 import { Avatar, Button, Chip, MediaImage, ProfileCardSkeleton } from "@/components/ds";
 import { ProfilePanel } from "@/features/profile/components/ProfilePanel";
@@ -73,6 +75,9 @@ function SpaceDetailPage() {
   const declineInvite = useDeclineSpaceInvite(id);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
+  const [activeMember, setActiveMember] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const [eventOpen, setEventOpen] = useState(false);
   const [inviteQuery, setInviteQuery] = useState("");
   const candidates = useInviteCandidates(id, inviteQuery, inviteOpen);
@@ -108,7 +113,13 @@ function SpaceDetailPage() {
 
   return (
     <AppShell wide focused>
-      <div className="mx-auto w-full max-w-3xl">
+      <div
+        className={isMobile
+          ? "keyboard-viewport-fixed z-10 flex flex-col bg-background px-4 pt-[calc(env(safe-area-inset-top)+0.5rem)]"
+          : "mx-auto flex h-[calc(var(--vvh,100dvh)-1.5rem)] w-full max-w-3xl flex-col"}
+        onClick={() => setActiveMember(null)}
+      >
+        <div className="max-h-[55%] shrink-0 overflow-y-auto [scrollbar-width:none]">
         <header className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-border pb-3">
           <Button asChild size="icon" variant="ghost" className="size-11 text-primary">
             <Link to="/spaces" aria-label="Назад к сообществам"><ArrowLeft className="size-6" aria-hidden="true" /></Link>
@@ -137,9 +148,29 @@ function SpaceDetailPage() {
                 <span className="size-2 rounded-full bg-primary shadow-glow" />{space.membersCount}
               </span>
               <div className="flex -space-x-2" aria-label="Участники">
-                {space.members.slice(0, 3).map((member) => (
-                  <Avatar key={member.id} name={member.name} src={mediaUrl(member.avatarUrl) ?? null} size="xs" className="border-2 border-background" />
-                ))}
+                {space.members.slice(0, 3).map((member) => {
+                  const active = activeMember === member.id;
+                  return (
+                    <button
+                      key={member.id}
+                      type="button"
+                      aria-label={active ? `Открыть анкету: ${member.name}` : `Участник: ${member.name}`}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (active) void navigate({ to: "/profile/$id", params: { id: member.id } });
+                        else setActiveMember(member.id);
+                      }}
+                      className={cn("relative rounded-full transition-transform duration-200", active && "z-20 scale-[1.6]")}
+                    >
+                      <Avatar name={member.name} src={mediaUrl(member.avatarUrl) ?? null} size="xs" className={cn("border-2 border-background", active && "shadow-glow")} />
+                      {active ? (
+                        <span className="pointer-events-none absolute left-1/2 top-full mt-0.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-card px-1.5 text-[7px] font-semibold text-foreground">
+                          {member.name.split(" ")[0]}
+                        </span>
+                      ) : null}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -228,7 +259,15 @@ function SpaceDetailPage() {
           </p>
         </ProfilePanel>
 
-        <section className="mt-4">
+        {sortedEvents.length > 0 ? (
+          <section className="mt-5">
+            <h2 className="hud-title mb-2 inline-flex items-center gap-2"><CalendarDays className="size-4" aria-hidden="true" />Ближайшие встречи</h2>
+            <EventList events={sortedEvents} pending={rsvp.isPending} isHost={space.isHost ?? false} highlightedId={eventId} onToggleGoing={(event) => rsvp.mutate({ eventId: event.id, going: !event.going })} />
+          </section>
+        ) : null}
+        </div>
+
+        <section className="mt-2 flex min-h-0 flex-1 flex-col">
           <div className="mb-1.5 flex items-center justify-between gap-3">
             <h2 className="inline-flex items-center gap-2 text-xl font-bold text-foreground">
               <MessagesSquare className="size-5 text-community" aria-hidden="true" />Общий чат
@@ -236,6 +275,7 @@ function SpaceDetailPage() {
             <span className="text-xs text-muted-foreground">{messages?.length ?? 0} сообщений</span>
           </div>
           <SpaceChat
+            fill
             messages={messages ?? []}
             canWrite={space.isMember}
             sending={sendMessage.isPending}
@@ -253,12 +293,6 @@ function SpaceDetailPage() {
           />
         </section>
 
-        {sortedEvents.length > 0 ? (
-          <section className="mt-5">
-            <h2 className="hud-title mb-2 inline-flex items-center gap-2"><CalendarDays className="size-4" aria-hidden="true" />Ближайшие встречи</h2>
-            <EventList events={sortedEvents} pending={rsvp.isPending} isHost={space.isHost ?? false} highlightedId={eventId} onToggleGoing={(event) => rsvp.mutate({ eventId: event.id, going: !event.going })} />
-          </section>
-        ) : null}
       </div>
 
       {space.isHost ? (
