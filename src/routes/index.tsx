@@ -62,7 +62,7 @@ function LandingPage() {
 
   // Авторизованный человек не должен снова видеть приветственный экран.
   if (status === "loading") return <SessionLoading />;
-  if (status === "authed") return <Navigate to="/feed" replace />;
+  if (status === "authed") return <Navigate to="/chat" replace />;
 
   return (
     <div className="min-h-dvh bg-background text-foreground">

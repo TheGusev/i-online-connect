@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarHeart, WifiOff } from "lucide-react";
+import { ArrowLeft, BadgeCheck, CalendarHeart, Sparkles, WifiOff } from "lucide-react";
 import {
   Fragment,
   useCallback,
@@ -14,7 +14,7 @@ import {
 import { useKeyboardInset } from "@/hooks/useViewportHeight";
 
 import type { MeetingKind, Message, MessageQuote } from "@/api";
-import { Avatar, Button, TrustBadge } from "@/components/ds";
+import { Avatar, Button } from "@/components/ds";
 import { MeetingSheet } from "@/features/chat/components/MeetingSheet";
 import { MessageBubble, quotePreview } from "@/features/chat/components/MessageBubble";
 import { MessageActions } from "@/features/chat/components/MessageActions";
@@ -36,7 +36,6 @@ import {
   useSendVoiceMessage,
   useSuggestMeeting,
 } from "@/features/chat/hooks";
-import { badgeLevel } from "@/features/chat/trust";
 import { useChatSocket, type ChatSocketEvent } from "@/features/chat/useChatSocket";
 import { useSessionStore } from "@/store/useSessionStore";
 
@@ -320,17 +319,25 @@ function ConversationPage() {
             <Link
               to="/profile/$id"
               params={{ id: participant.id }}
-              className="flex min-w-0 flex-1 items-center gap-3"
+              className="flex min-w-0 flex-1 items-center gap-2.5"
             >
               <Avatar
                 name={participant.name}
                 src={participant.avatarUrl ?? null}
                 online={participant.online}
               />
-              <span className="min-w-0">
-                <span className="flex items-center gap-2">
+              <span className="min-w-0 flex-1">
+                <span className="flex min-w-0 items-center gap-1">
                   <span className="truncate font-semibold">{participant.name}</span>
-                  <TrustBadge level={badgeLevel(participant.trustLevel)} size="sm" />
+                  {participant.trustLevel === "new" ? (
+                    <Sparkles className="size-3.5 shrink-0 text-warning" aria-label="Новый участник">
+                      <title>Новый участник</title>
+                    </Sparkles>
+                  ) : (
+                    <BadgeCheck className="size-4 shrink-0 text-success" aria-label="Подтверждён">
+                      <title>Подтверждён</title>
+                    </BadgeCheck>
+                  )}
                 </span>
                 <span className="block truncate text-xs text-muted-foreground">
                   {typing
@@ -345,7 +352,7 @@ function ConversationPage() {
             <span className="flex-1 text-sm text-muted-foreground">Загружаем диалог…</span>
           )}
 
-          <MediaGalleryButton onClick={() => setGalleryOpen(true)} />
+          <MediaGalleryButton onClick={() => setGalleryOpen(true)} className="size-10" />
           <SafetyMenu
             participantName={participant?.name ?? "Собеседник"}
             participantId={participant?.id ?? "unknown"}

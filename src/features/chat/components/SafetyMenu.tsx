@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Ban, Flag, ShieldCheck, Info } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 import { Button, Modal } from "@/components/ds";
@@ -17,6 +18,8 @@ export function SafetyMenu({
   const [menuOpen, setMenuOpen] = useState(false);
   const [infoOpen, setInfoOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [pos, setPos] = useState({ top: 0, right: 0 });
 
   return (
     <div className="relative">
@@ -24,20 +27,25 @@ export function SafetyMenu({
         type="button"
         aria-label="Безопасность диалога"
         aria-expanded={menuOpen}
-        onClick={() => setMenuOpen((prev) => !prev)}
+        ref={triggerRef}
+        onClick={() => {
+          const rect = triggerRef.current?.getBoundingClientRect();
+          if (rect) setPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+          setMenuOpen((prev) => !prev);
+        }}
         className="grid size-10 place-items-center rounded-full border border-primary/40 text-primary transition-[background-color,box-shadow] hover:bg-primary/10 active:shadow-glow"
       >
         <ShieldCheck className="size-5" aria-hidden="true" />
       </button>
 
-      {menuOpen ? (
+      {menuOpen && typeof document !== "undefined" ? createPortal(
         <>
           <button
             aria-label="Закрыть меню"
-            className="fixed inset-0 z-30 cursor-default"
+            className="fixed inset-0 z-[80] cursor-default bg-transparent"
             onClick={() => setMenuOpen(false)}
           />
-          <div className="absolute right-0 top-full z-40 mt-2 w-60 overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-lift animate-in fade-in zoom-in-95">
+          <div style={{ top: pos.top, right: pos.right }} className="fixed z-[81] w-60 overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-lift animate-in fade-in zoom-in-95">
             <button
               type="button"
               onClick={() => {
@@ -74,7 +82,8 @@ export function SafetyMenu({
               Как обеспечивается безопасность
             </button>
           </div>
-        </>
+        </>,
+        document.body,
       ) : null}
 
       <Modal

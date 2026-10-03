@@ -24,7 +24,10 @@ export function SpaceChat({
   voiceSending,
   mediaSending,
   error,
+  fill = false,
 }: {
+  /** Растянуть чат на всю оставшуюся высоту экрана. */
+  fill?: boolean;
   messages: SpaceMessage[];
   canWrite: boolean;
   onSend: (text: string) => Promise<void>;
@@ -53,11 +56,12 @@ export function SpaceChat({
   return (
     <div
       className={cn(
-        "overflow-hidden border-y border-border bg-background",
-        keyboardOpen && "keyboard-viewport-fixed z-50 flex flex-col rounded-none border-0",
+        "overflow-hidden bg-background",
+        fill ? "flex min-h-0 flex-1 flex-col" : "border-y border-border",
+        !fill && keyboardOpen && "keyboard-viewport-fixed z-50 flex flex-col rounded-none border-0",
       )}
     >
-      <div ref={scrollerRef} className={cn("space-y-3 overflow-y-auto overscroll-contain px-1 py-4", keyboardOpen ? "min-h-0 flex-1" : "min-h-28 max-h-[clamp(7rem,calc(100dvh-34rem),24rem)]")}>
+      <div ref={scrollerRef} className={cn("space-y-3 overflow-y-auto overscroll-contain px-1 py-4", fill || keyboardOpen ? "min-h-0 flex-1" : "min-h-28 max-h-[clamp(7rem,calc(100dvh-34rem),24rem)]")}>
         {messages.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             В чате пока тихо. Можно поздороваться и спросить, как обычно проходят встречи.
