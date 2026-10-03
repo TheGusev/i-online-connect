@@ -8,9 +8,9 @@ export interface NavItem {
 }
 
 export const navItems: NavItem[] = [
-  { to: "/feed", labelKey: "nav.feed", icon: Compass },
   { to: "/nearby", labelKey: "nav.nearby", icon: MapPin },
   { to: "/spaces", labelKey: "nav.spaces", icon: Users },
   { to: "/chat", labelKey: "nav.chat", icon: MessageCircle },
   { to: "/profile/me", labelKey: "nav.profile", icon: User },
+  { to: "/feed", labelKey: "nav.feed", icon: Compass },
 ];

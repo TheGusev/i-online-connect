@@ -7,6 +7,7 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, Images, Play, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { chatApi, mediaUrl, spacesApi } from "@/api";
 import type { GalleryItem } from "@/api";
@@ -93,7 +94,14 @@ export function MediaGallery({
     if (!open) setViewIndex(null);
   }, [open]);
 
-  if (!open) return null;
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, [open]);
+
+  if (!open || typeof document === "undefined") return null;
 
   const showInChat = (item: GalleryItem) => {
     setViewIndex(null);
@@ -104,8 +112,9 @@ export function MediaGallery({
     });
   };
 
-  return (
-    <div role="dialog" aria-modal="true" aria-label="Фото и видео" className="fixed inset-0 z-[60] flex flex-col bg-background">
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label="Фото и видео" className="fixed inset-0 z-[90] flex flex-col overflow-y-auto overscroll-contain bg-background">
+      <div className="sticky top-0 z-10 bg-background">
       <header className="flex items-center gap-3 border-b border-border px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
         <h2 className="hud-title flex-1">Фото и видео</h2>
         <button
@@ -136,7 +145,8 @@ export function MediaGallery({
           </button>
         ))}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-[env(safe-area-inset-bottom)]">
+      </div>
+      <div className="flex-1 px-1 pb-[env(safe-area-inset-bottom)]">
         {gallery.isPending ? (
           <div className="grid grid-cols-3 gap-1">
             {Array.from({ length: 9 }, (_, i) => (
@@ -193,7 +203,8 @@ export function MediaGallery({
           onShowInChat={showInChat}
         />
       ) : null}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -228,7 +239,7 @@ function GalleryViewer({
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex flex-col bg-background/95 backdrop-blur"
+      className="fixed inset-0 z-[95] flex flex-col bg-background"
       onTouchStart={(event) => { touchX.current = event.touches[0]?.clientX ?? null; }}
       onTouchEnd={(event) => {
         const start = touchX.current;

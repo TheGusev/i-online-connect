@@ -82,7 +82,8 @@ export function SafetyMenu({
               Как обеспечивается безопасность
             </button>
           </div>
-        </>
+        </>,
+        document.body,
       ) : null}
 
       <Modal
