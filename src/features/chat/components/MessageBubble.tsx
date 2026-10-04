@@ -1,5 +1,4 @@
 import { AlertCircle, Check, CheckCheck, CalendarHeart, Clock, Reply } from "lucide-react";
-import { useRef } from "react";
 
 import type { Message, MessageQuote } from "@/api";
 import { cn } from "@/lib/utils";
@@ -7,7 +6,7 @@ import { useSessionStore } from "@/store/useSessionStore";
 import { mediaUrl } from "@/api";
 import { VoicePlayer } from "./VoicePlayer";
 import { MediaAttachment } from "./MediaAttachment";
-import { useSwipeMessage } from "@/features/chat/useSwipeMessage";
+import { useMessageGestures, useReaction } from "@/features/chat/useMessageGestures";
 
 function time(iso: string) {
   return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -54,24 +53,14 @@ export function MessageBubble({
   const media = message.kind === "image" || message.kind === "video";
   const failed = message.status === "failed";
   const deleted = Boolean(message.deletedAt);
-  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const openActions = () => {
-    if (!onActions || deleted) return;
-    onActions(message);
-  };
-  const clearHold = () => {
-    if (holdTimer.current) clearTimeout(holdTimer.current);
-    holdTimer.current = null;
-  };
-
   const replyable =
     Boolean(onReply) && !deleted && message.status !== "sending" && message.status !== "failed";
-  const swipe = useSwipeMessage({
-    enabled: replyable || Boolean(onActions),
-    ...(replyable ? { onSwipeRight: () => onReply?.(message) } : {}),
-    ...(onActions && !deleted ? { onSwipeLeft: openActions } : {}),
+  const reaction = useReaction(message.id);
+  const gestures = useMessageGestures({
+    ...(onActions && !deleted ? { onHold: () => onActions(message) } : {}),
+    ...(replyable ? { onReply: () => onReply?.(message) } : {}),
   });
+  const swipe = gestures;
 
   const quote = message.replyTo;
 
@@ -97,43 +86,22 @@ export function MessageBubble({
   return (
     <li
       id={`message-${message.id}`}
-      className={cn("flex scroll-mt-24 transition-shadow", mine ? "justify-end" : "justify-start")}
+      className={cn("flex scroll-mt-24 transition-shadow", NO_SELECT, reaction && "mb-3", mine ? "justify-end" : "justify-start")}
     >
       {swipe.offset > 12 ? (
-        <span className="mr-1 self-center text-primary" aria-hidden="true">
+        <span className={cn("mr-1 self-center text-primary transition-opacity", swipe.offset < 48 && "opacity-50")} aria-hidden="true">
           <Reply className="size-4" />
         </span>
       ) : null}
       <div
         draggable={false}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          if (!onActions || deleted) return;
-          openActions();
-        }}
-        onTouchStart={(event) => {
-          clearHold();
-          holdTimer.current = setTimeout(openActions, 450);
-          swipe.handlers.onTouchStart?.(event);
-        }}
-        onTouchMove={(event) => {
-          clearHold();
-          swipe.handlers.onTouchMove?.(event);
-        }}
-        onTouchEnd={() => {
-          clearHold();
-          swipe.handlers.onTouchEnd?.();
-        }}
-        onTouchCancel={() => {
-          clearHold();
-          swipe.handlers.onTouchCancel?.();
-        }}
+        {...gestures.handlers}
         style={{
           transform: swipe.offset ? `translateX(${swipe.offset}px)` : undefined,
-          transition: swipe.offset ? undefined : "transform 160ms ease-out",
+          transition: swipe.offset ? undefined : "transform 180ms ease-out",
         }}
         className={cn(
-          "max-w-[78%] touch-pan-y rounded-3xl px-4 py-3 text-sm leading-relaxed shadow-soft",
+          "relative max-w-[78%] touch-pan-y rounded-3xl px-4 py-3 text-sm leading-relaxed shadow-soft",
           // Долгое нажатие и свайп не должны вызывать выделение текста и лупу iOS.
           NO_SELECT,
           mine
@@ -184,12 +152,14 @@ export function MessageBubble({
               </span>
             ) : null}
             {voice && message.mediaUrl ? (
-              <VoicePlayer
-                src={mediaUrl(message.mediaUrl) ?? message.mediaUrl}
-                duration={message.durationMs ?? 0}
-                mine={mine}
-                {...(voiceInline ? { meta: stamp } : {})}
-              />
+              <div data-no-gesture>
+                <VoicePlayer
+                  src={mediaUrl(message.mediaUrl) ?? message.mediaUrl}
+                  duration={message.durationMs ?? 0}
+                  mine={mine}
+                  {...(voiceInline ? { meta: stamp } : {})}
+                />
+              </div>
             ) : media && message.mediaUrl ? (
               <MediaAttachment
                 kind={message.kind === "video" ? "video" : "image"}
@@ -227,6 +197,9 @@ export function MessageBubble({
             stamp
           )}
         </span>
+        {reaction ? (
+          <span className={cn("absolute -bottom-3 rounded-full border border-border bg-card px-1.5 text-xs leading-5", mine ? "left-2" : "right-2")}>{reaction}</span>
+        ) : null}
       </div>
     </li>
   );
