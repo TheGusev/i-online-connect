@@ -6,6 +6,7 @@ import { MediaAttachment } from "@/features/chat/components/MediaAttachment";
 import { VoicePlayer } from "@/features/chat/components/VoicePlayer";
 import type { PreparedMedia } from "@/features/chat/media";
 import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
+import { ChatBackground } from "@/features/chat/components/ChatBackground";
 import { cn } from "@/lib/utils";
 import { useKeyboardOpen } from "@/hooks/useViewportHeight";
 import { useSessionStore } from "@/store/useSessionStore";
@@ -61,7 +62,9 @@ export function SpaceChat({
         !fill && keyboardOpen && "keyboard-viewport-fixed z-50 flex flex-col rounded-none border-0",
       )}
     >
-      <div ref={scrollerRef} className={cn("space-y-3 overflow-y-auto overscroll-contain px-1 py-4", fill || keyboardOpen ? "min-h-0 flex-1" : "min-h-28 max-h-[clamp(7rem,calc(100dvh-34rem),24rem)]")}>
+      <div className={cn("relative isolate flex flex-col", fill || keyboardOpen ? "min-h-0 flex-1" : "")}>
+        <ChatBackground />
+      <div ref={scrollerRef} className={cn("relative space-y-3 overflow-y-auto overscroll-contain px-1 py-4", fill || keyboardOpen ? "min-h-0 flex-1" : "min-h-28 max-h-[clamp(7rem,calc(100dvh-34rem),24rem)]")}>
         {messages.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             В чате пока тихо. Можно поздороваться и спросить, как обычно проходят встречи.
@@ -107,6 +110,7 @@ export function SpaceChat({
             );
           })
         )}
+      </div>
       </div>
 
       <div className={cn("shrink-0 bg-background/95 backdrop-blur", !keyboardOpen && "pb-[env(safe-area-inset-bottom)]")}>

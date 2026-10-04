@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { ChatBackground } from "@/features/chat/components/ChatBackground";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, BadgeCheck, CalendarHeart, Sparkles, WifiOff } from "lucide-react";
 import {
@@ -367,6 +368,8 @@ function ConversationPage() {
         ) : null}
       </header>
 
+      <div className="relative isolate flex min-h-0 flex-1 flex-col">
+      <ChatBackground />
       <main
         ref={scrollerRef}
         className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [-webkit-overflow-scrolling:touch] ${
@@ -440,6 +443,7 @@ function ConversationPage() {
           )}
         </div>
       </main>
+      </div>
 
       <div
         className={`shrink-0 border-t border-border bg-card/95 backdrop-blur ${
