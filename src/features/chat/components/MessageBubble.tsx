@@ -152,12 +152,14 @@ export function MessageBubble({
               </span>
             ) : null}
             {voice && message.mediaUrl ? (
-              <VoicePlayer
-                src={mediaUrl(message.mediaUrl) ?? message.mediaUrl}
-                duration={message.durationMs ?? 0}
-                mine={mine}
-                {...(voiceInline ? { meta: stamp } : {})}
-              />
+              <div data-no-gesture>
+                <VoicePlayer
+                  src={mediaUrl(message.mediaUrl) ?? message.mediaUrl}
+                  duration={message.durationMs ?? 0}
+                  mine={mine}
+                  {...(voiceInline ? { meta: stamp } : {})}
+                />
+              </div>
             ) : media && message.mediaUrl ? (
               <MediaAttachment
                 kind={message.kind === "video" ? "video" : "image"}
