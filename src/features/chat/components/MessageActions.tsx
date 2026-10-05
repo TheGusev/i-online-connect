@@ -1,5 +1,5 @@
-import { Trash2 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { Message } from "@/api";
@@ -22,11 +22,14 @@ export function canEditMessage(message: Message, mine: boolean) {
   );
 }
 
-/** Нижний лист после долгого нажатия: реакции и удаление своего сообщения. */
+const MORE_EMOJI = "😀 😁 😅 🤣 😊 😍 🥰 😘 😎 🤩 🤔 🤨 😐 🙄 😏 😴 😭 😡 🤯 😱 🥳 😇 🤗 🤝 👏 🙏 💪 👌 ✌️ 🤞 👋 🙌 💯 ✨ 🎉 💔 💕 💖 🌹 🍷 ☕ 🌙 ⭐ 😈 👀 🫶".split(" ");
+
+/** Компактный поповер у сообщения: реакции, «+» с сеткой, изменить и удалить. */
 export function MessageActions({
   message,
   mine,
   onClose,
+  onEdit,
   onDelete,
 }: {
   message: Message | null;
@@ -37,32 +40,41 @@ export function MessageActions({
   onReply?: (message: Message) => void;
 }) {
   const openedAt = useRef(0);
-  const dragY = useRef<number | null>(null);
-  const sheetRef = useRef<HTMLDivElement | null>(null);
   const current = useReaction(message?.id ?? "");
+  const [more, setMore] = useState(false);
+  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
   useEffect(() => {
     if (!message) return;
+    setMore(false);
     openedAt.current = Date.now();
-    const el = document.getElementById(`message-${message.id}`)?.firstElementChild?.nextElementSibling as HTMLElement | null
-      ?? document.getElementById(`message-${message.id}`)?.firstElementChild as HTMLElement | null;
-    el?.classList.add("scale-[1.02]", "ring-2", "ring-primary");
+    const li = document.getElementById(`message-${message.id}`);
+    const el = (li?.querySelector(":scope > div") as HTMLElement | null) ?? null;
+    el?.classList.add("ring-2", "ring-primary");
+    const rect = (el ?? li)?.getBoundingClientRect();
+    const vh = window.visualViewport?.height ?? window.innerHeight;
+    const width = Math.min(320, window.innerWidth - 16);
+    if (rect) {
+      const left = Math.max(8, Math.min(window.innerWidth - width - 8, mine ? rect.right - width : rect.left));
+      setPos(rect.top > vh - rect.bottom ? { bottom: vh - rect.top + 8, left } : { top: rect.bottom + 8, left });
+    } else setPos({ top: 80, left: 8 });
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
-      el?.classList.remove("scale-[1.02]", "ring-2", "ring-primary");
+      el?.classList.remove("ring-2", "ring-primary");
     };
-  }, [message, onClose]);
+  }, [message, mine, onClose]);
 
   if (!message || typeof document === "undefined") return null;
   const deletable = mine && !message.deletedAt;
-  // Игнорируем отпускание пальца, завершившее само удержание.
+  const editable = Boolean(onEdit) && canEditMessage(message, mine);
   const fresh = () => Date.now() - openedAt.current < 400;
+  const react = (emoji: string) => { if (fresh()) return; toggleReaction(message.id, emoji); onClose(); };
 
   return createPortal(
     <div
-      className={cn("fixed inset-0 z-[85] flex items-end justify-center bg-background/60", NO_SELECT)}
+      className={cn("fixed inset-0 z-[85] bg-background/40", NO_SELECT)}
       role="dialog"
       aria-modal="true"
       aria-label="Действия с сообщением"
@@ -70,47 +82,66 @@ export function MessageActions({
       onPointerDown={(e) => { if (e.target === e.currentTarget && !fresh()) onClose(); }}
     >
       <div
-        ref={sheetRef}
-        className="w-full max-w-md rounded-t-3xl border border-border bg-card p-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] shadow-glow transition-transform"
-        onPointerDown={(e) => { dragY.current = e.clientY; }}
-        onPointerMove={(e) => {
-          if (dragY.current === null || !sheetRef.current) return;
-          const dy = Math.max(0, e.clientY - dragY.current);
-          sheetRef.current.style.transform = `translateY(${dy}px)`;
-        }}
-        onPointerUp={(e) => {
-          const dy = dragY.current === null ? 0 : e.clientY - dragY.current;
-          dragY.current = null;
-          if (sheetRef.current) sheetRef.current.style.transform = "";
-          if (dy > 60) onClose();
-        }}
+        className="fixed w-[min(320px,calc(100vw-16px))] rounded-2xl border border-border bg-card p-1.5 shadow-glow"
+        style={pos ?? undefined}
       >
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" />
         {!message.deletedAt ? (
-          <div className="flex justify-between gap-1">
+          <div className="flex items-center justify-between gap-0.5">
             {EMOJI.map((emoji) => (
               <button
                 key={emoji}
                 type="button"
                 aria-label={`Реакция ${emoji}`}
                 aria-pressed={current === emoji}
-                className={cn("grid size-12 place-items-center rounded-full text-2xl transition-transform active:scale-90", current === emoji && "bg-primary/20 ring-1 ring-primary")}
-                onClick={() => { if (fresh()) return; toggleReaction(message.id, emoji); onClose(); }}
+                className={cn("grid size-10 place-items-center rounded-full text-xl transition-transform active:scale-90", current === emoji && "bg-primary/20 ring-1 ring-primary")}
+                onClick={() => react(emoji)}
               >
+                {emoji}
+              </button>
+            ))}
+            <button
+              type="button"
+              aria-label="Больше эмодзи"
+              aria-expanded={more}
+              className="grid size-10 place-items-center rounded-full bg-secondary text-muted-foreground"
+              onClick={() => setMore((v) => !v)}
+            >
+              <Plus className="size-4" />
+            </button>
+          </div>
+        ) : null}
+        {more ? (
+          <div className="mt-1 grid max-h-[220px] grid-cols-8 gap-0.5 overflow-y-auto border-t border-border pt-1">
+            {MORE_EMOJI.map((emoji) => (
+              <button key={emoji} type="button" className="grid aspect-square place-items-center rounded-lg text-xl active:scale-90" onClick={() => react(emoji)}>
                 {emoji}
               </button>
             ))}
           </div>
         ) : null}
-        {deletable ? (
-          <button
-            type="button"
-            className="mt-2 flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-medium text-destructive hover:bg-secondary"
-            onClick={() => { if (fresh()) return; onDelete(message); onClose(); }}
-          >
-            <Trash2 className="size-4" aria-hidden="true" />
-            Удалить у всех
-          </button>
+        {editable || deletable ? (
+          <div className="mt-1 flex border-t border-border pt-1 text-xs font-medium">
+            {editable ? (
+              <button
+                type="button"
+                className="flex flex-1 items-center gap-1.5 rounded-xl px-3 py-2 hover:bg-secondary"
+                onClick={() => { if (fresh()) return; onEdit?.(message); onClose(); }}
+              >
+                <Pencil className="size-3.5" aria-hidden="true" />
+                Изменить
+              </button>
+            ) : null}
+            {deletable ? (
+              <button
+                type="button"
+                className="flex flex-1 items-center gap-1.5 rounded-xl px-3 py-2 text-destructive hover:bg-secondary"
+                onClick={() => { if (fresh()) return; onDelete(message); onClose(); }}
+              >
+                <Trash2 className="size-3.5" aria-hidden="true" />
+                Удалить у всех
+              </button>
+            ) : null}
+          </div>
         ) : null}
       </div>
     </div>,
