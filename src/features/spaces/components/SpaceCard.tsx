@@ -10,6 +10,7 @@ import {
   formatMembers,
   formatSpaceAge,
 } from "@/features/spaces/labels";
+import { SpaceSubscribe } from "./SpaceSubscribe";
 
 export function SpaceCard({ space }: { space: Space }) {
   return (
@@ -57,7 +58,10 @@ export function SpaceCard({ space }: { space: Space }) {
           <span>
             {formatLabels[space.format]} · {cadenceLabels[space.cadence].toLowerCase()}
           </span>
-          <span>{formatSpaceAge(space.createdAt)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span className="whitespace-nowrap">{formatSpaceAge(space.createdAt)}</span>
+          <SpaceSubscribe space={space} />
         </div>
 
         {space.nextEvent ? (

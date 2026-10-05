@@ -89,7 +89,7 @@ export function MessageBubble({
       className={cn("flex scroll-mt-24 transition-shadow", NO_SELECT, reaction && "mb-3", mine ? "justify-end" : "justify-start")}
     >
       {swipe.offset > 12 ? (
-        <span className={cn("mr-1 self-center text-primary transition-opacity", swipe.offset < 48 && "opacity-50")} aria-hidden="true">
+        <span className={cn("mr-1 self-center text-primary transition-opacity", swipe.offset < 40 && "opacity-50")} aria-hidden="true">
           <Reply className="size-4" />
         </span>
       ) : null}
@@ -97,8 +97,9 @@ export function MessageBubble({
         draggable={false}
         {...gestures.handlers}
         style={{
+          touchAction: "pan-y",
           transform: swipe.offset ? `translateX(${swipe.offset}px)` : undefined,
-          transition: swipe.offset ? undefined : "transform 180ms ease-out",
+          transition: swipe.offset ? undefined : "transform 260ms cubic-bezier(.34,1.56,.64,1)",
         }}
         className={cn(
           "relative max-w-[78%] touch-pan-y rounded-3xl px-4 py-3 text-sm leading-relaxed shadow-soft",
@@ -201,6 +202,11 @@ export function MessageBubble({
           <span className={cn("absolute -bottom-3 rounded-full border border-border bg-card px-1.5 text-xs leading-5", mine ? "left-2" : "right-2")}>{reaction}</span>
         ) : null}
       </div>
+      {swipe.offset < -12 ? (
+        <span className={cn("ml-1 self-center text-primary transition-opacity", swipe.offset > -40 && "opacity-50")} aria-hidden="true">
+          <Reply className="size-4 -scale-x-100" />
+        </span>
+      ) : null}
     </li>
   );
 }

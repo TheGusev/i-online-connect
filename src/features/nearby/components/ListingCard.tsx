@@ -20,7 +20,10 @@ export function ListingCard({ listing }: { listing: Listing }) {
   const place = [listing.city, listing.district].filter(Boolean).join(", ");
 
   return (
-    <Card variant="space" className="overflow-hidden p-0">
+    <Card variant="space" className="relative overflow-hidden p-0">
+      {listing.state === "active" || listing.state === "expired" ? (
+        <ListingCountdown expiresAt={listing.expiresAt} className="pointer-events-none absolute right-3 top-3 z-10" />
+      ) : null}
       <Link
         to="/nearby/$id"
         params={{ id: listing.id }}
@@ -43,6 +46,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
         </div>
 
         <div className="flex min-w-0 flex-col gap-1 py-0.5">
+          <div className="pr-14">
           {priceApplies(listing.category) ? (
             <span className="text-base font-black leading-none sm:text-lg">
               {formatPrice(listing.priceMinor, listing.currency)}
@@ -56,6 +60,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug sm:text-base">
             {listing.title}
           </h3>
+          </div>
 
           {listing.description ? (
             <p className="line-clamp-1 text-xs leading-relaxed text-muted-foreground sm:line-clamp-2">
@@ -81,9 +86,6 @@ export function ListingCard({ listing }: { listing: Listing }) {
           <div className="flex min-w-0 items-center gap-1.5 text-[11px]">
             <span className="truncate font-semibold">{listing.author.name}</span>
             <TrustBadge level={badgeLevel(listing.author.trustLevel)} size="sm" />
-          </div>
-          <div className="text-[11px] font-semibold text-primary">
-            {listing.state === "active" ? <ListingCountdown expiresAt={listing.expiresAt} /> : listing.state === "expired" ? "Срок истёк" : null}
           </div>
         </div>
       </Link>
