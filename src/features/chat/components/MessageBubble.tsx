@@ -202,6 +202,11 @@ export function MessageBubble({
           <span className={cn("absolute -bottom-3 rounded-full border border-border bg-card px-1.5 text-xs leading-5", mine ? "left-2" : "right-2")}>{reaction}</span>
         ) : null}
       </div>
+      {swipe.offset < -12 ? (
+        <span className={cn("ml-1 self-center text-primary transition-opacity", swipe.offset > -40 && "opacity-50")} aria-hidden="true">
+          <Reply className="size-4 -scale-x-100" />
+        </span>
+      ) : null}
     </li>
   );
 }
