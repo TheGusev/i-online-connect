@@ -88,16 +88,21 @@ function LandingPage() {
               {t("landing.nav.trust")}
             </a>
           </nav>
-          <Button
-            asChild
-            size="sm"
-            className="landing-start-button !bg-primary !text-primary-foreground hover:!bg-accent hover:!text-accent-foreground"
-          >
-            <Link to="/onboarding">
-              {t("landing.hero.cta")}
-              <ArrowRight aria-hidden="true" />
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" variant="ghost">
+              <Link to="/auth">Войти</Link>
+            </Button>
+            <Button
+              asChild
+              size="sm"
+              className="landing-start-button !bg-primary !text-primary-foreground hover:!bg-accent hover:!text-accent-foreground"
+            >
+              <Link to="/onboarding">
+                {t("landing.hero.cta")}
+                <ArrowRight aria-hidden="true" />
+              </Link>
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -143,6 +148,12 @@ function LandingPage() {
                   <a href="#how">{t("landing.hero.secondary")}</a>
                 </Button>
               </div>
+              <p className="mt-3 text-sm text-muted-foreground">
+                У меня уже есть аккаунт ·{" "}
+                <Link to="/auth" className="font-semibold text-primary underline-offset-2 hover:underline">
+                  Войти
+                </Link>
+              </p>
               <p className="mt-5 text-sm text-muted-foreground">{t("landing.hero.note")}</p>
             </Reveal>
 
