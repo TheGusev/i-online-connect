@@ -2,16 +2,16 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 const HOLD_MS = 350;
 const MOVE_TOLERANCE = 8;
-const AXIS_LOCK = 10;
-const MAX_SHIFT = 64;
-const REPLY_AT = 48;
-const EDGE = 24;
+const AXIS_LOCK = 6;
+const MAX_SHIFT = 56;
+const REPLY_AT = 40;
+const EDGE = 20;
 
 export function haptic(ms = 10) {
   try { navigator.vibrate?.(ms); } catch { /* не поддерживается */ }
 }
 
-/** Единые жесты пузыря: удержание — меню, свайп вправо — ответ. */
+/** Единые жесты пузыря: удержание — меню, свайп в любую сторону — ответ. */
 export function useMessageGestures({ onHold, onReply }: { onHold?: () => void; onReply?: () => void }) {
   const [offset, setOffset] = useState(0);
   const st = useRef<{ x: number; y: number; id: number; axis: "x" | "y" | null; held: boolean; armed: boolean } | null>(null);
@@ -43,7 +43,6 @@ export function useMessageGestures({ onHold, onReply }: { onHold?: () => void; o
             onHold();
           }, HOLD_MS);
         }
-        // Свайп нельзя начинать у края экрана и на интерактивных элементах.
         if (blocked || e.clientX < EDGE) st.current.axis = "y";
       },
       onPointerMove: (e: React.PointerEvent) => {
@@ -53,19 +52,22 @@ export function useMessageGestures({ onHold, onReply }: { onHold?: () => void; o
         const dy = e.clientY - s.y;
         if (Math.hypot(dx, dy) > MOVE_TOLERANCE) clear();
         if (!s.axis && Math.max(Math.abs(dx), Math.abs(dy)) > AXIS_LOCK) {
-          s.axis = Math.abs(dx) > Math.abs(dy) && dx > 0 && onReply ? "x" : "y";
+          s.axis = Math.abs(dx) > Math.abs(dy) && onReply ? "x" : "y";
+          if (s.axis === "x") {
+            clear();
+            try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* нет */ }
+          }
         }
         if (s.axis !== "x") return;
-        const shift = Math.max(0, Math.min(MAX_SHIFT, dx));
-        if (shift >= REPLY_AT && !s.armed) { s.armed = true; haptic(8); }
-        else if (shift < REPLY_AT) s.armed = false;
+        const shift = Math.max(-MAX_SHIFT, Math.min(MAX_SHIFT, dx));
+        if (Math.abs(shift) >= REPLY_AT && !s.armed) { s.armed = true; haptic(8); }
+        else if (Math.abs(shift) < REPLY_AT) s.armed = false;
         setOffset(shift);
       },
       onPointerUp: end,
       onPointerCancel: () => { if (st.current) st.current.armed = false; end(); },
       onContextMenu: (e: React.MouseEvent) => {
         e.preventDefault();
-        // Правый клик мышью открывает меню; на тач — меню уже открыл таймер.
         if (!st.current && onHold) onHold();
       },
     },
