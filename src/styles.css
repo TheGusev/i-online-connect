@@ -638,3 +638,5 @@
 @keyframes chat-sky-drift { from { transform: translate3d(0,0,0) } to { transform: translate3d(10px,-10px,0) } }
 .chat-sky--static .chat-sky__drift, .chat-sky--static .chat-sky__stars { animation: none; }
 @media (prefers-reduced-motion: reduce) { .chat-sky__drift, .chat-sky__stars { animation: none !important; } }
+
+@keyframes blink { 50% { opacity: 0; } }
