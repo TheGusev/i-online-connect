@@ -1,22 +1,22 @@
-import { Link, createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, BadgeCheck, CalendarDays, Crown, Lock, MapPin, MessagesSquare, ShieldCheck, UsersRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Link, createFileRoute } from "@tanstack/react-router";
+import { ArrowLeft, BadgeCheck, Crown, Lock, Radio } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
-import { mediaUrl } from "@/api";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { cn } from "@/lib/utils";
 import { AppShell } from "@/components/layout/AppShell";
-import { Avatar, Button, Chip, MediaImage, ProfileCardSkeleton } from "@/components/ds";
-import { ProfilePanel } from "@/features/profile/components/ProfilePanel";
+import { Button, MediaImage, ProfileCardSkeleton } from "@/components/ds";
 import { CreateEventForm } from "@/features/spaces/components/CreateEventForm";
 import { EventList } from "@/features/spaces/components/EventList";
 import { JoinPanel } from "@/features/spaces/components/JoinPanel";
 import { MediaGallery, MediaGalleryButton } from "@/features/chat/components/MediaGallery";
 import { SpaceChat } from "@/features/spaces/components/SpaceChat";
 import { SpaceInviteDialog } from "@/features/spaces/components/SpaceInviteDialog";
-import { SpaceOwnerMenu } from "@/features/spaces/components/SpaceOwnerMenu";
+import { SpaceMenu } from "@/features/spaces/components/SpaceMenu";
+import { LiveBanner } from "@/features/spaces/live/LiveBanner";
+import { LiveRoomScreen } from "@/features/spaces/live/LiveRoomScreen";
+import { useLiveRoom, type LiveRoom, type LiveSeedMember } from "@/features/spaces/live/useLiveRoom";
 import {
   useCreateSpaceEvent,
   useDeclineSpaceInvite,
@@ -33,11 +33,10 @@ import {
   useSpaceMessages,
   useUpdateSpacePrivacy,
 } from "@/features/spaces/hooks";
-import { categoryLabels, formatLabels, formatSpaceAge } from "@/features/spaces/labels";
 import { useVerificationStatus } from "@/features/trust/hooks";
 
 export const Route = createFileRoute("/spaces/$id")({
-  validateSearch: z.object({ eventId: z.string().uuid().optional() }),
+  validateSearch: z.object({ eventId: z.string().uuid().optional(), demo: z.string().optional() }),
   head: () => ({
     meta: [
       { title: "Сообщество — Я Онлайн" },
@@ -57,7 +56,7 @@ function messageOf(error: unknown, fallback: string) {
 
 function SpaceDetailPage() {
   const { id } = Route.useParams();
-  const { eventId } = Route.useSearch();
+  const { eventId, demo } = Route.useSearch();
   const { data: space, isPending, isError } = useSpace(id);
   const { data: messages } = useSpaceMessages(id, Boolean(space?.isMember));
   const join = useJoinSpace(id);
@@ -75,8 +74,6 @@ function SpaceDetailPage() {
   const declineInvite = useDeclineSpaceInvite(id);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
-  const [activeMember, setActiveMember] = useState<string | null>(null);
-  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [eventOpen, setEventOpen] = useState(false);
   const [inviteQuery, setInviteQuery] = useState("");
@@ -111,169 +108,92 @@ function SpaceDetailPage() {
         ? messageOf(sendMedia.error, "Вложение не отправилось")
         : null;
 
+  const liveMembers = space.members.map((m) => ({ id: m.id, name: m.name, avatarUrl: m.avatarUrl ?? null }));
+  const renderEvents = () => (
+    <EventList events={sortedEvents} pending={rsvp.isPending} isHost={space.isHost ?? false} highlightedId={eventId} onToggleGoing={(event) => rsvp.mutate({ eventId: event.id, going: !event.going })} />
+  );
+
   return (
     <AppShell wide focused>
+      <SpaceLive spaceId={id} demoInitial={demo === "live"} members={liveMembers}>
+        {(room, demoLive, toggleDemo, setLiveOpen) => (
       <div
         className={isMobile
           ? "keyboard-viewport-fixed z-10 flex flex-col bg-background px-4 pt-[calc(env(safe-area-inset-top)+0.5rem)]"
           : "mx-auto flex h-[calc(var(--vvh,100dvh)-1.5rem)] w-full max-w-3xl flex-col"}
-        onClick={() => setActiveMember(null)}
       >
-        <div className="max-h-[55%] shrink-0 overflow-y-auto [scrollbar-width:none]">
-        <header className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2 border-b border-border pb-3">
-          <Button asChild size="icon" variant="ghost" className="size-11 text-primary">
+        <header className="flex shrink-0 items-center gap-2 border-b border-border pb-2">
+          <Button asChild size="icon" variant="ghost" className="size-10 text-primary">
             <Link to="/spaces" aria-label="Назад к сообществам"><ArrowLeft className="size-6" aria-hidden="true" /></Link>
           </Button>
-
           <div className="relative shrink-0">
-            <MediaImage
-              src={space.coverUrl}
-              alt={space.title}
-              className="size-16 rounded-full border-2 border-primary/70 object-cover shadow-glow"
-            />
+            <MediaImage src={space.coverUrl} alt={space.title} className="size-11 rounded-full border-2 border-primary/70 object-cover" />
             {space.verifiedCommunity ? (
-              <span className="absolute bottom-0 right-0 grid size-5 place-items-center rounded-full bg-primary text-primary-foreground">
-                <BadgeCheck className="size-3.5" aria-label="Проверенное сообщество" />
+              <span className="absolute -bottom-0.5 -right-0.5 grid size-4 place-items-center rounded-full bg-primary text-primary-foreground">
+                <BadgeCheck className="size-3" aria-label="Проверенное сообщество" />
               </span>
             ) : null}
           </div>
-
-          <div className="min-w-0 px-1">
-            <div className="flex items-center gap-1.5">
-              <h1 className="truncate text-lg font-bold text-foreground">{space.title}</h1>
-              {space.isPrivate ? <Lock className="size-3.5 shrink-0 text-primary" aria-label="Закрытое сообщество" /> : null}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1">
+              <h1 className="truncate text-base font-bold text-foreground">{space.title}</h1>
+              {space.isHost ? <Crown className="size-3.5 shrink-0 text-primary" aria-label="Вы организатор" /> : null}
+              {space.isPrivate ? <Lock className="size-3 shrink-0 text-muted-foreground" aria-label="Закрытое" /> : null}
             </div>
-            <div className="mt-1 flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                <span className="size-2 rounded-full bg-primary shadow-glow" />{space.membersCount}
-              </span>
-              <div className="flex -space-x-2" aria-label="Участники">
-                {space.members.slice(0, 3).map((member) => {
-                  const active = activeMember === member.id;
-                  return (
-                    <button
-                      key={member.id}
-                      type="button"
-                      aria-label={active ? `Открыть анкету: ${member.name}` : `Участник: ${member.name}`}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        if (active) void navigate({ to: "/profile/$id", params: { id: member.id } });
-                        else setActiveMember(member.id);
-                      }}
-                      className={cn("relative rounded-full transition-transform duration-200", active && "z-20 scale-[1.6]")}
-                    >
-                      <Avatar name={member.name} src={mediaUrl(member.avatarUrl) ?? null} size="xs" className={cn("border-2 border-background", active && "shadow-glow")} />
-                      {active ? (
-                        <span className="pointer-events-none absolute left-1/2 top-full mt-0.5 -translate-x-1/2 whitespace-nowrap rounded-full bg-card px-1.5 text-[7px] font-semibold text-foreground">
-                          {member.name.split(" ")[0]}
-                        </span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
+            <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
+              <span className="size-1.5 shrink-0 rounded-full bg-primary" />
+              {room.active ? `${room.participants.length} в сети` : `${space.membersCount} участников`} · {space.city}
+            </p>
           </div>
-
-          <div className="flex items-center gap-1.5">
-          {space.isMember ? <MediaGalleryButton onClick={() => setGalleryOpen(true)} className="size-11" /> : null}
-          {space.isHost ? (
-            <SpaceOwnerMenu
-              isPrivate={space.isPrivate}
-              updatingPrivacy={updatePrivacy.isPending}
-              deleting={deleteSpace.isPending}
-              onInvite={() => setInviteOpen(true)}
-              onCreateEvent={() => setEventOpen(true)}
-              onPrivacyChange={(value) => updatePrivacy.mutate(value, {
-                onSuccess: () => toast.success(value ? "Сообщество стало закрытым" : "Сообщество стало открытым"),
-                onError: (error) => toast.error(messageOf(error, "Не удалось изменить приватность")),
-              })}
-              onDelete={() => deleteSpace.mutate(undefined, {
-                onSuccess: () => window.location.assign("/spaces"),
-                onError: (error) => toast.error(messageOf(error, "Не удалось удалить сообщество")),
-              })}
-            />
-          ) : space.isMember ? null : <span className="size-11" />}
-          </div>
+          <Button size="icon" variant="ghost" aria-label="Эфир" onClick={() => setLiveOpen(true)} className="relative size-10 text-primary">
+            <Radio aria-hidden="true" />
+            {room.active ? <span className="live-dot absolute right-2 top-2" /> : null}
+          </Button>
+          {space.isMember ? <MediaGalleryButton onClick={() => setGalleryOpen(true)} className="size-10" /> : null}
+          <SpaceMenu
+            space={space}
+            events={sortedEvents}
+            room={room}
+            demoLive={demoLive}
+            onToggleDemo={toggleDemo}
+            onEnterLive={() => setLiveOpen(true)}
+            onGallery={() => setGalleryOpen(true)}
+            onInvite={() => setInviteOpen(true)}
+            onCreateEvent={() => setEventOpen(true)}
+            onPrivacyChange={(value) => updatePrivacy.mutate(value, {
+              onSuccess: () => toast.success(value ? "Сообщество стало закрытым" : "Сообщество стало открытым"),
+              onError: (error) => toast.error(messageOf(error, "Не удалось изменить приватность")),
+            })}
+            onDelete={() => deleteSpace.mutate(undefined, {
+              onSuccess: () => window.location.assign("/spaces"),
+              onError: (error) => toast.error(messageOf(error, "Не удалось удалить сообщество")),
+            })}
+            onLeave={() => leave.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось выйти")) })}
+            updatingPrivacy={updatePrivacy.isPending}
+            deleting={deleteSpace.isPending}
+            leaving={leave.isPending}
+            renderEvents={renderEvents}
+          />
         </header>
         <MediaGallery scope="space" id={id} open={galleryOpen} onClose={() => setGalleryOpen(false)} />
 
-        <div className="mt-2 flex min-h-12 items-center gap-2 overflow-x-auto rounded-full border border-border bg-card px-3 py-2 text-sm [scrollbar-width:none]">
-          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1.5 font-semibold text-primary-ink">
-            <ShieldCheck className="size-4" aria-hidden="true" />{space.isPrivate ? "Закрытое" : "Открытое"}
-          </span>
-          <span className="h-5 w-px shrink-0 bg-border" />
-          <span className="inline-flex shrink-0 items-center gap-1.5 text-muted-foreground"><MapPin className="size-4 text-primary" aria-hidden="true" />{space.city}</span>
-          <span className="h-5 w-px shrink-0 bg-border" />
-          <span className="shrink-0 text-muted-foreground">{categoryLabels[space.category]}</span>
-          <span className="h-5 w-px shrink-0 bg-border" />
-          <span className="shrink-0 text-muted-foreground">{formatLabels[space.format]}</span>
-           <span className="h-5 w-px shrink-0 bg-border" />
-           <span className="shrink-0 text-muted-foreground">{formatSpaceAge(space.createdAt)}</span>
-        </div>
+        <LiveBanner room={room} onEnter={() => setLiveOpen(true)} />
 
-        <div className="mt-2 flex items-center gap-2">
-          {space.isHost ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/20 px-3 py-1.5 text-xs font-semibold text-primary-ink">
-              <Crown className="size-3.5" aria-hidden="true" />Вы организатор
-            </span>
-          ) : space.isMember ? (
-            <Button size="sm" variant="ghost" loading={leave.isPending} onClick={() => leave.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось выйти")) })}>Выйти</Button>
-          ) : space.invited ? null : (
+        {!space.isMember && !space.isHost && !space.invited ? (
+          <div className="mt-2 shrink-0">
             <JoinPanel space={space} pending={join.isPending || leave.isPending} onJoin={(answer) => join.mutate(answer, { onError: (error) => toast.error(messageOf(error, "Не удалось вступить")) })} onLeave={() => leave.mutate()} />
-          )}
-        </div>
+          </div>
+        ) : null}
 
         {space.invited && !space.isMember ? (
-          <div className="mt-2 flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 p-2.5">
+          <div className="mt-2 flex shrink-0 items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 p-2.5">
             <p className="min-w-0 flex-1 text-sm">Вас приглашают присоединиться.</p>
             <Button size="sm" loading={join.isPending} onClick={() => join.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось вступить")) })}>Вступить</Button>
             <Button size="sm" variant="ghost" loading={declineInvite.isPending} onClick={() => declineInvite.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось отклонить приглашение")) })}>Отклонить</Button>
           </div>
         ) : null}
 
-        <ProfilePanel
-          title="О сообществе"
-          storageKey={`space-about:${space.id}`}
-          hint={`${space.membersCount} участников`}
-          className="mt-3 rounded-lg"
-        >
-          <p className="text-sm leading-relaxed text-foreground">{space.description}</p>
-          {space.interests.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {space.interests.map((interest) => <Chip key={interest} variant="outline" size="sm">{interest}</Chip>)}
-            </div>
-          ) : null}
-          <div className="mt-3 flex max-w-full overflow-x-auto -space-x-2">
-            {space.members.map((member) => (
-              <Button key={member.id} asChild size="icon" variant="ghost" className="size-10 rounded-full" title={member.name}>
-                <Link to="/profile/$id" params={{ id: member.id }} aria-label={`Анкета: ${member.name}`}>
-                  <Avatar name={member.name} src={mediaUrl(member.avatarUrl) ?? null} size="sm" className="rounded-full border-2 border-card" />
-                </Link>
-              </Button>
-            ))}
-          </div>
-          <p className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-            <UsersRound className="size-4 text-primary" aria-hidden="true" />
-            {space.membersCount} участников · организует {space.hostName}
-          </p>
-        </ProfilePanel>
-
-        {sortedEvents.length > 0 ? (
-          <section className="mt-5">
-            <h2 className="hud-title mb-2 inline-flex items-center gap-2"><CalendarDays className="size-4" aria-hidden="true" />Ближайшие встречи</h2>
-            <EventList events={sortedEvents} pending={rsvp.isPending} isHost={space.isHost ?? false} highlightedId={eventId} onToggleGoing={(event) => rsvp.mutate({ eventId: event.id, going: !event.going })} />
-          </section>
-        ) : null}
-        </div>
-
-        <section className="mt-2 flex min-h-0 flex-1 flex-col">
-          <div className="mb-1.5 flex items-center justify-between gap-3">
-            <h2 className="inline-flex items-center gap-2 text-xl font-bold text-foreground">
-              <MessagesSquare className="size-5 text-community" aria-hidden="true" />Общий чат
-            </h2>
-            <span className="text-xs text-muted-foreground">{messages?.length ?? 0} сообщений</span>
-          </div>
+        <section className="mt-1 flex min-h-0 flex-1 flex-col">
           <SpaceChat
             fill
             messages={messages ?? []}
@@ -292,9 +212,9 @@ function SpaceDetailPage() {
             onVoice={(recording) => sendVoice.mutate({ recording, clientTempId: crypto.randomUUID() })}
           />
         </section>
-
       </div>
-
+        )}
+      </SpaceLive>
       {space.isHost ? (
         <CreateEventForm
           hideTrigger
@@ -323,5 +243,27 @@ function SpaceDetailPage() {
         })}
       />
     </AppShell>
+  );
+}
+
+function SpaceLive({
+  spaceId,
+  demoInitial,
+  members,
+  children,
+}: {
+  spaceId: string;
+  demoInitial: boolean;
+  members: LiveSeedMember[];
+  children: (room: LiveRoom, demo: boolean, toggleDemo: () => void, setOpen: (open: boolean) => void) => ReactNode;
+}) {
+  const [demo, setDemo] = useState(demoInitial);
+  const [open, setOpen] = useState(false);
+  const room = useLiveRoom(spaceId, { demo, members });
+  return (
+    <>
+      {children(room, demo, () => setDemo((d) => !d), setOpen)}
+      <LiveRoomScreen open={open} title="Эфир" room={room} onClose={() => setOpen(false)} />
+    </>
   );
 }
