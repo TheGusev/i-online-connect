@@ -151,6 +151,7 @@ function SpaceDetailPage() {
             onEnterLive={() => setLiveOpen(true)}
             onGallery={() => setGalleryOpen(true)}
             onInvite={() => setInviteOpen(true)}
+            onShare={() => setQrOpen(true)}
             onCreateEvent={() => setEventOpen(true)}
             onPrivacyChange={(value) => updatePrivacy.mutate(value, {
               onSuccess: () => toast.success(value ? "Сообщество стало закрытым" : "Сообщество стало открытым"),
