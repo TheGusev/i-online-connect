@@ -39,8 +39,7 @@ export function SpaceCard({ space }: { space: Space }) {
       </div>
 
       <div className="relative space-y-3 p-5">
-        {space.nextEvent ? <EventTimer startsAt={space.nextEvent.startsAt} /> : null}
-        <div className={space.nextEvent ? "pr-16" : undefined}>
+        <div>
           <h3 className="text-lg font-bold leading-snug text-foreground">{space.title}</h3>
           <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
             {space.description}

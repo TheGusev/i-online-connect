@@ -118,6 +118,9 @@ function ConversationPage() {
   const initialScrollReady = scrollReadyFor === id;
 
   const isEmptyThread = (messages?.length ?? 0) === 0;
+  const chatStarted = Boolean(
+    messages?.some((m) => m.authorId === myId) && messages?.some((m) => m.authorId !== myId),
+  );
   const { data: starters, isPending: startersPending } = useMessageStarters(
     id,
     Boolean(messages) && isEmptyThread,
