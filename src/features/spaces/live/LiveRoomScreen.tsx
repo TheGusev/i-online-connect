@@ -1,9 +1,13 @@
 import { Link } from "@tanstack/react-router";
 import { LogOut, Mic, Volume2, VolumeX, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { createPortal } from "react-dom";
 
-import { mediaUrl } from "@/api";
+import { mediaUrl, spacesApi } from "@/api";
+import { useVoiceRecorder } from "@/features/chat/useVoiceRecorder";
+import { getRate, pauseOthers, registerVoice } from "@/features/chat/voicePlayback";
+import { useSessionStore } from "@/store/useSessionStore";
 import { Avatar, Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
 
@@ -24,12 +28,16 @@ function seatOf(i: number, total: number, speaking: boolean): [number, number] {
 export function LiveRoomScreen({
   open,
   title,
+  spaceId,
+  demo = false,
   room,
   onClose,
   onInvite,
 }: {
   open: boolean;
   title: string;
+  spaceId?: string;
+  demo?: boolean;
   room: LiveRoom;
   onClose: () => void;
   onInvite?: () => void;
@@ -38,6 +46,50 @@ export function LiveRoomScreen({
   const [picked, setPicked] = useState<LiveParticipant | null>(null);
   const [activeClip, setActiveClip] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
+  const myId = useSessionStore((st) => st.user?.id ?? null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const heardRef = useRef(new Set<string>());
+  const real = Boolean(room.real && spaceId && !demo);
+  const actions = room.actions;
+
+  const recorder = useVoiceRecorder((rec) => {
+    if (!spaceId || !actions) return;
+    const clientTempId = crypto.randomUUID();
+    if (myId) actions.addDraft({ id: `draft-${clientTempId}`, userId: myId, durationMs: rec.durationMs, createdAt: Date.now(), clientTempId });
+    spacesApi.sendSpaceVoiceMessage(spaceId, rec.blob, rec.durationMs, clientTempId, true).catch((error: unknown) => {
+      actions.dropDraft(clientTempId);
+      toast.error(error instanceof Error ? error.message : "Клип не отправился");
+    });
+  });
+
+  // Один общий <audio> для эфира, зарегистрированный в общем плеере голосовых.
+  useEffect(() => {
+    if (!open) return;
+    const audio = new Audio();
+    audioRef.current = audio;
+    const unregister = registerVoice("live-room", audio, () => void audio.play().catch(() => undefined));
+    return () => { audio.pause(); unregister(); audioRef.current = null; setUnlocked(false); };
+  }, [open]);
+
+  // Вход/выход из эфира на сервере.
+  useEffect(() => {
+    if (!open || !real || !room.active) return;
+    actions?.join();
+    return () => actions?.leave();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, real, room.active]);
+
+  // Новые клипы других участников играют сами, если звук разблокирован.
+  useEffect(() => {
+    if (!open || !real) return;
+    const last = room.clips[room.clips.length - 1];
+    if (!last || last.draft || heardRef.current.has(last.id)) return;
+    heardRef.current.add(last.id);
+    if (last.userId === myId || !unlocked || muted || recorder.recording) return;
+    playClip(last);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [room.clips, open, real]);
 
   useEffect(() => {
     if (!open) return;
@@ -55,10 +107,41 @@ export function LiveRoomScreen({
   const extra = room.participants.length - balls.length;
   const pos = new Map(balls.map((p, i) => [p.userId, seatOf(i, balls.length, p.isSpeaking)]));
 
-  const playClip = (clip: LiveClip) => {
+  function playClip(clip: LiveClip) {
     setActiveClip(clip.id);
-    if (clip.audioUrl && !muted) void new Audio(clip.audioUrl).play().catch(() => undefined);
-    window.setTimeout(() => setActiveClip((c) => (c === clip.id ? null : c)), clip.durationMs);
+    const audio = audioRef.current;
+    const src = mediaUrl(clip.audioUrl) ?? clip.audioUrl;
+    if (src && !muted && audio) {
+      pauseOthers("live-room");
+      audio.src = src;
+      audio.playbackRate = getRate();
+      void audio.play().catch(() => undefined);
+    }
+    window.setTimeout(() => setActiveClip((c) => (c === clip.id ? null : c)), clip.durationMs / getRate());
+  }
+  const unlock = () => {
+    const audio = audioRef.current;
+    if (audio) {
+      // Тихий звук по касанию разблокирует воспроизведение на iPhone.
+      audio.src = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=";
+      void audio.play().catch(() => undefined);
+    }
+    setUnlocked(true);
+  };
+  const micDown = () => {
+    if (!real || !actions) return;
+    if (!room.active) actions.start();
+    actions.speaking(true);
+    void recorder.start();
+  };
+  const micUp = () => {
+    if (!real || !actions || !recorder.recording) return;
+    actions.speaking(false);
+    recorder.stop();
+  };
+  const exit = () => {
+    if (real && room.startedBy && room.startedBy === myId && room.participants.length <= 1) actions?.end();
+    onClose();
   };
   const lastClipOf = (userId: string) => [...room.clips].reverse().find((c) => c.userId === userId);
 
@@ -69,8 +152,15 @@ export function LiveRoomScreen({
           <h2 className="truncate text-lg font-bold text-foreground">{title}</h2>
           <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><span className="live-dot" />{room.participants.length} в эфире</p>
         </div>
-        <Button size="icon" variant="ghost" aria-label="Закрыть эфир" onClick={onClose} className="text-primary"><X /></Button>
+        <Button size="icon" variant="ghost" aria-label="Закрыть эфир" onClick={exit} className="text-primary"><X /></Button>
       </header>
+
+      {real && !unlocked ? (
+        <div className="mt-3 flex items-center gap-2">
+          <Button size="sm" className="flex-1" onClick={unlock}><Volume2 /> Слушать эфир</Button>
+          <Button size="sm" variant="secondary" onClick={() => { setMuted(true); setUnlocked(true); }}><VolumeX /> без звука</Button>
+        </div>
+      ) : null}
 
       <div className="mt-3"><ClipBricks clips={room.clips} participants={room.participants} activeId={activeClip} onPick={playClip} /></div>
 
@@ -165,12 +255,21 @@ export function LiveRoomScreen({
           {muted ? <VolumeX /> : <Volume2 />}
         </Button>
         <div className="flex flex-col items-center gap-1">
-          <button type="button" aria-label="Держите, чтобы сказать" className="grid size-20 place-items-center rounded-full bg-primary text-primary-foreground shadow-glow active:scale-95">
+          <button
+            type="button"
+            aria-label="Держите, чтобы сказать"
+            onPointerDown={(e) => { e.preventDefault(); micDown(); }}
+            onPointerUp={micUp}
+            onPointerLeave={micUp}
+            onPointerCancel={micUp}
+            onContextMenu={(e) => e.preventDefault()}
+            className={cn("touch-none select-none", recorder.recording && "live-speaking", "grid size-20 place-items-center rounded-full bg-primary text-primary-foreground shadow-glow active:scale-95")}
+          >
             <Mic className="size-8" />
           </button>
-          <span className="text-[11px] text-muted-foreground">Держите, чтобы сказать · в очереди {room.queue}</span>
+          <span className="text-[11px] text-muted-foreground">{recorder.recording ? `Говорите… ${recorder.seconds} с` : real ? (room.active ? "Держите, чтобы сказать" : "Держите, чтобы начать эфир") : `Держите, чтобы сказать · в очереди ${room.queue}`}</span>
         </div>
-        <Button size="icon" variant="ghost" aria-label="Выйти из эфира" onClick={onClose} className="text-primary"><LogOut /></Button>
+        <Button size="icon" variant="ghost" aria-label="Выйти из эфира" onClick={exit} className="text-primary"><LogOut /></Button>
       </footer>
     </div>,
     document.body,
