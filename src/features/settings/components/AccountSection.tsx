@@ -1,10 +1,11 @@
-import { BadgeCheck, KeyRound, Languages, Mail, Phone } from "lucide-react";
+import { BadgeCheck, KeyRound, QrCode, Languages, Mail, Phone } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type { AccountSettings } from "@/api";
 import { Button, Card, Input, Modal } from "@/components/ds";
+import { InviteQrSheet } from "@/components/InviteQrSheet";
 import { ContactConfirm } from "@/features/settings/components/ContactConfirm";
 import { useChangePassword, useUpdateAccount } from "@/features/settings/hooks";
 
@@ -14,6 +15,7 @@ const languageNames: Record<string, string> = { ru: "Русский", en: "Engli
 
 /** Аккаунт: контакты, пароль и язык интерфейса. */
 export function AccountSection({ account }: { account: AccountSettings }) {
+  const [shareOpen, setShareOpen] = useState(false);
   const { i18n } = useTranslation();
   const updateAccount = useUpdateAccount();
   const changePassword = useChangePassword();
@@ -67,6 +69,10 @@ export function AccountSection({ account }: { account: AccountSettings }) {
 
   return (
     <div className="space-y-4">
+      <Button variant="secondary" fullWidth onClick={() => setShareOpen(true)}>
+        <QrCode aria-hidden="true" />Поделиться приложением
+      </Button>
+      <InviteQrSheet open={shareOpen} onClose={() => setShareOpen(false)} title="Поделиться приложением" url={typeof window === "undefined" ? "" : window.location.origin} />
       <Card className="divide-y divide-border p-0">
         <ContactRow
           icon={<Mail className="size-4" aria-hidden="true" />}

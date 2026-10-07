@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, CalendarPlus, ChevronDown, Images, Info, Lock, LogOut, MoreHorizontal, Radio, Trash2, Unlock, UserPlus, UsersRound } from "lucide-react";
+import { CalendarDays, CalendarPlus, ChevronDown, Images, Info, Lock, LogOut, MoreHorizontal, Radio, Trash2, Unlock, UserPlus, UsersRound, QrCode } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { mediaUrl } from "@/api";
@@ -33,6 +33,7 @@ export function SpaceMenu({
   onEnterLive,
   onGallery,
   onInvite,
+  onShare,
   onCreateEvent,
   onPrivacyChange,
   onDelete,
@@ -51,6 +52,7 @@ export function SpaceMenu({
   onEnterLive: () => void;
   onGallery: () => void;
   onInvite: () => void;
+  onShare: () => void;
   onCreateEvent: () => void;
   onPrivacyChange: (isPrivate: boolean) => void;
   onDelete: () => void;
@@ -112,6 +114,7 @@ export function SpaceMenu({
           {space.isMember ? (
             <Button variant="secondary" fullWidth onClick={run(onGallery)}><Images aria-hidden="true" />Фото и видео</Button>
           ) : null}
+          <Button variant="secondary" fullWidth onClick={run(onShare)}><QrCode aria-hidden="true" />Пригласить</Button>
           <Button variant="secondary" fullWidth onClick={onToggleDemo}>
             <Radio aria-hidden="true" />{demoLive ? "Выключить демо эфира" : "Включить демо эфира"}
           </Button>
