@@ -54,17 +54,28 @@ export async function issueRefreshToken(
   return token;
 }
 
-/** Проверка refresh с одноразовым использованием (rotation). */
-export async function rotateRefreshToken(token: string): Promise<{ userId: string; next: string }> {
+/**
+ * Ротация refresh с льготным периодом 60 секунд: старый токен помечается
+ * rotated_at и ещё минуту принимается (параллельные запросы после сна/смены
+ * сети). Отозванные (revoked_at) не принимаются никогда.
+ */
+export async function rotateRefreshToken(
+  token: string,
+  meta: { userAgent?: string | undefined; ip?: string | undefined } = {},
+): Promise<{ userId: string; next: string }> {
   const row = await queryOne<{ id: string; user_id: string }>(
     `SELECT id, user_id FROM refresh_tokens
-      WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > now()`,
+      WHERE token_hash = $1 AND revoked_at IS NULL AND expires_at > now()
+        AND (rotated_at IS NULL OR rotated_at > now() - interval '60 seconds')`,
     [sha256(token)],
   );
   if (!row) throw unauthorized("Сессия недействительна");
 
-  await query("UPDATE refresh_tokens SET revoked_at = now() WHERE id = $1", [row.id]);
-  const next = await issueRefreshToken(row.user_id);
+  await query(
+    "UPDATE refresh_tokens SET rotated_at = now() WHERE id = $1 AND rotated_at IS NULL",
+    [row.id],
+  );
+  const next = await issueRefreshToken(row.user_id, meta);
   return { userId: row.user_id, next };
 }
 
