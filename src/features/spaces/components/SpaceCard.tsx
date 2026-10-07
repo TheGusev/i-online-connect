@@ -11,14 +11,6 @@ import {
   formatSpaceAge,
 } from "@/features/spaces/labels";
 import { SpaceSubscribe } from "./SpaceSubscribe";
-import { ClockTimer } from "@/components/ClockTimer";
-import { useMinutesUntil } from "@/features/nearby/components/ListingCountdown";
-
-function EventTimer({ startsAt }: { startsAt: string }) {
-  const minutes = useMinutesUntil(startsAt);
-  if (minutes <= 0) return null;
-  return <ClockTimer minutes={minutes} label={`До встречи ${Math.floor(minutes / 60)} ч ${minutes % 60} мин`} className="pointer-events-none absolute right-5 top-5" />;
-}
 
 export function SpaceCard({ space }: { space: Space }) {
   return (
@@ -47,8 +39,7 @@ export function SpaceCard({ space }: { space: Space }) {
       </div>
 
       <div className="relative space-y-3 p-5">
-        {space.nextEvent ? <EventTimer startsAt={space.nextEvent.startsAt} /> : null}
-        <div className={space.nextEvent ? "pr-16" : undefined}>
+        <div>
           <h3 className="text-lg font-bold leading-snug text-foreground">{space.title}</h3>
           <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
             {space.description}

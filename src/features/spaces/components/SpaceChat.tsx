@@ -126,7 +126,7 @@ export function SpaceChat({
           {...(canWrite && onMedia ? { onMedia } : {})}
           {...(voiceSending !== undefined ? { voiceSending } : {})}
           {...(mediaSending !== undefined ? { mediaSending } : {})}
-          placeholder={canWrite ? (messages.length > 0 ? "" : "Написать в общий чат") : "Чат доступен участникам сообщества"}
+          placeholder={canWrite ? "Написать в общий чат" : "Чат доступен участникам сообщества"}
           onSend={() => {
             const value = text.trim();
             if (!value || !canWrite) return;
