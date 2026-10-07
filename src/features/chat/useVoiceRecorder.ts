@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { stopAllVoice } from "./voicePlayback";
 
 export const MAX_VOICE_SECONDS = 180;
 /** Короче этого не отправляем — сервер всё равно отклонит запись без звука. */
@@ -133,6 +134,7 @@ export function useVoiceRecorder(onRecorded: (recording: VoiceRecording) => void
       return;
     }
     startingRef.current = true;
+    stopAllVoice();
     setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });

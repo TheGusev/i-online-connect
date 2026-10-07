@@ -86,6 +86,7 @@ export function SpaceChat({
                   {message.kind === "voice" && message.mediaUrl ? (
                     <div className={cn("mt-1 text-sm", mine ? "text-primary-ink" : "text-foreground")}>
                       <VoicePlayer
+                        id={message.id}
                         src={mediaUrl(message.mediaUrl) ?? message.mediaUrl}
                         duration={message.durationMs ?? 0}
                         mine={false}
