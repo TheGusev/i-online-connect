@@ -82,7 +82,7 @@ export function MessageActions({
       onPointerDown={(e) => { if (e.target === e.currentTarget && !fresh()) onClose(); }}
     >
       <div
-        className="fixed w-[min(320px,calc(100vw-16px))] rounded-2xl border border-border bg-card p-1.5 shadow-glow"
+        className="fixed w-[min(320px,calc(100vw-16px))] rounded-3xl border border-border/60 bg-card/85 p-1.5 shadow-glow backdrop-blur-md"
         style={pos ?? undefined}
       >
         {!message.deletedAt ? (

@@ -1,4 +1,4 @@
-import { ImagePlus, Mic, Pencil, Reply, SendHorizontal, Square, Trash2, X } from "lucide-react";
+import { Image as ImageIcon, ImagePlus, Mic, Video, Pencil, Reply, SendHorizontal, Square, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 
@@ -112,23 +112,7 @@ export function ChatComposer({
           </button>
         </div>
       ) : null}
-      {replyTo ? (
-        <div className="flex items-center gap-2 px-4 pt-2 text-xs [-webkit-touch-callout:none] [-webkit-user-select:none]">
-          <Reply className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
-          <span className="min-w-0 flex-1 truncate">
-            <span className="font-semibold text-primary-ink">{replyTo.authorName}</span>
-            <span className="text-muted-foreground"> · {replyTo.preview}</span>
-          </span>
-          <button
-            type="button"
-            aria-label="Отменить ответ"
-            onClick={onCancelReply}
-            className="shrink-0 text-muted-foreground hover:text-foreground"
-          >
-            <X className="size-4" aria-hidden="true" />
-          </button>
-        </div>
-      ) : null}
+      <ReplyPanel replyTo={replyTo ?? null} {...(onCancelReply ? { onCancel: onCancelReply } : {})} />
       {voice.error || mediaError ? (
         <p className="px-4 pt-2 text-xs text-destructive" role="alert">
           {voice.error ?? mediaError}
@@ -267,6 +251,57 @@ export function ChatComposer({
           </Button>
         )}
       </form>
+    </div>
+  );
+}
+
+/** Панель «ответ на сообщение» над полем ввода; плавно появляется и исчезает. */
+function ReplyPanel({ replyTo, onCancel }: { replyTo: { authorName: string; preview: string } | null; onCancel?: () => void }) {
+  const [last, setLast] = useState(replyTo);
+  useEffect(() => { if (replyTo) setLast(replyTo); }, [replyTo]);
+  const shown = replyTo ?? last;
+  const open = Boolean(replyTo);
+  const kind = shown?.preview === "Фото" ? "image" : shown?.preview === "Видео" ? "video" : shown?.preview === "Голосовое сообщение" ? "voice" : null;
+  const KindIcon = kind === "image" ? ImageIcon : kind === "video" ? Video : kind === "voice" ? Mic : null;
+  return (
+    <div
+      className={cn("grid transition-[grid-template-rows] duration-160 ease-out motion-reduce:transition-none", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}
+      aria-hidden={!open}
+    >
+      <div className="overflow-hidden">
+        {shown ? (
+          <div
+            className={cn(
+              "mx-3 mt-2 flex items-center gap-2 rounded-3xl border border-border bg-card py-1.5 pl-3 pr-2 transition-[opacity,transform] duration-160 ease-out motion-reduce:transition-none sm:mx-4",
+              "[-webkit-touch-callout:none] [-webkit-user-select:none]",
+              open ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0",
+            )}
+          >
+            <span className="w-0.5 self-stretch rounded-full bg-primary" aria-hidden="true" />
+            <div className="min-w-0 flex-1 text-xs">
+              <span className="flex items-center gap-1 font-bold text-primary">
+                <Reply className="size-3 shrink-0" aria-hidden="true" />
+                <span className="truncate">{shown.authorName}</span>
+              </span>
+              <span className="mt-0.5 flex items-center gap-1 text-muted-foreground">
+                {KindIcon ? <KindIcon className="size-3.5 shrink-0" aria-hidden="true" /> : null}
+                <span className="truncate">{kind === "voice" ? "Голосовое" : shown.preview}</span>
+              </span>
+            </div>
+            <button
+              type="button"
+              aria-label="Отменить ответ"
+              onClick={onCancel}
+              tabIndex={open ? 0 : -1}
+              className="grid size-11 shrink-0 place-items-center text-muted-foreground hover:text-foreground"
+            >
+              <span className="grid size-7 place-items-center rounded-full bg-foreground/[0.06]">
+                <X className="size-3.5" aria-hidden="true" />
+              </span>
+            </button>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }

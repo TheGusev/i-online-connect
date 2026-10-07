@@ -659,3 +659,33 @@
   .live-dot::after, .live-speaking::before, .live-speaking::after { animation: none; opacity: 0; }
   .live-ball { transition: none; }
 }
+
+/* Розовое разгорание отдельных звёзд: ~3 с свечения в длинном цикле, разные периоды. */
+.chat-sky__glint { position: absolute; width: 2px; height: 2px; border-radius: 9999px; background: var(--accent-glow, var(--primary)); opacity: 0; box-shadow: 0 0 6px 1px color-mix(in oklab, var(--primary) 70%, transparent); animation: chat-sky-glint 20s ease-in-out infinite; will-change: opacity; }
+@keyframes chat-sky-glint { 0%, 100% { opacity: 0 } 6% { opacity: .55 } 13% { opacity: 0 } }
+html[data-tab-hidden] .chat-sky *, html[data-tab-hidden] .live-icon * { animation-play-state: paused !important; }
+
+/* Подсветка сообщения по форме пузыря. */
+.msg-flash::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: color-mix(in oklab, var(--foreground) 14%, transparent); box-shadow: 0 0 18px 2px color-mix(in oklab, var(--primary) 35%, transparent); animation: msg-flash 1.2s ease-out forwards; }
+@keyframes msg-flash { 0% { opacity: 0 } 20% { opacity: 1 } 100% { opacity: 0 } }
+
+/* Реакция появляется с пружинкой. */
+.reaction-pop { animation: reaction-pop 320ms cubic-bezier(.34,1.56,.64,1); }
+@keyframes reaction-pop { from { transform: scale(.8); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+
+/* Знак эфира: дуги вспыхивают волной от центра, точка пульсирует. */
+.live-icon--on .live-icon__dot { transform-origin: center; transform-box: fill-box; animation: live-icon-dot 1.6s ease-in-out infinite; }
+.live-icon--on .live-icon__arc { animation: live-icon-arc 1.6s ease-in-out infinite; }
+.live-icon--on .live-icon__arc--2 { animation-delay: .3s; }
+@keyframes live-icon-arc { 0%, 100% { opacity: .3 } 35% { opacity: 1 } }
+@keyframes live-icon-dot { 0%, 100% { transform: scale(1) } 50% { transform: scale(1.3) } }
+
+/* Галерея: плавное появление картинки. */
+.gallery-img { opacity: 0; transition: opacity 150ms ease-out; }
+.gallery-img[data-loaded] { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chat-sky__glint, .msg-flash::after, .reaction-pop, .live-icon--on .live-icon__dot, .live-icon--on .live-icon__arc { animation: none !important; }
+  .chat-sky__glint { opacity: 0; }
+  .gallery-img { transition: none; }
+}

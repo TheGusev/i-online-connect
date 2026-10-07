@@ -222,10 +222,20 @@ function GalleryViewer({
   onShowInChat: (item: GalleryItem) => void;
 }) {
   const item = items[index]!;
-  const url = mediaUrl(item.mediaUrl) ?? item.mediaUrl;
-  const touchX = useRef<number | null>(null);
-  const prev = () => index > 0 && onIndex(index - 1);
-  const next = () => index < items.length - 1 && onIndex(index + 1);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+  const drag = useRef<{ x: number; y: number; axis: "x" | "y" | null } | null>(null);
+  const [pull, setPull] = useState(0);
+
+  const goTo = (target: number, smooth = true) => {
+    const track = trackRef.current;
+    if (!track || target < 0 || target >= items.length) return;
+    track.scrollTo({ left: target * track.clientWidth, behavior: smooth ? "smooth" : "auto" });
+  };
+  const prev = () => goTo(index - 1);
+  const next = () => goTo(index + 1);
+
+  // Открываем сразу на нужном слайде без анимации.
+  useEffect(() => { goTo(index, false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -237,33 +247,78 @@ function GalleryViewer({
     return () => window.removeEventListener("keydown", onKey);
   });
 
+  const progress = Math.min(1, pull / 300);
+
   return (
     <div
-      className="fixed inset-0 z-[95] flex flex-col bg-background"
-      onTouchStart={(event) => { touchX.current = event.touches[0]?.clientX ?? null; }}
-      onTouchEnd={(event) => {
-        const start = touchX.current;
-        const end = event.changedTouches[0]?.clientX;
-        touchX.current = null;
-        if (start == null || end == null || Math.abs(end - start) < 50) return;
-        if (end < start) next(); else prev();
-      }}
+      className="fixed inset-0 z-[95] flex flex-col"
+      style={{ backgroundColor: `color-mix(in oklab, var(--background) ${Math.round((1 - progress * 0.7) * 100)}%, transparent)` }}
     >
-      <header className="flex items-center gap-3 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+      <header className="flex items-center gap-3 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.75rem)]" style={{ opacity: 1 - progress }}>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{item.authorName}</p>
-          <p className="text-xs text-muted-foreground">{dateLabel(item.createdAt)} · {index + 1} из {items.length}</p>
+          <p className="text-xs tabular-nums text-muted-foreground">{dateLabel(item.createdAt)} · {index + 1} из {items.length}</p>
         </div>
         <button type="button" onClick={onClose} aria-label="Закрыть" className="grid size-10 place-items-center rounded-full border border-primary/40 bg-card text-primary">
           <X className="size-5" aria-hidden="true" />
         </button>
       </header>
-      <div className="relative grid min-h-0 flex-1 place-items-center p-3">
-        {item.kind === "video" ? (
-          <video key={item.id} src={url} controls playsInline autoPlay className="max-h-full max-w-full rounded-2xl" />
-        ) : (
-          <img key={item.id} src={url} alt="Вложение" className="max-h-full max-w-full rounded-2xl object-contain" />
-        )}
+      <div className="relative min-h-0 flex-1">
+        <div
+          ref={trackRef}
+          className="flex size-full snap-x snap-mandatory overflow-x-auto overscroll-contain scroll-smooth [scrollbar-width:none] motion-reduce:scroll-auto [&::-webkit-scrollbar]:hidden"
+          style={{
+            transform: pull ? `translateY(${pull}px) scale(${1 - progress * 0.25})` : undefined,
+            transition: pull ? undefined : "transform 260ms cubic-bezier(.22,1,.36,1)",
+          }}
+          onScroll={(event) => {
+            const track = event.currentTarget;
+            const nextIndex = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
+            if (nextIndex !== index && nextIndex >= 0 && nextIndex < items.length) onIndex(nextIndex);
+          }}
+          onTouchStart={(event) => {
+            const t = event.touches[0];
+            drag.current = t ? { x: t.clientX, y: t.clientY, axis: null } : null;
+          }}
+          onTouchMove={(event) => {
+            const d = drag.current;
+            const t = event.touches[0];
+            if (!d || !t) return;
+            const dx = t.clientX - d.x;
+            const dy = t.clientY - d.y;
+            if (!d.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 8) d.axis = dy > Math.abs(dx) ? "y" : "x";
+            if (d.axis === "y") setPull(Math.max(0, dy));
+          }}
+          onTouchEnd={() => {
+            const closing = drag.current?.axis === "y" && pull > 120;
+            drag.current = null;
+            if (closing) onClose(); else setPull(0);
+          }}
+        >
+          {items.map((slide, i) => {
+            const near = Math.abs(i - index) <= 1;
+            const src = mediaUrl(slide.mediaUrl) ?? slide.mediaUrl;
+            return (
+              <div key={slide.id} className="grid h-full w-full shrink-0 snap-center snap-always place-items-center p-3">
+                {!near ? null : slide.kind === "video" ? (
+                  i === index ? (
+                    <video src={src} controls playsInline autoPlay className="max-h-full max-w-full rounded-2xl" />
+                  ) : (
+                    <video src={src} preload="metadata" playsInline muted className="max-h-full max-w-full rounded-2xl" />
+                  )
+                ) : (
+                  <img
+                    src={src}
+                    alt="Вложение"
+                    draggable={false}
+                    onLoad={(e) => e.currentTarget.setAttribute("data-loaded", "")}
+                    className="gallery-img max-h-full max-w-full rounded-2xl object-contain"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
         {index > 0 ? (
           <button type="button" onClick={prev} aria-label="Предыдущее" className="absolute left-3 top-1/2 hidden size-11 -translate-y-1/2 place-items-center rounded-full border border-primary/40 bg-card text-primary sm:grid">
             <ChevronLeft className="size-5" aria-hidden="true" />
@@ -275,7 +330,7 @@ function GalleryViewer({
           </button>
         ) : null}
       </div>
-      <div className="flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2">
+      <div className="flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2" style={{ opacity: 1 - progress }}>
         <button
           type="button"
           onClick={() => onShowInChat(item)}
