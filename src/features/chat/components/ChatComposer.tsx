@@ -1,4 +1,4 @@
-import { ImagePlus, Mic, Pencil, Reply, SendHorizontal, Square, Trash2, X } from "lucide-react";
+import { Image as ImageIcon, ImagePlus, Mic, Video, Pencil, Reply, SendHorizontal, Square, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 

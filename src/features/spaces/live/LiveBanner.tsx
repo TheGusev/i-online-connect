@@ -2,6 +2,7 @@ import { mediaUrl } from "@/api";
 import { Avatar, Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
 
+import { LiveIcon } from "./LiveIcon";
 import { ClipBricks } from "./ClipBricks";
 import type { LiveRoom } from "./useLiveRoom";
 
@@ -16,7 +17,7 @@ export function LiveBanner({ room, onEnter }: { room: LiveRoom; onEnter: () => v
     >
       <div className="overflow-hidden">
         <div className="mt-2 flex items-center gap-2 rounded-full border border-primary/40 bg-primary/10 py-1 pl-3 pr-1">
-          <span className="live-dot" />
+          <LiveIcon active={room.active} className="size-4 shrink-0 text-primary" />
           <span className="shrink-0 text-xs font-semibold text-primary-ink">В эфире · {room.participants.length}</span>
           <div className="flex -space-x-1.5">
             {room.participants.slice(0, 3).map((p) => (

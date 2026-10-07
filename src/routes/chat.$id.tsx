@@ -285,10 +285,14 @@ function ConversationPage() {
     const node = document.getElementById(`message-${messageId}`);
     if (!node) return;
     node.scrollIntoView({ behavior: "smooth", block: "center" });
-    node.classList.add("ring-2", "ring-primary/60", "rounded-3xl");
+    const bubble = node.querySelector<HTMLElement>("[data-bubble]") ?? node;
+    // Подсветка по форме пузыря — после того как прокрутка доедет.
     window.setTimeout(() => {
-      node.classList.remove("ring-2", "ring-primary/60", "rounded-3xl");
-    }, 1200);
+      bubble.classList.remove("msg-flash");
+      void bubble.offsetWidth;
+      bubble.classList.add("msg-flash");
+      window.setTimeout(() => bubble.classList.remove("msg-flash"), 1300);
+    }, 350);
   };
 
   const retry = (message: Message) => {

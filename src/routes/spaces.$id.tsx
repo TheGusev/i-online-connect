@@ -15,6 +15,7 @@ import { SpaceChat } from "@/features/spaces/components/SpaceChat";
 import { SpaceInviteDialog } from "@/features/spaces/components/SpaceInviteDialog";
 import { InviteQrSheet } from "@/components/InviteQrSheet";
 import { SpaceMenu } from "@/features/spaces/components/SpaceMenu";
+import { LiveIcon } from "@/features/spaces/live/LiveIcon";
 import { LiveBanner } from "@/features/spaces/live/LiveBanner";
 import { LiveRoomScreen } from "@/features/spaces/live/LiveRoomScreen";
 import { useLiveRoom, type LiveRoom, type LiveSeedMember } from "@/features/spaces/live/useLiveRoom";
@@ -140,8 +141,7 @@ function SpaceDetailPage() {
             </p>
           </div>
           <Button size="icon" variant="ghost" aria-label="Эфир" onClick={() => setLiveOpen(true)} className="relative size-10 text-primary">
-            <Radio aria-hidden="true" />
-            {room.active ? <span className="live-dot absolute right-2 top-2" /> : null}
+            <LiveIcon active={room.active} className="size-5" />
           </Button>
           {space.isMember ? <MediaGalleryButton onClick={() => setGalleryOpen(true)} className="size-10" /> : null}
           <SpaceMenu
