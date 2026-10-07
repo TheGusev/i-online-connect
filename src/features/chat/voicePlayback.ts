@@ -31,7 +31,7 @@ export function playNextAfter(id: string) {
   const next = item?.nextElementSibling;
   const nextVoice = next?.querySelector<HTMLElement>("[data-voice-id]");
   if (!nextVoice) return;
-  const nextId = nextVoice.dataset.voiceId;
+  const nextId = nextVoice.dataset["voiceId"];
   if (nextId) players.get(nextId)?.play();
 }
 
