@@ -199,11 +199,13 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
         </div>
 
         {listing && !listing.isMine && !listing.isSeed ? (
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-t border-border bg-card px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+          <div className="grid grid-cols-2 gap-2 border-t border-border bg-card px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
             <Button fullWidth loading={respond.isPending} disabled={listing.state !== "active"} onClick={respondNow}>
               <MessageCircle aria-hidden="true" />{listing.respondedConversationId ? "Перейти в диалог" : "Откликнуться"}
             </Button>
-            <Button variant="secondary" size="icon" disabled aria-label="В избранное недоступно"><Heart aria-hidden="true" /></Button>
+            <Button variant="secondary" disabled title="Избранное пока не поддерживается">
+              <Heart aria-hidden="true" />В избранное
+            </Button>
           </div>
         ) : null}
       </article>
