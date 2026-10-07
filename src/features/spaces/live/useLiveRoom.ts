@@ -1,3 +1,4 @@
+import { RESUME_EVENT } from "@/api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { getToken } from "@/api";
@@ -239,8 +240,16 @@ function useRealLiveRoom(spaceId: string, enabled: boolean, members: LiveSeedMem
       };
     };
     connect();
+    const onResume = () => {
+      if (closed || socketRef.current) return;
+      window.clearTimeout(timer);
+      attempt = 0;
+      connect();
+    };
+    window.addEventListener(RESUME_EVENT, onResume);
     return () => {
       closed = true;
+      window.removeEventListener(RESUME_EVENT, onResume);
       window.clearTimeout(timer);
       socketRef.current?.close();
       socketRef.current = null;

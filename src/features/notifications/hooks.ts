@@ -1,3 +1,4 @@
+import { RESUME_EVENT } from "@/api";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { toast } from "sonner";
@@ -158,11 +159,13 @@ export function useNotificationSocket() {
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("online", onVisible);
+    window.addEventListener(RESUME_EVENT, onVisible);
 
     return () => {
       disposed = true;
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", onVisible);
+      window.removeEventListener(RESUME_EVENT, onVisible);
       if (timer) clearTimeout(timer);
       if (socket && socket.readyState === WebSocket.OPEN) socket.close();
     };

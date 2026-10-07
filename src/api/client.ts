@@ -98,21 +98,99 @@ async function send(path: string, options: RequestOptions, token: string | null)
   });
 }
 
-/** Обновление access-токена по httpOnly-cookie. Возвращает новый токен или null. */
-async function refreshAccessToken(): Promise<string | null> {
+export type RefreshResult =
+  | { kind: "ok"; token: string }
+  | { kind: "invalid" }
+  | { kind: "temporary" };
+
+/** Событие для стора сессии: сервер признал сессию недействительной. */
+export const SESSION_INVALID_EVENT = "ya-online:session-invalid";
+/** Событие возврата в приложение: сокеты переподключаются, если закрыты. */
+export const RESUME_EVENT = "ya-online:resume";
+
+export const OFFLINE_MESSAGE = "Нет связи с сервером — попробуйте ещё раз";
+const REFRESH_TIMEOUT_MS = 10_000;
+
+async function doRefresh(): Promise<RefreshResult> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
   try {
     const response = await fetch(buildUrl("/auth/refresh"), {
       method: "POST",
       credentials: "include",
       headers: { Accept: "application/json" },
+      signal: controller.signal,
     });
-    if (!response.ok) return null;
+    if (response.status === 401 || response.status === 403) return { kind: "invalid" };
+    if (!response.ok) return { kind: "temporary" };
     const data = (await response.json()) as { token?: string };
-    return data?.token ?? null;
+    return data?.token ? { kind: "ok", token: data.token } : { kind: "temporary" };
   } catch (error) {
     console.error("[api] refresh не удался:", error);
+    return { kind: "temporary" };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+let refreshInFlight: Promise<RefreshResult> | null = null;
+
+/**
+ * Единая на всё приложение попытка обновления токена: параллельные вызовы
+ * ждут один и тот же запрос /auth/refresh. Токен сохраняется/стирается здесь.
+ */
+export function refreshAccessToken(): Promise<RefreshResult> {
+  if (!refreshInFlight) {
+    refreshInFlight = doRefresh()
+      .then((result) => {
+        if (result.kind === "ok") setToken(result.token);
+        else if (result.kind === "invalid") {
+          setToken(null);
+          if (typeof window !== "undefined") window.dispatchEvent(new Event(SESSION_INVALID_EVENT));
+        }
+        return result;
+      })
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
+
+/** Секунды до истечения access-токена (из JWT) или null, если не разобрать. */
+function tokenSecondsLeft(token: string): number | null {
+  try {
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const json = JSON.parse(atob(part.replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number };
+    return typeof json.exp === "number" ? json.exp - Date.now() / 1000 : null;
+  } catch {
     return null;
   }
+}
+
+/** Обновить токен заранее, если он истёк или истекает в ближайшие 60 секунд. */
+export async function ensureFreshToken(): Promise<RefreshResult | null> {
+  const token = getToken();
+  if (!token) return null;
+  const left = tokenSecondsLeft(token);
+  if (left !== null && left > 60) return null;
+  return refreshAccessToken();
+}
+
+/**
+ * Реакция на 401: если токен уже сменился, пока шёл запрос, — просто
+ * повторяем с новым; иначе ждём общее обновление.
+ * Возвращает токен для повтора, null — повторять нечего (сессия кончилась).
+ * При временной ошибке бросает ApiError «нет связи», токен не трогаем.
+ */
+async function tokenAfter401(sentToken: string): Promise<string | null> {
+  const current = getToken();
+  if (current && current !== sentToken) return current;
+  const result = await refreshAccessToken();
+  if (result.kind === "ok") return result.token;
+  if (result.kind === "temporary") throw new ApiError(0, OFFLINE_MESSAGE);
+  return null;
 }
 
 async function toApiError(response: Response) {
@@ -129,16 +207,24 @@ async function toApiError(response: Response) {
 /** Реальный HTTP-запрос к внешнему REST API. */
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const token = getToken();
-  let response = await send(path, options, token);
+  let response: Response;
+  try {
+    response = await send(path, options, token);
+  } catch (cause) {
+    if ((cause as { name?: string })?.name === "AbortError") throw cause;
+    throw new ApiError(0, OFFLINE_MESSAGE);
+  }
 
-  // Access-токен живёт 15 минут: один раз пробуем обновить его и повторить запрос.
+  // Access-токен живёт 15 минут: один раз обновляем его и повторяем запрос.
   if (response.status === 401 && token && !path.includes("/auth/refresh")) {
-    const next = await refreshAccessToken();
+    const next = await tokenAfter401(token);
     if (next) {
-      setToken(next);
-      response = await send(path, options, next);
-    } else {
-      setToken(null);
+      try {
+        response = await send(path, options, next);
+      } catch (cause) {
+        if ((cause as { name?: string })?.name === "AbortError") throw cause;
+        throw new ApiError(0, OFFLINE_MESSAGE);
+      }
     }
   }
 
@@ -197,13 +283,16 @@ export function upload<T>(
     xhr.onerror = () => reject(new ApiError(0, "Нет связи с сервером — попробуйте ещё раз"));
     xhr.onload = async () => {
       if (xhr.status === 401 && token && canRefresh) {
-        const next = await refreshAccessToken();
-        if (next) {
-          setToken(next);
-          attempt(next, false).then(resolve, reject);
+        try {
+          const next = await tokenAfter401(token);
+          if (next) {
+            attempt(next, false).then(resolve, reject);
+            return;
+          }
+        } catch (cause) {
+          reject(cause);
           return;
         }
-        setToken(null);
       }
 
       normalized.onProgress?.(100);

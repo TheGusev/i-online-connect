@@ -120,7 +120,10 @@ export async function authRoutes(app: FastifyInstance) {
     const token = (request.cookies as Record<string, string | undefined>)[REFRESH_COOKIE];
     if (!token) throw unauthorized("Нет refresh-токена");
 
-    const { userId, next } = await rotateRefreshToken(token);
+    const { userId, next } = await rotateRefreshToken(token, {
+      userAgent: request.headers["user-agent"],
+      ip: request.ip,
+    });
     setRefreshCookie(reply, next);
     return { token: await signAccessToken(userId) };
   });
