@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { BadgeCheck, CalendarDays, MapPin, Users } from "lucide-react";
 
 import { mediaUrl, type Space } from "@/api";
+import { ClockTimer } from "@/components/ClockTimer";
 import { Chip, MediaImage } from "@/components/ds";
 import {
   cadenceLabels,
@@ -10,7 +11,31 @@ import {
   formatMembers,
   formatSpaceAge,
 } from "@/features/spaces/labels";
+import { useMinutesUntil } from "@/features/nearby/components/ListingCountdown";
+import { cn } from "@/lib/utils";
 import { SpaceSubscribe } from "./SpaceSubscribe";
+
+/** Таймер до ближайшей встречи: в днях, а за сутки — ЧЧ:ММ.
+ *  Встреча идёт или её нет — ничего не показываем. */
+function EventCountdown({ startsAt, className }: { startsAt?: string; className?: string }) {
+  const minutes = useMinutesUntil(startsAt ?? "");
+  if (minutes <= 0 || !Number.isFinite(minutes)) return null;
+  if (minutes < 24 * 60) {
+    return <ClockTimer minutes={minutes} {...(className ? { className } : {})} />;
+  }
+  const days = Math.floor(minutes / (24 * 60));
+  return (
+    <span
+      aria-label={`До встречи ${days} дн.`}
+      className={cn(
+        "font-mono text-base font-bold leading-none tabular-nums text-primary [text-shadow:0_0_8px_var(--color-primary)]",
+        className,
+      )}
+    >
+      {days} дн
+    </span>
+  );
+}
 
 export function SpaceCard({ space }: { space: Space }) {
   return (
@@ -39,8 +64,12 @@ export function SpaceCard({ space }: { space: Space }) {
       </div>
 
       <div className="relative space-y-3 p-5">
+        <EventCountdown
+          {...(space.nextEvent ? { startsAt: space.nextEvent.startsAt } : {})}
+          className="pointer-events-none absolute right-5 top-5 z-10"
+        />
         <div>
-          <h3 className="text-lg font-bold leading-snug text-foreground">{space.title}</h3>
+          <h3 className="pr-16 text-lg font-bold leading-snug text-foreground">{space.title}</h3>
           <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
             {space.description}
           </p>
