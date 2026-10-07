@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, BadgeCheck, Crown, Lock, Radio } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Crown, Lock } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
