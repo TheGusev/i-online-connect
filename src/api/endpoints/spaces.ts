@@ -96,10 +96,12 @@ export async function sendSpaceVoiceMessage(
   recording: Blob,
   durationMs: number,
   clientTempId: string,
+  live = false,
 ): Promise<SpaceMessage> {
   const form = new FormData();
   form.append("durationMs", String(durationMs));
   form.append("clientTempId", clientTempId);
+  if (live) form.append("live", "1");
   const baseMime = recording.type.split(";")[0];
   const fileName = baseMime === "audio/webm" ? "voice.webm" : "voice.m4a";
   form.append("file", recording, fileName);

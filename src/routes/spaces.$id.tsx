@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, BadgeCheck, Crown, Lock, Radio } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -80,14 +80,6 @@ function SpaceDetailPage() {
   const candidates = useInviteCandidates(id, inviteQuery, inviteOpen);
   const invite = useInviteToSpace(id);
 
-  useEffect(() => {
-    if (!eventId || !space) return;
-    const timer = window.setTimeout(() => {
-      document.getElementById(`event-${eventId}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }, 120);
-    return () => window.clearTimeout(timer);
-  }, [eventId, space]);
-
   if (isPending) return <AppShell><ProfileCardSkeleton /></AppShell>;
 
   if (isError || !space) {
@@ -142,7 +134,7 @@ function SpaceDetailPage() {
             </div>
             <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
               <span className="size-1.5 shrink-0 rounded-full bg-primary" />
-              {room.active ? `${room.participants.length} в сети` : `${space.membersCount} участников`} · {space.city}
+              {room.online !== null ? `${room.online} в сети` : room.active ? `${room.participants.length} в сети` : `${space.membersCount} участников`} · {space.city}
             </p>
           </div>
           <Button size="icon" variant="ghost" aria-label="Эфир" onClick={() => setLiveOpen(true)} className="relative size-10 text-primary">
@@ -173,6 +165,7 @@ function SpaceDetailPage() {
             deleting={deleteSpace.isPending}
             leaving={leave.isPending}
             renderEvents={renderEvents}
+            openEvents={Boolean(eventId)}
           />
         </header>
         <MediaGallery scope="space" id={id} open={galleryOpen} onClose={() => setGalleryOpen(false)} />
@@ -263,7 +256,7 @@ function SpaceLive({
   return (
     <>
       {children(room, demo, () => setDemo((d) => !d), setOpen)}
-      <LiveRoomScreen open={open} title="Эфир" room={room} onClose={() => setOpen(false)} />
+      <LiveRoomScreen open={open} title="Эфир" spaceId={spaceId} demo={demo} room={room} onClose={() => setOpen(false)} />
     </>
   );
 }

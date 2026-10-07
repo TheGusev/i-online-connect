@@ -11,6 +11,7 @@
  * Групповой чат читают и пишут только участники (assertSpaceMembership).
  */
 import type { FastifyInstance } from "fastify";
+import { isLiveActive, publishLiveClip } from "../ws/live.ts";
 import { randomUUID } from "node:crypto";
 import { unlink } from "node:fs/promises";
 import { z } from "zod";
@@ -682,14 +683,16 @@ export async function spaceRoutes(app: FastifyInstance) {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
     await assertSpaceMembership(userId, id);
-    const parts = request.parts({ limits: { fileSize: MAX_VOICE_BYTES, files: 1, fields: 3 } });
+    const parts = request.parts({ limits: { fileSize: MAX_VOICE_BYTES, files: 1, fields: 4 } });
     let buffer: Buffer | null = null;
     let clientTempId = "";
+    let live = false;
     let durationValue = "";
     for await (const part of parts) {
       if (part.type === "file") buffer = await part.toBuffer();
       else if (part.fieldname === "clientTempId") clientTempId = String(part.value);
       else if (part.fieldname === "durationMs") durationValue = String(part.value);
+      else if (part.fieldname === "live") live = String(part.value) === "1";
     }
     if (!z.string().uuid().safeParse(clientTempId).success) throw badRequest("Некорректный идентификатор голосового");
     const durationMs = Number(durationValue);
@@ -715,7 +718,10 @@ export async function spaceRoutes(app: FastifyInstance) {
       const measured = await audioDurationMs(saved.filePath).catch(() => 0);
       if (measured < 400) throw badRequest("Запись не содержит воспроизводимого звука");
       if (measured > 180_500) throw badRequest("Голосовое может длиться не больше 3 минут");
-      const converted = await transcodeVoiceToAac(saved.filePath, userId).catch(() => null);
+      // Уже MP4/AAC — не перекодируем повторно.
+      const converted = audioType.mime === "audio/mp4"
+        ? null
+        : await transcodeVoiceToAac(saved.filePath, userId).catch(() => null);
       if (converted) {
         playable = converted;
         playableMime = "audio/mp4";
@@ -733,6 +739,12 @@ export async function spaceRoutes(app: FastifyInstance) {
         [id, userId, clientTempId || randomUUID(), playable.url, playableMime, measured],
       );
       if (!row) throw badRequest("Не удалось сохранить голосовое");
+      if (live && isLiveActive(id)) {
+        publishLiveClip(id, {
+          id: row.id, userId, audioUrl: playable.url, mime: playableMime,
+          durationMs: measured, createdAt: row.created_at.toISOString(), clientTempId,
+        });
+      }
       return {
         id: row.id, spaceId: id, authorId: userId, authorName: row.author_name,
         text: "Голосовое сообщение", kind: "voice" as const, clientTempId,

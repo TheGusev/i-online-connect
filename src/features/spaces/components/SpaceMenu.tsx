@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, CalendarPlus, ChevronDown, Images, Info, Lock, LogOut, MoreHorizontal, Radio, Trash2, Unlock, UserPlus, UsersRound } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { mediaUrl } from "@/api";
 import type { SpaceDetail, SpaceEvent } from "@/api/types";
@@ -10,8 +10,8 @@ import { categoryLabels, formatLabels, formatSpaceAge } from "@/features/spaces/
 
 import type { LiveRoom } from "../live/useLiveRoom";
 
-function Section({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+function Section({ icon, title, children, defaultOpen = false }: { icon: ReactNode; title: string; children: ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <div className="rounded-2xl border border-border bg-background">
       <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-4 py-3 text-left font-semibold text-foreground">
@@ -41,6 +41,7 @@ export function SpaceMenu({
   deleting,
   leaving,
   renderEvents,
+  openEvents = false,
 }: {
   space: SpaceDetail;
   events: SpaceEvent[];
@@ -58,8 +59,11 @@ export function SpaceMenu({
   deleting: boolean;
   leaving: boolean;
   renderEvents: () => ReactNode;
+  /** Открыть меню сразу на «Встречах» (ссылка из уведомления). */
+  openEvents?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => { if (openEvents) setOpen(true); }, [openEvents]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const run = (fn: () => void) => () => { setOpen(false); fn(); };
 
@@ -101,7 +105,7 @@ export function SpaceMenu({
             </div>
           </Section>
 
-          <Section icon={<CalendarDays />} title={`Встречи · ${events.length}`}>
+          <Section icon={<CalendarDays />} title={`Встречи · ${events.length}`} defaultOpen={openEvents}>
             {events.length > 0 ? renderEvents() : <p className="text-muted-foreground">Пока нет встреч.</p>}
           </Section>
 
