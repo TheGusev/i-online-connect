@@ -34,6 +34,7 @@ import { Route as ProfileIdRouteImport } from './routes/profile.$id'
 import { Route as ProfileMeRouteImport } from './routes/profile.me'
 import { Route as SpacesIndexRouteImport } from './routes/spaces.index'
 import { Route as SpacesIdRouteImport } from './routes/spaces.$id'
+import { Route as UIdRouteImport } from './routes/u.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -160,6 +161,11 @@ const SpacesIdRoute = SpacesIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => SpacesRoute,
 } as any)
+const UIdRoute = UIdRouteImport.update({
+  id: '/u/$id',
+  path: '/u/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -184,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
   '/spaces/$id': typeof SpacesIdRoute
+  '/u/$id': typeof UIdRoute
   '/chat/': typeof ChatIndexRoute
   '/nearby/': typeof NearbyIndexRoute
   '/spaces/': typeof SpacesIndexRoute
@@ -208,6 +215,7 @@ export interface FileRoutesByTo {
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
   '/spaces/$id': typeof SpacesIdRoute
+  '/u/$id': typeof UIdRoute
   '/chat': typeof ChatIndexRoute
   '/nearby': typeof NearbyIndexRoute
   '/spaces': typeof SpacesIndexRoute
@@ -236,6 +244,7 @@ export interface FileRoutesById {
   '/profile/$id': typeof ProfileIdRoute
   '/profile/me': typeof ProfileMeRoute
   '/spaces/$id': typeof SpacesIdRoute
+  '/u/$id': typeof UIdRoute
   '/chat/': typeof ChatIndexRoute
   '/nearby/': typeof NearbyIndexRoute
   '/spaces/': typeof SpacesIndexRoute
@@ -265,6 +274,7 @@ export interface FileRouteTypes {
     | '/profile/$id'
     | '/profile/me'
     | '/spaces/$id'
+    | '/u/$id'
     | '/chat/'
     | '/nearby/'
     | '/spaces/'
@@ -289,6 +299,7 @@ export interface FileRouteTypes {
     | '/profile/$id'
     | '/profile/me'
     | '/spaces/$id'
+    | '/u/$id'
     | '/chat'
     | '/nearby'
     | '/spaces'
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/profile/$id'
     | '/profile/me'
     | '/spaces/$id'
+    | '/u/$id'
     | '/chat/'
     | '/nearby/'
     | '/spaces/'
@@ -340,6 +352,7 @@ export interface RootRouteChildren {
   VerificationRoute: typeof VerificationRoute
   ProfileIdRoute: typeof ProfileIdRoute
   ProfileMeRoute: typeof ProfileMeRoute
+  UIdRoute: typeof UIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -519,6 +532,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SpacesIdRouteImport
       parentRoute: typeof SpacesRoute
     }
+    '/u/$id': {
+      id: '/u/$id'
+      path: '/u/$id'
+      fullPath: '/u/$id'
+      preLoaderRoute: typeof UIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -581,6 +601,7 @@ const rootRouteChildren: RootRouteChildren = {
   VerificationRoute: VerificationRoute,
   ProfileIdRoute: ProfileIdRoute,
   ProfileMeRoute: ProfileMeRoute,
+  UIdRoute: UIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
