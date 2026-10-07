@@ -640,6 +640,8 @@
 @media (prefers-reduced-motion: reduce) { .chat-sky__drift, .chat-sky__stars { animation: none !important; } }
 
 @keyframes blink { 50% { opacity: 0; } }
+.clock-colon { display: inline-block; animation: blink 2s steps(1) infinite; }
+@media (prefers-reduced-motion: reduce) { .clock-colon { animation: none; } }
 
 /* «Эфир» в пространствах */
 .live-dot { position: relative; display: inline-block; width: 0.5rem; height: 0.5rem; flex-shrink: 0; border-radius: 9999px; background: var(--primary); }
