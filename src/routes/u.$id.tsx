@@ -39,7 +39,7 @@ function UserStorefront() {
         <header className="flex items-center gap-4 border-b border-border pb-5">
           <Avatar
             name={profile.data.name}
-            src={profile.data.avatarUrl}
+            src={profile.data.avatarUrl ?? null}
             size="lg"
             verified={profile.data.trustLevel !== "new"}
           />

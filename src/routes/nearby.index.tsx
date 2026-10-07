@@ -15,9 +15,8 @@ import { useListings } from "@/features/nearby/hooks";
 import { useSessionStore } from "@/store/useSessionStore";
 
 export const Route = createFileRoute("/nearby/")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    listing: typeof search.listing === "string" ? search.listing : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): { listing?: string } =>
+    typeof search["listing"] === "string" ? { listing: search["listing"] } : {},
   head: () => ({
     meta: [
       { title: "Рядом: объявления, услуги и помощь в вашем городе — Я Онлайн" },
@@ -192,8 +191,8 @@ function NearbyPage() {
         </>
       )}
       <ListingSheet
-        listingId={listing}
-        onClose={() => void navigate({ search: (previous) => ({ ...previous, listing: undefined }) })}
+        {...(listing ? { listingId: listing } : {})}
+        onClose={() => void navigate({ search: {}, replace: true })}
       />
     </AppShell>
   );
