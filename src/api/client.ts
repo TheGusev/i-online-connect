@@ -283,13 +283,16 @@ export function upload<T>(
     xhr.onerror = () => reject(new ApiError(0, "Нет связи с сервером — попробуйте ещё раз"));
     xhr.onload = async () => {
       if (xhr.status === 401 && token && canRefresh) {
-        const next = await refreshAccessToken();
-        if (next) {
-          setToken(next);
-          attempt(next, false).then(resolve, reject);
+        try {
+          const next = await tokenAfter401(token);
+          if (next) {
+            attempt(next, false).then(resolve, reject);
+            return;
+          }
+        } catch (cause) {
+          reject(cause);
           return;
         }
-        setToken(null);
       }
 
       normalized.onProgress?.(100);

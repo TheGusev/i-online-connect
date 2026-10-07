@@ -5,9 +5,10 @@ import type { Session, User } from "@/api";
 /**
  * loading — токен есть, профиль ещё запрашивается;
  * authed  — сессия подтверждена backend'ом;
+ * offline — токен есть, но сервер временно недоступен (сессию не стираем);
  * guest   — токена нет либо он больше не действует.
  */
-export type SessionStatus = "loading" | "authed" | "guest";
+export type SessionStatus = "loading" | "authed" | "offline" | "guest";
 
 interface SessionState {
   user: User | null;
