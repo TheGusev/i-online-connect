@@ -21,7 +21,7 @@ function EventCountdown({ startsAt, className }: { startsAt?: string; className?
   const minutes = useMinutesUntil(startsAt ?? "");
   if (minutes <= 0 || !Number.isFinite(minutes)) return null;
   if (minutes < 24 * 60) {
-    return <ClockTimer minutes={minutes} className={className} />;
+    return <ClockTimer minutes={minutes} {...(className ? { className } : {})} />;
   }
   const days = Math.floor(minutes / (24 * 60));
   return (
