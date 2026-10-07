@@ -17,9 +17,9 @@ import { SpaceSubscribe } from "./SpaceSubscribe";
 
 /** Таймер до ближайшей встречи: в днях, а за сутки — ЧЧ:ММ.
  *  Встреча идёт или её нет — ничего не показываем. */
-function EventCountdown({ startsAt, className }: { startsAt: string; className?: string }) {
-  const minutes = useMinutesUntil(startsAt);
-  if (minutes <= 0) return null;
+function EventCountdown({ startsAt, className }: { startsAt?: string; className?: string }) {
+  const minutes = useMinutesUntil(startsAt ?? "");
+  if (minutes <= 0 || !Number.isFinite(minutes)) return null;
   if (minutes < 24 * 60) {
     return <ClockTimer minutes={minutes} className={className} />;
   }
