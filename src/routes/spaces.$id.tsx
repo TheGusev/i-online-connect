@@ -13,6 +13,7 @@ import { JoinPanel } from "@/features/spaces/components/JoinPanel";
 import { MediaGallery, MediaGalleryButton } from "@/features/chat/components/MediaGallery";
 import { SpaceChat } from "@/features/spaces/components/SpaceChat";
 import { SpaceInviteDialog } from "@/features/spaces/components/SpaceInviteDialog";
+import { InviteQrSheet } from "@/components/InviteQrSheet";
 import { SpaceMenu } from "@/features/spaces/components/SpaceMenu";
 import { LiveBanner } from "@/features/spaces/live/LiveBanner";
 import { LiveRoomScreen } from "@/features/spaces/live/LiveRoomScreen";
@@ -73,6 +74,7 @@ function SpaceDetailPage() {
   const deleteSpace = useDeleteSpace(id);
   const declineInvite = useDeclineSpaceInvite(id);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [galleryOpen, setGalleryOpen] = useState(false);
   const isMobile = useIsMobile();
   const [eventOpen, setEventOpen] = useState(false);
@@ -223,6 +225,7 @@ function SpaceDetailPage() {
           })}
         />
       ) : null}
+      <InviteQrSheet open={qrOpen} onClose={() => setQrOpen(false)} url={typeof window === "undefined" ? "" : `${window.location.origin}/spaces/${id}`} />
       <SpaceInviteDialog
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
