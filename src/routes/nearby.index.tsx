@@ -9,11 +9,14 @@ import { Reveal } from "@/components/landing/Reveal";
 import { WaveHeading } from "@/components/landing/WaveHeading";
 import { CategoryChips } from "@/features/nearby/components/CategoryChips";
 import { ListingCard } from "@/features/nearby/components/ListingCard";
+import { ListingSheet } from "@/features/nearby/components/ListingSheet";
 import { categories } from "@/features/nearby/labels";
 import { useListings } from "@/features/nearby/hooks";
 import { useSessionStore } from "@/store/useSessionStore";
 
 export const Route = createFileRoute("/nearby/")({
+  validateSearch: (search: Record<string, unknown>): { listing?: string } =>
+    typeof search["listing"] === "string" ? { listing: search["listing"] } : {},
   head: () => ({
     meta: [
       { title: "Рядом: объявления, услуги и помощь в вашем городе — Я Онлайн" },
@@ -37,6 +40,8 @@ export const Route = createFileRoute("/nearby/")({
 const PAGE = 20;
 
 function NearbyPage() {
+  const { listing } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const authed = useSessionStore((state) => state.status === "authed");
   const [city, setCity] = useState("");
   const [category, setCategory] = useState<NeedCategory | null>(null);
@@ -185,6 +190,10 @@ function NearbyPage() {
           )}
         </>
       )}
+      <ListingSheet
+        {...(listing ? { listingId: listing } : {})}
+        onClose={() => void navigate({ search: {}, replace: true })}
+      />
     </AppShell>
   );
 }

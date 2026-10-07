@@ -36,6 +36,11 @@ export async function getMyListings(): Promise<Listing[]> {
   return request<Listing[]>("/listings/mine");
 }
 
+/** Публичная витрина объявлений пользователя: активные и завершённые. */
+export async function getUserListings(userId: string): Promise<Listing[]> {
+  return request<Listing[]>(`/listings/user/${userId}`);
+}
+
 export async function getListing(id: string): Promise<Listing> {
   return request<Listing>(`/listings/${id}`);
 }

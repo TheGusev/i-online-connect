@@ -350,6 +350,24 @@ export async function listingRoutes(app: FastifyInstance) {
     return rows.map((row) => toListingDto(row, userId));
   });
 
+  app.get<{ Params: { userId: string } }>("/user/:userId", async (request) => {
+    const viewerId = currentUserId(request);
+    const { userId } = z.object({ userId: z.string().uuid() }).parse(request.params);
+    const rows = await query<ListingRow>(
+      `${LISTING_SELECT}
+        WHERE l.author_id = $2
+          AND NOT EXISTS (
+            SELECT 1 FROM blocks b
+             WHERE (b.user_id = $1 AND b.blocked_id = l.author_id)
+                OR (b.user_id = l.author_id AND b.blocked_id = $1)
+          )
+        ORDER BY l.created_at DESC
+        LIMIT 100`,
+      [viewerId, userId],
+    );
+    return rows.map((row) => toListingDto(row, viewerId));
+  });
+
   app.get<{ Params: { id: string } }>("/:id", async (request) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);

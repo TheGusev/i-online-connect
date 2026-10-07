@@ -25,8 +25,8 @@ export function ListingCard({ listing }: { listing: Listing }) {
         <ListingCountdown expiresAt={listing.expiresAt} className="pointer-events-none absolute right-3 top-3 z-10" />
       ) : null}
       <Link
-        to="/nearby/$id"
-        params={{ id: listing.id }}
+        to="/nearby"
+        search={{ listing: listing.id }}
         className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-3 p-2.5 focus-visible:outline-none sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4 sm:p-3"
       >
         {/* Жёсткий размер: квадрат не должен расти вслед за высотой карточки
