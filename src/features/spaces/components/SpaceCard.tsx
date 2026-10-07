@@ -64,8 +64,12 @@ export function SpaceCard({ space }: { space: Space }) {
       </div>
 
       <div className="relative space-y-3 p-5">
+        <EventCountdown
+          {...(space.nextEvent ? { startsAt: space.nextEvent.startsAt } : {})}
+          className="pointer-events-none absolute right-5 top-5 z-10"
+        />
         <div>
-          <h3 className="text-lg font-bold leading-snug text-foreground">{space.title}</h3>
+          <h3 className="pr-16 text-lg font-bold leading-snug text-foreground">{space.title}</h3>
           <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
             {space.description}
           </p>
