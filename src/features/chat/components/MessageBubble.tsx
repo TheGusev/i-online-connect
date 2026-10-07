@@ -81,19 +81,18 @@ export function MessageBubble({
     </>
   );
   const voiceInline = voice && Boolean(message.mediaUrl) && !deleted && !failed;
+  // Время в строке текста, как в Telegram: только для простых текстовых сообщений.
+  const textInline = !deleted && !failed && !voice && !media && !meeting && !quote;
 
 
   return (
     <li
       id={`message-${message.id}`}
-      className={cn("flex scroll-mt-24 transition-shadow", NO_SELECT, reaction && "mb-3", mine ? "justify-end" : "justify-start")}
+      className={cn("flex scroll-mt-24 transition-shadow", NO_SELECT, mine ? "justify-end" : "justify-start")}
     >
-      {swipe.offset > 12 ? (
-        <span className={cn("mr-1 self-center text-primary transition-opacity", swipe.offset < 40 && "opacity-50")} aria-hidden="true">
-          <Reply className="size-4" />
-        </span>
-      ) : null}
+      {swipe.offset > 4 ? <SwipeHint offset={swipe.offset} side="left" /> : null}
       <div
+        data-bubble=""
         draggable={false}
         {...gestures.handlers}
         style={{
@@ -168,15 +167,35 @@ export function MessageBubble({
                 className="w-[min(18rem,70vw)]"
               />
             ) : (
-              <p className="whitespace-pre-wrap break-words">{message.text}</p>
+              <p className="whitespace-pre-wrap break-words">
+                {message.text}
+                {textInline ? (
+                  <span className="invisible ml-2 inline-flex items-center gap-1 text-[11px]" aria-hidden="true">{stamp}</span>
+                ) : null}
+              </p>
             )}
           </>
         )}
+        {reaction && !deleted ? (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            <span
+              className={cn(
+                "reaction-pop inline-flex h-6 items-center gap-1 rounded-full px-2 ring-1",
+                mine ? "bg-primary-foreground/20 ring-primary-foreground/60" : "bg-primary/15 ring-primary",
+              )}
+              aria-label={`Ваша реакция ${reaction}`}
+            >
+              <span className="text-[14px] leading-none">{reaction}</span>
+              <span className="text-[11px] font-semibold leading-none">1</span>
+            </span>
+          </div>
+        ) : null}
         <span
           className={cn(
             "mt-1.5 flex items-center justify-end gap-1 text-[11px]",
             mine && !deleted ? "text-primary-foreground/75" : "text-muted-foreground",
             voiceInline && "hidden",
+            textInline && !reaction && "absolute bottom-2.5 right-4 mt-0",
           )}
         >
           {failed ? (
@@ -197,15 +216,26 @@ export function MessageBubble({
             stamp
           )}
         </span>
-        {reaction ? (
-          <span className={cn("absolute -bottom-3 rounded-full border border-border bg-card px-1.5 text-xs leading-5", mine ? "left-2" : "right-2")}>{reaction}</span>
-        ) : null}
       </div>
-      {swipe.offset < -12 ? (
-        <span className={cn("ml-1 self-center text-primary transition-opacity", swipe.offset > -40 && "opacity-50")} aria-hidden="true">
-          <Reply className="size-4 -scale-x-100" />
-        </span>
-      ) : null}
+      {swipe.offset < -4 ? <SwipeHint offset={swipe.offset} side="right" /> : null}
     </li>
+  );
+}
+
+/** Значок «ответ» в круге: появляется сбоку и растёт по мере свайпа. */
+function SwipeHint({ offset, side }: { offset: number; side: "left" | "right" }) {
+  const p = Math.min(1, Math.abs(offset) / 40);
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "grid size-8 shrink-0 place-items-center self-center rounded-full bg-primary/15 text-primary",
+        side === "left" ? "mr-1" : "ml-1",
+        p >= 1 && "bg-primary text-primary-foreground",
+      )}
+      style={{ opacity: p, transform: `scale(${0.5 + p * 0.5})`, transition: "background-color 120ms" }}
+    >
+      <Reply className={cn("size-4", side === "right" && "-scale-x-100")} />
+    </span>
   );
 }
