@@ -47,6 +47,7 @@ import { spaceRoutes } from "./routes/spaces.ts";
 import { supportRoutes } from "./routes/support.ts";
 import { trustRoutes } from "./routes/trust.ts";
 import { chatSocketRoutes } from "./ws/chat.ts";
+import { liveSocketRoutes } from "./ws/live.ts";
 import { notificationSocketRoutes } from "./ws/notifications.ts";
 
 const app = Fastify({
@@ -176,6 +177,7 @@ await app.register(
 );
 await app.register(chatSocketRoutes, { prefix: "/ws" });
 await app.register(notificationSocketRoutes, { prefix: "/ws" });
+await app.register(liveSocketRoutes, { prefix: "/ws" });
 
 // Демо-контент освежается сам, без ручного захода по SSH: каждый день в 04:00
 // по времени сервера. Логика живёт в репозитории, а не в системном crontab.
