@@ -5,7 +5,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { Button, Card, Input } from "@/components/ds";
 import { useLogin } from "@/features/auth/hooks";
-import { SessionLoading } from "@/features/auth/session";
+import { SessionLoading, SessionOffline } from "@/features/auth/session";
 import { useSessionStore } from "@/store/useSessionStore";
 
 export const Route = createFileRoute("/auth")({
@@ -40,6 +40,7 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
 
   if (status === "loading") return <SessionLoading />;
+  if (status === "offline") return <SessionOffline />;
   if (status === "authed") return <Navigate to="/feed" replace />;
 
   const submit = () => {
