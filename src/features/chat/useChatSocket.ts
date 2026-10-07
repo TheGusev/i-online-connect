@@ -1,3 +1,4 @@
+import { RESUME_EVENT } from "@/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { API_URL, WS_URL, getToken } from "@/api";
@@ -127,11 +128,13 @@ export function useChatSocket({ conversationId, onEvent, url }: UseChatSocketOpt
     };
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("online", onVisible);
+    window.addEventListener(RESUME_EVENT, onVisible);
 
     return () => {
       disposed = true;
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", onVisible);
+      window.removeEventListener(RESUME_EVENT, onVisible);
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (typingTimer) clearTimeout(typingTimer);
       socketRef.current?.close();
