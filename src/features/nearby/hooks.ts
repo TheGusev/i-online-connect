@@ -32,8 +32,19 @@ export function listingQueryKey(id: string) {
   return ["listings", "detail", id] as const;
 }
 
-export function useListing(id: string) {
-  return useQuery({ queryKey: listingQueryKey(id), queryFn: () => listingsApi.getListing(id) });
+export function useListing(id: string, enabled = true) {
+  return useQuery({
+    queryKey: listingQueryKey(id),
+    queryFn: () => listingsApi.getListing(id),
+    enabled,
+  });
+}
+
+export function useUserListings(userId: string) {
+  return useQuery({
+    queryKey: ["listings", "user", userId],
+    queryFn: () => listingsApi.getUserListings(userId),
+  });
 }
 
 export function useCreateListing() {
