@@ -470,7 +470,6 @@ function ConversationPage() {
             onChange={setDraft}
             onSend={submit}
             onTyping={sendTyping}
-            {...(isEmptyThread ? {} : { placeholder: "" })}
             onFocus={() => scrollToBottom(false)}
             sending={send.isPending || editMessage.isPending}
             editing={Boolean(editingMessage)}
@@ -513,17 +512,21 @@ function ConversationPage() {
               });
               setReplyTo(null);
             }}
-            leading={
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon"
-                aria-label="Предложить встречу"
-                onClick={() => setMeetingOpen(true)}
-              >
-                <CalendarHeart aria-hidden="true" />
-              </Button>
-            }
+            {...(chatStarted
+              ? {}
+              : {
+                  leading: (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="icon"
+                      aria-label="Предложить встречу"
+                      onClick={() => setMeetingOpen(true)}
+                    >
+                      <CalendarHeart aria-hidden="true" />
+                    </Button>
+                  ),
+                })}
           />
         </div>
       </div>
