@@ -1,4 +1,5 @@
-import { describe, expect, test } from "bun:test";
+import assert from "node:assert/strict";
+import { describe, test } from "node:test";
 
 import type { Space } from "@/api";
 import { sortSpacesByInterests } from "./sort";
@@ -14,7 +15,7 @@ describe("sortSpacesByInterests", () => {
       ["Книги", "Бег"],
     );
 
-    expect(result.map(({ title }) => title)).toEqual(["Два совпадения", "Без совпадений"]);
+    assert.deepEqual(result.map(({ title }) => title), ["Два совпадения", "Без совпадений"]);
   });
 
   test("при равном числе совпадений сортирует по числу участников", () => {
@@ -23,6 +24,6 @@ describe("sortSpacesByInterests", () => {
       ["Бег"],
     );
 
-    expect(result.map(({ title }) => title)).toEqual(["Большое", "Маленькое"]);
+    assert.deepEqual(result.map(({ title }) => title), ["Большое", "Маленькое"]);
   });
 });
