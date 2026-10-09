@@ -3,7 +3,7 @@ import { Check, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { spacesApi, type Space } from "@/api";
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ds";
 
 /** Подписка прямо на карточке: тапы не открывают пространство. */
 export function SpaceSubscribe({ space }: { space: Space }) {
@@ -37,23 +37,24 @@ export function SpaceSubscribe({ space }: { space: Space }) {
 
   if (space.isMember) {
     return (
-      <span className="inline-flex items-center gap-1" onClick={stop}>
-        <span className="grid size-7 place-items-center rounded-full bg-primary/15 text-primary" aria-label="Вы участник">
+      <span className="inline-flex shrink-0 items-center gap-1" onClick={stop}>
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-primary" aria-label="Вы участник">
           <Check className="size-3.5" />
         </span>
         {!space.isHost ? (
-          <button
-            type="button"
+          <Button
+            variant="secondary"
+            size="icon"
             aria-label="Отписаться"
             disabled={mutation.isPending}
             onClick={(e) => {
               stop(e);
               if (window.confirm("Выйти из пространства?")) mutation.mutate(false);
             }}
-            className="grid size-7 place-items-center rounded-full border border-border text-muted-foreground hover:text-destructive"
+            className="size-7 text-muted-foreground hover:text-destructive"
           >
             <X className="size-3.5" />
-          </button>
+          </Button>
         ) : null}
       </span>
     );
@@ -63,20 +64,17 @@ export function SpaceSubscribe({ space }: { space: Space }) {
   if (space.joinPolicy !== "open" || (space.isPrivate && !space.invited) || space.pendingRequest) return null;
 
   return (
-    <button
-      type="button"
+    <Button
+      size="sm"
       disabled={mutation.isPending}
       onClick={(e) => {
         stop(e);
         mutation.mutate(true);
       }}
-      className={cn(
-        "inline-flex h-7 shrink-0 items-center gap-1 rounded-full bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-glow",
-        mutation.isPending && "opacity-60",
-      )}
+      className="h-7 min-w-0 px-2 text-[10px] sm:px-3 sm:text-xs"
     >
       <Plus className="size-3.5" aria-hidden="true" />
       Подписаться
-    </button>
+    </Button>
   );
 }

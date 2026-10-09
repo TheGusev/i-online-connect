@@ -2,11 +2,11 @@ import { cn } from "@/lib/utils";
 
 export type SpacesTab = "nearby" | "interests" | "mine" | "create";
 
-const tabs: { id: SpacesTab; label: string; short?: string }[] = [
+const tabs: { id: SpacesTab; label: string }[] = [
   { id: "nearby", label: "Рядом" },
-  { id: "interests", label: "По интересам" },
+  { id: "interests", label: "Интересы" },
   { id: "mine", label: "Мои" },
-  { id: "create", label: "Создать своё", short: "+ Своё" },
+  { id: "create", label: "Создать" },
 ];
 
 export function SpacesTabs({
@@ -20,7 +20,7 @@ export function SpacesTabs({
     <div
       role="tablist"
       aria-label="Разделы пространств"
-      className="grid w-full grid-cols-[auto_minmax(0,1.6fr)_auto_minmax(0,1.2fr)] gap-0.5 rounded-2xl border border-border bg-card p-1 shadow-soft min-[380px]:grid-cols-4"
+      className="grid w-full grid-cols-4 gap-1 rounded-2xl border border-border bg-card p-1 shadow-soft"
     >
       {tabs.map((tab) => {
         const active = tab.id === value;
@@ -33,20 +33,13 @@ export function SpacesTabs({
             aria-label={tab.label}
             onClick={() => onChange(tab.id)}
             className={cn(
-              "min-w-0 whitespace-nowrap rounded-xl px-2 py-1.5 text-[12px] font-bold uppercase tracking-tight transition-colors duration-200",
+              "min-w-0 overflow-hidden rounded-xl px-1 py-2 text-center text-[10px] font-bold uppercase leading-none tracking-normal transition-colors duration-200 min-[380px]:text-xs",
               active
                 ? "bg-community text-community-foreground shadow-glow"
                 : "text-muted-foreground hover:bg-community-soft hover:text-community-ink",
             )}
           >
-            {tab.short ? (
-              <>
-                <span className="min-[380px]:hidden">{tab.short}</span>
-                <span className="hidden min-[380px]:inline">{tab.label}</span>
-              </>
-            ) : (
-              tab.label
-            )}
+            <span className="block truncate">{tab.label}</span>
           </button>
         );
       })}

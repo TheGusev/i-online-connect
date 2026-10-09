@@ -12,6 +12,8 @@ import { CreateSpaceForm } from "@/features/spaces/components/CreateSpaceForm";
 import { SpaceCard } from "@/features/spaces/components/SpaceCard";
 import { SpacesTabs, type SpacesTab } from "@/features/spaces/components/SpacesTabs";
 import { useCreateSpace, useSpaces } from "@/features/spaces/hooks";
+import { sortSpacesByInterests } from "@/features/spaces/sort";
+import { useSessionStore } from "@/store/useSessionStore";
 
 export const Route = createFileRoute("/spaces/")({
   head: () => ({
@@ -39,6 +41,7 @@ function SpacesPage() {
   const { data: spaces, isPending, isError } = useSpaces();
   const createSpace = useCreateSpace();
   const navigate = useNavigate();
+  const userInterests = useSessionStore((state) => state.user?.interests ?? []);
 
   const list = (spaces ?? []).filter((space) => {
     if (tab === "mine") return space.isMember;
@@ -49,7 +52,7 @@ function SpacesPage() {
     tab === "nearby"
       ? [...list].sort((a, b) => a.distanceKm - b.distanceKm)
       : tab === "interests"
-        ? [...list].sort((a, b) => b.membersCount - a.membersCount)
+        ? sortSpacesByInterests(list, userInterests)
         : list;
 
   const handleCreate = (draft: SpaceDraft) => {
@@ -111,7 +114,7 @@ function SpacesPage() {
           ) : null}
 
           {isPending ? (
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3">
               <SpaceCardSkeleton />
               <SpaceCardSkeleton />
               <SpaceCardSkeleton />
@@ -133,7 +136,7 @@ function SpacesPage() {
               </Button>
             </div>
           ) : (
-            <ul className="grid gap-5 md:grid-cols-2">
+            <ul className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3">
               {sorted.map((space, index) => (
                 <Reveal as="li" key={space.id} delay={index * 60}>
                   <SpaceCard space={space} />
