@@ -122,7 +122,6 @@ export function SpaceCard({ space }: { space: Space }) {
                 className="min-w-0 max-w-full px-2 text-[9px] sm:text-[10px]"
               >
                 <span className="truncate">{interest}</span>
-                {interest}
               </Chip>
             ))}
           </div>
