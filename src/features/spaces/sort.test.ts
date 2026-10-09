@@ -15,7 +15,10 @@ describe("sortSpacesByInterests", () => {
       ["Книги", "Бег"],
     );
 
-    assert.deepEqual(result.map(({ title }) => title), ["Два совпадения", "Без совпадений"]);
+    assert.deepEqual(
+      result.map(({ title }) => title),
+      ["Два совпадения", "Без совпадений"],
+    );
   });
 
   test("при равном числе совпадений сортирует по числу участников", () => {
@@ -24,6 +27,9 @@ describe("sortSpacesByInterests", () => {
       ["Бег"],
     );
 
-    assert.deepEqual(result.map(({ title }) => title), ["Большое", "Маленькое"]);
+    assert.deepEqual(
+      result.map(({ title }) => title),
+      ["Большое", "Маленькое"],
+    );
   });
 });
