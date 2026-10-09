@@ -9,7 +9,8 @@ import { Button } from "@/components/ds";
 export function SpaceSubscribe({ space }: { space: Space }) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (join: boolean) => (join ? spacesApi.joinSpace(space.id) : spacesApi.leaveSpace(space.id)),
+    mutationFn: (join: boolean) =>
+      join ? spacesApi.joinSpace(space.id) : spacesApi.leaveSpace(space.id),
     onMutate: async (join) => {
       await queryClient.cancelQueries({ queryKey: ["spaces"], exact: true });
       const previous = queryClient.getQueryData<Space[]>(["spaces"]);
@@ -38,7 +39,10 @@ export function SpaceSubscribe({ space }: { space: Space }) {
   if (space.isMember) {
     return (
       <span className="inline-flex shrink-0 items-center gap-1" onClick={stop}>
-        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-primary" aria-label="Вы участник">
+        <span
+          className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/15 text-primary"
+          aria-label="Вы участник"
+        >
           <Check className="size-3.5" />
         </span>
         {!space.isHost ? (
@@ -61,7 +65,8 @@ export function SpaceSubscribe({ space }: { space: Space }) {
   }
 
   // Вход по вопросу или по приглашению — через страницу пространства.
-  if (space.joinPolicy !== "open" || (space.isPrivate && !space.invited) || space.pendingRequest) return null;
+  if (space.joinPolicy !== "open" || (space.isPrivate && !space.invited) || space.pendingRequest)
+    return null;
 
   return (
     <Button

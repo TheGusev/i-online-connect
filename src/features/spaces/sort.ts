@@ -11,6 +11,9 @@ export function sortSpacesByInterests(spaces: Space[], userInterests: string[]) 
     space.interests.reduce((count, interest) => count + Number(mine.has(normalize(interest))), 0);
 
   return [...spaces].sort(
-    (a, b) => matches(b) - matches(a) || b.membersCount - a.membersCount || a.title.localeCompare(b.title, "ru"),
+    (a, b) =>
+      matches(b) - matches(a) ||
+      b.membersCount - a.membersCount ||
+      a.title.localeCompare(b.title, "ru"),
   );
 }

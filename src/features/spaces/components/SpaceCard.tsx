@@ -69,7 +69,9 @@ export function SpaceCard({ space }: { space: Space }) {
           className="pointer-events-none absolute right-2.5 top-3 z-10 text-xs sm:right-3 sm:text-sm"
         />
         <div>
-          <h3 className="line-clamp-2 min-h-9 break-words pr-12 text-sm font-bold leading-[1.15] text-foreground sm:text-base">{space.title}</h3>
+          <h3 className="line-clamp-2 min-h-9 break-words pr-12 text-sm font-bold leading-[1.15] text-foreground sm:text-base">
+            {space.title}
+          </h3>
           <p className="mt-1 line-clamp-2 min-h-8 break-words text-[11px] leading-4 text-muted-foreground sm:text-xs">
             {space.description}
           </p>
@@ -82,7 +84,9 @@ export function SpaceCard({ space }: { space: Space }) {
           </span>
           <span className="flex min-w-0 items-center gap-1">
             <MapPin className="size-3.5" aria-hidden="true" />
-            <span className="truncate">{space.city} · {space.distanceKm} км</span>
+            <span className="truncate">
+              {space.city} · {space.distanceKm} км
+            </span>
           </span>
           <span className="block truncate">
             {formatLabels[space.format]} · {cadenceLabels[space.cadence].toLowerCase()}
@@ -97,18 +101,26 @@ export function SpaceCard({ space }: { space: Space }) {
           <div className="flex min-w-0 items-start gap-1.5 rounded-lg bg-community-soft p-2 text-[10px] leading-4 text-community-ink sm:text-xs">
             <CalendarDays className="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
             <span className="line-clamp-2 break-words">
-              <span className="font-semibold">{formatEventDate(space.nextEvent.startsAt)}</span>{" — "}
+              <span className="font-semibold">{formatEventDate(space.nextEvent.startsAt)}</span>
+              {" — "}
               {space.nextEvent.title}, {space.nextEvent.place}
             </span>
           </div>
         ) : (
-          <p className="line-clamp-2 text-[10px] leading-4 text-muted-foreground sm:text-xs">Ближайшая встреча пока не назначена</p>
+          <p className="line-clamp-2 text-[10px] leading-4 text-muted-foreground sm:text-xs">
+            Ближайшая встреча пока не назначена
+          </p>
         )}
 
         {space.interests.length > 0 ? (
           <div className="flex min-w-0 gap-1 overflow-hidden">
             {space.interests.slice(0, 2).map((interest) => (
-              <Chip key={interest} variant="outline" size="sm" className="min-w-0 max-w-full px-2 text-[9px] sm:text-[10px]">
+              <Chip
+                key={interest}
+                variant="outline"
+                size="sm"
+                className="min-w-0 max-w-full px-2 text-[9px] sm:text-[10px]"
+              >
                 <span className="truncate">{interest}</span>
                 {interest}
               </Chip>

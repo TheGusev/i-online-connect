@@ -29,7 +29,12 @@ export function ProfileCardSkeleton({ className }: { className?: string }) {
 
 export function SpaceCardSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn("overflow-hidden rounded-xl border border-border bg-card shadow-soft", className)}>
+    <div
+      className={cn(
+        "overflow-hidden rounded-xl border border-border bg-card shadow-soft",
+        className,
+      )}
+    >
       <Skeleton className="aspect-[4/3] w-full rounded-none" />
       <div className="space-y-2 p-2.5 sm:p-3">
         <Skeleton className="h-4 w-4/5" />
