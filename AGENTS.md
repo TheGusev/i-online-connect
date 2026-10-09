@@ -13,3 +13,4 @@
 - Listings preserve stored expiry timestamps and derive expired status on reads; this avoids scheduled jobs while keeping historic listings available to their authors.
 - Spaces expose their existing creation timestamp through the API for client-side age labels; no new database field is needed.
 - Seller storefronts read existing listing fields through a dedicated authenticated endpoint; this keeps active and completed tabs accurate without duplicating listing data.
+- Interest-based space ordering is derived on the client from the signed-in user's interests and existing space interests; this avoids changing the spaces API for presentation-only ranking.
