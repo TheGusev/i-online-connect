@@ -5,13 +5,16 @@
  * подгружаются страницами при прокрутке и обновляются при каждом открытии.
  */
 import { useInfiniteQuery } from "@tanstack/react-query";
+import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight, Images, Play, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { chatApi, mediaUrl, spacesApi } from "@/api";
 import type { GalleryItem } from "@/api";
+import { Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
+import { ZoomablePhoto } from "./ZoomablePhoto";
 
 type Scope = "conversation" | "space";
 type Filter = "all" | "image" | "video";
@@ -49,8 +52,10 @@ export function useMediaGallery(scope: Scope, id: string, filter: Filter, enable
 /** Кнопка в шапке чата. */
 export function MediaGalleryButton({ onClick, className }: { onClick: () => void; className?: string }) {
   return (
-    <button
+    <Button
       type="button"
+      size="icon"
+      variant="ghost"
       onClick={onClick}
       aria-label="Фото и видео"
       className={cn(
@@ -59,7 +64,7 @@ export function MediaGalleryButton({ onClick, className }: { onClick: () => void
       )}
     >
       <Images className="size-5" aria-hidden="true" />
-    </button>
+    </Button>
   );
 }
 
@@ -117,14 +122,16 @@ export function MediaGallery({
       <div className="sticky top-0 z-10 bg-background">
       <header className="flex items-center gap-3 border-b border-border px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
         <h2 className="hud-title flex-1">Фото и видео</h2>
-        <button
+        <Button
           type="button"
+          size="icon"
+          variant="ghost"
           onClick={onClose}
           aria-label="Закрыть галерею"
           className="grid size-10 place-items-center rounded-full border border-primary/40 text-primary"
         >
           <X className="size-5" aria-hidden="true" />
-        </button>
+        </Button>
       </header>
       <div className="flex gap-2 px-4 py-3" role="tablist">
         {FILTERS.map((option) => (
@@ -221,21 +228,55 @@ function GalleryViewer({
   onClose: () => void;
   onShowInChat: (item: GalleryItem) => void;
 }) {
-  const item = items[index]!;
-  const trackRef = useRef<HTMLDivElement | null>(null);
+  const item = items[index];
+  if (!item) return null;
+  return <GalleryViewerReady items={items} index={index} item={item} onIndex={onIndex} onClose={onClose} onShowInChat={onShowInChat} />;
+}
+
+function GalleryViewerReady({
+  items,
+  index,
+  item,
+  onIndex,
+  onClose,
+  onShowInChat,
+}: {
+  items: GalleryItem[];
+  index: number;
+  item: GalleryItem;
+  onIndex: (index: number) => void;
+  onClose: () => void;
+  onShowInChat: (item: GalleryItem) => void;
+}) {
+  const [zoomed, setZoomed] = useState(false);
+  const [viewportRef, embla] = useEmblaCarousel({
+    startIndex: index,
+    loop: false,
+    duration: 24,
+    skipSnaps: false,
+    watchDrag: !zoomed,
+  });
   const drag = useRef<{ x: number; y: number; axis: "x" | "y" | null } | null>(null);
   const [pull, setPull] = useState(0);
 
-  const goTo = (target: number, smooth = true) => {
-    const track = trackRef.current;
-    if (!track || target < 0 || target >= items.length) return;
-    track.scrollTo({ left: target * track.clientWidth, behavior: smooth ? "smooth" : "auto" });
-  };
-  const prev = () => goTo(index - 1);
-  const next = () => goTo(index + 1);
+  const goTo = useCallback((target: number, smooth = true) => {
+    if (target < 0 || target >= items.length) return;
+    embla?.scrollTo(target, !smooth);
+  }, [embla, items.length]);
+  const prev = useCallback(() => goTo(index - 1), [goTo, index]);
+  const next = useCallback(() => goTo(index + 1), [goTo, index]);
 
-  // Открываем сразу на нужном слайде без анимации.
-  useEffect(() => { goTo(index, false); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!embla) return;
+    const select = () => {
+      const selected = embla.selectedScrollSnap();
+      if (selected !== index) onIndex(selected);
+      setZoomed(false);
+    };
+    embla.on("select", select);
+    embla.scrollTo(index, true);
+    return () => { embla.off("select", select); };
+  }, [embla, index, onIndex]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -245,7 +286,7 @@ function GalleryViewer({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  });
+  }, [next, onClose, prev]);
 
   const progress = Math.min(1, pull / 300);
 
@@ -259,28 +300,25 @@ function GalleryViewer({
           <p className="truncate text-sm font-semibold">{item.authorName}</p>
           <p className="text-xs tabular-nums text-muted-foreground">{dateLabel(item.createdAt)} · {index + 1} из {items.length}</p>
         </div>
-        <button type="button" onClick={onClose} aria-label="Закрыть" className="grid size-10 place-items-center rounded-full border border-primary/40 bg-card text-primary">
+        <Button type="button" size="icon" variant="secondary" onClick={onClose} aria-label="Закрыть" className="size-10 border-primary/40 text-primary">
           <X className="size-5" aria-hidden="true" />
-        </button>
+        </Button>
       </header>
       <div className="relative min-h-0 flex-1">
         <div
-          ref={trackRef}
-          className="flex size-full snap-x snap-mandatory overflow-x-auto overscroll-contain scroll-smooth [scrollbar-width:none] motion-reduce:scroll-auto [&::-webkit-scrollbar]:hidden"
+          ref={viewportRef}
+          className="size-full overflow-hidden overscroll-contain touch-pan-y"
           style={{
             transform: pull ? `translateY(${pull}px) scale(${1 - progress * 0.25})` : undefined,
             transition: pull ? undefined : "transform 260ms cubic-bezier(.22,1,.36,1)",
           }}
-          onScroll={(event) => {
-            const track = event.currentTarget;
-            const nextIndex = Math.round(track.scrollLeft / Math.max(1, track.clientWidth));
-            if (nextIndex !== index && nextIndex >= 0 && nextIndex < items.length) onIndex(nextIndex);
-          }}
           onTouchStart={(event) => {
+            if (zoomed || event.touches.length !== 1) return;
             const t = event.touches[0];
             drag.current = t ? { x: t.clientX, y: t.clientY, axis: null } : null;
           }}
           onTouchMove={(event) => {
+            if (zoomed || event.touches.length !== 1) return;
             const d = drag.current;
             const t = event.touches[0];
             if (!d || !t) return;
@@ -295,11 +333,12 @@ function GalleryViewer({
             if (closing) onClose(); else setPull(0);
           }}
         >
+          <div className="flex size-full touch-pan-y">
           {items.map((slide, i) => {
             const near = Math.abs(i - index) <= 1;
             const src = mediaUrl(slide.mediaUrl) ?? slide.mediaUrl;
             return (
-              <div key={slide.id} className="grid h-full w-full shrink-0 snap-center snap-always place-items-center p-3">
+              <div key={slide.id} className="grid h-full min-w-0 flex-[0_0_100%] place-items-center p-3">
                 {!near ? null : slide.kind === "video" ? (
                   i === index ? (
                     <video src={src} controls playsInline autoPlay className="max-h-full max-w-full rounded-2xl" />
@@ -307,37 +346,39 @@ function GalleryViewer({
                     <video src={src} preload="metadata" playsInline muted className="max-h-full max-w-full rounded-2xl" />
                   )
                 ) : (
-                  <img
-                    src={src}
-                    alt="Вложение"
-                    draggable={false}
-                    onLoad={(e) => e.currentTarget.setAttribute("data-loaded", "")}
-                    className="gallery-img max-h-full max-w-full rounded-2xl object-contain"
-                  />
+                  <div className="size-full overflow-hidden rounded-2xl" data-no-gesture>
+                    <ZoomablePhoto
+                      src={src}
+                      className="gallery-img rounded-2xl"
+                      {...(i === index ? { onZoomChange: setZoomed } : {})}
+                    />
+                  </div>
                 )}
               </div>
             );
           })}
+          </div>
         </div>
         {index > 0 ? (
-          <button type="button" onClick={prev} aria-label="Предыдущее" className="absolute left-3 top-1/2 hidden size-11 -translate-y-1/2 place-items-center rounded-full border border-primary/40 bg-card text-primary sm:grid">
+          <Button type="button" size="icon" variant="secondary" onClick={prev} aria-label="Предыдущее" className="absolute left-3 top-1/2 hidden -translate-y-1/2 border-primary/40 text-primary sm:inline-flex">
             <ChevronLeft className="size-5" aria-hidden="true" />
-          </button>
+          </Button>
         ) : null}
         {index < items.length - 1 ? (
-          <button type="button" onClick={next} aria-label="Следующее" className="absolute right-3 top-1/2 hidden size-11 -translate-y-1/2 place-items-center rounded-full border border-primary/40 bg-card text-primary sm:grid">
+          <Button type="button" size="icon" variant="secondary" onClick={next} aria-label="Следующее" className="absolute right-3 top-1/2 hidden -translate-y-1/2 border-primary/40 text-primary sm:inline-flex">
             <ChevronRight className="size-5" aria-hidden="true" />
-          </button>
+          </Button>
         ) : null}
       </div>
       <div className="flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2" style={{ opacity: 1 - progress }}>
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={() => onShowInChat(item)}
           className="rounded-full border border-primary/50 px-5 py-2 text-sm font-semibold text-primary hover:bg-primary/10"
         >
           Показать в чате
-        </button>
+        </Button>
       </div>
     </div>
   );

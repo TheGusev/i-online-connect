@@ -8,7 +8,9 @@ import { Play, X } from "lucide-react";
 import { useState } from "react";
 
 import { mediaUrl } from "@/api";
+import { Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
+import { ZoomablePhoto } from "./ZoomablePhoto";
 
 function durationLabel(ms: number) {
   const total = Math.round(ms / 1000);
@@ -76,7 +78,10 @@ export function MediaAttachment({
     <>
       <button
         type="button"
-        onClick={() => setLightbox(true)}
+        onClick={(event) => {
+          event.stopPropagation();
+          setLightbox(true);
+        }}
         aria-label="Открыть фото"
         className={cn(
           "block overflow-hidden rounded-2xl border border-primary/25",
@@ -96,18 +101,21 @@ export function MediaAttachment({
           role="dialog"
           aria-modal="true"
           aria-label="Просмотр фото"
-          onClick={() => setLightbox(false)}
           className="fixed inset-0 z-[70] grid place-items-center bg-background/95 p-4 backdrop-blur"
         >
-          <img src={url} alt="Вложение" className="max-h-full max-w-full rounded-2xl object-contain" />
-          <button
+          <div className="size-full overflow-hidden rounded-2xl" data-no-gesture>
+            <ZoomablePhoto src={url} className="rounded-2xl" />
+          </div>
+          <Button
             type="button"
+            size="icon"
+            variant="secondary"
             aria-label="Закрыть"
             onClick={() => setLightbox(false)}
-            className="absolute right-4 top-4 grid size-11 place-items-center rounded-full border border-primary/40 bg-card text-primary"
+            className="absolute right-4 top-[calc(env(safe-area-inset-top)+1rem)] border-primary/40 text-primary"
           >
             <X className="size-5" aria-hidden="true" />
-          </button>
+          </Button>
         </div>
       ) : null}
     </>
