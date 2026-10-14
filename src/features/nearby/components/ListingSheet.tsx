@@ -215,7 +215,7 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
         ) : null}
       </article>
     </div>,
-    document.body,}
+    document.body)}
       {gate.sheet}
     </>
   );
