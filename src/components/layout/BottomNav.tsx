@@ -26,7 +26,6 @@ export function BottomNav({ activeOverride }: { activeOverride?: string | undefi
             <Link
               to={to}
               {...(params ? { params } : {})}
-              {...(activeOverride ? { activeOptions: { exact: true }, "data-swipe-active": activeOverride === to } : {})}
               activeProps={{
                 className:
                   "text-primary font-semibold before:absolute before:inset-x-3 before:top-0 before:h-0.5 before:rounded-full before:bg-primary",

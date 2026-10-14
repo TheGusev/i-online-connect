@@ -774,7 +774,6 @@ html[data-tab-hidden] .chat-sky *, html[data-tab-hidden] .live-icon * { animatio
 /* Свайп между вкладками: экран за пальцем и въезд новой вкладки. */
 .swipe-surface {
   touch-action: pan-y;
-  will-change: transform;
 }
 .swipe-peek {
   position: fixed;
