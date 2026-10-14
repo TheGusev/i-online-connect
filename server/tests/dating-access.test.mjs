@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { datingAccess, evaluateCompleteness } from "../src/profile/completeness.ts";
+import { datingAccess, evaluateCompleteness } from "../src/profile/completeness-rules.ts";
 
 const full = { name: "Анна", age: 27, city: "Новосибирск", intent: "serious", bio: "О себе", interests: 3, valuesText: "Честность", joyText: "Рассветы", photos: 1 };
 
