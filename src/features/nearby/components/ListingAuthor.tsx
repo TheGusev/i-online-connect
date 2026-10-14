@@ -22,9 +22,7 @@ export function ListingAuthor({
 }) {
   return (
     <div className={cn("flex min-w-0 items-center gap-2", className)}>
-      <span className="size-8 shrink-0 overflow-hidden rounded-full [&>*]:!size-8">
-        <Avatar name={author.name} src={author.avatarUrl ?? null} size="sm" />
-      </span>
+      <Avatar name={author.name} src={author.avatarUrl ?? null} size="list" />
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-[15px] font-semibold leading-tight text-foreground">{author.name}</span>
