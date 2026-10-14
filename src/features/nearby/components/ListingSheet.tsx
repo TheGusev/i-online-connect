@@ -96,9 +96,17 @@ function FadeImage({ src, alt }: { src: string; alt: string }) {
 
 function ListingGallery({ listing }: { listing: Listing }) {
   const [index, setIndex] = useState(0);
+  const [viewer, setViewer] = useState<number | null>(null);
   if (listing.photos.length === 0) return null;
+  const media = listing.photos.map((url, i) => ({ id: `${listing.id}-${i}`, kind: "photo" as const, url }));
   return (
     <div className="relative -mx-5 overflow-hidden bg-secondary">
+      {viewer !== null
+        ? createPortal(
+            <MediaViewer media={media} name={listing.title} index={viewer} onIndexChange={setViewer} onClose={() => setViewer(null)} />,
+            document.body,
+          )
+        : null}
       <div
         data-no-swipe className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         onScroll={(event) => {
