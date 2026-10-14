@@ -58,7 +58,9 @@ export function MessageActions({
     const width = Math.min(320, window.innerWidth - 16);
     if (rect) {
       const left = Math.max(8, Math.min(window.innerWidth - width - 8, mine ? rect.right - width : rect.left));
-      setPos(rect.top > vh - rect.bottom ? { bottom: vh - rect.top + 8, left } : { top: rect.bottom + 8, left });
+      const panelHeight = more ? 310 : 112;
+      const preferredTop = rect.bottom + 8 + panelHeight <= vh ? rect.bottom + 8 : rect.top - panelHeight - 8;
+      setPos({ top: Math.max(8, Math.min(vh - panelHeight - 8, preferredTop)), left });
     } else setPos({ top: 80, left: 8 });
     const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
@@ -66,7 +68,7 @@ export function MessageActions({
       window.removeEventListener("keydown", onKey);
       el?.classList.remove("ring-2", "ring-primary");
     };
-  }, [message, mine, onClose]);
+  }, [message, mine, onClose, more]);
 
   if (!message || typeof document === "undefined") return null;
   const deletable = (canDelete ?? mine) && !message.deletedAt;
