@@ -18,6 +18,9 @@ import { useMyProfile } from "@/features/profile/hooks";
 import { useSessionStore } from "@/store/useSessionStore";
 import { scrollUnderHeader } from "@/features/nearby/scroll-to";
 
+/** Поиск переживает переход между вкладками свайпом. */
+let rememberedQuery = "";
+
 export const Route = createFileRoute("/nearby/")({
   validateSearch: (search: Record<string, unknown>): { listing?: string } =>
     typeof search["listing"] === "string" ? { listing: search["listing"] } : {},
@@ -48,7 +51,11 @@ function NearbyPage() {
   const navigate = Route.useNavigate();
   const [city, setCity] = useState("");
   const [category, setCategory] = useState<NeedCategory | null>(initialCategory);
-  const [q, setQ] = useState("");
+  const [q, setQRaw] = useState(rememberedQuery);
+  const setQ = (value: string) => {
+    rememberedQuery = value;
+    setQRaw(value);
+  };
   const [limit, setLimit] = useState(PAGE);
 
   const { data, isPending, isError } = useListings(
