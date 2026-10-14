@@ -3,7 +3,7 @@ import { MapPin, Plus, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import type { NeedCategory } from "@/api";
-import { Button, Card, Input, SpaceCardSkeleton } from "@/components/ds";
+import { Button, Card, SpaceCardSkeleton } from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
 import { Reveal } from "@/components/landing/Reveal";
 import { WaveHeading } from "@/components/landing/WaveHeading";
