@@ -795,3 +795,13 @@ html[data-tab-hidden] .chat-sky *, html[data-tab-hidden] .live-icon * { animatio
   .swipe-enter-right,
   .swipe-enter-left { animation: none; }
 }
+
+/* Альбом фото: группа въезжает снизу, плитки проявляются по очереди. */
+@keyframes album-in { from { transform: translateY(12px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes album-tile-in { from { transform: scale(0.92); opacity: 0; } to { transform: none; opacity: 1; } }
+.album-in { animation: album-in 280ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.album-tile { animation: album-tile-in 320ms cubic-bezier(0.22, 1, 0.36, 1) both; animation-delay: var(--tile-delay, 0ms); }
+@media (prefers-reduced-motion: reduce) {
+  .album-in,
+  .album-tile { animation: none; }
+}
