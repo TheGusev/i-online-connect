@@ -20,6 +20,7 @@ import { z } from "zod";
 
 import { query, queryOne, transaction } from "../db.ts";
 import { HttpError, badRequest, forbidden, notFound } from "../http.ts";
+import { checkListingPhotos } from "../listings/photos.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { notifyListingMatches } from "../listings/notify.ts";
 import {
@@ -94,7 +95,7 @@ const createSchema = z.object({
   priceMinor: z.number().int().min(0).max(1_000_000_000).nullish(),
   city: z.string().trim().min(2).max(120).optional(),
   district: z.string().trim().max(120).optional(),
-  mediaIds: z.array(z.string().uuid()).max(MAX_LISTING_PHOTOS).optional(),
+  mediaIds: z.array(z.string().uuid()).optional(),
   expiresInDays: z.number().int().min(1).max(90).optional(),
   expiresInMinutes: z.number().int().positive().optional(),
 });
@@ -105,7 +106,7 @@ const patchSchema = z.object({
   priceMinor: z.number().int().min(0).max(1_000_000_000).nullish(),
   district: z.string().trim().max(120).optional(),
   state: z.enum(["active", "closed"]).optional(),
-  mediaIds: z.array(z.string().uuid()).max(MAX_LISTING_PHOTOS).optional(),
+  mediaIds: z.array(z.string().uuid()).optional(),
 });
 
 const LISTING_SELECT = `
@@ -200,28 +201,60 @@ async function assertOwnListing(listingId: string, userId: string) {
  * такие ссылки продолжаем поддерживать, чтобы прежние объявления не потеряли фото.
  */
 async function attachMedia(listingId: string, userId: string, mediaIds: string[]) {
-  await query("DELETE FROM listing_media WHERE listing_id = $1", [listingId]);
-  if (mediaIds.length === 0) return;
+  const problem = checkListingPhotos(mediaIds);
+  if (problem === "TOO_MANY_PHOTOS") {
+    throw new HttpError(400, `К объявлению можно приложить не больше ${MAX_LISTING_PHOTOS} фото`, "TOO_MANY_PHOTOS");
+  }
+  if (problem === "DUPLICATE_PHOTOS") throw badRequest("Одно фото добавлено дважды");
 
-  const files = await query<{ id: string }>(
-    "SELECT id FROM listing_files WHERE user_id = $1 AND id = ANY($2::uuid[])",
-    [userId, mediaIds],
-  );
+  const files = mediaIds.length
+    ? await query<{ id: string }>(
+        "SELECT id FROM listing_files WHERE user_id = $1 AND id = ANY($2::uuid[])",
+        [userId, mediaIds],
+      )
+    : [];
   const fileIds = new Set(files.map((row) => row.id));
-
-  const legacy = await query<{ id: string }>(
-    "SELECT id FROM profile_media WHERE user_id = $1 AND kind = 'photo' AND id = ANY($2::uuid[])",
-    [userId, mediaIds],
-  );
+  const legacy = mediaIds.length
+    ? await query<{ id: string }>(
+        "SELECT id FROM profile_media WHERE user_id = $1 AND kind = 'photo' AND id = ANY($2::uuid[])",
+        [userId, mediaIds],
+      )
+    : [];
   const legacyIds = new Set(legacy.map((row) => row.id));
+  // Чужие или несуществующие файлы не молча отбрасываем, а отклоняем запрос.
+  if (mediaIds.some((id) => !fileIds.has(id) && !legacyIds.has(id))) {
+    throw new HttpError(400, "Фото должно быть загружено вами", "FOREIGN_PHOTO");
+  }
 
-  const ordered = mediaIds.filter((id) => fileIds.has(id) || legacyIds.has(id));
-  for (const [index, id] of ordered.entries()) {
+  const previous = await query<{ file_id: string | null }>(
+    "SELECT file_id FROM listing_media WHERE listing_id = $1",
+    [listingId],
+  );
+  await query("DELETE FROM listing_media WHERE listing_id = $1", [listingId]);
+  for (const [index, id] of mediaIds.entries()) {
     await query(
       `INSERT INTO listing_media (listing_id, media_id, file_id, position)
        VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING`,
       [listingId, fileIds.has(id) ? null : id, fileIds.has(id) ? id : null, index],
     );
+  }
+
+  // Снятые с объявления файлы, которые больше нигде не используются, удаляем.
+  const dropped = previous.map((row) => row.file_id).filter((id): id is string => Boolean(id) && !fileIds.has(id!));
+  if (dropped.length) {
+    const removed = await query<{ url: string }>(
+      `DELETE FROM listing_files f WHERE f.user_id = $1 AND f.id = ANY($2::uuid[])
+         AND NOT EXISTS (SELECT 1 FROM listing_media lm WHERE lm.file_id = f.id)
+       RETURNING f.url`,
+      [userId, dropped],
+    );
+    for (const row of removed) await removeListingFile(userId, row.url);
+  }
+}
+
+function checkPhotosEarly(ids: string[]) {
+  if (checkListingPhotos(ids) === "TOO_MANY_PHOTOS") {
+    throw new HttpError(400, `К объявлению можно приложить не больше ${MAX_LISTING_PHOTOS} фото`, "TOO_MANY_PHOTOS");
   }
 }
 
@@ -461,6 +494,7 @@ export async function listingRoutes(app: FastifyInstance) {
       );
       if (!row) throw badRequest("Не удалось сохранить объявление");
 
+      if (draft.mediaIds) checkPhotosEarly(draft.mediaIds);
       if (draft.mediaIds?.length) await attachMedia(row.id, userId, draft.mediaIds);
 
       // Уведомления не должны блокировать ответ: ошибки только логируем.

@@ -191,7 +191,7 @@ export async function saveChatMediaFile(userId: string, buffer: Buffer, type: De
 }
 
 /** Сколько фото можно приложить к одному объявлению. */
-export const MAX_LISTING_PHOTOS = 6;
+export { MAX_LISTING_PHOTOS } from "../listings/photos.ts";
 
 /**
  * Запись фото объявления. Лежит в отдельной папке listings/<userId>/,
