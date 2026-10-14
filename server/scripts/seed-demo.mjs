@@ -175,16 +175,15 @@ async function seedListings(users) {
     perCategory[listing.category] = (perCategory[listing.category] ?? 0) + 1;
     // Авторы идут вразнобой: соседние объявления — разные люди.
     const author = users[(index * 5 + 3) % users.length];
-    const ageHours = 1 + ((index * 7) % 40);
     const { rows } = await client.query(
       `INSERT INTO listings (author_id, category, city, district, title, description,
                              price_minor, currency, state, expires_at, is_seed, seed_responses, created_at)
        VALUES ($1, $2::need_category, $3, $4, $5, $6, $7, $8, 'active',
-               now() + make_interval(mins => $9::int), true, $10,
-               now() - make_interval(hours => $11::int))
+               now() + make_interval(mins => $9::int - $11::int), true, $10,
+               now() - make_interval(mins => $11::int))
        RETURNING id`,
       [author.id, listing.category, listing.city, listing.district, listing.title, listing.description,
-        listing.priceMinor, listing.currency, listing.expiresMinutes, listing.responses, ageHours],
+        listing.priceMinor, listing.currency, listing.expiresMinutes, listing.responses, listing.elapsedMinutes],
     );
     const listingId = rows[0].id;
 
