@@ -26,8 +26,8 @@ export function useProfileDetail(id: string) {
   return useQuery(profileDetailQueryOptions(id));
 }
 
-export function useMyProfile() {
-  return useQuery({ queryKey: ["my-profile"], queryFn: profileApi.getMyProfile });
+export function useMyProfile(enabled = true) {
+  return useQuery({ queryKey: ["my-profile"], queryFn: profileApi.getMyProfile, enabled });
 }
 
 export function useUpdateMyProfile() {
