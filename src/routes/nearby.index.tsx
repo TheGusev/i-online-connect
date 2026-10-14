@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MapPin, Plus, Search, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import type { NeedCategory } from "@/api";
 import { Button, Input, SpaceCardSkeleton } from "@/components/ds";
@@ -16,6 +16,7 @@ import { initialCategory } from "@/features/nearby/category-selection";
 import { DatingLockSheet } from "@/features/nearby/components/DatingLockSheet";
 import { useMyProfile } from "@/features/profile/hooks";
 import { useSessionStore } from "@/store/useSessionStore";
+import { scrollUnderHeader } from "@/features/nearby/scroll-to";
 
 export const Route = createFileRoute("/nearby/")({
   validateSearch: (search: Record<string, unknown>): { listing?: string } =>
@@ -67,6 +68,11 @@ function NearbyPage() {
   const [lockOpen, setLockOpen] = useState(false);
 
   const items = data?.items ?? [];
+  const postRef = useRef<HTMLDivElement>(null);
+  const goPost = () =>
+    gate.guard(() =>
+      void navigate({ to: "/nearby/new", search: category ? { category } : {} }),
+    );
 
   return (
     <AppShell wide public>
@@ -105,10 +111,12 @@ function NearbyPage() {
                     setLimit(PAGE);
                   }}
                 />
-              <Button className="sm:mt-1" onClick={() => gate.guard(() => void navigate({ to: "/nearby/new" }))}>
-                <Plus aria-hidden="true" />
-                Разместить
-              </Button>
+              <div ref={postRef} className="sm:mt-1">
+                <Button className="w-full sm:w-auto" onClick={goPost}>
+                  <Plus aria-hidden="true" />
+                  Разместить
+                </Button>
+              </div>
             </div>
 
             <CategoryChips
@@ -119,11 +127,16 @@ function NearbyPage() {
               onChange={(next) => {
                 setCategory(next);
                 setLimit(PAGE);
+                if (postRef.current) scrollUnderHeader(postRef.current);
               }}
             />
 
           </div>
 
+          <div
+            key={category ?? "all"}
+            className="listing-crossfade min-h-[calc(var(--vvh,100dvh)-8rem)]"
+          >
           {isError ? (
             <p className="text-sm text-destructive">Не удалось загрузить объявления.</p>
           ) : null}
@@ -139,13 +152,15 @@ function NearbyPage() {
             <div className="rounded-3xl border border-dashed border-border p-8 text-center">
               <Search className="mx-auto size-6 text-primary" aria-hidden="true" />
               <h2 className="mt-3 text-lg font-bold">
-                Пока нет объявлений в вашем городе — станьте первым
+                {category
+                  ? "В этой категории пока пусто — станьте первым"
+                  : "Пока нет объявлений в вашем городе — станьте первым"}
               </h2>
               <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
                 Первое объявление задаёт тон разделу: напишите просто и по-человечески, что нужно
                 или что вы предлагаете.
               </p>
-              <Button className="mt-4" onClick={() => gate.guard(() => void navigate({ to: "/nearby/new" }))}>
+              <Button className="mt-4" onClick={goPost}>
                 Разместить объявление
               </Button>
             </div>
@@ -171,6 +186,7 @@ function NearbyPage() {
               ) : null}
             </>
           )}
+          </div>
         </>
       )}
       {gate.sheet}
