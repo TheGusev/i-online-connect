@@ -7,7 +7,6 @@ import type { MyProfile, PrivacySettings, ProfileIntent } from "@/api";
 import { Button, Card, Chip, Input, Select, TextArea } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { AppShell } from "@/components/layout/AppShell";
-import { badgeLevel } from "@/features/chat/trust";
 import { IntentCard, intentOptions } from "@/features/profile/components/IntentCard";
 import { PrivacySection } from "@/features/profile/components/PrivacySection";
 import { BusinessCard } from "@/features/profile/components/BusinessCard";
