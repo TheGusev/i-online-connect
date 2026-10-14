@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ImagePlus, Trash2 } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -18,6 +18,9 @@ import {
   expiryLabel,
 } from "@/features/nearby/durations";
 import { useMyProfile } from "@/features/profile/hooks";
+import { compressListingPhoto } from "@/features/nearby/compress-image";
+
+const MAX_PHOTOS = 3;
 
 export const Route = createFileRoute("/nearby/new")({
   validateSearch: (search: Record<string, unknown>): { category?: NeedCategory } =>
@@ -88,12 +91,14 @@ function NewListingPage() {
   const canSubmit = title.trim().length >= 3 && !create.isPending && !uploading;
 
   const upload = async (file: File) => {
+    if (photos.length >= MAX_PHOTOS) return;
     setUploading(true);
     setProgress(0);
     try {
+      const prepared = await compressListingPhoto(file);
       // Фото объявления грузим в отдельное хранилище — в профиль оно не попадёт.
-      const media = await listingsApi.uploadListingPhoto(file, file.name, setProgress);
-      setPhotos((prev) => [...prev, media]);
+      const media = await listingsApi.uploadListingPhoto(prepared, prepared.name, setProgress);
+      setPhotos((prev) => (prev.length >= MAX_PHOTOS ? prev : [...prev, media]));
     } catch (cause) {
       toast.error(cause instanceof Error ? cause.message : "Не удалось загрузить фото");
     } finally {
@@ -101,6 +106,12 @@ function NewListingPage() {
       setProgress(null);
     }
   };
+
+  const makeCover = (id: string) =>
+    setPhotos((prev) => {
+      const item = prev.find((photo) => photo.id === id);
+      return item ? [item, ...prev.filter((photo) => photo.id !== id)] : prev;
+    });
 
   const submit = () => {
     const rubles = Number(price.replace(",", "."));
@@ -192,44 +203,74 @@ function NewListingPage() {
         ) : null}
 
         <div>
-          <p className="mb-3 text-sm font-semibold">Фото</p>
-          <div className="flex flex-wrap gap-3">
-            {photos.map((photo) => (
-              <div key={photo.id} className="relative">
-                <img
-                  src={photo.url}
-                  alt=""
-                  className="size-24 rounded-2xl border border-border object-cover"
-                />
-                <button
-                  type="button"
-                  aria-label="Убрать фото"
-                  onClick={() => setPhotos((prev) => prev.filter((item) => item.id !== photo.id))}
-                  className="absolute -right-2 -top-2 grid size-7 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="size-3.5" aria-hidden="true" />
-                </button>
-              </div>
-            ))}
-
-            <label className="grid size-24 cursor-pointer place-items-center rounded-2xl border border-dashed border-border text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
-              <ImagePlus className="size-5" aria-hidden="true" />
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                disabled={uploading}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = "";
-                  if (file) void upload(file);
-                }}
-              />
-            </label>
+          <div className="mb-3 flex items-baseline justify-between">
+            <p className="text-sm font-semibold">Фото</p>
+            <span className="text-xs text-muted-foreground">до 3 фото</span>
           </div>
-          {uploading ? (
-            <p className="mt-2 text-xs text-muted-foreground">Загружаем фото… {progress ?? 0}%</p>
-          ) : null}
+          <div className="grid grid-cols-3 gap-2.5">
+            {Array.from({ length: MAX_PHOTOS }, (_, slot) => {
+              const photo = photos[slot];
+              if (photo) {
+                return (
+                  <div key={photo.id} className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-secondary">
+                    <img src={photo.url} alt={`Фото ${slot + 1}`} className="size-full object-cover" />
+                    <button
+                      type="button"
+                      aria-label="Убрать фото"
+                      onClick={() => setPhotos((prev) => prev.filter((item) => item.id !== photo.id))}
+                      className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-background/85 text-foreground backdrop-blur hover:text-destructive"
+                    >
+                      <X className="size-4" aria-hidden="true" />
+                    </button>
+                    {slot === 0 ? (
+                      <span className="absolute inset-x-1.5 bottom-1.5 rounded-full bg-primary px-2 py-0.5 text-center text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
+                        Обложка
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => makeCover(photo.id)}
+                        className="absolute inset-x-1.5 bottom-1.5 rounded-full bg-background/85 px-2 py-0.5 text-[10px] font-semibold text-foreground backdrop-blur"
+                      >
+                        Сделать обложкой
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+              if (slot === photos.length && uploading) {
+                return (
+                  <div key={`slot-${slot}`} className="grid aspect-square place-items-center rounded-2xl border border-primary/50 bg-secondary text-primary">
+                    <div className="flex flex-col items-center gap-1">
+                      <Loader2 className="size-5 animate-spin" aria-hidden="true" />
+                      <span className="text-[10px] font-semibold">{progress ?? 0}%</span>
+                    </div>
+                  </div>
+                );
+              }
+              const isNext = slot === photos.length;
+              return (
+                <label
+                  key={`slot-${slot}`}
+                  aria-label="Добавить фото"
+                  className={`grid aspect-square place-items-center rounded-2xl border border-dashed border-border text-muted-foreground transition-colors ${isNext && !uploading ? "cursor-pointer hover:border-primary hover:text-primary" : "opacity-40"}`}
+                >
+                  <Plus className="size-6" aria-hidden="true" />
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+                    className="hidden"
+                    disabled={uploading || !isNext}
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = "";
+                      if (file) void upload(file);
+                    }}
+                  />
+                </label>
+              );
+            })}
+          </div>
         </div>
 
         <fieldset>
