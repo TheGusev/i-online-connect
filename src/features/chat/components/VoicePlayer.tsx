@@ -94,7 +94,7 @@ export function VoicePlayer({
   };
 
   return (
-    <div className="flex min-w-44 items-center gap-2" data-voice-id={key}>
+    <div data-no-swipe className="flex min-w-44 items-center gap-2" data-voice-id={key}>
       {audioUrl ? <audio ref={audioRef} src={audioUrl} preload="metadata" /> : null}
       <Button
         type="button"
