@@ -9,39 +9,87 @@ import {
   SlidersHorizontal,
   Text,
 } from "lucide-react";
-import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
-import type { Listing } from "@/api";
-import { Avatar, Button, MediaImage, TrustBadge } from "@/components/ds";
-import { badgeLevel } from "@/features/chat/trust";
+import { mediaUrl, type Listing } from "@/api";
+import { Button, Skeleton } from "@/components/ds";
 import { useListing, useRespondToListing } from "@/features/nearby/hooks";
 import { categoryLabel, formatDate, formatPrice, priceApplies } from "@/features/nearby/labels";
 import { cn } from "@/lib/utils";
 
-function SheetSection({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
-  const [open, setOpen] = useState(false);
+import { ListingAuthor } from "./ListingAuthor";
+import { ListingCountdown } from "./ListingCountdown";
+
+const LEAVE_MS = 260;
+
+function reducedMotion() {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+/** Секция с плавным раскрытием; после раскрытия лист доводит её в зону видимости. */
+function SheetSection({
+  icon,
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  icon: ReactNode;
+  title: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  const ref = useRef<HTMLElement>(null);
+  const toggle = () => {
+    setOpen((value) => {
+      const next = !value;
+      if (next) {
+        window.setTimeout(
+          () => ref.current?.scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" }),
+          230,
+        );
+      }
+      return next;
+    });
+  };
   return (
-    <section className="overflow-hidden rounded-2xl border border-border bg-background">
+    <section ref={ref} className="scroll-mb-4 overflow-hidden rounded-2xl border border-border bg-background">
       <Button
         type="button"
         variant="ghost"
         fullWidth
         aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        onClick={toggle}
         className="h-auto justify-start rounded-none px-4 py-3"
       >
         <span className="text-primary">{icon}</span>
         <span className="flex-1 text-left">{title}</span>
-        <ChevronDown className={cn("transition-transform", open && "rotate-180")} aria-hidden="true" />
+        <ChevronDown className={cn("transition-transform duration-200", open && "rotate-180")} aria-hidden="true" />
       </Button>
-      {open ? (
-        <div className="border-t border-border px-4 py-4 text-sm leading-relaxed text-muted-foreground">
-          {children}
+      <div className="collapse-grid" data-open={open}>
+        <div>
+          <div className="border-t border-border px-4 py-4 text-sm leading-relaxed text-muted-foreground">
+            {children}
+          </div>
         </div>
-      ) : null}
+      </div>
     </section>
+  );
+}
+
+function FadeImage({ src, alt }: { src: string; alt: string }) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <img
+      src={mediaUrl(src) ?? src}
+      alt={alt}
+      data-loaded={loaded}
+      onLoad={() => setLoaded(true)}
+      onError={() => setLoaded(true)}
+      className="img-fade size-full object-cover"
+    />
   );
 }
 
@@ -51,20 +99,18 @@ function ListingGallery({ listing }: { listing: Listing }) {
   return (
     <div className="relative -mx-5 overflow-hidden bg-secondary">
       <div
-        className="flex snap-x snap-mandatory overflow-x-auto"
+        className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         onScroll={(event) => {
           const width = event.currentTarget.clientWidth;
           if (width > 0) setIndex(Math.round(event.currentTarget.scrollLeft / width));
         }}
       >
         {listing.photos.map((photo, photoIndex) => (
-          <div key={`${photo}-${photoIndex}`} className="aspect-[4/3] w-full shrink-0 snap-center">
-            <MediaImage
-              src={photo}
-              alt={`${listing.title}, фото ${photoIndex + 1}`}
-              className="size-full object-cover"
-              wrapperClassName="size-full"
-            />
+          <div
+            key={`${photo}-${photoIndex}`}
+            className="aspect-[16/10] max-h-[38vh] w-full shrink-0 snap-center"
+          >
+            <FadeImage src={photo} alt={`${listing.title}, фото ${photoIndex + 1}`} />
           </div>
         ))}
       </div>
@@ -77,6 +123,67 @@ function ListingGallery({ listing }: { listing: Listing }) {
   );
 }
 
+function stateLabel(state: Listing["state"]) {
+  return state === "active" ? "Активно" : state === "closed" ? "Завершено" : "Срок истёк";
+}
+
+function ListingParams({ listing }: { listing: Listing }) {
+  const rows: Array<[string, ReactNode]> = [
+    ["Категория", categoryLabel(listing.category)],
+    ["Город", listing.city],
+    ...(listing.district ? ([["Район", listing.district]] as Array<[string, ReactNode]>) : []),
+    ...(priceApplies(listing.category)
+      ? ([["Цена", formatPrice(listing.priceMinor, listing.currency)]] as Array<[string, ReactNode]>)
+      : []),
+    ["Статус", stateLabel(listing.state)],
+    ...(listing.state === "active"
+      ? ([
+          ["Осталось", <ListingCountdown key="left" expiresAt={listing.expiresAt} />],
+          [
+            "Действует до",
+            new Date(listing.expiresAt).toLocaleString("ru-RU", {
+              day: "numeric",
+              month: "long",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          ],
+        ] as Array<[string, ReactNode]>)
+      : []),
+    ["Размещено", formatDate(listing.createdAt)],
+    ["Откликов", listing.responsesCount],
+    ["Фото", listing.photos.length],
+    ...(listing.isSeed ? ([["Тип", "Пример объявления"]] as Array<[string, ReactNode]>) : []),
+  ];
+  const visible = rows.filter(([, value]) => value !== "" && value !== null && value !== undefined);
+  if (visible.length === 0) return null;
+  return (
+    <SheetSection icon={<SlidersHorizontal aria-hidden="true" />} title="Параметры">
+      <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
+        {visible.map(([label, value]) => (
+          <div key={label} className="contents">
+            <dt>{label}</dt>
+            <dd className="text-right text-foreground">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </SheetSection>
+  );
+}
+
+function SheetSkeleton() {
+  return (
+    <div className="space-y-4" aria-label="Загружаем объявление">
+      <Skeleton className="-mx-5 aspect-[16/10] max-h-[38vh] rounded-none" />
+      <Skeleton className="h-8 w-2/5" />
+      <Skeleton className="h-7 w-4/5" />
+      <Skeleton className="h-4 w-3/5" />
+      <Skeleton className="h-12 w-full rounded-2xl" />
+      <Skeleton className="h-24 w-full rounded-2xl" />
+    </div>
+  );
+}
+
 export function ListingSheet({ listingId, onClose }: { listingId?: string; onClose: () => void }) {
   const navigate = useNavigate();
   const gate = useAuthGate();
@@ -84,18 +191,32 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
   const respond = useRespondToListing(listingId ?? "");
   const drag = useRef<{ y: number; current: number } | null>(null);
   const [offset, setOffset] = useState(0);
+  const [leaving, setLeaving] = useState(false);
+
+  useEffect(() => setLeaving(false), [listingId]);
+
+  const requestClose = useCallback(() => {
+    if (reducedMotion()) {
+      onClose();
+      return;
+    }
+    setLeaving(true);
+    window.setTimeout(onClose, LEAVE_MS);
+  }, [onClose]);
 
   useEffect(() => {
     if (!listingId) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") requestClose();
+    };
     document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previous;
       document.removeEventListener("keydown", onKey);
     };
-  }, [listingId, onClose]);
+  }, [listingId, requestClose]);
 
   if (!listingId || typeof document === "undefined") return null;
 
@@ -112,11 +233,13 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
   const pointerEnd = () => {
     const shouldClose = (drag.current?.current ?? 0) > 100;
     drag.current = null;
+    if (shouldClose) {
+      requestClose();
+      return;
+    }
     setOffset(0);
-    if (shouldClose) onClose();
   };
 
-  const respondNow = () => gate.guard(respondAuthed);
   const respondAuthed = () => {
     if (!listing) return;
     if (listing.respondedConversationId) {
@@ -128,94 +251,123 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
       onError: (cause) => toast.error(cause instanceof Error ? cause.message : "Не удалось откликнуться"),
     });
   };
+  const respondNow = () => gate.guard(respondAuthed);
 
   return (
     <>
       {createPortal(
-    <div className="viewport-overlay z-50 flex items-end justify-center">
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label="Закрыть объявление"
-        onClick={onClose}
-        className="absolute inset-0 size-full rounded-none bg-foreground/35 p-0 hover:bg-foreground/35"
-      />
-      <article
-        role="dialog"
-        aria-modal="true"
-        aria-label={listing?.title ?? "Объявление"}
-        className="relative z-10 flex max-h-[92%] w-full max-w-lg flex-col overflow-hidden rounded-t-4xl border border-border bg-card shadow-lift transition-transform"
-        style={{ transform: offset ? `translateY(${offset}px)` : undefined }}
-      >
-        <div
-          className="touch-none px-5 pb-2 pt-3"
-          onPointerDown={pointerDown}
-          onPointerMove={pointerMove}
-          onPointerUp={pointerEnd}
-          onPointerCancel={pointerEnd}
-        >
-          <div className="mx-auto h-1.5 w-12 rounded-full bg-border" />
-          <p className="mt-3 truncate text-sm font-bold text-foreground">Объявление</p>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">
-          {isPending ? <p className="py-10 text-center text-sm text-muted-foreground">Загружаем объявление…</p> : null}
-          {isError ? <p className="py-10 text-center text-sm text-destructive">Объявление недоступно</p> : null}
-          {listing ? (
-            <div className="space-y-4">
-              <ListingGallery listing={listing} />
-              <div>
-                {priceApplies(listing.category) ? (
-                  <p className="text-2xl font-black text-primary">{formatPrice(listing.priceMinor, listing.currency)}</p>
-                ) : null}
-                <h2 className="mt-1 text-2xl font-bold leading-tight text-foreground">{listing.title}</h2>
-              </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" aria-hidden="true" />{[listing.city, listing.district].filter(Boolean).join(", ")}</span>
-                <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" aria-hidden="true" />{formatDate(listing.createdAt)}</span>
-                <span className="inline-flex items-center gap-1"><MessageCircle className="size-3.5" aria-hidden="true" />Откликов: {listing.responsesCount}</span>
-              </div>
-
-              <Link
-                to="/u/$id"
-                params={{ id: listing.author.id }}
-                className="flex items-center gap-3 rounded-2xl border border-border bg-background p-3 transition-colors hover:bg-secondary"
-              >
-                <Avatar name={listing.author.name} src={listing.author.avatarUrl} size="md" verified={listing.author.trustLevel !== "new"} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold text-foreground">{listing.author.name}</span>
-                  <TrustBadge level={badgeLevel(listing.author.trustLevel)} size="sm" />
-                </span>
-                <span className="text-xs font-semibold text-primary">Витрина</span>
-              </Link>
-
-              <SheetSection icon={<Text aria-hidden="true" />} title="Описание">
-                {listing.description || "Описание не добавлено"}
-              </SheetSection>
-              <SheetSection icon={<SlidersHorizontal aria-hidden="true" />} title="Параметры">
-                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2">
-                  <dt>Категория</dt><dd className="text-right text-foreground">{categoryLabel(listing.category)}</dd>
-                  {listing.district ? <><dt>Район</dt><dd className="text-right text-foreground">{listing.district}</dd></> : null}
-                  <dt>Статус</dt><dd className="text-right text-foreground">{listing.state === "active" ? "Активно" : listing.state === "closed" ? "Завершено" : "Срок истёк"}</dd>
-                </dl>
-              </SheetSection>
+        <div className="viewport-overlay z-50 flex items-end justify-center">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Закрыть объявление"
+            onClick={requestClose}
+            className={cn(
+              "absolute inset-0 size-full rounded-none bg-foreground/35 p-0 hover:bg-foreground/35",
+              leaving ? "backdrop-leave" : "backdrop-enter",
+            )}
+          />
+          <article
+            role="dialog"
+            aria-modal="true"
+            aria-label={listing?.title ?? "Объявление"}
+            className={cn(
+              "relative z-10 flex max-h-[92%] w-full max-w-lg flex-col overflow-hidden rounded-t-4xl border border-border bg-card shadow-lift",
+              leaving ? "sheet-leave" : "sheet-enter",
+              !leaving && !drag.current && "transition-transform duration-200",
+            )}
+            style={
+              leaving
+                ? ({ "--sheet-from": `${offset}px` } as React.CSSProperties)
+                : { transform: offset ? `translateY(${offset}px)` : undefined }
+            }
+          >
+            <div
+              className="touch-none px-5 pb-2 pt-3"
+              onPointerDown={pointerDown}
+              onPointerMove={pointerMove}
+              onPointerUp={pointerEnd}
+              onPointerCancel={pointerEnd}
+            >
+              <div className="mx-auto h-1.5 w-12 rounded-full bg-border" />
+              <p className="mt-3 truncate text-sm font-bold text-foreground">Объявление</p>
             </div>
-          ) : null}
-        </div>
 
-        {listing && !listing.isMine && !listing.isSeed ? (
-          <div className="grid grid-cols-2 gap-2 border-t border-border bg-card px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
-            <Button fullWidth loading={respond.isPending} disabled={listing.state !== "active"} onClick={respondNow}>
-              <MessageCircle aria-hidden="true" />{listing.respondedConversationId ? "Перейти в диалог" : "Откликнуться"}
-            </Button>
-            <Button variant="secondary" disabled title="Избранное пока не поддерживается">
-              <Heart aria-hidden="true" />В избранное
-            </Button>
-          </div>
-        ) : null}
-      </article>
-    </div>,
-    document.body)}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-5">
+              {isPending ? <SheetSkeleton /> : null}
+              {isError ? (
+                <p className="py-10 text-center text-sm text-destructive">Объявление недоступно</p>
+              ) : null}
+              {listing ? (
+                <div className="sheet-stagger space-y-3">
+                  <ListingGallery listing={listing} />
+                  <div>
+                    <div className="flex items-start justify-between gap-3">
+                      {priceApplies(listing.category) ? (
+                        <p className="text-2xl font-black text-primary">
+                          {formatPrice(listing.priceMinor, listing.currency)}
+                        </p>
+                      ) : (
+                        <p className="text-xs font-bold uppercase tracking-wide text-primary">
+                          {categoryLabel(listing.category)}
+                        </p>
+                      )}
+                      {listing.state === "active" ? (
+                        <ListingCountdown expiresAt={listing.expiresAt} className="mt-1.5" />
+                      ) : null}
+                    </div>
+                    <h2 className="mt-1 text-xl font-bold leading-tight text-foreground">{listing.title}</h2>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="size-3.5" aria-hidden="true" />
+                        {[listing.city, listing.district].filter(Boolean).join(", ")}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <CalendarDays className="size-3.5" aria-hidden="true" />
+                        {formatDate(listing.createdAt)}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <MessageCircle className="size-3.5" aria-hidden="true" />
+                        Откликов: {listing.responsesCount}
+                      </span>
+                    </div>
+                  </div>
+
+                  <Link
+                    to="/u/$id"
+                    params={{ id: listing.author.id }}
+                    className="block rounded-2xl border border-border bg-background p-3 transition-colors hover:bg-secondary"
+                  >
+                    <ListingAuthor
+                      author={listing.author}
+                      full
+                      trailing={<span className="text-xs font-semibold text-primary">Витрина</span>}
+                    />
+                  </Link>
+
+                  <SheetSection icon={<Text aria-hidden="true" />} title="Описание" defaultOpen>
+                    <p className="whitespace-pre-wrap">{listing.description || "Описание не добавлено"}</p>
+                  </SheetSection>
+                  <ListingParams listing={listing} />
+                </div>
+              ) : null}
+            </div>
+
+            {listing && !listing.isMine && !listing.isSeed ? (
+              <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-card px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+                <Button fullWidth loading={respond.isPending} disabled={listing.state !== "active"} onClick={respondNow}>
+                  <MessageCircle aria-hidden="true" />
+                  {listing.respondedConversationId ? "Написать" : "Откликнуться"}
+                </Button>
+                <Button variant="secondary" disabled title="Избранное пока не поддерживается">
+                  <Heart aria-hidden="true" />В избранное
+                </Button>
+              </div>
+            ) : null}
+          </article>
+        </div>,
+        document.body,
+      )}
       {gate.sheet}
     </>
   );
