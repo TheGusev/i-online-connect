@@ -204,7 +204,7 @@ export async function authRoutes(app: FastifyInstance) {
     if (!codesMatch(otp.code_hash, phone, body.code)) {
       const next = otp.attempts + 1;
       await query(
-        `UPDATE auth_otps SET attempts = $2, consumed_at = CASE WHEN $2 >= $3 THEN now() ELSE NULL END WHERE id = $1`,
+        `UPDATE auth_otps SET attempts = $2::int, consumed_at = CASE WHEN $2::int >= $3::int THEN now() ELSE NULL END WHERE id = $1`,
         [otp.id, next, OTP_MAX_ATTEMPTS],
       );
       throw new HttpError(
