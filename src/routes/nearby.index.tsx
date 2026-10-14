@@ -1,16 +1,15 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { MapPin, Plus, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import type { NeedCategory } from "@/api";
-import { Button, Card, SpaceCardSkeleton } from "@/components/ds";
+import { Button, SpaceCardSkeleton } from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
 import { Reveal } from "@/components/landing/Reveal";
 import { WaveHeading } from "@/components/landing/WaveHeading";
 import { CategoryChips } from "@/features/nearby/components/CategoryChips";
 import { ListingCard } from "@/features/nearby/components/ListingCard";
 import { ListingSheet } from "@/features/nearby/components/ListingSheet";
-import { visibleCategories as categories } from "@/features/nearby/labels";
 import { useListings } from "@/features/nearby/hooks";
 import { useAuthGate } from "@/features/auth/phone/AuthSheet";
 

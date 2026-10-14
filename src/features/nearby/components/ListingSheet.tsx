@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useAuthGate } from "@/features/auth/phone/AuthSheet";
 import {
   CalendarDays,
   ChevronDown,
@@ -128,7 +129,9 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
     });
   };
 
-  return createPortal(
+  return (
+    <>
+      {createPortal(
     <div className="viewport-overlay z-50 flex items-end justify-center">
       <Button
         variant="ghost"
@@ -212,6 +215,8 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
         ) : null}
       </article>
     </div>,
-    document.body,
+    document.body,}
+      {gate.sheet}
+    </>
   );
 }
