@@ -21,7 +21,7 @@ export function SettingsNav({
     <>
       <nav
         aria-label="Разделы настроек"
-        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden"
+        data-no-swipe className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden"
       >
         {sections.map((section) => (
           <button

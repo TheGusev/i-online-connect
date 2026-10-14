@@ -8,7 +8,7 @@ import { useSessionStore } from "@/store/useSessionStore";
 import { navItems } from "./nav-items";
 import { NavBadge } from "./NavBadge";
 
-export function BottomNav() {
+export function BottomNav({ activeOverride }: { activeOverride?: string | undefined } = {}) {
   const { t } = useTranslation();
   // Гостю приватная навигация не нужна: за ней всё равно стоит вход.
   const authed = useSessionStore((state) => state.status === "authed");
@@ -30,7 +30,7 @@ export function BottomNav() {
                 className:
                   "text-primary font-semibold before:absolute before:inset-x-3 before:top-0 before:h-0.5 before:rounded-full before:bg-primary",
               }}
-              className="relative flex h-14 min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[10px] leading-none text-muted-foreground transition-colors"
+              className={`relative flex h-14 ${activeOverride ? (activeOverride === to ? "!text-primary font-semibold before:absolute before:inset-x-3 before:top-0 before:h-0.5 before:rounded-full before:bg-primary" : "!text-muted-foreground !font-normal before:hidden") : ""} min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[10px] leading-none text-muted-foreground transition-colors`}
             >
               <span className="relative">
                 <Icon className="size-6" aria-hidden="true" />

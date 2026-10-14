@@ -31,6 +31,11 @@ export function ListingCard({ listing }: { listing: Listing }) {
             className="size-full object-cover"
             wrapperClassName="size-full"
           />
+          {listing.photos.length > 1 ? (
+            <span className="absolute bottom-1.5 right-1.5 rounded-full bg-background/85 px-1.5 py-0.5 text-[9px] font-bold text-foreground backdrop-blur">
+              1/{listing.photos.length}
+            </span>
+          ) : null}
           {listing.isSeed ? (
             <span className="absolute left-1.5 top-1.5 rounded-full bg-background/90 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground backdrop-blur">
               пример

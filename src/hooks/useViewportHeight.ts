@@ -80,6 +80,11 @@ export function useKeyboardInset(): number {
   return useSyncExternalStore(subscribe, () => viewportInset, () => 0);
 }
 
+/** Текущее состояние клавиатуры без подписки — для обработчиков жестов. */
+export function isKeyboardOpenNow(): boolean {
+  return viewportInset > 0;
+}
+
 /** Открыта ли клавиатура — для скрытия нижней навигации. */
 export function useKeyboardOpen(): boolean {
   return useKeyboardInset() > 0;

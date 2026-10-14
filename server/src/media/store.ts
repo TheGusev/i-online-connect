@@ -7,7 +7,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { env } from "../env.ts";
@@ -191,7 +191,7 @@ export async function saveChatMediaFile(userId: string, buffer: Buffer, type: De
 }
 
 /** Сколько фото можно приложить к одному объявлению. */
-export const MAX_LISTING_PHOTOS = 6;
+export { MAX_LISTING_PHOTOS } from "../listings/photos.ts";
 
 /**
  * Запись фото объявления. Лежит в отдельной папке listings/<userId>/,
@@ -205,6 +205,13 @@ export async function saveListingFile(userId: string, buffer: Buffer, type: Dete
   await writeFile(filePath, buffer, { mode: 0o644 });
   const base = env.MEDIA_BASE_URL.replace(/\/$/, "");
   return { filePath, url: `${base}/listings/${userId}/${name}` };
+}
+
+/** Удаляет файл фото объявления с диска; путь берём только из имени, чтобы не выйти за папку автора. */
+export async function removeListingFile(userId: string, url: string) {
+  const name = path.basename(new URL(url, "http://local").pathname);
+  if (!/^[0-9a-f-]{36}\.[a-z0-9]+$/i.test(name)) return;
+  await unlink(path.join(env.MEDIA_DIR, "listings", userId, name)).catch(() => undefined);
 }
 
 /** Запись приватного файла верификации: наружу не раздаётся никогда. */

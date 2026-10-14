@@ -21,7 +21,7 @@ export function StarterChips({
       {loading ? (
         <p className="text-xs text-muted-foreground">Подбираем варианты…</p>
       ) : (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div data-no-swipe className="flex gap-2 overflow-x-auto pb-1">
           {starters.map((starter) => (
             <button
               key={starter}

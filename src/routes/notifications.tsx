@@ -45,7 +45,7 @@ function NotificationsPage() {
   return (
     <AppShell>
       <PageHeader title="Уведомления" description="Сообщения, встречи и совпадения — без потерянных событий." />
-      <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
+      <div data-no-swipe className="mb-4 flex gap-2 overflow-x-auto pb-1">
         {filters.map((filter) => (
           <Chip
             key={filter.id ?? "all"}

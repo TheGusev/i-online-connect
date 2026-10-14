@@ -98,7 +98,7 @@ export function ChatComposer({
   useEffect(() => resize(), [value, resize]);
 
   return (
-    <div>
+    <div data-no-swipe>
       {editing ? (
         <div className="flex items-center gap-2 px-4 pt-2 text-xs text-primary-ink">
           <Pencil className="size-3.5 shrink-0" aria-hidden="true" />

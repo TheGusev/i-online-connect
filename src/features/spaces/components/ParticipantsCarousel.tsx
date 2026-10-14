@@ -46,7 +46,7 @@ export function ParticipantsCarousel({
     <div className={cn("min-w-0", className)}>
       <ul
         ref={railRef}
-        className="flex snap-x snap-mandatory items-center gap-3 overflow-x-auto pb-2 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        data-no-swipe className="flex snap-x snap-mandatory items-center gap-3 overflow-x-auto pb-2 pt-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {members.map((member) => {
           const isActive = member.id === activeId;
