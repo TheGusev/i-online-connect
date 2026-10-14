@@ -28,12 +28,14 @@ const MORE_EMOJI = "😀 😁 😅 🤣 😊 😍 🥰 😘 😎 🤩 🤔 🤨 
 export function MessageActions({
   message,
   mine,
+  canDelete,
   onClose,
   onEdit,
   onDelete,
 }: {
   message: Message | null;
   mine: boolean;
+  canDelete?: boolean;
   onClose: () => void;
   onEdit?: (message: Message) => void;
   onDelete: (message: Message) => void;
@@ -67,7 +69,7 @@ export function MessageActions({
   }, [message, mine, onClose]);
 
   if (!message || typeof document === "undefined") return null;
-  const deletable = mine && !message.deletedAt;
+  const deletable = (canDelete ?? mine) && !message.deletedAt;
   const editable = Boolean(onEdit) && canEditMessage(message, mine);
   const fresh = () => Date.now() - openedAt.current < 400;
   const react = (emoji: string) => { if (fresh()) return; toggleReaction(message.id, emoji); onClose(); };

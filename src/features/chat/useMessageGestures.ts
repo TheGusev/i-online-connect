@@ -16,6 +16,7 @@ export function useMessageGestures({ onHold, onReply }: { onHold?: () => void; o
   const [offset, setOffset] = useState(0);
   const st = useRef<{ x: number; y: number; id: number; axis: "x" | "y" | null; held: boolean; armed: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const suppressClick = useRef(false);
   const clear = () => { if (timer.current) clearTimeout(timer.current); timer.current = null; };
   useEffect(() => clear, []);
 
@@ -23,6 +24,7 @@ export function useMessageGestures({ onHold, onReply }: { onHold?: () => void; o
     clear();
     const s = st.current;
     st.current = null;
+    if (s?.armed || s?.held) suppressClick.current = true;
     if (s?.armed && onReply) onReply();
     setOffset(0);
   };
@@ -33,12 +35,16 @@ export function useMessageGestures({ onHold, onReply }: { onHold?: () => void; o
       onPointerDown: (e: React.PointerEvent) => {
         if (e.pointerType === "mouse" && e.button !== 0) return;
         const target = e.target as HTMLElement;
-        const blocked = Boolean(target.closest("a,button,video,img,input,[data-no-gesture]"));
+        if (target.closest("[data-no-gesture]")) return;
+        const photo = Boolean(target.closest("[data-message-photo]"));
+        const blocked = !photo && Boolean(target.closest("a,button,video,input"));
+        suppressClick.current = false;
         st.current = { x: e.clientX, y: e.clientY, id: e.pointerId, axis: null, held: false, armed: false };
         if (onHold) {
           timer.current = setTimeout(() => {
             if (!st.current) return;
             st.current.held = true;
+            suppressClick.current = true;
             haptic(12);
             onHold();
           }, HOLD_MS);
@@ -50,7 +56,7 @@ export function useMessageGestures({ onHold, onReply }: { onHold?: () => void; o
         if (!s || s.id !== e.pointerId || s.held) return;
         const dx = e.clientX - s.x;
         const dy = e.clientY - s.y;
-        if (Math.hypot(dx, dy) > MOVE_TOLERANCE) clear();
+        if (Math.hypot(dx, dy) > MOVE_TOLERANCE) { clear(); suppressClick.current = true; }
         if (!s.axis && Math.max(Math.abs(dx), Math.abs(dy)) > AXIS_LOCK) {
           s.axis = Math.abs(dx) > Math.abs(dy) && onReply ? "x" : "y";
           if (s.axis === "x") {
@@ -66,6 +72,12 @@ export function useMessageGestures({ onHold, onReply }: { onHold?: () => void; o
       },
       onPointerUp: end,
       onPointerCancel: () => { if (st.current) st.current.armed = false; end(); },
+      onClickCapture: (event: React.MouseEvent) => {
+        if (!suppressClick.current) return;
+        suppressClick.current = false;
+        event.preventDefault();
+        event.stopPropagation();
+      },
       onContextMenu: (e: React.MouseEvent) => {
         e.preventDefault();
         if (!st.current && onHold) onHold();
@@ -81,7 +93,7 @@ let cache: Record<string, string> | null = null;
 function read(): Record<string, string> {
   if (cache) return cache;
   try { cache = JSON.parse(localStorage.getItem(KEY) ?? "{}"); } catch { cache = {}; }
-  return cache!;
+  return cache ?? {};
 }
 export function toggleReaction(messageId: string, emoji: string) {
   const next = { ...read() };

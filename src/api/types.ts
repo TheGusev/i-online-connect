@@ -130,6 +130,10 @@ export interface SpaceMessage {
   mediaMime?: string;
   durationMs?: number;
   createdAt: string;
+  editedAt?: string;
+  deletedAt?: string;
+  replyToId?: string;
+  replyTo?: MessageQuote;
 }
 
 export interface Space {
