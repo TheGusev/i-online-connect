@@ -23,3 +23,5 @@
 - Guests may only GET the listings list and detail; every other listings route still requires auth, and guest actions open the in-place phone sign-in sheet (useAuthGate) that resumes the action afterwards.
 - Nearby category filters use an explicit grid variant of the shared selector and a tested selection helper; listing creation keeps the row variant and required-selection behavior to isolate screen presentation changes.
 - ProfileHero isolates the owner's restored gallery through optional presentation props; public profiles keep their existing appearance, while profile editing uses a tested optional-age parser.
+- Profile completeness ("анкета заполнена") is computed on the server in server/src/profile/completeness-rules.ts and gates the dating category in listings; the UI only mirrors it, so access cannot be bypassed.
+- Demo seed data lives in server/scripts/seed-data.mjs with one unique image file per listing and per author, enforced by tests/seed-images.test.mjs.
