@@ -472,7 +472,7 @@ export interface ListingDraft {
   district?: string | undefined;
   mediaIds?: string[];
   expiresInDays?: number;
-  expiresInMinutes?: 15 | 30 | 60 | 180 | 360 | 1440;
+  expiresInMinutes?: number;
 }
 
 export type AppNotificationKind = "listing_match" | "listing_response";

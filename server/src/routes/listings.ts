@@ -31,6 +31,7 @@ import {
 } from "../media/store.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 import { datingAccess, loadCompleteness } from "../profile/completeness.ts";
+import { resolveDuration } from "../listings/durations.ts";
 
 const profileIncomplete = () =>
   new HttpError(403, "Заполните анкету, чтобы открыть знакомства", "PROFILE_INCOMPLETE");
@@ -95,7 +96,7 @@ const createSchema = z.object({
   district: z.string().trim().max(120).optional(),
   mediaIds: z.array(z.string().uuid()).max(MAX_LISTING_PHOTOS).optional(),
   expiresInDays: z.number().int().min(1).max(90).optional(),
-  expiresInMinutes: z.union([z.literal(15), z.literal(30), z.literal(60), z.literal(180), z.literal(360), z.literal(1440)]).optional(),
+  expiresInMinutes: z.number().int().positive().optional(),
 });
 
 const patchSchema = z.object({
@@ -414,6 +415,10 @@ export async function listingRoutes(app: FastifyInstance) {
     async (request) => {
       const userId = currentUserId(request);
       const draft = createSchema.parse(request.body);
+      const durationMinutes = resolveDuration(draft.category, draft);
+      if (durationMinutes === null) {
+        throw new HttpError(400, "Такой срок недоступен для этой категории", "INVALID_DURATION");
+      }
       if (draft.category === "dating" && !(await loadCompleteness(userId)).complete) {
         throw profileIncomplete();
       }
@@ -450,7 +455,7 @@ export async function listingRoutes(app: FastifyInstance) {
           draft.title,
           draft.description ?? "",
           draft.priceMinor ?? null,
-          draft.expiresInMinutes ?? (draft.expiresInDays ?? 30) * 1440,
+          durationMinutes,
           draft.district ?? "",
         ],
       );

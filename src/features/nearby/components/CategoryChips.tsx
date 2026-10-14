@@ -3,7 +3,7 @@ import { Lock } from "lucide-react";
 import type { NeedCategory } from "@/api";
 import { Chip } from "@/components/ds";
 
-import { categories, visibleCategories } from "../labels";
+import { visibleCategories } from "../labels";
 import { selectCategory } from "../category-selection";
 
 /** Единая чип-группа категорий: используется в фильтрах и в форме. */
@@ -37,7 +37,7 @@ export function CategoryChips({
         </Chip>
       ) : null}
 
-      {(grid ? categories : visibleCategories).map(({ id, label, icon: Icon }) => (
+      {visibleCategories.map(({ id, label, icon: Icon }) => (
         <Chip
           key={id}
           size="sm"

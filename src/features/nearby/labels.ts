@@ -120,13 +120,19 @@ export function formatDate(iso: string): string {
 
 import { SHOW_DATING_CATEGORIES } from "@/config/features";
 
-const VISIBLE_ORDER: NeedCategory[] = ["urgent", "service", "sale", "realty", "transport", "help"];
-const DATING_ORDER: NeedCategory[] = ["dating", "leisure", "travel"];
+/** Единый порядок категорий во всём приложении. «Знакомства» — последние. */
+export const CATEGORY_ORDER: NeedCategory[] = [
+  "urgent", "help", "service", "sale", "realty", "transport", "travel", "leisure", "dating",
+];
 
-/** Категории для фильтров и форм: порядок «бизнес-мессенджера», знакомства — по флагу. */
-export const visibleCategories: CategoryMeta[] = [
-  ...VISIBLE_ORDER,
-  ...(SHOW_DATING_CATEGORIES ? DATING_ORDER : []),
-]
-  .map((id) => categories.find((item) => item.id === id))
-  .filter((item): item is CategoryMeta => Boolean(item));
+const DATING_GROUP: NeedCategory[] = ["dating", "leisure", "travel"];
+
+/** Все категории в порядке CATEGORY_ORDER. */
+export const orderedCategories: CategoryMeta[] = CATEGORY_ORDER.map((id) => categoryMap.get(id)).filter(
+  (item): item is CategoryMeta => Boolean(item),
+);
+
+/** Категории для фильтров и форм; знакомства — по флагу. */
+export const visibleCategories: CategoryMeta[] = orderedCategories.filter(
+  (item) => SHOW_DATING_CATEGORIES || !DATING_GROUP.includes(item.id),
+);

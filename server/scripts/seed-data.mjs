@@ -6,6 +6,8 @@
  * свой аватар, у каждого объявления свои фото.
  */
 
+import { LISTING_DURATIONS } from "../src/listings/durations.ts";
+
 const H = 60;
 const D = 1440;
 
@@ -127,8 +129,17 @@ const RAW = {
   ],
 };
 
+// Срок — допустимый вариант своей категории (ближайший к исходному),
+// уже прошедшая часть разная, поэтому остаток времени у всех свой.
+function allowedDuration(category, minutes) {
+  const { options } = LISTING_DURATIONS[category];
+  return options.reduce((best, x) => (Math.abs(x - minutes) < Math.abs(best - minutes) ? x : best));
+}
+
 export const LISTINGS = Object.entries(RAW).flatMap(([category, items]) =>
-  items.map(([title, description, price, minutes, responses, city, district, currency], index) => ({
+  items.map(([title, description, price, rawMinutes, responses, city, district, currency], index) => {
+    const minutes = allowedDuration(category, rawMinutes);
+    return {
     category,
     title,
     description,
@@ -139,8 +150,14 @@ export const LISTINGS = Object.entries(RAW).flatMap(([category, items]) =>
     city,
     district,
     photos: [`l-${category}-${index + 1}.jpg`],
-  })),
+    };
+  }),
 );
+
+// Прошедшая часть срока — по сквозному номеру, чтобы остаток у всех был разный.
+for (const [i, listing] of LISTINGS.entries()) {
+  listing.elapsedMinutes = Math.floor((listing.expiresMinutes * ((i * 37) % 85)) / 100);
+}
 
 export const SPACES = [
   ["Утренний бег в парке", "sport", "Бегаем по вторникам и субботам в 7:30. Темп спокойный.", "space-sport.jpg"],

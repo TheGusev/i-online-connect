@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import type { NeedCategory } from "@/api";
 import { Button, Card } from "@/components/ds";
 import { useMyNeeds, useSaveMyNeeds } from "@/features/nearby/hooks";
-import { categories } from "@/features/nearby/labels";
+import { orderedCategories as categories } from "@/features/nearby/labels";
 
 /**
  * «Мои потребности» — что человек ищет или готов предложить в разделе «Рядом».

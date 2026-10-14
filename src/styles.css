@@ -723,3 +723,27 @@ html[data-tab-hidden] .chat-sky *, html[data-tab-hidden] .live-icon * { animatio
   .sheet-enter, .sheet-leave, .backdrop-enter, .backdrop-leave, .sheet-stagger > *, .chat-media-glow { animation: none !important; }
   .img-fade, .collapse-grid { transition: none; }
 }
+
+/* «Рядом»: мягкая смена списка при выборе категории. */
+.listing-crossfade {
+  animation: listing-crossfade 150ms ease-out;
+}
+@keyframes listing-crossfade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+/* Плавная смена блока срока в форме объявления. */
+.duration-reveal {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 200ms ease-out, opacity 200ms ease-out;
+}
+.duration-reveal[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .listing-crossfade { animation: none; }
+  .duration-reveal { transition: none; }
+}
