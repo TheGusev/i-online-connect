@@ -18,11 +18,11 @@ export async function apply(client, saveBackup) {
   await client.query('BEGIN');
   try {
     const { rows } = await client.query(`
-      SELECT p.user_id, p.trust_level, p.updated_at
+      SELECT p.user_id, p.trust_level, p.updated_at::text AS updated_at
       FROM profiles p JOIN users u ON u.id = p.user_id
       WHERE u.created_at <= $1::timestamptz AND p.trust_level IN ('new','verified')
       ORDER BY p.user_id FOR UPDATE OF p`, [CUTOFF]);
-    const { rows: [clock] } = await client.query('SELECT now() AS applied_at');
+    const { rows: [clock] } = await client.query('SELECT now()::text AS applied_at');
     await saveBackup({ version: 1, cutoff: CUTOFF, appliedAt: clock.applied_at, profiles: rows });
     const result = await client.query(`UPDATE profiles SET trust_level = 'trusted', updated_at = now()
       WHERE user_id = ANY($1::uuid[]) RETURNING user_id`, [rows.map(row => row.user_id)]);
