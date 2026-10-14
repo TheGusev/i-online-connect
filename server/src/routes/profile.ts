@@ -14,11 +14,12 @@ import { query, queryOne, transaction } from "../db.ts";
 import { forbidden, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { toUserDto, type ProfileRow } from "../types.ts";
+import { loadCompleteness } from "../profile/completeness.ts";
 
 const BASE_SELECT = `
   SELECT u.id, p.name, p.age, p.city, p.bio, p.trust_level, p.trust_score, u.last_seen_at,
          p.intent, p.intent_note, p.video_verified, p.safe_meetings, p.clean_conversations,
-         p.created_at AS joined_at,
+         p.created_at AS joined_at, p.values_text, p.joy_text, p.dealbreakers_text,
          ARRAY(
            SELECT i.label FROM user_interests ui
              JOIN interests i ON i.id = ui.interest_id
@@ -38,6 +39,9 @@ type DetailRow = ProfileRow & {
   clean_conversations: number;
   joined_at: Date;
   values: string[] | null;
+  values_text?: string;
+  joy_text?: string;
+  dealbreakers_text?: string;
 };
 
 async function loadMedia(userId: string) {
@@ -101,6 +105,12 @@ async function loadMyProfile(userId: string) {
           : verification?.status === "pending"
             ? "pending"
             : "none",
+      questionnaire: {
+        valuesText: row.values_text ?? "",
+        joyText: row.joy_text ?? "",
+        dealbreakersText: row.dealbreakers_text ?? "",
+      },
+      completeness: await loadCompleteness(userId),
       stats: {
         cleanConversations: row.clean_conversations,
         safeMeetings: row.safe_meetings,
@@ -122,6 +132,13 @@ export async function profileRoutes(app: FastifyInstance) {
     age: z.number().int().min(18).max(120).optional(),
     intent: z.enum(["serious", "friends", "projects", "unsure"]).optional(),
     intentNote: z.string().max(300).optional(),
+    questionnaire: z
+      .object({
+        valuesText: z.string().max(500).optional(),
+        joyText: z.string().max(500).optional(),
+        dealbreakersText: z.string().max(500).optional(),
+      })
+      .optional(),
     interests: z.array(z.string().min(1).max(60)).max(20).optional(),
     values: z.array(z.string().min(1).max(60)).max(10).optional(),
     privacy: z
@@ -158,6 +175,23 @@ export async function profileRoutes(app: FastifyInstance) {
         patch.intent ?? null,
       ],
     );
+
+    if (patch.questionnaire) {
+      await query(
+        `UPDATE profiles SET
+           values_text       = COALESCE($2, values_text),
+           joy_text          = COALESCE($3, joy_text),
+           dealbreakers_text = COALESCE($4, dealbreakers_text),
+           updated_at        = now()
+         WHERE user_id = $1`,
+        [
+          userId,
+          patch.questionnaire.valuesText?.trim() ?? null,
+          patch.questionnaire.joyText?.trim() ?? null,
+          patch.questionnaire.dealbreakersText?.trim() ?? null,
+        ],
+      );
+    }
 
     if (patch.privacy) {
       await query(

@@ -19,7 +19,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import { query, queryOne, transaction } from "../db.ts";
-import { badRequest, forbidden, notFound } from "../http.ts";
+import { HttpError, badRequest, forbidden, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { notifyListingMatches } from "../listings/notify.ts";
 import {
@@ -31,7 +31,6 @@ import {
 } from "../media/store.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 import { datingAccess, loadCompleteness } from "../profile/completeness.ts";
-import { HttpError } from "../http.ts";
 
 const profileIncomplete = () =>
   new HttpError(403, "Заполните анкету, чтобы открыть знакомства", "PROFILE_INCOMPLETE");
