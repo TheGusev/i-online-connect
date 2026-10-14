@@ -20,6 +20,7 @@ import { categoryLabel, formatDate, formatPrice, priceApplies } from "@/features
 import { cn } from "@/lib/utils";
 
 import { ListingAuthor } from "./ListingAuthor";
+import { MediaViewer } from "@/features/profile/components/MediaViewer";
 import { ListingCountdown } from "./ListingCountdown";
 
 const LEAVE_MS = 260;
@@ -108,7 +109,8 @@ function ListingGallery({ listing }: { listing: Listing }) {
         {listing.photos.map((photo, photoIndex) => (
           <div
             key={`${photo}-${photoIndex}`}
-            className="aspect-[16/10] max-h-[38vh] w-full shrink-0 snap-center"
+            className="aspect-[16/10] max-h-[38vh] w-full shrink-0 cursor-zoom-in snap-center"
+            onClick={() => setViewer(photoIndex)}
           >
             <FadeImage src={photo} alt={`${listing.title}, фото ${photoIndex + 1}`} />
           </div>
@@ -118,6 +120,13 @@ function ListingGallery({ listing }: { listing: Listing }) {
         <span className="absolute bottom-3 right-3 rounded-full bg-background/85 px-2.5 py-1 text-xs font-semibold text-foreground">
           {index + 1} / {listing.photos.length}
         </span>
+      ) : null}
+      {listing.photos.length > 1 ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center gap-1.5" aria-hidden="true">
+          {listing.photos.map((_, i) => (
+            <span key={i} className={cn("h-1.5 rounded-full transition-all", i === index ? "w-4 bg-primary" : "w-1.5 bg-foreground/50")} />
+          ))}
+        </div>
       ) : null}
     </div>
   );
