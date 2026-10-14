@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { BellRing, Check, Pencil, Settings, X } from "lucide-react";
+import { BellRing, Check, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -10,7 +10,10 @@ import { AppShell } from "@/components/layout/AppShell";
 import { badgeLevel } from "@/features/chat/trust";
 import { IntentCard, intentOptions } from "@/features/profile/components/IntentCard";
 import { PrivacySection } from "@/features/profile/components/PrivacySection";
-import { ProfileHero } from "@/features/profile/components/ProfileHero";
+import { BusinessCard } from "@/features/profile/components/BusinessCard";
+import { CompleteCard, type CompletionStepId } from "@/features/profile/components/CompleteCard";
+import { InviteQrSheet } from "@/components/InviteQrSheet";
+import { BottomSheet } from "@/components/ds";
 import { ProfilePanel } from "@/features/profile/components/ProfilePanel";
 import { TagEditor } from "@/features/profile/components/TagEditor";
 import { TrustBadgeExplained } from "@/features/profile/components/TrustBadgeExplained";
@@ -56,18 +59,20 @@ function MyProfilePage() {
   const media = useMediaActions(data?.media ?? []);
 
   const [draft, setDraft] = useState<Draft | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [interestsOpen, setInterestsOpen] = useState(false);
 
   const patch = (next: Partial<MyProfile>) => update.mutate(next);
   const patchPrivacy = (next: Partial<PrivacySettings>) => {
     if (!data) return;
     patch({ privacy: { ...data.privacy, ...next } });
     if (next.visibleInFeed === false) {
-      toast("Твой профиль временно скрыт из ленты", {
-        description: "Тебя не будет в дневных подборках. Диалоги и Spaces работают как обычно.",
+      toast("Твой профиль временно скрыт", {
+        description: "Диалоги и сообщества работают как обычно.",
       });
     }
     if (next.visibleInFeed === true) {
-      toast.success("Профиль снова в подборках");
+      toast.success("Профиль снова виден");
     }
   };
 
@@ -81,6 +86,13 @@ function MyProfilePage() {
       intent: data.intent,
       intentNote: data.intentNote,
     });
+  };
+
+  const onStep = (id: CompletionStepId) => {
+    if (id === "verify") void navigate({ to: "/verification" });
+    else if (id === "interests") setInterestsOpen(true);
+    else if (id === "photo") document.querySelector<HTMLButtonElement>('[aria-label="Добавить фото"]')?.click();
+    else startEdit();
   };
 
   const save = () => {
@@ -120,21 +132,15 @@ function MyProfilePage() {
       {data ? (
         <div className="pb-10">
           <Reveal delay={60} className="mt-4">
-            <ProfileHero
-              media={data.media}
-              name={draft ? draft.name : data.name}
-              age={draft ? Number.parseInt(draft.age, 10) || data.age : data.age}
-              city={draft ? draft.city : data.city}
-              trustLevel={badgeLevel(data.trustLevel)}
+            <BusinessCard
+              profile={data}
+              onEdit={startEdit}
+              onShare={() => setShareOpen(true)}
               onUpload={media.upload}
               onDelete={media.remove}
-              onPrimary={media.makePrimary}
               uploadDisabled={media.full}
-              uploadHint={media.hint}
-              progress={media.progress}
               busy={media.busy}
             />
-            <p className="mt-2 px-1 text-xs text-muted-foreground">{media.hint}</p>
 
             {draft ? (
               <Card className="mt-3 space-y-3 p-4">
@@ -191,17 +197,7 @@ function MyProfilePage() {
                 </div>
               </Card>
             ) : (
-              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
-                <Button variant="secondary" onClick={startEdit}>
-                  <Pencil className="size-4" aria-hidden="true" />
-                  Редактировать профиль
-                </Button>
-                <Button variant="secondary" size="icon" asChild>
-                  <Link to="/settings" aria-label="Настройки">
-                    <Settings aria-hidden="true" />
-                  </Link>
-                </Button>
-              </div>
+              <CompleteCard profile={data} onStep={onStep} />
             )}
           </Reveal>
 
@@ -297,11 +293,27 @@ function MyProfilePage() {
             <TrustStatsSection stats={data.stats} />
           </ProfilePanel>
 
+          <InviteQrSheet
+            open={shareOpen}
+            onClose={() => setShareOpen(false)}
+            title="Поделиться визиткой"
+            url={typeof window !== "undefined" ? `${window.location.origin}/profile/${data.id}` : `/profile/${data.id}`}
+          />
+          <BottomSheet open={interestsOpen} onClose={() => setInterestsOpen(false)} title="Анкета интересов">
+            <TagEditor
+              items={data.interests}
+              label="Новый интерес"
+              addLabel="Добавить"
+              saving={update.isPending}
+              onSave={(interests) => patch({ interests })}
+            />
+          </BottomSheet>
+
           <Reveal as="footer" className="mt-5">
             <Card className="p-4 text-sm leading-relaxed text-muted-foreground">
               Это твоя личная страница, а не витрина. Здесь нет рейтингов и мест в списке — только
-              то, что ты сам решил рассказать. И <Chip size="sm">интересы</Chip> помогают AI искать
-              людей рядом по смыслу.
+              то, что ты сам решил рассказать. <Chip size="sm">Интересы</Chip> помогают находить
+              сообщества по делу.
             </Card>
           </Reveal>
         </div>
