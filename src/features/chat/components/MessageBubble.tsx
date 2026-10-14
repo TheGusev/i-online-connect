@@ -85,7 +85,9 @@ export function MessageBubble({
   const textInline = !deleted && !failed && !voice && !media && !meeting && !quote;
   // Фото и видео без розовой подложки: тонкая рамка, время поверх картинки.
   const bare = media && !deleted && Boolean(message.mediaUrl);
-  const caption = bare ? message.text?.trim() : "";
+  // Сервер кладёт в текст служебные «Фото»/«Видео» — это не подпись.
+  const rawCaption = bare ? (message.text ?? "").trim() : "";
+  const caption = rawCaption === "Фото" || rawCaption === "Видео" ? "" : rawCaption;
   const bubbleTone = mine
     ? "rounded-br-lg bg-primary text-primary-foreground"
     : "rounded-bl-lg border border-border bg-card text-foreground";
