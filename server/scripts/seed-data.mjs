@@ -146,7 +146,6 @@ export const LISTINGS = Object.entries(RAW).flatMap(([category, items]) =>
     priceMinor: price === null ? null : price * 100,
     currency: currency ?? "RUB",
     expiresMinutes: minutes,
-    elapsedMinutes: Math.floor((minutes * ((index * 37) % 85)) / 100),
     responses,
     city,
     district,
@@ -154,6 +153,11 @@ export const LISTINGS = Object.entries(RAW).flatMap(([category, items]) =>
     };
   }),
 );
+
+// Прошедшая часть срока — по сквозному номеру, чтобы остаток у всех был разный.
+for (const [i, listing] of LISTINGS.entries()) {
+  listing.elapsedMinutes = Math.floor((listing.expiresMinutes * ((i * 37) % 85)) / 100);
+}
 
 export const SPACES = [
   ["Утренний бег в парке", "sport", "Бегаем по вторникам и субботам в 7:30. Темп спокойный.", "space-sport.jpg"],
