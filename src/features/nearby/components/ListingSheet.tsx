@@ -9,7 +9,7 @@ import {
   SlidersHorizontal,
   Text,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
@@ -278,7 +278,7 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
             )}
             style={
               leaving
-                ? ({ "--sheet-from": `${offset}px` } as React.CSSProperties)
+                ? ({ "--sheet-from": `${offset}px` } as CSSProperties)
                 : { transform: offset ? `translateY(${offset}px)` : undefined }
             }
           >
