@@ -234,7 +234,7 @@ export function PhoneAuthFlow({
             className="relative mx-auto mt-8 rounded-full"
             aria-label="Добавить фото"
           >
-            <Avatar name={name || "?"} src={photoUrl} size="lg" className="size-24 text-2xl" />
+            <Avatar name={name || "?"} src={photoUrl} size="lg" />
             <span className="absolute -bottom-1 -right-1 grid size-9 place-items-center rounded-full bg-primary text-primary-foreground shadow-glow">
               <Camera className="size-4" aria-hidden="true" />
             </span>
