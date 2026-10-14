@@ -10,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const fieldShell =
-  "peer w-full rounded-2xl border bg-card px-4 pb-2 pt-6 text-sm text-foreground outline-none transition-colors placeholder-transparent focus:border-primary focus:ring-4 focus:ring-primary/12 disabled:opacity-60";
+  "peer w-full rounded-2xl border bg-card px-4 pb-2 pt-6 text-base text-foreground outline-none transition-colors placeholder-transparent focus:border-primary focus:ring-4 focus:ring-primary/12 disabled:opacity-60";
 
 const labelShell =
   "pointer-events-none absolute left-4 top-4 origin-left text-sm text-muted-foreground transition-all duration-150 peer-focus:top-2 peer-focus:text-[11px] peer-focus:text-primary peer-[:not(:placeholder-shown)]:top-2 peer-[:not(:placeholder-shown)]:text-[11px]";

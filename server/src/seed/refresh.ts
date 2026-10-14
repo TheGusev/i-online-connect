@@ -36,9 +36,9 @@ export async function refreshSeedContent(): Promise<SeedRefreshSummary> {
     // Срок у каждого свой: длительность объявления (допустимый вариант его
     // категории) сохраняется, сдвигается только прошедшая часть.
     `UPDATE listings l
-        SET created_at = now() - x.duration * (random() * 0.85),
-            expires_at = now() - x.duration * (random() * 0.85) + x.duration
-       FROM (SELECT id, expires_at - created_at AS duration
+        SET created_at = now() - x.duration * x.r,
+            expires_at = now() - x.duration * x.r + x.duration
+       FROM (SELECT id, expires_at - created_at AS duration, random() * 0.85 AS r
                FROM listings WHERE is_seed = true AND state = 'active') x
       WHERE l.id = x.id
       RETURNING l.id`,
