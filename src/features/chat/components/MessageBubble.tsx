@@ -111,7 +111,7 @@ export function MessageBubble({
           voiceInline && "px-3 py-2",
           voiceInline && !mine && "border-transparent bg-card/70",
           // Фото и видео занимают пузырь целиком — отступы минимальные.
-          media && !deleted && "px-1.5 pb-1.5 pt-1.5",
+          media && !deleted && "w-[min(19rem,88%)] max-w-[88%] px-1.5 pb-1.5 pt-1.5",
           meeting && !mine && "border-primary/25 bg-gradient-warm",
           message.status === "sending" && "opacity-70",
           failed && "ring-2 ring-destructive/60",
@@ -164,7 +164,7 @@ export function MessageBubble({
                 kind={message.kind === "video" ? "video" : "image"}
                 src={message.mediaUrl}
                 durationMs={message.durationMs}
-                className="w-[min(18rem,70vw)]"
+                className="w-full max-w-full"
                 message={{
                   id: message.id,
                   kind: message.kind === "video" ? "video" : "image",

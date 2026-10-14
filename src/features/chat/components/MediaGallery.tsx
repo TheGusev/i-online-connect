@@ -255,7 +255,7 @@ function GalleryViewerReady({
   const [viewportRef, embla] = useEmblaCarousel({
     startIndex: initialIndex.current,
     loop: false,
-    duration: 24,
+    duration: 16,
     skipSnaps: false,
     watchDrag: (_api, event) => !zoomRef.current && (!(event instanceof TouchEvent) || event.touches.length === 1),
   });
@@ -303,7 +303,7 @@ function GalleryViewerReady({
       role="dialog"
       aria-modal="true"
       aria-label="Просмотр вложения"
-      className="fixed inset-0 z-[95] flex flex-col overflow-hidden"
+      className="fixed inset-0 z-[95] flex select-none flex-col overflow-hidden"
       style={{ backgroundColor: `color-mix(in oklab, var(--background) ${Math.round((1 - progress * 0.7) * 100)}%, transparent)` }}
     >
       <header className="flex items-center gap-3 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.75rem)]" style={{ opacity: 1 - progress }}>
