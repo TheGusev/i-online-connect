@@ -1,7 +1,7 @@
 import { toast } from "sonner";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { Compass, Users } from "lucide-react";
+import { Compass } from "lucide-react";
 
 import type { SpaceDraft } from "@/api";
 import { AppShell } from "@/components/layout/AppShell";

@@ -117,3 +117,16 @@ export function formatDate(iso: string): string {
   if (Number.isNaN(date.getTime())) return "";
   return new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long" }).format(date);
 }
+
+import { SHOW_DATING_CATEGORIES } from "@/config/features";
+
+const VISIBLE_ORDER: NeedCategory[] = ["urgent", "service", "sale", "realty", "transport", "help"];
+const DATING_ORDER: NeedCategory[] = ["dating", "leisure", "travel"];
+
+/** Категории для фильтров и форм: порядок «бизнес-мессенджера», знакомства — по флагу. */
+export const visibleCategories: CategoryMeta[] = [
+  ...VISIBLE_ORDER,
+  ...(SHOW_DATING_CATEGORIES ? DATING_ORDER : []),
+]
+  .map((id) => categories.find((item) => item.id === id))
+  .filter((item): item is CategoryMeta => Boolean(item));
