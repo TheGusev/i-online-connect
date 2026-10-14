@@ -18,3 +18,4 @@
 - Interest-based space ordering is derived on the client from the signed-in user's interests and existing space interests; this avoids changing the spaces API for presentation-only ranking.
 - Chat attachment photos and media galleries share a portal viewer with Embla for page snapping and react-zoom-pan-pinch for image transforms; this isolates paging from image panning.
 - Community message mutations are authorized in the existing Fastify API and use soft deletion plus scoped replies; active message queries refetch periodically so other members receive edits and removals.
+- One-off trust assignments use an explicit server maintenance command with a registration cutoff and a private pre-update backup, never page-load or migration seeding; this keeps future registrations and identity verification unchanged.
