@@ -78,7 +78,7 @@ export function BusinessCard({
         </Button>
       </div>
 
-      <ul className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <ul data-no-swipe className="mt-3 flex gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {photos.map((photo) => (
           <li key={photo.id} className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-secondary">
             <img src={photo.url} alt="" className="size-full object-cover" />

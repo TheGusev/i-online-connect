@@ -99,7 +99,7 @@ function ListingGallery({ listing }: { listing: Listing }) {
   return (
     <div className="relative -mx-5 overflow-hidden bg-secondary">
       <div
-        className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        data-no-swipe className="flex snap-x snap-mandatory overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         onScroll={(event) => {
           const width = event.currentTarget.clientWidth;
           if (width > 0) setIndex(Math.round(event.currentTarget.scrollLeft / width));

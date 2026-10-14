@@ -25,7 +25,7 @@ export function CategoryChips({
 }) {
   const grid = layout === "grid";
   return (
-    <div className={grid ? "grid grid-cols-3 gap-1.5" : "-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"}>
+    <div data-no-swipe className={grid ? "grid grid-cols-3 gap-1.5" : "-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"}>
       {allowEmpty && !grid ? (
         <Chip
           selected={value === null}

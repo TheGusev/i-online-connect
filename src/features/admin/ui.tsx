@@ -44,7 +44,7 @@ export function SectionHeader({
 
 export function Table({ head, children }: { head: string[]; children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-card">
+    <div data-no-swipe className="overflow-x-auto rounded-2xl border border-border bg-card">
       <table className="w-full min-w-[720px] border-collapse text-left text-[13px]">
         <thead>
           <tr className="border-b border-border bg-secondary/40">

@@ -118,7 +118,7 @@ export function AdminPanel({ onSignedOut }: { onSignedOut: () => void }) {
 
         {/* На узком экране меню превращается в горизонтальную полосу вкладок. */}
         <div className="min-w-0 flex-1">
-          <div className="mb-3 flex gap-1 overflow-x-auto lg:hidden">
+          <div data-no-swipe className="mb-3 flex gap-1 overflow-x-auto lg:hidden">
             {TABS.map((item) => (
               <button
                 key={item.id}

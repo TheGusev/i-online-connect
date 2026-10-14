@@ -19,7 +19,7 @@ export function UrgentStrip() {
         <Siren className="size-3.5 text-primary" aria-hidden="true" />
         Срочное рядом
       </h2>
-      <ul className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <ul data-no-swipe className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {items.map((listing) => (
           <li key={listing.id} className="w-40 shrink-0">
             <Link
