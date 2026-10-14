@@ -25,3 +25,4 @@
 - ProfileHero isolates the owner's restored gallery through optional presentation props; public profiles keep their existing appearance, while profile editing uses a tested optional-age parser.
 - Profile completeness ("анкета заполнена") is computed on the server in server/src/profile/completeness-rules.ts and gates the dating category in listings; the UI only mirrors it, so access cannot be bypassed.
 - Demo seed data lives in server/scripts/seed-data.mjs with one unique image file per listing and per author, enforced by tests/seed-images.test.mjs.
+- Listing durations per category live in server/src/listings/durations.ts with a client copy in src/features/nearby/durations.ts; server/tests/durations.test.mjs keeps them identical because the server builds only from its own folder.
