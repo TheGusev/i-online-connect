@@ -29,6 +29,7 @@ import {
   assertSize,
   detectMediaType,
   saveListingFile,
+  removeListingFile,
 } from "../media/store.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 import { datingAccess, loadCompleteness } from "../profile/completeness.ts";
@@ -448,6 +449,7 @@ export async function listingRoutes(app: FastifyInstance) {
     async (request) => {
       const userId = currentUserId(request);
       const draft = createSchema.parse(request.body);
+      if (draft.mediaIds) checkPhotosEarly(draft.mediaIds);
       const durationMinutes = resolveDuration(draft.category, draft);
       if (durationMinutes === null) {
         throw new HttpError(400, "Такой срок недоступен для этой категории", "INVALID_DURATION");
@@ -494,7 +496,6 @@ export async function listingRoutes(app: FastifyInstance) {
       );
       if (!row) throw badRequest("Не удалось сохранить объявление");
 
-      if (draft.mediaIds) checkPhotosEarly(draft.mediaIds);
       if (draft.mediaIds?.length) await attachMedia(row.id, userId, draft.mediaIds);
 
       // Уведомления не должны блокировать ответ: ошибки только логируем.
@@ -522,6 +523,7 @@ export async function listingRoutes(app: FastifyInstance) {
     const { id } = idParam.parse(request.params);
     await assertOwnListing(id, userId);
     const patch = patchSchema.parse(request.body);
+    if (patch.mediaIds) checkPhotosEarly(patch.mediaIds);
 
     await query(
       `UPDATE listings SET
