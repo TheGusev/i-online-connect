@@ -41,24 +41,11 @@ export function TopBar() {
           </Link>
           <span className="hidden text-sm text-muted-foreground lg:block">{t("app.tagline")}</span>
 
-          {isAuthed && counters && (
+          {isAuthed && counters && (counters.cityName ? counters.city : counters.total) > 0 && (
             <span className="flex items-center gap-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
               <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-              <span
-                className="text-primary"
-                title={
-                  counters.cityName
-                    ? `Онлайн в городе ${counters.cityName}`
-                    : "Онлайн в вашем городе"
-                }
-              >
-                {counters.city}
-              </span>
-              <span aria-hidden="true">/</span>
-              <span title="Онлайн всего на платформе">{counters.total}</span>
-              <span className="sr-only">
-                онлайн: {counters.city} в городе, {counters.total} всего
-              </span>
+              <span className="text-primary">{counters.cityName ? counters.city : counters.total}</span>
+              в сети
             </span>
           )}
         </div>

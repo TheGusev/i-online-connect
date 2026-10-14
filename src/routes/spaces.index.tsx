@@ -18,13 +18,13 @@ import { useSessionStore } from "@/store/useSessionStore";
 export const Route = createFileRoute("/spaces/")({
   head: () => ({
     meta: [
-      { title: "Spaces: сообщества и совместные активности — Я Онлайн" },
+      { title: "Сообщества: рабочие круги и совместные дела — Я Онлайн" },
       {
         name: "description",
         content:
           "Пробежки, настолки, книжный клуб и профессиональные круги: пространства, где знакомство начинается с общего дела.",
       },
-      { property: "og:title", content: "Spaces: сообщества и совместные активности — Я Онлайн" },
+      { property: "og:title", content: "Сообщества: рабочие круги и совместные дела — Я Онлайн" },
       {
         property: "og:description",
         content: "Найдите сообщество рядом или создайте своё — с событиями и общим чатом.",
@@ -62,7 +62,7 @@ function SpacesPage() {
       },
       // Раньше ошибка сервера уходила в пустоту: форма просто «не работала».
       onError: (error) => {
-        toast.error(error instanceof Error ? error.message : "Не удалось создать пространство");
+        toast.error(error instanceof Error ? error.message : "Не удалось создать сообщество");
       },
     });
   };
@@ -70,16 +70,11 @@ function SpacesPage() {
   return (
     <AppShell wide>
       <header className="mb-6">
-        <p className="inline-flex items-center gap-2 rounded-full bg-community-soft px-3 py-1 text-xs font-semibold uppercase tracking-wide text-community-ink">
-          <Users className="size-3.5" aria-hidden="true" />
-          Spaces
-        </p>
         <WaveHeading as="h1" className="mt-3 text-3xl font-bold tracking-tight">
-          Общие дела, а не переписка
+          Рабочие круги и сообщества по делу
         </WaveHeading>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Здесь люди собираются вокруг занятий: пробежки, настолки, прогулки, профессиональные
-          круги. Это не лента знакомств — знакомства случаются сами, по ходу дела.
+          Люди собираются вокруг дела: профессиональные круги, совместные задачи, встречи и эфиры.
         </p>
       </header>
 

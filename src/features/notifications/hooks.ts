@@ -228,7 +228,7 @@ export function describeNotification(notification: AppNotification): {
       ? `/spaces/${spaceId}${eventId ? `?eventId=${encodeURIComponent(eventId)}` : ""}`
       : null;
     return result(
-      `Новая встреча в «${str("spaceTitle") ?? "Пространстве"}»`,
+      `Новая встреча в «${str("spaceTitle") ?? "Сообществе"}»`,
       [str("title"), str("place")].filter(Boolean).join(" · ") || null,
       href,
     );
