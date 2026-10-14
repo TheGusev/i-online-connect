@@ -59,212 +59,9 @@ async function unusablePasswordHash() {
   }
 }
 
+import { LISTINGS, PEOPLE, SPACES } from "./seed-data.mjs";
+
 const CITIES = ["Новосибирск", "Москва", "Санкт-Петербург", "Екатеринбург"];
-const DISTRICTS = {
-  Новосибирск: ["Академгородок", "Центр", "Заельцовский", "Октябрьский"],
-  Москва: ["Хамовники", "Сокол", "Басманный", "Черёмушки"],
-  "Санкт-Петербург": ["Петроградская", "Васильевский остров", "Купчино", "Адмиралтейский"],
-  Екатеринбург: ["Центр", "Уралмаш", "Академический", "Пионерский"],
-};
-
-/**
- * Фото демо-анкет разложены по полу и возрастной группе: анкета «Светлана, 32»
- * никогда не получит фото человека 60+. Минимум два фото на каждую группу.
- */
-const PERSON_PHOTOS = {
-  female: {
-    "18-25": ["person-03.jpg", "person-w-18-25-b.jpg"],
-    "26-35": ["person-01.jpg", "person-w-26-35-b.jpg"],
-    "36-50": ["person-05.jpg", "person-w-36-50-b.jpg"],
-    "50+": ["person-07.jpg", "person-w-50-plus-b.jpg"],
-  },
-  male: {
-    "18-25": ["person-06.jpg", "person-m-18-25-b.jpg"],
-    "26-35": ["person-02.jpg", "person-m-26-35-b.jpg"],
-    "36-50": ["person-08.jpg", "person-m-36-50-b.jpg"],
-    "50+": ["person-04.jpg", "person-m-50-plus-b.jpg"],
-  },
-};
-
-/** Обратная карта «файл → группа»: нужна для самопроверки после подбора. */
-const PHOTO_BUCKETS = new Map();
-for (const [gender, buckets] of Object.entries(PERSON_PHOTOS)) {
-  for (const [bucket, files] of Object.entries(buckets)) {
-    for (const file of files) PHOTO_BUCKETS.set(file, { gender, bucket });
-  }
-}
-
-function ageBucket(age) {
-  if (age <= 25) return "18-25";
-  if (age <= 35) return "26-35";
-  if (age <= 50) return "36-50";
-  return "50+";
-}
-
-/** Фото строго из своей группы; при рассогласовании — предупреждение в консоль. */
-function pickPhoto(gender, age, index) {
-  const bucket = ageBucket(age);
-  const files = PERSON_PHOTOS[gender]?.[bucket] ?? [];
-  if (files.length === 0) {
-    console.warn(`[seed] нет фото для группы ${gender} ${bucket} — анкета останется без фото`);
-    return null;
-  }
-  const file = files[index % files.length];
-  const meta = PHOTO_BUCKETS.get(file);
-  if (!meta || meta.gender !== gender || meta.bucket !== bucket) {
-    console.warn(`[seed] ВНИМАНИЕ: фото ${file} не подходит анкете (${gender}, ${age} лет)`);
-  }
-  return file;
-}
-
-
-const LISTING_PHOTOS = {
-  dating: "listing-dating.jpg",
-  service: "listing-service.jpg",
-  realty: "listing-realty.jpg",
-  transport: "listing-transport.jpg",
-  sale: "listing-sale.jpg",
-  leisure: "listing-leisure.jpg",
-  travel: "listing-travel.jpg",
-  help: "listing-help.jpg",
-  urgent: "listing-help.jpg",
-};
-
-// [имя, возраст, намерение, о себе, пол]
-const PEOPLE = [
-  ["Анна", 27, "serious", "Люблю утренние пробежки и тихие книжные вечера. Ищу спокойного человека рядом.", "female"],
-  ["Дмитрий", 31, "serious", "Инженер, играю в бадминтон, готовлю лучший плов в районе.", "male"],
-  ["Ольга", 24, "friends", "Учусь на архитектора, зову гулять по крышам и рисовать город.", "female"],
-  ["Сергей", 44, "serious", "Читаю много, шумных компаний избегаю. Верю в спокойные разговоры.", "male"],
-  ["Марина", 35, "friends", "Собираю людей на настолки по субботам, приходите даже без опыта.", "female"],
-  ["Артём", 22, "friends", "Музыка, велосипед, дешёвые походы в горы. Люблю новые знакомства.", "male"],
-  ["Елена", 52, "serious", "Готовлю, выращиваю зелень на балконе, ищу тёплое общение без спешки.", "female"],
-  ["Никита", 26, "projects", "Бегаю марафоны и делаю приложения. Ищу партнёров по проектам и по бегу.", "male"],
-  ["Ирина", 29, "serious", "Врач, ценю честность. В свободное время — плавание и хорошие сериалы.", "female"],
-  ["Павел", 38, "friends", "Автолюбитель, помогу с переездом, зову на утренний кофе.", "male"],
-  ["Ксения", 21, "friends", "Студентка-биолог, обожаю велопрогулки и уличные фестивали.", "female"],
-  ["Роман", 33, "serious", "Работаю в школе, играю в шахматы, ищу человека для долгой дружбы.", "male"],
-  ["Юлия", 41, "serious", "Двое детей, много юмора. Люблю театр и походы за грибами.", "female"],
-  ["Максим", 28, "projects", "Фотограф. Ищу людей для съёмок города и просто хороших разговоров.", "male"],
-  ["Дарья", 25, "friends", "Йога, растения, вязание. Не люблю громкие места, зато люблю парки.", "female"],
-  ["Владимир", 47, "serious", "Строитель. Спокойный, обязательный, ценю прямые слова.", "male"],
-  ["Алина", 30, "serious", "Дизайнер интерьеров, кофейный маньяк, зову смотреть выставки.", "female"],
-  ["Егор", 23, "friends", "Скейт, электроника, ночные посиделки с гитарой.", "male"],
-  ["Наталья", 36, "serious", "Бухгалтер, но душа за путешествия. Ищу компанию в дорогу.", "female"],
-  ["Кирилл", 34, "projects", "Открываю маленькую кофейню, ищу друзей и партнёров рядом.", "male"],
-  ["Вера", 45, "friends", "Волонтёр в приюте. Готова помочь и просто поболтать за чаем.", "female"],
-  ["Игорь", 39, "serious", "Автомеханик. Помогу с машиной, люблю рыбалку и тишину.", "male"],
-  ["Светлана", 32, "serious", "Преподаю английский, читаю по ночам, ищу спокойного человека.", "female"],
-  ["Антон", 27, "friends", "Играю в футбол по средам, собираю команду в своём районе.", "male"],
-  ["Полина", 26, "serious", "Кондитер. Пеку слишком много, зову дегустировать.", "female"],
-  ["Григорий", 43, "friends", "Гуляю с собакой утром и вечером — присоединяйтесь.", "male"],
-  ["Тамара", 49, "serious", "Люблю сад, вязание и долгие разговоры о жизни.", "female"],
-  ["Данил", 24, "projects", "Пишу код и музыку. Ищу людей, с кем делать что-то своё.", "male"],
-];
-
-
-const LISTING_TEMPLATES = {
-  dating: [
-    ["Кофе в субботу утром", "Ищу спокойную компанию на утренний кофе рядом с домом. Без ожиданий — просто хороший разговор.", null],
-    ["Прогулка по парку вечером", "Гуляю после работы почти каждый день. Буду рад(а) компании и разговорам обо всём.", null],
-    ["Вместе на выставку", "Есть лишний билет на выставку в эти выходные. Ищу человека, с которым будет интересно.", null],
-    ["Совместные завтраки по воскресеньям", "Люблю неспешные завтраки. Ищу человека рядом, кому это тоже близко.", null],
-    ["Пойдём на пробежку вдвоём", "Одному лениво, вместе веселее. Темп спокойный, дистанция 5 км.", null],
-    ["Настолки и чай", "Собираю пару человек на настолки дома у друзей. Атмосфера тихая, без алкоголя.", null],
-    ["Знакомство за велопрогулкой", "Катаюсь по вечерам вдоль реки. Ищу компанию, маршрут покажу.", null],
-    ["Сходим в кино на неделе", "Люблю старое кино и обсуждения после. Ищу человека с похожим вкусом.", null],
-  ],
-  service: [
-    ["Уборка квартиры за 3 часа", "Работаю аккуратно и со своей химией. Двушку привожу в порядок за три часа.", 250000],
-    ["Ремонт стиральных машин", "Опыт 9 лет, приезжаю со своим инструментом, диагностика бесплатно.", 150000],
-    ["Репетитор английского", "Готовлю к экзаменам и подтягиваю разговорный. Первое занятие пробное.", 120000],
-    ["Мастер по мебели", "Собираю и починю шкафы, кухни, кровати. Работаю в своём районе.", 200000],
-    ["Стрижка на дому", "Женские и мужские стрижки, приеду к вам. Инструмент стерилизую.", 90000],
-    ["Помощь с компьютером", "Настрою систему, почищу от вирусов, объясню простыми словами.", 100000],
-    ["Выгул собак", "Гуляю утром и вечером, отчёт с фото. Есть опыт с крупными породами.", 50000],
-    ["Няня на несколько часов", "Педагог по образованию, помогу с уроками и прогулкой.", 70000],
-  ],
-  realty: [
-    ["Сдаю однушку рядом с метро", "Тёплая квартира с новым ремонтом, вся техника есть. Без посредников.", 3500000],
-    ["Комната в двушке", "Комната 14 м², спокойные соседи, рядом парк и магазины.", 1500000],
-    ["Ищу соседа в двушку", "Делим квартиру пополам, я работаю днём, дома тихо.", 1800000],
-    ["Сдаю студию на месяц", "Всё для жизни: кухня, стиральная машина, быстрый интернет.", 3000000],
-    ["Гараж рядом с домом", "Сухой, с ямой и светом. Отдаю в аренду на длительный срок.", 500000],
-    ["Дом за городом на лето", "Шесть соток, баня, два часа на машине от города.", 4000000],
-    ["Место под мастерскую", "Помещение 20 м² с отдельным входом, подойдёт для мастера.", 2500000],
-    ["Ищу квартиру рядом", "Ищу однушку в этом районе на длительный срок, платим вовремя.", null],
-  ],
-  transport: [
-    ["Продаю хэтчбек, один владелец", "Машина в родной краске, обслужена, вложений не требует.", 45000000],
-    ["Перевезу вещи по городу", "Каблучок, помогу с погрузкой. Аккуратно и без спешки.", 150000],
-    ["Отдам детское автокресло", "Кресло 9–18 кг, состояние хорошее, отдаю за символическую цену.", 300000],
-    ["Ищу попутчика в аэропорт", "Выезжаю в 6 утра, места хватит двоим с чемоданами.", 60000],
-    ["Продаю велосипед", "Городской велосипед на 7 скоростей, недавно перебрал.", 1200000],
-    ["Зимние шины 4 штуки", "Комплект в отличном состоянии, отъездили один сезон.", 1600000],
-    ["Подвезу до работы", "Каждое утро езжу через центр, могу забрать по пути.", 20000],
-    ["Разовая помощь с прицепом", "Есть прицеп, помогу вывезти строительный мусор.", 200000],
-  ],
-  sale: [
-    ["Отдам книги в хорошие руки", "Три коробки художественной литературы, всё в приличном состоянии.", 0],
-    ["Электрический чайник", "Работает как новый, просто купили другой цвет.", 80000],
-    ["Настольная лампа", "Тёплый свет, металлический абажур, отдам недорого.", 60000],
-    ["Комод из дерева", "Крепкий комод, четыре ящика. Самовывоз с первого этажа.", 400000],
-    ["Кофеварка гейзерная", "Пользовались редко, идёт вместе с помолом.", 120000],
-    ["Настольные игры пачкой", "Пять игр для компании, все детали на месте.", 250000],
-    ["Детская одежда 1–2 года", "Пакет вещей, всё чистое и целое. Отдам бесплатно.", 0],
-    ["Гантели разборные", "Две по 10 кг, лежат без дела уже год.", 300000],
-  ],
-  leisure: [
-    ["Настолки в субботу", "Собираемся каждую субботу, играем в «Каркассон» и что-то новое.", 0],
-    ["Ищу компанию в бассейн", "Плаваю дважды в неделю, вдвоём дисциплины больше.", null],
-    ["Утренний бег в парке", "Стартуем в 7:30, темп спокойный, ждём новых людей.", 0],
-    ["Киновечер у нас дома", "Смотрим старое кино, потом обсуждаем за чаем.", 0],
-    ["Волейбол по средам", "Не хватает двух человек, площадка оплачена.", 30000],
-    ["Клуб разговорного английского", "Встречаемся в кафе, темы простые, уровень любой.", 0],
-    ["Рисуем город акварелью", "Берите бумагу и краски, места покажу.", 0],
-    ["Шахматы в парке", "По воскресеньям играем на свежем воздухе, доски есть.", 0],
-  ],
-  travel: [
-    ["Едем в горы на выходные", "Две ночи в палатках, маршрут несложный, ищем ещё двоих.", 500000],
-    ["Ищу попутчика на юг", "Едем машиной в конце месяца, делим бензин пополам.", 400000],
-    ["Однодневная поездка на озеро", "Выезжаем в 8 утра, возвращаемся вечером. Есть два места.", 100000],
-    ["Поход выходного дня", "20 км по лесной тропе, нужны хорошие ботинки и хорошее настроение.", 0],
-    ["Прогулка на велосипедах за город", "Маршрут 40 км по асфальту, темп прогулочный.", 0],
-    ["Ищу компанию в другой город", "Поеду на поезде на выходные, вдвоём интереснее.", null],
-    ["Байдарки на два дня", "Есть свободная байдарка, снаряжение общее.", 700000],
-    ["Экскурсия по старому центру", "Проведу бесплатно, просто люблю рассказывать про свой город.", 0],
-  ],
-  help: [
-    ["Помогу с переездом", "Есть руки и машина, помогу перевезти вещи по городу.", 0],
-    ["Нужна помощь с ремонтом полки", "Полка сорвалась со стены, сам не справлюсь.", null],
-    ["Помогу пожилым с покупками", "Раз в неделю могу привезти продукты и вынести мусор.", 0],
-    ["Ищу помощь с уроками ребёнку", "Математика, 6 класс. Готовы оплатить занятия.", 80000],
-    ["Заберу и отвезу вещи в приют", "Собираю корм и пледы для приюта, заберу у вас сам.", 0],
-    ["Нужен человек посидеть с кошкой", "Уезжаю на три дня, надо кормить и менять воду.", 100000],
-    ["Помогу разобраться с документами", "Работаю с бумагами, подскажу, куда и что нести.", 0],
-    ["Нужна помощь донести мебель", "Диван на четвёртый этаж без лифта, нужны двое.", 150000],
-  ],
-  urgent: [
-    ["Срочно нужен зарядник от ноутбука", "Уехал в командировку и забыл. Верну сегодня же.", null],
-    ["Срочно нужна помощь с колесом", "Пробил колесо у дома, нет домкрата.", null],
-    ["Срочно ищу человека с машиной", "Надо отвезти кота к врачу в течение часа, оплачу.", 100000],
-    ["Срочно нужен фен для сушки", "Прорвало трубу, нужно быстро подсушить пол.", null],
-    ["Нужен инструмент на вечер", "Перфоратор на час, верну сразу же.", null],
-    ["Срочно нужна замена на смену", "Не могу выйти в утреннюю смену, ищу подмену.", 200000],
-    ["Пропала кошка во дворе", "Серая, с белой грудкой. Помогите поискать.", null],
-    ["Нужны двое помочь занести вещи", "Приехала доставка, лифт не работает.", 100000],
-  ],
-};
-
-const SPACES = [
-  ["Утренний бег в парке", "sport", "Бегаем по вторникам и субботам в 7:30. Темп спокойный, ждём новых людей.", "space-sport.jpg"],
-  ["Книжный клуб «Тихая полка»", "culture", "Одна книга в месяц и один тёплый вечер обсуждения.", "space-books.jpg"],
-  ["Готовим вместе", "food", "Собираемся на кухне у кого-нибудь и готовим большое блюдо на всех.", "listing-service.jpg"],
-  ["Настолки по субботам", "games", "Каркассон, Codenames и новые игры. Приходить можно без опыта.", "listing-leisure.jpg"],
-  ["Походы выходного дня", "sport", "Каждые две недели уезжаем на день в лес или к воде.", "listing-travel.jpg"],
-  ["IT-посиделки", "professional", "Обсуждаем проекты, помогаем друг другу с задачами, иногда делаем что-то вместе.", "listing-sale.jpg"],
-  ["Добрые дела в районе", "city", "Помогаем соседям, приюту и просто друг другу.", "listing-help.jpg"],
-];
 
 const SPACE_MESSAGES = [
   "Всем привет! Кто идёт в эти выходные?",
@@ -300,123 +97,107 @@ async function seedProfiles() {
   const interests = (await client.query("SELECT id FROM interests")).rows.map((row) => row.id);
   const created = [];
 
-  for (const [index, [name, age, intent, bio, gender]] of PEOPLE.entries()) {
+  for (const [index, [name, age, intent, bio, , avatar, city, valuesText, joyText]] of PEOPLE.entries()) {
     const email = `demo${String(index + 1).padStart(2, "0")}@${SEED_DOMAIN}`;
     const existing = await client.query("SELECT id FROM users WHERE email = $1", [email]);
-    if (existing.rows.length > 0) {
-      created.push({ id: existing.rows[0].id, city: null, fresh: false });
-      continue;
+    let userId = existing.rows[0]?.id;
+    const fresh = !userId;
+
+    if (!userId) {
+      const hash = await unusablePasswordHash();
+      const { rows } = await client.query(
+        `INSERT INTO users (email, password_hash, email_verified, last_seen_at)
+         VALUES ($1, $2, true, now() - make_interval(mins => $3::int))
+         RETURNING id`,
+        [email, hash, (index % 7) * 40],
+      );
+      userId = rows[0].id;
+      await client.query(
+        `INSERT INTO profiles (user_id, name, is_seed, onboarded_at) VALUES ($1, $2, true, now())`,
+        [userId, name],
+      );
+    } else {
+      await client.query("UPDATE users SET deleted_at = NULL WHERE id = $1", [userId]);
     }
 
-    const city = CITIES[index % CITIES.length];
-    const hash = await unusablePasswordHash();
-    const { rows } = await client.query(
-      `INSERT INTO users (email, password_hash, email_verified, last_seen_at)
-       VALUES ($1, $2, true, now() - make_interval(mins => $3::int))
-       RETURNING id`,
-      [email, hash, (index % 7) * 40],
+    // Демо-анкеты заполнены полностью — как у настоящего участника.
+    await client.query(
+      `UPDATE profiles SET name = $2, age = $3, city = $4, bio = $5, intent = $6::profile_intent,
+              values_text = $7, joy_text = $8, trust_level = $9::trust_level, trust_score = $10,
+              video_verified = $11, safe_meetings = $12, clean_conversations = $13, is_seed = true
+        WHERE user_id = $1`,
+      [userId, name, age, city, bio, intent, valuesText, joyText,
+        index % 3 === 0 ? "verified" : "new", 40 + ((index * 7) % 55), index % 3 === 0, index % 4, 3 + (index % 9)],
     );
-    const userId = rows[0].id;
+    await client.query("INSERT INTO privacy_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING", [userId]);
+    await client.query("INSERT INTO notification_prefs (user_id) VALUES ($1) ON CONFLICT DO NOTHING", [userId]);
 
-    await client.query(
-      `INSERT INTO profiles (user_id, name, age, city, bio, intent, trust_level, trust_score,
-                             video_verified, safe_meetings, clean_conversations, onboarded_at, is_seed)
-       VALUES ($1, $2, $3, $4, $5, $6::profile_intent, $7::trust_level, $8, $9, $10, $11, now(), true)`,
-      [
-        userId,
-        name,
-        age,
-        city,
-        bio,
-        intent,
-        index % 3 === 0 ? "verified" : "new",
-        40 + ((index * 7) % 55),
-        index % 3 === 0,
-        index % 4,
-        3 + (index % 9),
-      ],
-    );
-    await client.query(
-      "INSERT INTO privacy_settings (user_id) VALUES ($1) ON CONFLICT DO NOTHING",
-      [userId],
-    );
-    await client.query(
-      "INSERT INTO notification_prefs (user_id) VALUES ($1) ON CONFLICT DO NOTHING",
-      [userId],
-    );
-
-    // Интересы: три штуки по кругу, чтобы совпадения выглядели правдоподобно.
+    await client.query("DELETE FROM user_interests WHERE user_id = $1", [userId]);
     for (let step = 0; step < 3 && interests.length > 0; step += 1) {
-      const interestId = interests[(index * 3 + step) % interests.length];
       await client.query(
         "INSERT INTO user_interests (user_id, interest_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
-        [userId, interestId],
+        [userId, interests[(index * 3 + step) % interests.length]],
       );
     }
 
-    // Одно фото на анкету: лицо должно совпадать с полом и возрастом,
-    // поэтому разные люди в одной карусели исключены.
-    const asset = pickPhoto(gender, age, index);
-    if (asset) {
-      const url = await copyAsset(userId, asset);
-      await client.query(
-        `INSERT INTO profile_media (user_id, kind, url, position, is_primary)
-         VALUES ($1, 'photo', $2, 0, true)`,
-        [userId, url],
-      );
-    }
+    // Аватар у каждого демо-автора свой: старые снимки демо-анкеты заменяем.
+    await client.query("DELETE FROM profile_media WHERE user_id = $1", [userId]);
+    const url = await copyAsset(userId, avatar);
+    await client.query(
+      `INSERT INTO profile_media (user_id, kind, url, position, is_primary) VALUES ($1, 'photo', $2, 0, true)`,
+      [userId, url],
+    );
 
-
-    created.push({ id: userId, city, fresh: true });
+    created.push({ id: userId, city, fresh });
   }
+
+  // Демо-анкеты прежних версий наполнения (сверх текущего списка) скрываем.
+  const keep = PEOPLE.map((_, index) => `demo${String(index + 1).padStart(2, "0")}@${SEED_DOMAIN}`);
+  await client.query(
+    `UPDATE users SET deleted_at = now()
+      WHERE email LIKE $1 AND NOT (email = ANY($2::text[])) AND deleted_at IS NULL
+        AND id IN (SELECT user_id FROM profiles WHERE is_seed)`,
+    [`%@${SEED_DOMAIN}`, keep],
+  );
 
   return created;
 }
 
 async function seedListings(users) {
+  // Пересоздаём только демо-объявления: повторный запуск не плодит дубли.
+  await client.query("DELETE FROM listings WHERE is_seed");
+  await client.query(
+    "DELETE FROM listing_files WHERE user_id IN (SELECT user_id FROM profiles WHERE is_seed)",
+  );
+
   const perCategory = {};
-  for (const [category, templates] of Object.entries(LISTING_TEMPLATES)) {
-    perCategory[category] = 0;
-    for (const [index, [title, description, priceMinor]] of templates.entries()) {
-      const author = users[(index * 3 + templates.length) % users.length];
-      const profile = await client.query("SELECT city FROM profiles WHERE user_id = $1", [
-        author.id,
-      ]);
-      const city = profile.rows[0]?.city ?? CITIES[0];
-      const districts = DISTRICTS[city] ?? [""];
-      const district = districts[index % districts.length];
+  for (const [index, listing] of LISTINGS.entries()) {
+    perCategory[listing.category] = (perCategory[listing.category] ?? 0) + 1;
+    // Авторы идут вразнобой: соседние объявления — разные люди.
+    const author = users[(index * 5 + 3) % users.length];
+    const ageHours = 1 + ((index * 7) % 40);
+    const { rows } = await client.query(
+      `INSERT INTO listings (author_id, category, city, district, title, description,
+                             price_minor, currency, state, expires_at, is_seed, seed_responses, created_at)
+       VALUES ($1, $2::need_category, $3, $4, $5, $6, $7, $8, 'active',
+               now() + make_interval(mins => $9::int), true, $10,
+               now() - make_interval(hours => $11::int))
+       RETURNING id`,
+      [author.id, listing.category, listing.city, listing.district, listing.title, listing.description,
+        listing.priceMinor, listing.currency, listing.expiresMinutes, listing.responses, ageHours],
+    );
+    const listingId = rows[0].id;
 
-      const existing = await client.query(
-        "SELECT id FROM listings WHERE is_seed AND title = $1 AND city = $2",
-        [title, city],
+    for (const [position, asset] of listing.photos.entries()) {
+      const url = await copyAsset(author.id, asset);
+      const file = await client.query(
+        "INSERT INTO listing_files (user_id, url) VALUES ($1, $2) RETURNING id",
+        [author.id, url],
       );
-      if (existing.rows.length > 0) continue;
-
-      const { rows } = await client.query(
-        `INSERT INTO listings (author_id, category, city, district, title, description,
-                               price_minor, state, expires_at, is_seed, created_at)
-         VALUES ($1, $2::need_category, $3, $4, $5, $6, $7, 'active',
-                 now() + interval '60 days', true, now() - make_interval(hours => $8::int))
-         RETURNING id`,
-        [author.id, category, city, district, title, description, priceMinor, index * 5],
+      await client.query(
+        "INSERT INTO listing_media (listing_id, file_id, position) VALUES ($1, $2, $3)",
+        [listingId, file.rows[0].id, position],
       );
-      const listingId = rows[0].id;
-
-      const asset = LISTING_PHOTOS[category];
-      if (asset) {
-        const url = await copyAsset(author.id, asset);
-        const media = await client.query(
-          `INSERT INTO profile_media (user_id, kind, url, position, is_primary)
-           VALUES ($1, 'photo', $2, 90, false) RETURNING id`,
-          [author.id, url],
-        );
-        await client.query(
-          "INSERT INTO listing_media (listing_id, media_id, position) VALUES ($1, $2, 0)",
-          [listingId, media.rows[0].id],
-        );
-      }
-
-      perCategory[category] += 1;
     }
   }
   return perCategory;
