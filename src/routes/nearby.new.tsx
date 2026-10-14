@@ -1,17 +1,29 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { ImagePlus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { listingsApi, type NeedCategory } from "@/api";
 import type { ListingPhoto } from "@/api/endpoints/listings";
-import { Button, Input, Select, TextArea } from "@/components/ds";
+import { Button, Chip, Input, TextArea } from "@/components/ds";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { CategoryChips } from "@/features/nearby/components/CategoryChips";
 import { useCreateListing } from "@/features/nearby/hooks";
-import { priceApplies } from "@/features/nearby/labels";
+import { CATEGORY_ORDER, priceApplies } from "@/features/nearby/labels";
+import { DatingLockSheet } from "@/features/nearby/components/DatingLockSheet";
+import {
+  LISTING_DURATIONS,
+  durationForCategory,
+  durationLabel,
+  expiryLabel,
+} from "@/features/nearby/durations";
+import { useMyProfile } from "@/features/profile/hooks";
 
 export const Route = createFileRoute("/nearby/new")({
+  validateSearch: (search: Record<string, unknown>): { category?: NeedCategory } =>
+    CATEGORY_ORDER.includes(search["category"] as NeedCategory)
+      ? { category: search["category"] as NeedCategory }
+      : {},
   head: () => ({
     meta: [
       { title: "Новое объявление в разделе «Рядом» — Я Онлайн" },
@@ -36,12 +48,38 @@ function NewListingPage() {
   const navigate = useNavigate();
   const create = useCreateListing();
 
-  const [category, setCategory] = useState<NeedCategory>("service");
+  const search = Route.useSearch();
+  const me = useMyProfile();
+  const datingOpen = me.data?.completeness?.complete === true;
+  const [lockOpen, setLockOpen] = useState(false);
+  const [category, setCategory] = useState<NeedCategory>(
+    search.category && search.category !== "dating" ? search.category : "urgent",
+  );
+  // Пришли с «Рядом» с «Знакомствами» без анкеты — показываем окно с замком.
+  useEffect(() => {
+    if (search.category !== "dating" || me.isPending) return;
+    if (datingOpen) setCategory("dating");
+    else setLockOpen(true);
+  }, [search.category, me.isPending, datingOpen]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [district, setDistrict] = useState("");
-  const [minutes, setMinutes] = useState("60");
+  const [minutes, setMinutes] = useState<number>(LISTING_DURATIONS.urgent.default);
+  // Плавная смена блока срока: короткое скрытие и показ вариантов новой категории.
+  const [shownCategory, setShownCategory] = useState<NeedCategory>(category);
+  const [durationOpen, setDurationOpen] = useState(true);
+  useEffect(() => {
+    setMinutes((prev) => durationForCategory(category, prev));
+    if (category === shownCategory) return;
+    setDurationOpen(false);
+    const timer = window.setTimeout(() => {
+      setShownCategory(category);
+      setDurationOpen(true);
+    }, 200);
+    return () => window.clearTimeout(timer);
+  }, [category, shownCategory]);
+  const expiresAt = useMemo(() => expiryLabel(minutes), [minutes]);
   const [photos, setPhotos] = useState<ListingPhoto[]>([]);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
@@ -77,7 +115,7 @@ function NewListingPage() {
         priceMinor,
         district: district.trim() || undefined,
         mediaIds: photos.map((item) => item.id),
-        expiresInMinutes: Number(minutes) as 15 | 30 | 60 | 180 | 360 | 1440,
+        expiresInMinutes: minutes,
       },
       {
         onSuccess: (listing) => {
@@ -101,7 +139,7 @@ function NewListingPage() {
       />
 
       <form
-        className="space-y-6"
+        className="max-w-full space-y-6 overflow-x-hidden pb-28 [&>*]:min-w-0"
         onSubmit={(event) => {
           event.preventDefault();
           if (canSubmit) submit();
@@ -110,8 +148,11 @@ function NewListingPage() {
         <fieldset>
           <legend className="mb-3 text-sm font-semibold">Категория</legend>
           <CategoryChips
+            layout="grid"
             value={category}
             allowEmpty={false}
+            locked={datingOpen ? [] : ["dating"]}
+            onLocked={() => setLockOpen(true)}
             onChange={(next) => next && setCategory(next)}
           />
         </fieldset>
@@ -191,6 +232,67 @@ function NewListingPage() {
           ) : null}
         </div>
 
+        <fieldset>
+          <legend className="mb-3 text-sm font-semibold">Срок актуальности</legend>
+          <div className="duration-reveal" data-open={durationOpen}>
+            <div className="min-h-0 overflow-hidden">
+              <div className="flex flex-wrap gap-1.5">
+                {LISTING_DURATIONS[shownCategory].options.map((option) => (
+                  <Chip
+                    key={option}
+                    size="sm"
+                    selected={minutes === option}
+                    className="min-h-9 px-3 text-xs"
+                    onClick={() => setMinutes(option)}
+                  >
+                    {durationLabel(option)}
+                  </Chip>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">Объявление исчезнет: {expiresAt}</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <div className="flex flex-wrap gap-3">
+            {photos.map((photo) => (
+              <div key={photo.id} className="relative">
+                <img
+                  src={photo.url}
+                  alt=""
+                  className="size-24 rounded-2xl border border-border object-cover"
+                />
+                <button
+                  type="button"
+                  aria-label="Убрать фото"
+                  onClick={() => setPhotos((prev) => prev.filter((item) => item.id !== photo.id))}
+                  className="absolute -right-2 -top-2 grid size-7 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:text-destructive"
+                >
+                  <Trash2 className="size-3.5" aria-hidden="true" />
+                </button>
+              </div>
+            ))}
+
+            <label className="grid size-24 cursor-pointer place-items-center rounded-2xl border border-dashed border-border text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
+              <ImagePlus className="size-5" aria-hidden="true" />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploading}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) void upload(file);
+                }}
+              />
+            </label>
+          </div>
+          {uploading ? (
+            <p className="mt-2 text-xs text-muted-foreground">Загружаем фото… {progress ?? 0}%</p>
+          ) : null}
+        </div>
+
         <Select
           label="Срок актуальности"
           value={minutes}
@@ -205,8 +307,8 @@ function NewListingPage() {
           ]}
         />
 
-        <div className="flex flex-wrap gap-3">
-          <Button type="submit" disabled={!canSubmit} loading={create.isPending}>
+        <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-10 flex gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:bottom-0 lg:left-auto lg:right-0 lg:w-[calc(100%-16rem)] lg:justify-center">
+          <Button type="submit" className="flex-1 lg:flex-none" disabled={!canSubmit} loading={create.isPending}>
             Опубликовать
           </Button>
           <Button type="button" variant="ghost" onClick={() => void navigate({ to: "/nearby" })}>
@@ -214,6 +316,16 @@ function NewListingPage() {
           </Button>
         </div>
       </form>
+      <DatingLockSheet
+        open={lockOpen}
+        onClose={() => setLockOpen(false)}
+        completeness={me.data?.completeness}
+        guest={false}
+        onFill={() => {
+          setLockOpen(false);
+          void navigate({ to: "/profile/me", search: { edit: true } });
+        }}
+      />
     </AppShell>
   );
 }
