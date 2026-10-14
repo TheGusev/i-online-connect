@@ -46,9 +46,10 @@ export function MessageActions({
   const [more, setMore] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
+  useEffect(() => { setMore(false); }, [message]);
+
   useEffect(() => {
     if (!message) return;
-    setMore(false);
     openedAt.current = Date.now();
     const li = document.getElementById(`message-${message.id}`);
     const el = (li?.querySelector(":scope > div") as HTMLElement | null) ?? null;
