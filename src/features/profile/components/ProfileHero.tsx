@@ -74,6 +74,7 @@ export function ProfileHero({
   return (
     <section className="overflow-hidden rounded-3xl border border-border bg-card shadow-soft">
       <div
+        data-no-swipe
         className="relative"
         onTouchStart={(event) => {
           touchStart.current = event.touches[0]?.clientX ?? null;

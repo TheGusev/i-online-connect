@@ -318,6 +318,7 @@ function GalleryViewerReady({
       <div className="relative min-h-0 flex-1">
         <div
           ref={viewportRef}
+          data-no-swipe
           className="size-full overflow-hidden overscroll-contain touch-pan-y"
           style={{
             transform: pull ? `translateY(${pull}px) scale(${1 - progress * 0.25})` : undefined,
