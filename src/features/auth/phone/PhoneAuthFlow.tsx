@@ -17,9 +17,17 @@ function messageOf(error: unknown, fallback: string) {
  * Шаги входа по номеру: номер → код → имя (только для нового).
  * Используется на /auth и в нижнем окне входа у гостя.
  */
-export function PhoneAuthFlow({ onDone, onBack }: { onDone: () => void; onBack?: () => void }) {
+export function PhoneAuthFlow({
+  onDone,
+  onBack,
+  initialStep = "phone",
+}: {
+  onDone: () => void;
+  onBack?: () => void;
+  initialStep?: Step;
+}) {
   const setSession = useSessionStore((state) => state.setSession);
-  const [step, setStep] = useState<Step>("phone");
+  const [step, setStep] = useState<Step>(initialStep);
   const [digits, setDigits] = useState("");
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);

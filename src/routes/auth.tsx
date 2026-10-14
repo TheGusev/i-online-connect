@@ -41,9 +41,18 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  if (status === "loading") return <SessionLoading />;
+  const user = useSessionStore((state) => state.user);
+  // Новый аккаунт без имени: показываем только шаг «Как вас зовут?».
+  if (status === "authed" && user && !user.name.trim()) {
+    return (
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pt-10 text-foreground">
+        <PhoneAuthFlow initialStep="name" onDone={() => void navigate({ to: "/chat" })} />
+      </main>
+    );
+  }
+  if (status === "loading" && mode !== "phone") return <SessionLoading />;
   if (status === "offline") return <SessionOffline />;
-  if (status === "authed" && mode !== "phone") return <Navigate to="/chat" replace />;
+  if (status === "authed") return <Navigate to="/chat" replace />;
 
   const submit = () => {
     const value = email.trim();
