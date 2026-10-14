@@ -254,59 +254,6 @@ function NewListingPage() {
           </div>
         </fieldset>
 
-        <div className="flex flex-wrap gap-3">
-            {photos.map((photo) => (
-              <div key={photo.id} className="relative">
-                <img
-                  src={photo.url}
-                  alt=""
-                  className="size-24 rounded-2xl border border-border object-cover"
-                />
-                <button
-                  type="button"
-                  aria-label="Убрать фото"
-                  onClick={() => setPhotos((prev) => prev.filter((item) => item.id !== photo.id))}
-                  className="absolute -right-2 -top-2 grid size-7 place-items-center rounded-full border border-border bg-card text-muted-foreground hover:text-destructive"
-                >
-                  <Trash2 className="size-3.5" aria-hidden="true" />
-                </button>
-              </div>
-            ))}
-
-            <label className="grid size-24 cursor-pointer place-items-center rounded-2xl border border-dashed border-border text-muted-foreground transition-colors hover:border-primary hover:text-foreground">
-              <ImagePlus className="size-5" aria-hidden="true" />
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                disabled={uploading}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = "";
-                  if (file) void upload(file);
-                }}
-              />
-            </label>
-          </div>
-          {uploading ? (
-            <p className="mt-2 text-xs text-muted-foreground">Загружаем фото… {progress ?? 0}%</p>
-          ) : null}
-        </div>
-
-        <Select
-          label="Срок актуальности"
-          value={minutes}
-          onChange={(event) => setMinutes(event.target.value)}
-          options={[
-            { value: "15", label: "15 минут" },
-            { value: "30", label: "30 минут" },
-            { value: "60", label: "1 час" },
-            { value: "180", label: "3 часа" },
-            { value: "360", label: "6 часов" },
-            { value: "1440", label: "24 часа" },
-          ]}
-        />
-
         <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-10 flex gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:bottom-0 lg:left-auto lg:right-0 lg:w-[calc(100%-16rem)] lg:justify-center">
           <Button type="submit" className="flex-1 lg:flex-none" disabled={!canSubmit} loading={create.isPending}>
             Опубликовать
