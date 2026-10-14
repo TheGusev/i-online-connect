@@ -28,7 +28,7 @@ async function user() {
 }
 const host = await user(); const author = await user(); const member = await user(); const outsider = await user();
 async function space() {
-  const result = await queryOne("INSERT INTO spaces(title,host_id) VALUES('Тест сообщества',$1) RETURNING id", [host.id]);
+  const result = await queryOne("INSERT INTO spaces(title,host_id,category) VALUES('Тест сообщества',$1,'walk') RETURNING id", [host.id]);
   spaces.push(result.id);
   await query("INSERT INTO space_members(space_id,user_id,status) VALUES($1,$2,'host'),($1,$3,'member'),($1,$4,'member')", [result.id,host.id,author.id,member.id]);
   return result.id;
