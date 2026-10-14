@@ -19,7 +19,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import { query, queryOne, transaction } from "../db.ts";
-import { badRequest, forbidden, notFound } from "../http.ts";
+import { HttpError, badRequest, forbidden, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { notifyListingMatches } from "../listings/notify.ts";
 import {
@@ -30,6 +30,10 @@ import {
   saveListingFile,
 } from "../media/store.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
+import { datingAccess, loadCompleteness } from "../profile/completeness.ts";
+
+const profileIncomplete = () =>
+  new HttpError(403, "Заполните анкету, чтобы открыть знакомства", "PROFILE_INCOMPLETE");
 
 // Порядок значений совпадает с enum need_category в БД (миграции 005 и 008).
 const NEED_CATEGORIES = [
@@ -120,7 +124,7 @@ const LISTING_SELECT = `
             WHERE lm.listing_id = l.id AND COALESCE(f.url, m.url) IS NOT NULL
             ORDER BY lm.position
          ) AS photos,
-         (SELECT count(*) FROM listing_responses r WHERE r.listing_id = l.id)::int AS responses_count,
+         ((SELECT count(*) FROM listing_responses r WHERE r.listing_id = l.id) + COALESCE(l.seed_responses, 0))::int AS responses_count,
          (SELECT conversation_id FROM listing_responses r
            WHERE r.listing_id = l.id AND r.user_id = $1) AS my_conversation_id
     FROM listings l
@@ -310,6 +314,12 @@ export async function listingRoutes(app: FastifyInstance) {
     // выдаче: в этом случае показываем объявления всех городов.
     const city = filters.city ?? (profile?.city ? profile.city : null);
 
+    // «Знакомства» — только для вошедших с заполненной анкетой.
+    const complete = userId ? (await loadCompleteness(userId)).complete : false;
+    const access = datingAccess(filters.category, complete);
+    if (access === "forbidden") throw profileIncomplete();
+    const excludeDating = access === "exclude";
+
     const rows = await query<ListingRow>(
       `${LISTING_SELECT}
         WHERE l.state = 'active'
@@ -333,6 +343,7 @@ export async function listingRoutes(app: FastifyInstance) {
                        AND lower(rl.city) = lower(l.city)
                        AND rl.category = l.category) < ${SEED_HIDE_THRESHOLD}
               )
+          AND ($7::boolean IS NOT TRUE OR l.category <> 'dating')
         ORDER BY l.is_seed ASC, l.created_at DESC
         LIMIT $6`,
       [
@@ -342,6 +353,7 @@ export async function listingRoutes(app: FastifyInstance) {
         filters.q ?? null,
         filters.onlyMyNeeds ?? false,
         filters.limit ?? 30,
+        excludeDating,
       ],
     );
 
@@ -402,6 +414,9 @@ export async function listingRoutes(app: FastifyInstance) {
     async (request) => {
       const userId = currentUserId(request);
       const draft = createSchema.parse(request.body);
+      if (draft.category === "dating" && !(await loadCompleteness(userId)).complete) {
+        throw profileIncomplete();
+      }
 
       // Лимит по времени не мешает накопить сотни объявлений за неделю —
       // ограничиваем ещё и общее число активных.

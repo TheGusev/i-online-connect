@@ -13,6 +13,9 @@ import { ListingSheet } from "@/features/nearby/components/ListingSheet";
 import { useListings } from "@/features/nearby/hooks";
 import { useAuthGate } from "@/features/auth/phone/AuthSheet";
 import { initialCategory } from "@/features/nearby/category-selection";
+import { DatingLockSheet } from "@/features/nearby/components/DatingLockSheet";
+import { useMyProfile } from "@/features/profile/hooks";
+import { useSessionStore } from "@/store/useSessionStore";
 
 export const Route = createFileRoute("/nearby/")({
   validateSearch: (search: Record<string, unknown>): { listing?: string } =>
@@ -57,6 +60,11 @@ function NearbyPage() {
     true,
   );
   const gate = useAuthGate();
+  const authed = useSessionStore((state) => state.status === "authed");
+  const me = useMyProfile(authed);
+  const completeness = me.data?.completeness;
+  const datingOpen = authed && completeness?.complete === true;
+  const [lockOpen, setLockOpen] = useState(false);
 
   const items = data?.items ?? [];
 
@@ -106,6 +114,8 @@ function NearbyPage() {
             <CategoryChips
               layout="grid"
               value={category}
+              locked={datingOpen ? [] : ["dating"]}
+              onLocked={() => setLockOpen(true)}
               onChange={(next) => {
                 setCategory(next);
                 setLimit(PAGE);
@@ -164,6 +174,17 @@ function NearbyPage() {
         </>
       )}
       {gate.sheet}
+      <DatingLockSheet
+        open={lockOpen}
+        onClose={() => setLockOpen(false)}
+        completeness={completeness}
+        guest={!authed}
+        onFill={() => {
+          setLockOpen(false);
+          if (authed) void navigate({ to: "/profile/me", search: { edit: true } });
+          else gate.guard(() => setLockOpen(true));
+        }}
+      />
       <ListingSheet
         {...(listing ? { listingId: listing } : {})}
         onClose={() => void navigate({ search: {}, replace: true })}

@@ -83,6 +83,14 @@ export function MessageBubble({
   const voiceInline = voice && Boolean(message.mediaUrl) && !deleted && !failed;
   // Время в строке текста, как в Telegram: только для простых текстовых сообщений.
   const textInline = !deleted && !failed && !voice && !media && !meeting && !quote;
+  // Фото и видео без розовой подложки: тонкая рамка, время поверх картинки.
+  const bare = media && !deleted && Boolean(message.mediaUrl);
+  // Сервер кладёт в текст служебные «Фото»/«Видео» — это не подпись.
+  const rawCaption = bare ? (message.text ?? "").trim() : "";
+  const caption = rawCaption === "Фото" || rawCaption === "Видео" ? "" : rawCaption;
+  const bubbleTone = mine
+    ? "rounded-br-lg bg-primary text-primary-foreground"
+    : "rounded-bl-lg border border-border bg-card text-foreground";
 
 
   return (
@@ -101,17 +109,14 @@ export function MessageBubble({
           transition: swipe.offset ? undefined : "transform 260ms cubic-bezier(.34,1.56,.64,1)",
         }}
         className={cn(
-          "relative max-w-[78%] touch-pan-y rounded-3xl px-4 py-3 text-sm leading-relaxed shadow-soft",
+          "relative max-w-[78%] touch-pan-y text-sm leading-relaxed",
           // Долгое нажатие и свайп не должны вызывать выделение текста и лупу iOS.
           NO_SELECT,
-          mine
-            ? "rounded-br-lg bg-primary text-primary-foreground"
-            : "rounded-bl-lg border border-border bg-card text-foreground",
+          bare ? "flex w-[min(19rem,78%)] flex-col gap-1" : cn("rounded-3xl px-4 py-3 shadow-soft", bubbleTone),
           // Голосовые компактнее и без лишней рамки вокруг плеера.
           voiceInline && "px-3 py-2",
           voiceInline && !mine && "border-transparent bg-card/70",
           // Фото и видео занимают пузырь целиком — отступы минимальные.
-          media && !deleted && "w-[min(19rem,88%)] max-w-[88%] px-1.5 pb-1.5 pt-1.5",
           meeting && !mine && "border-primary/25 bg-gradient-warm",
           message.status === "sending" && "opacity-70",
           failed && "ring-2 ring-destructive/60",
@@ -125,7 +130,7 @@ export function MessageBubble({
             className={cn(
               "mb-2 flex w-full flex-col items-start gap-0.5 rounded-2xl border-l-2 px-2.5 py-1.5 text-left text-xs",
               NO_SELECT,
-              mine
+              mine && !bare
                 ? "border-primary-foreground/60 bg-primary-foreground/10 text-primary-foreground/85"
                 : "border-primary bg-secondary/70 text-muted-foreground",
             )}
@@ -165,6 +170,7 @@ export function MessageBubble({
                 src={message.mediaUrl}
                 durationMs={message.durationMs}
                 className="w-full max-w-full"
+                {...(failed ? {} : { overlay: stamp })}
                 message={{
                   id: message.id,
                   kind: message.kind === "video" ? "video" : "image",
@@ -184,6 +190,11 @@ export function MessageBubble({
             )}
           </>
         )}
+        {caption ? (
+          <p className={cn("whitespace-pre-wrap break-words rounded-3xl px-4 py-2.5 shadow-soft", bubbleTone)}>
+            {caption}
+          </p>
+        ) : null}
         {reaction && !deleted ? (
           <div className="mt-1.5 flex flex-wrap gap-1">
             <span
@@ -203,6 +214,7 @@ export function MessageBubble({
             "mt-1.5 flex items-center justify-end gap-1 text-[11px]",
             mine && !deleted ? "text-primary-foreground/75" : "text-muted-foreground",
             voiceInline && "hidden",
+            bare && !failed && "hidden",
             textInline && !reaction && "absolute bottom-2.5 right-4 mt-0",
           )}
         >

@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
-import { Avatar, Button, SpaceCardSkeleton, TrustBadge } from "@/components/ds";
+import { Button, SpaceCardSkeleton } from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
-import { badgeLevel } from "@/features/chat/trust";
+import { ListingAuthor } from "@/features/nearby/components/ListingAuthor";
 import { ListingCard } from "@/features/nearby/components/ListingCard";
 import { useUserListings } from "@/features/nearby/hooks";
 import { useProfile } from "@/features/profile/hooks";
@@ -36,18 +36,12 @@ function UserStorefront() {
       {profile.isPending ? <SpaceCardSkeleton /> : null}
       {profile.isError ? <p className="text-sm text-destructive">Витрина недоступна</p> : null}
       {profile.data ? (
-        <header className="flex items-center gap-4 border-b border-border pb-5">
-          <Avatar
-            name={profile.data.name}
-            src={profile.data.avatarUrl ?? null}
-            size="lg"
-            verified={profile.data.trustLevel !== "new"}
+        <header className="border-b border-border pb-5">
+          <ListingAuthor
+            author={{ name: profile.data.name, avatarUrl: profile.data.avatarUrl ?? null, trustLevel: profile.data.trustLevel }}
+            full
           />
-          <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold text-foreground">{profile.data.name}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{profile.data.city}</p>
-            <TrustBadge level={badgeLevel(profile.data.trustLevel)} size="sm" className="mt-2" />
-          </div>
+          {profile.data.city ? <p className="mt-2 text-sm text-muted-foreground">{profile.data.city}</p> : null}
         </header>
       ) : null}
 

@@ -689,3 +689,37 @@ html[data-tab-hidden] .chat-sky *, html[data-tab-hidden] .live-icon * { animatio
   .chat-sky__glint { opacity: 0; }
   .gallery-img { transition: none; }
 }
+
+/* ── Объявления: отклик карточки и плавный лист ─────────────────────────── */
+.listing-press { transition: transform 140ms ease-out; }
+.listing-press:active { transform: scale(0.98); }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes sheet-down { from { transform: translateY(var(--sheet-from, 0px)); opacity: 1; } to { transform: translateY(100%); opacity: .6; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.sheet-enter { animation: sheet-up 320ms cubic-bezier(.22,1,.36,1) both; }
+.sheet-leave { animation: sheet-down 260ms cubic-bezier(.4,0,1,1) both; }
+.backdrop-enter { animation: fade-in 320ms ease-out both; }
+.backdrop-leave { animation: fade-out 260ms ease-in both; }
+.sheet-stagger > * { animation: rise-in 260ms ease-out both; }
+.sheet-stagger > *:nth-child(1) { animation-delay: 60ms; }
+.sheet-stagger > *:nth-child(2) { animation-delay: 110ms; }
+.sheet-stagger > *:nth-child(3) { animation-delay: 160ms; }
+.sheet-stagger > *:nth-child(4) { animation-delay: 210ms; }
+.sheet-stagger > *:nth-child(5) { animation-delay: 260ms; }
+.sheet-stagger > *:nth-child(n+6) { animation-delay: 300ms; }
+.img-fade { opacity: 0; transition: opacity 150ms ease-out; }
+.img-fade[data-loaded="true"] { opacity: 1; }
+.collapse-grid { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 220ms ease; }
+.collapse-grid[data-open="true"] { grid-template-rows: 1fr; }
+.collapse-grid > * { overflow: hidden; min-height: 0; }
+/* Фото в чатах: тонкая рамка бренда и одноразовая подсветка */
+.chat-media-frame { border: 1.5px solid color-mix(in oklab, var(--color-primary) 60%, transparent); }
+@keyframes media-glow { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-primary) 0%, transparent); } 35% { box-shadow: 0 0 14px 2px color-mix(in oklab, var(--color-primary) 55%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
+.chat-media-glow { animation: media-glow 600ms ease-out 1; }
+@media (prefers-reduced-motion: reduce) {
+  .listing-press, .listing-press:active { transition: none; transform: none; }
+  .sheet-enter, .sheet-leave, .backdrop-enter, .backdrop-leave, .sheet-stagger > *, .chat-media-glow { animation: none !important; }
+  .img-fade, .collapse-grid { transition: none; }
+}

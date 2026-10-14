@@ -7,6 +7,7 @@ import { mediaUrl } from "@/api";
 const sizeMap = {
   xs: "size-7 text-[10px]",
   sm: "size-9 text-xs",
+  list: "size-8 text-[11px]",
   md: "size-12 text-sm",
   lg: "size-16 text-base",
   xl: "size-24 text-xl",
@@ -15,6 +16,7 @@ const sizeMap = {
 const badgeMap = {
   xs: "size-3.5 [&_svg]:size-2",
   sm: "size-4 [&_svg]:size-2.5",
+  list: "size-4 [&_svg]:size-2.5",
   md: "size-5 [&_svg]:size-3",
   lg: "size-6 [&_svg]:size-3.5",
   xl: "size-8 [&_svg]:size-5",
@@ -56,7 +58,7 @@ export function Avatar({
       className={cn(
         "relative inline-flex shrink-0",
         // Онлайн показываем розовым пульсирующим ореолом вместо зелёной точки.
-        online && (size === "xs" || size === "sm" ? "avatar-ring avatar-ring-sm" : "avatar-ring"),
+        online && (size === "xs" || size === "sm" || size === "list" ? "avatar-ring avatar-ring-sm" : "avatar-ring"),
         className,
       )}
       {...(online ? { title: "Сейчас в сети" } : {})}

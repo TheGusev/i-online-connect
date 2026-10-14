@@ -295,10 +295,27 @@ export interface OwnerTrustStats {
 }
 
 /** Свой профиль: публичная часть + приватные настройки и статистика. */
+/** Ответы опросника онбординга, которые редактируются в разделе «Анкета». */
+export interface ProfileQuestionnaire {
+  valuesText: string;
+  joyText: string;
+  dealbreakersText: string;
+}
+
+/** Заполненность анкеты: считается на сервере. */
+export interface ProfileCompleteness {
+  complete: boolean;
+  filled: number;
+  total: number;
+  missing: string[];
+}
+
 export interface MyProfile extends ProfileDetail {
   privacy: PrivacySettings;
   verification: VerificationStatus;
   stats: OwnerTrustStats;
+  questionnaire?: ProfileQuestionnaire;
+  completeness?: ProfileCompleteness;
 }
 
 export type ReportCategory = "fake" | "behavior" | "scam" | "other";

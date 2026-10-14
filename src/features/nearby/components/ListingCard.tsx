@@ -2,35 +2,28 @@ import { Link } from "@tanstack/react-router";
 import { MapPin, MessageCircle } from "lucide-react";
 
 import type { Listing } from "@/api";
-import { Card, MediaImage, TrustBadge } from "@/components/ds";
-import { badgeLevel } from "@/features/chat/trust";
+import { Card, MediaImage } from "@/components/ds";
+import { ListingAuthor } from "./ListingAuthor";
 import { ListingCountdown } from "./ListingCountdown";
 
 import { categoryLabel, formatDate, formatPrice, priceApplies } from "../labels";
 
 /**
  * Компактная карточка объявления: фото слева, текст справа.
- *
- * Так на экран телефона попадает 4–5 объявлений вместо одного — раздел
- * читается как лента объявлений, а не как галерея. Цена — самый заметный
- * элемент: именно её ищут глазами в первую очередь.
+ * Сверху — автор и таймер в одной строке, дальше цена/категория и заголовок.
  */
 export function ListingCard({ listing }: { listing: Listing }) {
   const photo = listing.photos[0];
   const place = [listing.city, listing.district].filter(Boolean).join(", ");
+  const timed = listing.state === "active" || listing.state === "expired";
 
   return (
-    <Card variant="space" className="relative overflow-hidden p-0">
-      {listing.state === "active" || listing.state === "expired" ? (
-        <ListingCountdown expiresAt={listing.expiresAt} className="pointer-events-none absolute right-3 top-3 z-10" />
-      ) : null}
+    <Card variant="space" className="listing-press overflow-hidden p-0">
       <Link
         to="/nearby"
         search={{ listing: listing.id }}
         className="grid grid-cols-[6.5rem_minmax(0,1fr)] items-start gap-3 p-2.5 focus-visible:outline-none sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-4 sm:p-3"
       >
-        {/* Жёсткий размер: квадрат не должен расти вслед за высотой карточки
-            и наезжать на текст, когда заголовок занимает две строки. */}
         <div className="relative size-[6.5rem] shrink-0 overflow-hidden rounded-2xl bg-secondary sm:size-[8.5rem]">
           <MediaImage
             src={photo}
@@ -45,14 +38,18 @@ export function ListingCard({ listing }: { listing: Listing }) {
           ) : null}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-1 py-0.5">
-          <div className="pr-14">
+        <div className="flex min-w-0 flex-col gap-1">
+          <ListingAuthor
+            author={listing.author}
+            trailing={timed ? <ListingCountdown expiresAt={listing.expiresAt} /> : null}
+          />
+
           {priceApplies(listing.category) ? (
-            <span className="text-base font-black leading-none sm:text-lg">
+            <span className="mt-0.5 text-base font-black leading-none sm:text-lg">
               {formatPrice(listing.priceMinor, listing.currency)}
             </span>
           ) : (
-            <span className="text-xs font-bold uppercase tracking-wide text-primary">
+            <span className="mt-0.5 text-xs font-bold uppercase tracking-wide text-primary">
               {categoryLabel(listing.category)}
             </span>
           )}
@@ -60,13 +57,6 @@ export function ListingCard({ listing }: { listing: Listing }) {
           <h3 className="line-clamp-2 text-sm font-semibold leading-snug sm:text-base">
             {listing.title}
           </h3>
-          </div>
-
-          {listing.description ? (
-            <p className="line-clamp-1 text-xs leading-relaxed text-muted-foreground sm:line-clamp-2">
-              {listing.description}
-            </p>
-          ) : null}
 
           <div className="mt-auto flex min-w-0 items-center gap-2 pt-1 text-[11px] text-muted-foreground">
             <span className="inline-flex min-w-0 items-center gap-1">
@@ -81,11 +71,6 @@ export function ListingCard({ listing }: { listing: Listing }) {
                 {listing.responsesCount}
               </span>
             ) : null}
-          </div>
-
-          <div className="flex min-w-0 items-center gap-1.5 text-[11px]">
-            <span className="truncate font-semibold">{listing.author.name}</span>
-            <TrustBadge level={badgeLevel(listing.author.trustLevel)} size="sm" />
           </div>
         </div>
       </Link>
