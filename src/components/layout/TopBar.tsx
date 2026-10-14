@@ -69,7 +69,7 @@ export function TopBar() {
           </div>
         ) : (
           <Button size="sm" asChild>
-            <Link to="/onboarding">{t("landing.hero.cta")}</Link>
+            <Link to="/auth">Войти</Link>
           </Button>
         )}
       </div>

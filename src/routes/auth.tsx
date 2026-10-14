@@ -32,18 +32,18 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const { t } = useTranslation();
+  const [mode, setMode] = useState<"welcome" | "phone" | "email">("welcome");
   const navigate = useNavigate();
   const status = useSessionStore((state) => state.status);
   const login = useLogin();
 
-  const [mode, setMode] = useState<"welcome" | "phone" | "email">("welcome");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   if (status === "loading") return <SessionLoading />;
   if (status === "offline") return <SessionOffline />;
-  if (status === "authed") return <Navigate to="/chat" replace />;
+  if (status === "authed" && mode !== "phone") return <Navigate to="/chat" replace />;
 
   const submit = () => {
     const value = email.trim();
