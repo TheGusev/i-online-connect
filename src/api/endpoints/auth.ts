@@ -31,3 +31,20 @@ export async function logout(): Promise<void> {
 export async function getCurrentUser(): Promise<User> {
   return request<User>("/auth/me");
 }
+
+/** Запрос SMS-кода. Сервер всегда отвечает одинаково (204). */
+export async function requestPhoneCode(phone: string): Promise<void> {
+  await request<void>("/auth/phone/request", { method: "POST", body: { phone } });
+}
+
+export async function verifyPhoneCode(
+  phone: string,
+  code: string,
+): Promise<Session & { isNew: boolean }> {
+  const session = await request<Session & { isNew: boolean }>("/auth/phone/verify", {
+    method: "POST",
+    body: { phone, code },
+  });
+  setToken(session.token);
+  return session;
+}

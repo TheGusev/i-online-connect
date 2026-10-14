@@ -79,7 +79,7 @@ function MyProfilePage() {
     if (!data) return;
     setDraft({
       name: data.name,
-      age: String(data.age),
+      age: data.age ? String(data.age) : "",
       city: data.city,
       bio: data.bio,
       intent: data.intent,
@@ -96,8 +96,8 @@ function MyProfilePage() {
 
   const save = () => {
     if (!draft) return;
-    const age = Number.parseInt(draft.age, 10);
-    if (!Number.isFinite(age) || age < 18 || age > 120) {
+    const age = draft.age.trim() ? Number.parseInt(draft.age, 10) : null;
+    if (age !== null && (!Number.isFinite(age) || age < 18 || age > 120)) {
       toast.error("Возраст указывается числом от 18 до 120");
       return;
     }
@@ -108,7 +108,7 @@ function MyProfilePage() {
     update.mutate(
       {
         name: draft.name.trim(),
-        age,
+        ...(age !== null ? { age } : {}),
         city: draft.city.trim(),
         bio: draft.bio.trim(),
         intent: draft.intent,

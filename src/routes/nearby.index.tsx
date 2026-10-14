@@ -1,18 +1,17 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { MapPin, Plus, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import type { NeedCategory } from "@/api";
-import { Button, Card, SpaceCardSkeleton } from "@/components/ds";
+import { Button, SpaceCardSkeleton } from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
 import { Reveal } from "@/components/landing/Reveal";
 import { WaveHeading } from "@/components/landing/WaveHeading";
 import { CategoryChips } from "@/features/nearby/components/CategoryChips";
 import { ListingCard } from "@/features/nearby/components/ListingCard";
 import { ListingSheet } from "@/features/nearby/components/ListingSheet";
-import { visibleCategories as categories } from "@/features/nearby/labels";
 import { useListings } from "@/features/nearby/hooks";
-import { useSessionStore } from "@/store/useSessionStore";
+import { useAuthGate } from "@/features/auth/phone/AuthSheet";
 
 export const Route = createFileRoute("/nearby/")({
   validateSearch: (search: Record<string, unknown>): { listing?: string } =>
@@ -42,7 +41,6 @@ const PAGE = 20;
 function NearbyPage() {
   const { listing } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const authed = useSessionStore((state) => state.status === "authed");
   const [city, setCity] = useState("");
   const [category, setCategory] = useState<NeedCategory | null>(null);
   const [q, setQ] = useState("");
@@ -55,8 +53,9 @@ function NearbyPage() {
       q: q.trim() || undefined,
       limit,
     },
-    authed,
+    true,
   );
+  const gate = useAuthGate();
 
   const items = data?.items ?? [];
 
@@ -68,34 +67,7 @@ function NearbyPage() {
         </WaveHeading>
       </header>
 
-      {!authed ? (
-        <Card className="mb-8 p-6">
-          <h2 className="text-lg font-bold">Войдите, чтобы видеть объявления в вашем городе</h2>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-            «Рядом» показывает объявления людей из вашего города — поэтому нужен профиль с городом.
-            Регистрация занимает пару минут.
-          </p>
-          <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-            {categories.map(({ id, label, hint, icon: Icon }) => (
-              <li key={id} className="flex items-start gap-3 rounded-2xl bg-secondary/50 p-4">
-                <Icon className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-                <span>
-                  <span className="block text-sm font-semibold">{label}</span>
-                  <span className="block text-xs text-muted-foreground">{hint}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild>
-              <Link to="/onboarding">Создать профиль</Link>
-            </Button>
-            <Button asChild variant="ghost">
-              <Link to="/auth">У меня уже есть аккаунт</Link>
-            </Button>
-          </div>
-        </Card>
-      ) : (
+      {(
         <>
           <div className="mb-4 space-y-3">
             <div className="flex items-center gap-2">
@@ -135,11 +107,9 @@ function NearbyPage() {
               }}
             />
 
-            <Button asChild size="sm" variant="secondary">
-              <Link to="/nearby/new">
-                <Plus aria-hidden="true" />
-                Разместить
-              </Link>
+            <Button size="sm" variant="secondary" onClick={() => gate.guard(() => void navigate({ to: "/nearby/new" }))}>
+              <Plus aria-hidden="true" />
+              Разместить
             </Button>
           </div>
 
@@ -164,8 +134,8 @@ function NearbyPage() {
                 Первое объявление задаёт тон разделу: напишите просто и по-человечески, что нужно
                 или что вы предлагаете.
               </p>
-              <Button asChild className="mt-4">
-                <Link to="/nearby/new">Разместить объявление</Link>
+              <Button className="mt-4" onClick={() => gate.guard(() => void navigate({ to: "/nearby/new" }))}>
+                Разместить объявление
               </Button>
             </div>
           ) : (
@@ -192,6 +162,7 @@ function NearbyPage() {
           )}
         </>
       )}
+      {gate.sheet}
       <ListingSheet
         {...(listing ? { listingId: listing } : {})}
         onClose={() => void navigate({ search: {}, replace: true })}

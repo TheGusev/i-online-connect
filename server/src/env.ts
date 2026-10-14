@@ -91,6 +91,23 @@ const schema = z.object({
   VAPID_PUBLIC_KEY: z.string().default(""),
   VAPID_PRIVATE_KEY: z.string().default(""),
   VAPID_SUBJECT: z.string().default("mailto:admin@localhost"),
+
+  // ── Вход по номеру телефона ───────────────────────────────────────────────
+  // Через запятую: какие коды стран принимаем.
+  ALLOWED_PHONE_PREFIXES: z.string().default("+7"),
+  // Секрет HMAC для хешей кодов. Пусто — берётся JWT_REFRESH_SECRET.
+  OTP_SECRET: z.string().default(""),
+  SMS_DAILY_LIMIT: z.coerce.number().int().positive().default(500),
+  // log — только для разработки (код пишется в журнал), http — внешний провайдер.
+  SMS_PROVIDER: z.enum(["log", "http"]).default("log"),
+  SMS_API_URL: z.string().default(""),
+  SMS_API_KEY: z.string().default(""),
+  SMS_SENDER: z.string().default(""),
+  // Домен сайта для автоподстановки кода на iPhone (в punycode, без https://).
+  SMS_ORIGIN_DOMAIN: z.string().default(""),
+  // "+79990000000:111111,+79990000001:222222". Работают только при TEST_PHONES_ENABLED=true.
+  TEST_PHONES: z.string().default(""),
+  TEST_PHONES_ENABLED: z.enum(["true", "false"]).default("false"),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -112,6 +129,16 @@ export const env = {
   // Вход в админку работает только когда заданы оба секрета.
   adminLoginEnabled:
     parsed.data.JWT_ADMIN_SECRET.length >= 32 && parsed.data.TOTP_ENCRYPTION_KEY.length >= 32,
+  allowedPhonePrefixes: parsed.data.ALLOWED_PHONE_PREFIXES.split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+  testPhones: new Map(
+    parsed.data.TEST_PHONES_ENABLED === "true"
+      ? parsed.data.TEST_PHONES.split(",")
+          .map((pair) => pair.trim().split(":"))
+          .filter((pair): pair is [string, string] => pair.length === 2 && /^\d{6}$/.test(pair[1] ?? ""))
+      : [],
+  ),
   redisEnabled: parsed.data.REDIS_HOST.length > 0,
   captchaEnabled: parsed.data.YANDEX_CAPTCHA_SECRET.length > 0,
   // Пуши отправляются только когда заданы оба ключа VAPID.

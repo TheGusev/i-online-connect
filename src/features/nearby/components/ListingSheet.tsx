@@ -1,4 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useAuthGate } from "@/features/auth/phone/AuthSheet";
 import {
   CalendarDays,
   ChevronDown,
@@ -78,6 +79,7 @@ function ListingGallery({ listing }: { listing: Listing }) {
 
 export function ListingSheet({ listingId, onClose }: { listingId?: string; onClose: () => void }) {
   const navigate = useNavigate();
+  const gate = useAuthGate();
   const { data: listing, isPending, isError } = useListing(listingId ?? "", Boolean(listingId));
   const respond = useRespondToListing(listingId ?? "");
   const drag = useRef<{ y: number; current: number } | null>(null);
@@ -114,7 +116,8 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
     if (shouldClose) onClose();
   };
 
-  const respondNow = () => {
+  const respondNow = () => gate.guard(respondAuthed);
+  const respondAuthed = () => {
     if (!listing) return;
     if (listing.respondedConversationId) {
       void navigate({ to: "/chat/$id", params: { id: listing.respondedConversationId } });
@@ -126,7 +129,9 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
     });
   };
 
-  return createPortal(
+  return (
+    <>
+      {createPortal(
     <div className="viewport-overlay z-50 flex items-end justify-center">
       <Button
         variant="ghost"
@@ -210,6 +215,8 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
         ) : null}
       </article>
     </div>,
-    document.body,
+    document.body)}
+      {gate.sheet}
+    </>
   );
 }

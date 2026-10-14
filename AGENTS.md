@@ -19,3 +19,5 @@
 - Chat attachment photos and media galleries share a portal viewer with Embla for page snapping and react-zoom-pan-pinch for image transforms; this isolates paging from image panning.
 - Community message mutations are authorized in the existing Fastify API and use soft deletion plus scoped replies; active message queries refetch periodically so other members receive edits and removals.
 - One-off trust assignments use an explicit server maintenance command with a registration cutoff and a private pre-update backup, never page-load or migration seeding; this keeps future registrations and identity verification unchanged.
+- Phone sign-in issues SMS codes via a swappable SmsProvider and stores only HMAC hashes in auth_otps; resend/hourly/IP/daily limits are counted from that table so they work without Redis and survive restarts.
+- Guests may only GET the listings list and detail; every other listings route still requires auth, and guest actions open the in-place phone sign-in sheet (useAuthGate) that resumes the action afterwards.

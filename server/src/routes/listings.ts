@@ -150,7 +150,7 @@ interface ListingRow {
   my_conversation_id: string | null;
 }
 
-function toListingDto(row: ListingRow, userId: string) {
+function toListingDto(row: ListingRow, userId: string | null) {
   return {
     id: row.id,
     category: row.category,
@@ -167,7 +167,7 @@ function toListingDto(row: ListingRow, userId: string) {
     photos: row.photos ?? [],
     responsesCount: row.responses_count,
     respondedConversationId: row.my_conversation_id,
-    isMine: row.author_id === userId,
+    isMine: userId !== null && row.author_id === userId,
     author: {
       id: row.author_id,
       name: row.author_name,
@@ -220,8 +220,16 @@ async function attachMedia(listingId: string, userId: string, mediaIds: string[]
   }
 }
 
+/** Гостю открыты только список и карточка объявления; всё остальное — после входа. */
+const PUBLIC_GET = new Set(["/", "/:id"]);
+
 export async function listingRoutes(app: FastifyInstance) {
-  app.addHook("preHandler", requireAuth);
+  app.addHook("preHandler", async (request, reply) => {
+    const route = request.routeOptions.url ?? "";
+    const tail = route.replace(/^\/api\/listings/, "") || "/";
+    if (request.method === "GET" && PUBLIC_GET.has(tail) && !request.headers.authorization) return;
+    await requireAuth(request, reply);
+  });
 
   // ── Фото объявления ──────────────────────────────────────────────────────
   // Отдельный эндпоинт: снимки объявления не должны появляться в профиле.
@@ -282,8 +290,8 @@ export async function listingRoutes(app: FastifyInstance) {
   });
 
   // ── Поиск ────────────────────────────────────────────────────────────────
-  app.get("/", async (request) => {
-    const userId = currentUserId(request);
+  app.get("/", { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } }, async (request) => {
+    const userId = request.userId ?? null;
     const filters = z
       .object({
         city: z.string().trim().min(2).max(120).optional(),
@@ -295,10 +303,9 @@ export async function listingRoutes(app: FastifyInstance) {
       .parse(request.query);
 
     // По умолчанию показываем свой город: «Я Онлайн» — про людей рядом.
-    const profile = await queryOne<{ city: string | null }>(
-      "SELECT city FROM profiles WHERE user_id = $1",
-      [userId],
-    );
+    const profile = userId
+      ? await queryOne<{ city: string | null }>("SELECT city FROM profiles WHERE user_id = $1", [userId])
+      : null;
     // Пустой город в профиле (город ещё не указан) не должен приводить к пустой
     // выдаче: в этом случае показываем объявления всех городов.
     const city = filters.city ?? (profile?.city ? profile.city : null);
@@ -368,8 +375,8 @@ export async function listingRoutes(app: FastifyInstance) {
     return rows.map((row) => toListingDto(row, viewerId));
   });
 
-  app.get<{ Params: { id: string } }>("/:id", async (request) => {
-    const userId = currentUserId(request);
+  app.get<{ Params: { id: string } }>("/:id", { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } }, async (request) => {
+    const userId = request.userId ?? null;
     const { id } = idParam.parse(request.params);
     const row = await queryOne<ListingRow>(`${LISTING_SELECT} WHERE l.id = $2`, [userId, id]);
     if (!row) throw notFound("Объявление не найдено");
