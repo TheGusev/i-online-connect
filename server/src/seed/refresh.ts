@@ -33,12 +33,16 @@ type Log = { info: (message: string) => void; error: (message: string) => void }
 export async function refreshSeedContent(): Promise<SeedRefreshSummary> {
   // 1. Демо-объявления: свежие даты публикации и отодвинутый срок жизни.
   const listings = await query<{ id: string }>(
-    `UPDATE listings
-        SET created_at = now() - make_interval(hours => (random() * 40)::int),
-            expires_at = now() + interval '60 days'
-      WHERE is_seed = true
-        AND state = 'active'
-      RETURNING id`,
+    // Срок у каждого свой: сохраняем исходную длительность объявления
+    // (от 20 минут у «Срочно» до 14 дней), а не одинаковые 60 дней у всех.
+    `UPDATE listings l
+        SET created_at = x.fresh_created,
+            expires_at = now() + LEAST(interval '14 days',
+                           GREATEST(interval '20 minutes', (l.expires_at - l.created_at) * (0.4 + random() * 0.6)))
+       FROM (SELECT id, now() - make_interval(hours => (random() * 40)::int) AS fresh_created
+               FROM listings WHERE is_seed = true AND state = 'active') x
+      WHERE l.id = x.id
+      RETURNING l.id`,
   );
 
   // 2. Вариация примерно 12% демо-объявлений: другой район того же города
