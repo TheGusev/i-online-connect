@@ -78,6 +78,7 @@ function ListingGallery({ listing }: { listing: Listing }) {
 
 export function ListingSheet({ listingId, onClose }: { listingId?: string; onClose: () => void }) {
   const navigate = useNavigate();
+  const gate = useAuthGate();
   const { data: listing, isPending, isError } = useListing(listingId ?? "", Boolean(listingId));
   const respond = useRespondToListing(listingId ?? "");
   const drag = useRef<{ y: number; current: number } | null>(null);
@@ -114,7 +115,8 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
     if (shouldClose) onClose();
   };
 
-  const respondNow = () => {
+  const respondNow = () => gate.guard(respondAuthed);
+  const respondAuthed = () => {
     if (!listing) return;
     if (listing.respondedConversationId) {
       void navigate({ to: "/chat/$id", params: { id: listing.respondedConversationId } });

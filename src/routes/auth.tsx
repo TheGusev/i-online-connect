@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MessageCircle } from "lucide-react";
+import { PhoneAuthFlow } from "@/features/auth/phone/PhoneAuthFlow";
 
 import { Button, Card, Input } from "@/components/ds";
 import { useLogin } from "@/features/auth/hooks";
@@ -15,13 +16,13 @@ export const Route = createFileRoute("/auth")({
       {
         name: "description",
         content:
-          "Войдите в «Я Онлайн» по email и паролю, чтобы вернуться к своим совпадениям, чатам и пространствам.",
+          "Вход в «Я Онлайн» по номеру телефона: срочные дела, чаты и сообщества в одном месте.",
       },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "Вход в «Я Онлайн»" },
       {
         property: "og:description",
-        content: "Ваши совпадения, диалоги и сообщества — там, где вы их оставили.",
+        content: "Срочные дела — в одном чате. Вход по номеру телефона.",
       },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -35,6 +36,7 @@ function AuthPage() {
   const status = useSessionStore((state) => state.status);
   const login = useLogin();
 
+  const [mode, setMode] = useState<"welcome" | "phone" | "email">("welcome");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -62,15 +64,48 @@ function AuthPage() {
     );
   };
 
+  if (mode === "welcome") {
+    return (
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-16 text-foreground">
+        <div className="flex flex-1 flex-col items-center justify-center text-center">
+          <span className="grid size-24 place-items-center rounded-[2rem] bg-primary text-primary-foreground shadow-glow">
+            <MessageCircle className="size-12" aria-hidden="true" />
+          </span>
+          <h1 className="mt-6 text-4xl font-extrabold tracking-tight">Я онлайн</h1>
+          <p className="mt-2 text-lg text-muted-foreground">Срочные дела — в одном чате</p>
+        </div>
+        <Button className="h-12 w-full shadow-glow" onClick={() => setMode("phone")}>
+          Войти по номеру
+        </Button>
+        <button type="button" onClick={() => setMode("email")} className="mt-3 min-h-11 text-sm font-semibold text-muted-foreground">
+          Войти по почте
+        </button>
+        <Link to="/nearby" className="mt-8 grid min-h-11 place-items-center text-sm text-muted-foreground underline-offset-4 hover:underline">
+          Посмотреть объявления рядом
+        </Link>
+        <p className="mt-2 text-center text-[11px] leading-snug text-muted-foreground">
+          Продолжая, вы принимаете <Link to="/rules" className="underline">правила сообщества</Link> и{" "}
+          <Link to="/safety-center" className="underline">правила безопасности</Link>
+        </p>
+      </main>
+    );
+  }
+
+  if (mode === "phone") {
+    return (
+      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pt-10 text-foreground">
+        <PhoneAuthFlow onBack={() => setMode("welcome")} onDone={() => void navigate({ to: "/chat" })} />
+      </main>
+    );
+  }
+
   return (
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="border-b border-border">
         <div className="mx-auto flex w-full max-w-2xl items-center px-4 py-3 lg:px-6">
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/">
-              <ArrowLeft aria-hidden="true" />
-              {t("app.name")}
-            </Link>
+          <Button variant="ghost" size="sm" onClick={() => setMode("welcome")}>
+            <ArrowLeft aria-hidden="true" />
+            Назад
           </Button>
         </div>
       </header>
