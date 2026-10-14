@@ -3,14 +3,14 @@ import { MapPin, Plus, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import type { NeedCategory } from "@/api";
-import { Button, Card, Input, SpaceCardSkeleton } from "@/components/ds";
+import { Button, Card, SpaceCardSkeleton } from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
 import { Reveal } from "@/components/landing/Reveal";
 import { WaveHeading } from "@/components/landing/WaveHeading";
 import { CategoryChips } from "@/features/nearby/components/CategoryChips";
 import { ListingCard } from "@/features/nearby/components/ListingCard";
 import { ListingSheet } from "@/features/nearby/components/ListingSheet";
-import { categories } from "@/features/nearby/labels";
+import { visibleCategories as categories } from "@/features/nearby/labels";
 import { useListings } from "@/features/nearby/hooks";
 import { useSessionStore } from "@/store/useSessionStore";
 
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/nearby/")({
       {
         name: "description",
         content:
-          "Продажа, услуги, совместный досуг, попутчики и помощь по-соседски — от подтверждённых людей в вашем городе.",
+          "Срочные задачи, услуги, покупка и продажа, жильё и помощь — от подтверждённых людей в вашем городе.",
       },
       { property: "og:title", content: "Рядом: объявления и помощь в вашем городе — Я Онлайн" },
       {
@@ -62,18 +62,10 @@ function NearbyPage() {
 
   return (
     <AppShell wide public>
-      <header className="mb-6">
-        <p className="inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-ink">
-          <MapPin className="size-3.5" aria-hidden="true" />
-          Рядом
-        </p>
-        <WaveHeading as="h1" className="mt-3 text-3xl font-bold tracking-tight">
-          Быстрые решения рядом с домом
+      <header className="mb-4">
+        <WaveHeading as="h1" className="text-2xl font-bold tracking-tight">
+          Срочные объявления и услуги рядом
         </WaveHeading>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Продать или отдать вещь, найти мастера, компанию на вечер, попутчика или просто попросить
-          помощи по-соседски. Люди те же, что и в знакомствах, — с тем же уровнем доверия.
-        </p>
       </header>
 
       {!authed ? (
@@ -81,7 +73,7 @@ function NearbyPage() {
           <h2 className="text-lg font-bold">Войдите, чтобы видеть объявления в вашем городе</h2>
           <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
             «Рядом» показывает объявления людей из вашего города — поэтому нужен профиль с городом.
-            Регистрация занимает пару минут: диалог с AI-помощником вместо длинной анкеты.
+            Регистрация занимает пару минут.
           </p>
           <ul className="mt-5 grid gap-3 sm:grid-cols-2">
             {categories.map(({ id, label, hint, icon: Icon }) => (
@@ -105,31 +97,34 @@ function NearbyPage() {
         </Card>
       ) : (
         <>
-          <div className="mb-6 space-y-4">
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
-              <Input
-                label="Город"
-                value={city}
-                onChange={(event) => {
-                  setCity(event.target.value);
-                  setLimit(PAGE);
-                }}
-                hint={data?.city ? `Сейчас показываем: ${data.city}` : "По умолчанию — из профиля"}
-              />
-              <Input
-                label="Поиск по объявлениям"
-                value={q}
-                onChange={(event) => {
-                  setQ(event.target.value);
-                  setLimit(PAGE);
-                }}
-              />
-              <Button asChild className="sm:mt-1">
-                <Link to="/nearby/new">
-                  <Plus aria-hidden="true" />
-                  Разместить
-                </Link>
-              </Button>
+          <div className="mb-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <label className="flex h-10 w-[7.5rem] shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 focus-within:border-primary">
+                <MapPin className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
+                <span className="sr-only">Город</span>
+                <input
+                  value={city}
+                  placeholder={data?.city ?? "Город"}
+                  onChange={(event) => {
+                    setCity(event.target.value);
+                    setLimit(PAGE);
+                  }}
+                  className="min-w-0 flex-1 bg-transparent text-xs font-semibold outline-none placeholder:text-foreground"
+                />
+              </label>
+              <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-card px-3 focus-within:border-primary">
+                <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="sr-only">Поиск по объявлениям</span>
+                <input
+                  value={q}
+                  placeholder="Поиск"
+                  onChange={(event) => {
+                    setQ(event.target.value);
+                    setLimit(PAGE);
+                  }}
+                  className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                />
+              </label>
             </div>
 
             <CategoryChips
@@ -139,6 +134,13 @@ function NearbyPage() {
                 setLimit(PAGE);
               }}
             />
+
+            <Button asChild size="sm" variant="secondary">
+              <Link to="/nearby/new">
+                <Plus aria-hidden="true" />
+                Разместить
+              </Link>
+            </Button>
           </div>
 
           {isError ? (

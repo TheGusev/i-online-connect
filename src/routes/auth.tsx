@@ -41,7 +41,7 @@ function AuthPage() {
 
   if (status === "loading") return <SessionLoading />;
   if (status === "offline") return <SessionOffline />;
-  if (status === "authed") return <Navigate to="/feed" replace />;
+  if (status === "authed") return <Navigate to="/chat" replace />;
 
   const submit = () => {
     const value = email.trim();
@@ -53,7 +53,7 @@ function AuthPage() {
     login.mutate(
       { email: value, password },
       {
-        onSuccess: () => void navigate({ to: "/feed" }),
+        onSuccess: () => void navigate({ to: "/chat" }),
         onError: (cause) => {
           console.error("[auth] вход не удался:", cause);
           setError(cause instanceof Error ? cause.message : t("auth.error"));

@@ -1,4 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
+
+import { SHOW_FEED } from "@/config/features";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -13,6 +15,9 @@ import { RefreshCountdown } from "@/features/matching/components/RefreshCountdow
 import { useCandidateReaction, useDailyFeed } from "@/features/matching/hooks";
 
 export const Route = createFileRoute("/feed")({
+  beforeLoad: () => {
+    if (!SHOW_FEED) throw redirect({ to: "/chat", replace: true });
+  },
   head: () => ({
     meta: [
       { title: "Твои совпадения на сегодня — Я Онлайн" },

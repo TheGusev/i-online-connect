@@ -353,7 +353,7 @@ function OnboardingPage() {
                         size="lg"
                         onClick={() => {
                           reset();
-                          void navigate({ to: "/feed" });
+                          void navigate({ to: "/chat" });
                         }}
                       >
                         {t("onboarding.s9.confirm")}
