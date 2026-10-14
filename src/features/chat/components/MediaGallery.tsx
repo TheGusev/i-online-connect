@@ -215,7 +215,7 @@ export function MediaGallery({
   );
 }
 
-function GalleryViewer({
+export function GalleryViewer({
   items,
   index,
   onIndex,
@@ -226,11 +226,12 @@ function GalleryViewer({
   index: number;
   onIndex: (index: number) => void;
   onClose: () => void;
-  onShowInChat: (item: GalleryItem) => void;
+  onShowInChat?: ((item: GalleryItem) => void) | undefined;
 }) {
   const item = items[index];
   if (!item) return null;
-  return <GalleryViewerReady items={items} index={index} item={item} onIndex={onIndex} onClose={onClose} onShowInChat={onShowInChat} />;
+  if (typeof document === "undefined") return null;
+  return createPortal(<GalleryViewerReady items={items} index={index} item={item} onIndex={onIndex} onClose={onClose} onShowInChat={onShowInChat} />, document.body);
 }
 
 function GalleryViewerReady({
@@ -246,7 +247,7 @@ function GalleryViewerReady({
   item: GalleryItem;
   onIndex: (index: number) => void;
   onClose: () => void;
-  onShowInChat: (item: GalleryItem) => void;
+  onShowInChat?: ((item: GalleryItem) => void) | undefined;
 }) {
   const [zoomed, setZoomed] = useState(false);
   const [viewportRef, embla] = useEmblaCarousel({
@@ -370,7 +371,7 @@ function GalleryViewerReady({
           </Button>
         ) : null}
       </div>
-      <div className="flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2" style={{ opacity: 1 - progress }}>
+      {onShowInChat ? <div className="flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2" style={{ opacity: 1 - progress }}>
         <Button
           type="button"
           variant="secondary"
@@ -379,7 +380,7 @@ function GalleryViewerReady({
         >
           Показать в чате
         </Button>
-      </div>
+      </div> : null}
     </div>
   );
 }
