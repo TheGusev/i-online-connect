@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { ProfileMedia } from "@/api";
 import { mediaUrl } from "@/api";
-import { MediaImage, TrustBadge, type TrustLevel } from "@/components/ds";
+import { Button, MediaImage, TrustBadge, type TrustLevel } from "@/components/ds";
 import { cn } from "@/lib/utils";
 
 import { MediaViewer } from "./MediaViewer";
@@ -29,10 +29,12 @@ export function ProfileHero({
   uploadHint,
   progress,
   busy,
+  ownerPresentation = false,
+  verified = false,
 }: {
   media: ProfileMedia[];
   name: string;
-  age: number;
+  age: number | null;
   city: string;
   trustLevel: TrustLevel;
   /** Передан — шапка своя: появляется «+» и управление кадром. */
@@ -43,6 +45,9 @@ export function ProfileHero({
   uploadHint?: string;
   progress?: number | null;
   busy?: boolean;
+  /** Isolated owner layout: public profile presentation stays unchanged. */
+  ownerPresentation?: boolean;
+  verified?: boolean;
 }) {
   const [index, setIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -121,20 +126,29 @@ export function ProfileHero({
           ) : (
             <span />
           )}
-          <span className="rounded-full bg-card/95 shadow-soft backdrop-blur">
-            <TrustBadge level={trustLevel} size="sm" />
-          </span>
+          {ownerPresentation ? (
+            verified ? <span className="rounded-full bg-card/95 shadow-soft backdrop-blur"><TrustBadge level="confirmed" size="sm" /></span> : null
+          ) : (
+            <span className="rounded-full bg-card/95 shadow-soft backdrop-blur">
+              <TrustBadge level={trustLevel} size="sm" />
+            </span>
+          )}
         </div>
 
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-foreground/85 via-foreground/30 to-transparent p-4 pt-10">
-          <h1 className="truncate text-2xl font-bold text-primary-foreground sm:text-3xl">
+        <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 p-4 pt-10", ownerPresentation ? "bg-gradient-to-t from-background/95 via-background/60 to-transparent" : "bg-gradient-to-t from-foreground/85 via-foreground/30 to-transparent")}>
+          <div className="flex min-w-0 items-center gap-1.5">
+          <h1 className={cn("min-w-0 break-words text-2xl font-bold sm:text-3xl", ownerPresentation ? "text-foreground" : "truncate text-primary-foreground")}>
             {name}
-            {age ? `, ${age}` : ""}
+            {age !== null && Number.isFinite(age) && age > 0 ? `, ${age}` : ""}
           </h1>
+          {ownerPresentation ? <TrustBadge level={trustLevel} size="sm" iconOnly className="shrink-0" /> : null}
+          </div>
           <div className="mt-1 flex items-end justify-between gap-3">
-            <p className="inline-flex min-w-0 items-center gap-1.5 text-xs text-primary-foreground/85">
+            <p className={cn("inline-flex min-w-0 items-center gap-1.5 text-xs", ownerPresentation ? "text-foreground/85" : "text-primary-foreground/85")}>
+              {city ? <>
               <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
               <span className="truncate">{city}</span>
+              </> : null}
             </p>
             {total > 1 ? (
               <span className="pointer-events-auto flex shrink-0 items-center gap-1.5">
@@ -149,7 +163,7 @@ export function ProfileHero({
                       "h-1.5 rounded-full transition-all",
                       position === safeIndex
                         ? "w-5 bg-primary"
-                        : "w-1.5 bg-primary-foreground/60",
+                        : ownerPresentation ? "w-1.5 bg-foreground/60" : "w-1.5 bg-primary-foreground/60",
                     )}
                   />
                 ))}
@@ -200,16 +214,18 @@ export function ProfileHero({
             ) : null}
 
             {current && onDelete ? (
-              <button
+              <Button
+                variant="secondary"
+                size="icon"
                 type="button"
                 disabled={busy}
                 onClick={() => onDelete(current.id)}
                 title="Удалить кадр"
                 aria-label="Удалить кадр"
-                className={cn(iconButton, "text-destructive")}
+                className={cn(iconButton, ownerPresentation ? "text-primary" : "text-destructive")}
               >
                 <Trash2 className="size-4" aria-hidden="true" />
-              </button>
+              </Button>
             ) : null}
           </div>
         ) : null}
