@@ -1,17 +1,18 @@
-import { describe, expect, it } from "vitest";
+import assert from "node:assert/strict";
+import { describe, test } from "node:test";
 
 import { formatNational, nationalDigits, normalizeRuPhone } from "./phone";
 
 describe("phone normalization", () => {
-  it("accepts 8-, +7- and bare formats", () => {
-    expect(normalizeRuPhone("8 (999) 123-45-67")).toBe("+79991234567");
-    expect(normalizeRuPhone("+7 999 123 45 67")).toBe("+79991234567");
-    expect(normalizeRuPhone("9991234567")).toBe("+79991234567");
+  test("accepts 8-, +7- and bare formats", () => {
+    assert.equal(normalizeRuPhone("8 (999) 123-45-67"), "+79991234567");
+    assert.equal(normalizeRuPhone("+7 999 123 45 67"), "+79991234567");
+    assert.equal(normalizeRuPhone("9991234567"), "+79991234567");
   });
-  it("rejects incomplete numbers", () => {
-    expect(normalizeRuPhone("999123")).toBeNull();
+  test("rejects incomplete numbers", () => {
+    assert.equal(normalizeRuPhone("999123"), null);
   });
-  it("pasted number is masked", () => {
-    expect(formatNational(nationalDigits("+7 (999) 123-45-67"))).toBe("999 123-45-67");
+  test("pasted number is masked", () => {
+    assert.equal(formatNational(nationalDigits("+7 (999) 123-45-67")), "999 123-45-67");
   });
 });
