@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ArrowLeft, BadgeCheck, Crown, Lock } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -23,6 +23,8 @@ import {
   useCreateSpaceEvent,
   useDeclineSpaceInvite,
   useDeleteSpace,
+  useDeleteSpaceMessage,
+  useEditSpaceMessage,
   useInviteCandidates,
   useInviteToSpace,
   useJoinSpace,
@@ -34,6 +36,7 @@ import {
   useSpace,
   useSpaceMessages,
   useUpdateSpacePrivacy,
+  useUpdateSpaceCover,
 } from "@/features/spaces/hooks";
 import { useVerificationStatus } from "@/features/trust/hooks";
 
@@ -67,6 +70,10 @@ function SpaceDetailPage() {
   const sendMessage = useSendSpaceMessage(id);
   const sendVoice = useSendSpaceVoiceMessage(id);
   const sendMedia = useSendSpaceMediaMessage(id);
+  const editMessage = useEditSpaceMessage(id);
+  const deleteMessage = useDeleteSpaceMessage(id);
+  const updateCover = useUpdateSpaceCover(id);
+  const coverInput = useRef<HTMLInputElement | null>(null);
   // Фото и видео в общий чат — только подтверждённым участникам.
   const verification = useVerificationStatus();
   const canSendMedia = verification.data?.status === "verified";
@@ -155,6 +162,8 @@ function SpaceDetailPage() {
             onInvite={() => setInviteOpen(true)}
             onShare={() => setQrOpen(true)}
             onCreateEvent={() => setEventOpen(true)}
+            onChangeCover={() => coverInput.current?.click()}
+            updatingCover={updateCover.isPending}
             onPrivacyChange={(value) => updatePrivacy.mutate(value, {
               onSuccess: () => toast.success(value ? "Сообщество стало закрытым" : "Сообщество стало открытым"),
               onError: (error) => toast.error(messageOf(error, "Не удалось изменить приватность")),
@@ -171,6 +180,15 @@ function SpaceDetailPage() {
             openEvents={Boolean(eventId)}
           />
         </header>
+        {space.isHost ? <input ref={coverInput} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (!file) return;
+          updateCover.mutate(file, {
+            onSuccess: () => toast.success("Фото сообщества обновлено"),
+            onError: (error) => toast.error(messageOf(error, "Не удалось изменить фото")),
+          });
+        }} /> : null}
         <MediaGallery scope="space" id={id} open={galleryOpen} onClose={() => setGalleryOpen(false)} />
 
         <LiveBanner room={room} onEnter={() => setLiveOpen(true)} />
@@ -194,18 +212,24 @@ function SpaceDetailPage() {
             fill
             messages={messages ?? []}
             canWrite={space.isMember}
+            isHost={space.isHost ?? false}
+            onEdit={(messageId, text) => editMessage.mutateAsync({ messageId, text }).then(() => undefined).catch((error) => {
+              toast.error(messageOf(error, "Не удалось изменить сообщение"));
+              throw error;
+            })}
+            onDelete={(messageId) => deleteMessage.mutate(messageId, { onError: (error) => toast.error(messageOf(error, "Не удалось удалить сообщение")) })}
             sending={sendMessage.isPending}
             voiceSending={sendVoice.isPending}
             mediaSending={sendMedia.isPending}
             {...(canSendMedia
               ? {
-                  onMedia: (media) =>
-                    sendMedia.mutate({ media, clientTempId: crypto.randomUUID() }),
+                  onMedia: (media, replyToId) =>
+                    sendMedia.mutate({ media, clientTempId: crypto.randomUUID(), ...(replyToId ? { replyToId } : {}) }),
                 }
               : {})}
             error={chatError}
-            onSend={(text) => sendMessage.mutateAsync(text).then(() => undefined)}
-            onVoice={(recording) => sendVoice.mutate({ recording, clientTempId: crypto.randomUUID() })}
+            onSend={(text, replyToId) => sendMessage.mutateAsync({ text, ...(replyToId ? { replyToId } : {}) }).then(() => undefined)}
+            onVoice={(recording, replyToId) => sendVoice.mutate({ recording, clientTempId: crypto.randomUUID(), ...(replyToId ? { replyToId } : {}) })}
           />
         </section>
       </div>

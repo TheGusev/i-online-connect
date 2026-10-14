@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, CalendarPlus, ChevronDown, Images, Info, Lock, LogOut, MoreHorizontal, Radio, Trash2, Unlock, UserPlus, UsersRound, QrCode } from "lucide-react";
+import { CalendarDays, CalendarPlus, ChevronDown, ImagePlus, Images, Info, Lock, LogOut, MoreHorizontal, Radio, Trash2, Unlock, UserPlus, UsersRound, QrCode } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { mediaUrl } from "@/api";
@@ -36,6 +36,8 @@ export function SpaceMenu({
   onShare,
   onCreateEvent,
   onPrivacyChange,
+  onChangeCover,
+  updatingCover,
   onDelete,
   onLeave,
   updatingPrivacy,
@@ -55,6 +57,8 @@ export function SpaceMenu({
   onShare: () => void;
   onCreateEvent: () => void;
   onPrivacyChange: (isPrivate: boolean) => void;
+  onChangeCover: () => void;
+  updatingCover: boolean;
   onDelete: () => void;
   onLeave: () => void;
   updatingPrivacy: boolean;
@@ -121,6 +125,7 @@ export function SpaceMenu({
 
           {space.isHost ? (
             <>
+              <Button variant="secondary" fullWidth loading={updatingCover} onClick={run(onChangeCover)}><ImagePlus aria-hidden="true" />Изменить фото</Button>
               <Button variant="secondary" fullWidth onClick={run(onInvite)}><UserPlus aria-hidden="true" />Пригласить человека</Button>
               <Button variant="secondary" fullWidth onClick={run(onCreateEvent)}><CalendarPlus aria-hidden="true" />Создать встречу</Button>
               <Button variant="secondary" fullWidth loading={updatingPrivacy} onClick={() => onPrivacyChange(!space.isPrivate)}>
