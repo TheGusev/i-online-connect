@@ -813,14 +813,16 @@ export async function spaceRoutes(app: FastifyInstance) {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
     await assertSpaceMembership(userId, id);
-    const parts = request.parts({ limits: { fileSize: MAX_VOICE_BYTES, files: 1, fields: 4 } });
+    const parts = request.parts({ limits: { fileSize: MAX_VOICE_BYTES, files: 1, fields: 5 } });
     let buffer: Buffer | null = null;
     let clientTempId = "";
     let live = false;
+    let replyToValue = "";
     let durationValue = "";
     for await (const part of parts) {
       if (part.type === "file") buffer = await part.toBuffer();
       else if (part.fieldname === "clientTempId") clientTempId = String(part.value);
+      else if (part.fieldname === "replyToId") replyToValue = String(part.value);
       else if (part.fieldname === "durationMs") durationValue = String(part.value);
       else if (part.fieldname === "live") live = String(part.value) === "1";
     }
@@ -832,6 +834,7 @@ export async function spaceRoutes(app: FastifyInstance) {
     if (!buffer || buffer.length < 512) throw badRequest("Запись пустая");
     const audioType = detectAudioType(buffer);
     if (!audioType) throw badRequest("Поддерживаются голосовые WebM/Opus и MP4/AAC");
+    const replyTarget = await assertSpaceReplyTarget(id, replyToValue ? z.string().uuid().parse(replyToValue) : undefined);
     const existing = await queryOne<SpaceMessageRow>(
       `SELECT m.id, m.space_id, m.author_id, p.name AS author_name, m.text, m.kind,
                m.client_temp_id, m.media_url, m.media_mime, m.duration_ms, m.created_at,
@@ -840,7 +843,10 @@ export async function spaceRoutes(app: FastifyInstance) {
         WHERE m.space_id = $1 AND m.author_id = $2 AND m.client_temp_id = $3`,
       [id, userId, clientTempId],
     );
-    if (existing) return toSpaceMessageDto(existing);
+    if (existing) {
+      const replies = await loadSpaceReplies(existing.reply_to_id ? [existing.reply_to_id] : []);
+      return toSpaceMessageDto(existing, existing.reply_to_id ? replies.get(existing.reply_to_id) : undefined);
+    }
 
     const saved = await saveVoiceFile(userId, buffer, audioType);
     let playable = saved;
@@ -858,17 +864,17 @@ export async function spaceRoutes(app: FastifyInstance) {
         playableMime = "audio/mp4";
         await unlink(saved.filePath).catch(() => undefined);
       }
-      const row = await queryOne<{ id: string; created_at: Date; author_name: string }>(
+      const row = await queryOne<SpaceMessageRow>(
          `WITH inserted AS (
            INSERT INTO space_messages
-             (space_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms)
-           VALUES ($1, $2, 'Голосовое сообщение', 'voice', $3, $4, $5, $6)
+             (space_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms, reply_to_id)
+           VALUES ($1, $2, 'Голосовое сообщение', 'voice', $3, $4, $5, $6, $7)
             RETURNING id, space_id, author_id, text, kind, client_temp_id, media_url, media_mime,
                       duration_ms, created_at, edited_at, deleted_at, reply_to_id
          )
           SELECT inserted.*, p.name AS author_name
            FROM inserted JOIN profiles p ON p.user_id = inserted.author_id`,
-        [id, userId, clientTempId || randomUUID(), playable.url, playableMime, measured],
+        [id, userId, clientTempId || randomUUID(), playable.url, playableMime, measured, replyTarget],
       );
       if (!row) throw badRequest("Не удалось сохранить голосовое");
       if (live && isLiveActive(id)) {
@@ -877,7 +883,8 @@ export async function spaceRoutes(app: FastifyInstance) {
           durationMs: measured, createdAt: row.created_at.toISOString(), clientTempId,
         });
       }
-      return toSpaceMessageDto(row);
+      const replies = await loadSpaceReplies(replyTarget ? [replyTarget] : []);
+      return toSpaceMessageDto(row, replyTarget ? replies.get(replyTarget) : undefined);
     } catch (error) {
       await unlink(saved.filePath).catch(() => undefined);
       if (playable.filePath !== saved.filePath) await unlink(playable.filePath).catch(() => undefined);
@@ -896,13 +903,15 @@ export async function spaceRoutes(app: FastifyInstance) {
     await assertVerified(userId);
 
     const parts = request.parts({
-      limits: { fileSize: MAX_CHAT_VIDEO_BYTES, files: 1, fields: 2 },
+      limits: { fileSize: MAX_CHAT_VIDEO_BYTES, files: 1, fields: 3 },
     });
     let buffer: Buffer | null = null;
     let clientTempId = "";
+    let replyToValue = "";
     for await (const part of parts) {
       if (part.type === "file") buffer = await part.toBuffer();
       else if (part.fieldname === "clientTempId") clientTempId = String(part.value);
+      else if (part.fieldname === "replyToId") replyToValue = String(part.value);
     }
     if (!z.string().uuid().safeParse(clientTempId).success) {
       throw badRequest("Вложение отклонено: поле clientTempId должно быть UUID");
@@ -914,6 +923,7 @@ export async function spaceRoutes(app: FastifyInstance) {
     }
     assertChatMediaSize(type, buffer.length);
 
+    const replyTarget = await assertSpaceReplyTarget(id, replyToValue ? z.string().uuid().parse(replyToValue) : undefined);
     const existing = await queryOne<SpaceMessageRow>(
       `SELECT m.id, m.space_id, m.author_id, p.name AS author_name, m.text, m.kind,
                m.client_temp_id, m.media_url, m.media_mime, m.duration_ms, m.created_at,
@@ -922,7 +932,10 @@ export async function spaceRoutes(app: FastifyInstance) {
         WHERE m.space_id = $1 AND m.author_id = $2 AND m.client_temp_id = $3`,
       [id, userId, clientTempId],
     );
-    if (existing) return toSpaceMessageDto(existing);
+    if (existing) {
+      const replies = await loadSpaceReplies(existing.reply_to_id ? [existing.reply_to_id] : []);
+      return toSpaceMessageDto(existing, existing.reply_to_id ? replies.get(existing.reply_to_id) : undefined);
+    }
 
     const saved = await saveChatMediaFile(userId, buffer, type);
     try {
@@ -939,8 +952,8 @@ export async function spaceRoutes(app: FastifyInstance) {
       const row = await queryOne<SpaceMessageRow>(
         `WITH inserted AS (
            INSERT INTO space_messages
-             (space_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             (space_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms, reply_to_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id, space_id, author_id, text, kind, client_temp_id,
                       media_url, media_mime, duration_ms, created_at, edited_at, deleted_at, reply_to_id
          )
@@ -955,10 +968,12 @@ export async function spaceRoutes(app: FastifyInstance) {
           saved.url,
           type.mime,
           durationMs,
+          replyTarget,
         ],
       );
       if (!row) throw badRequest("Не удалось сохранить вложение");
-      return toSpaceMessageDto(row);
+      const replies = await loadSpaceReplies(replyTarget ? [replyTarget] : []);
+      return toSpaceMessageDto(row, replyTarget ? replies.get(replyTarget) : undefined);
     } catch (error) {
       await unlink(saved.filePath).catch(() => undefined);
       throw error;

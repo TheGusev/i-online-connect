@@ -4,13 +4,13 @@
  * Фото открывается на весь экран по нажатию, видео проигрывается на месте —
  * так переписку не нужно покидать ради вложения.
  */
-import { Play, X } from "lucide-react";
+import { Play } from "lucide-react";
 import { useState } from "react";
 
 import { mediaUrl } from "@/api";
 import { Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
-import { ZoomablePhoto } from "./ZoomablePhoto";
+import { GalleryViewer } from "./MediaGallery";
 
 function durationLabel(ms: number) {
   const total = Math.round(ms / 1000);
@@ -22,11 +22,13 @@ export function MediaAttachment({
   src,
   durationMs,
   className,
+  message,
 }: {
   kind: "image" | "video";
   src: string;
   durationMs?: number | undefined;
   className?: string;
+  message?: import("@/api").GalleryItem;
 }) {
   const [lightbox, setLightbox] = useState(false);
   const [playing, setPlaying] = useState(false);
@@ -37,7 +39,7 @@ export function MediaAttachment({
     return (
       <div
         className={cn(
-          "relative overflow-hidden rounded-2xl border border-primary/25 bg-black/40",
+          "relative overflow-hidden rounded-2xl border border-primary/25 bg-background/40",
           className,
         )}
       >
@@ -76,7 +78,9 @@ export function MediaAttachment({
 
   return (
     <>
-      <button
+      <Button
+        variant="ghost"
+        data-message-photo
         type="button"
         onClick={(event) => {
           event.stopPropagation();
@@ -84,7 +88,7 @@ export function MediaAttachment({
         }}
         aria-label="Открыть фото"
         className={cn(
-          "block overflow-hidden rounded-2xl border border-primary/25",
+          "block h-auto overflow-hidden rounded-2xl border border-primary/25 p-0",
           "[-webkit-touch-callout:none]",
           className,
         )}
@@ -95,28 +99,14 @@ export function MediaAttachment({
           loading="lazy"
           className="max-h-72 w-full max-w-full object-cover"
         />
-      </button>
+      </Button>
       {lightbox ? (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Просмотр фото"
-          className="fixed inset-0 z-[70] grid place-items-center bg-background/95 p-4 backdrop-blur"
-        >
-          <div className="size-full overflow-hidden rounded-2xl" data-no-gesture>
-            <ZoomablePhoto src={url} className="rounded-2xl" />
-          </div>
-          <Button
-            type="button"
-            size="icon"
-            variant="secondary"
-            aria-label="Закрыть"
-            onClick={() => setLightbox(false)}
-            className="absolute right-4 top-[calc(env(safe-area-inset-top)+1rem)] border-primary/40 text-primary"
-          >
-            <X className="size-5" aria-hidden="true" />
-          </Button>
-        </div>
+        <GalleryViewer
+          items={[message ?? { id: "attachment", kind: "image", mediaUrl: url, authorId: "", authorName: "", createdAt: new Date().toISOString() }]}
+          index={0}
+          onIndex={() => undefined}
+          onClose={() => setLightbox(false)}
+        />
       ) : null}
     </>
   );

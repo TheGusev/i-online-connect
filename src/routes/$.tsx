@@ -30,6 +30,10 @@ export const Route = createFileRoute("/$")({
     meta: [
       { title: "Страница не найдена — «Я Онлайн»" },
       { name: "description", content: "Такой страницы нет. Вернитесь на главную «Я Онлайн»." },
+      { property: "og:title", content: "Страница не найдена — Я Онлайн" },
+      { property: "og:description", content: "Такой страницы нет. Вернитесь на главную «Я Онлайн»." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       // Служебные и несуществующие адреса не должны попадать в поиск.
       { name: "robots", content: "noindex, nofollow" },
     ],

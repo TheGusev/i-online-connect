@@ -215,7 +215,7 @@ export function MediaGallery({
   );
 }
 
-function GalleryViewer({
+export function GalleryViewer({
   items,
   index,
   onIndex,
@@ -226,11 +226,12 @@ function GalleryViewer({
   index: number;
   onIndex: (index: number) => void;
   onClose: () => void;
-  onShowInChat: (item: GalleryItem) => void;
+  onShowInChat?: ((item: GalleryItem) => void) | undefined;
 }) {
   const item = items[index];
   if (!item) return null;
-  return <GalleryViewerReady items={items} index={index} item={item} onIndex={onIndex} onClose={onClose} onShowInChat={onShowInChat} />;
+  if (typeof document === "undefined") return null;
+  return createPortal(<GalleryViewerReady items={items} index={index} item={item} onIndex={onIndex} onClose={onClose} onShowInChat={onShowInChat} />, document.body);
 }
 
 function GalleryViewerReady({
@@ -246,15 +247,17 @@ function GalleryViewerReady({
   item: GalleryItem;
   onIndex: (index: number) => void;
   onClose: () => void;
-  onShowInChat: (item: GalleryItem) => void;
+  onShowInChat?: ((item: GalleryItem) => void) | undefined;
 }) {
   const [zoomed, setZoomed] = useState(false);
+  const initialIndex = useRef(index);
+  const zoomRef = useRef(false);
   const [viewportRef, embla] = useEmblaCarousel({
-    startIndex: index,
+    startIndex: initialIndex.current,
     loop: false,
-    duration: 24,
+    duration: 16,
     skipSnaps: false,
-    watchDrag: !zoomed,
+    watchDrag: (_api, event) => !zoomRef.current && (!(event instanceof TouchEvent) || event.touches.length === 1),
   });
   const drag = useRef<{ x: number; y: number; axis: "x" | "y" | null } | null>(null);
   const [pull, setPull] = useState(0);
@@ -273,10 +276,15 @@ function GalleryViewerReady({
       if (selected !== index) onIndex(selected);
       setZoomed(false);
     };
-    embla.on("select", select);
-    embla.scrollTo(index, true);
-    return () => { embla.off("select", select); };
+    embla.on("settle", select);
+    return () => { embla.off("settle", select); };
   }, [embla, index, onIndex]);
+
+  useEffect(() => {
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = previous; };
+  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -292,7 +300,10 @@ function GalleryViewerReady({
 
   return (
     <div
-      className="fixed inset-0 z-[95] flex flex-col"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Просмотр вложения"
+      className="fixed inset-0 z-[95] flex select-none flex-col overflow-hidden"
       style={{ backgroundColor: `color-mix(in oklab, var(--background) ${Math.round((1 - progress * 0.7) * 100)}%, transparent)` }}
     >
       <header className="flex items-center gap-3 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.75rem)]" style={{ opacity: 1 - progress }}>
@@ -312,12 +323,12 @@ function GalleryViewerReady({
             transform: pull ? `translateY(${pull}px) scale(${1 - progress * 0.25})` : undefined,
             transition: pull ? undefined : "transform 260ms cubic-bezier(.22,1,.36,1)",
           }}
-          onTouchStart={(event) => {
-            if (zoomed || event.touches.length !== 1) return;
+          onTouchStartCapture={(event) => {
+            if (zoomed || event.touches.length !== 1) { drag.current = null; setPull(0); return; }
             const t = event.touches[0];
             drag.current = t ? { x: t.clientX, y: t.clientY, axis: null } : null;
           }}
-          onTouchMove={(event) => {
+          onTouchMoveCapture={(event) => {
             if (zoomed || event.touches.length !== 1) return;
             const d = drag.current;
             const t = event.touches[0];
@@ -327,11 +338,12 @@ function GalleryViewerReady({
             if (!d.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 8) d.axis = dy > Math.abs(dx) ? "y" : "x";
             if (d.axis === "y") setPull(Math.max(0, dy));
           }}
-          onTouchEnd={() => {
+          onTouchEndCapture={() => {
             const closing = drag.current?.axis === "y" && pull > 120;
             drag.current = null;
             if (closing) onClose(); else setPull(0);
           }}
+          onTouchCancel={() => { drag.current = null; setPull(0); }}
         >
           <div className="flex size-full touch-pan-y">
           {items.map((slide, i) => {
@@ -350,7 +362,8 @@ function GalleryViewerReady({
                     <ZoomablePhoto
                       src={src}
                       className="gallery-img rounded-2xl"
-                      {...(i === index ? { onZoomChange: setZoomed } : {})}
+                      key={`${slide.id}-${i === index ? "active" : "adjacent"}`}
+                      {...(i === index ? { onZoomChange: (value: boolean) => { zoomRef.current = value; setZoomed(value); } } : {})}
                     />
                   </div>
                 )}
@@ -370,7 +383,7 @@ function GalleryViewerReady({
           </Button>
         ) : null}
       </div>
-      <div className="flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2" style={{ opacity: 1 - progress }}>
+      {onShowInChat ? <div className="flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2" style={{ opacity: 1 - progress }}>
         <Button
           type="button"
           variant="secondary"
@@ -379,7 +392,7 @@ function GalleryViewerReady({
         >
           Показать в чате
         </Button>
-      </div>
+      </div> : null}
     </div>
   );
 }

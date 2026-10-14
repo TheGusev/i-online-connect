@@ -35,6 +35,8 @@ export const Route = createFileRoute("/design-system")({
           "Демо всех компонентов дизайн-системы «Я Онлайн»: кнопки, карточки, аватары, бейджи доверия, поля и скелетоны.",
       },
       { property: "og:title", content: "Дизайн-система — Я Онлайн" },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       {
         property: "og:description",
         content: "Тёплая и безопасная визуальная система подтверждённых знакомств.",

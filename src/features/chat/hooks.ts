@@ -235,6 +235,7 @@ export function useSendVoiceMessage(conversationId: string) {
       if (ctx?.previewUrl) URL.revokeObjectURL(ctx.previewUrl);
       cache.upsert({ ...message, status: message.status ?? "sent" }, ctx?.id);
       void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+      void queryClient.invalidateQueries({ queryKey: ["gallery", "conversation", conversationId] });
     },
     onError: (error, vars, ctx) => {
       if (!ctx) return;
@@ -354,6 +355,7 @@ export function useDeleteMessage(conversationId: string) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+      void queryClient.invalidateQueries({ queryKey: ["gallery", "conversation", conversationId] });
     },
     onError: (_error, vars) => {
       cache.upsert(vars.previous);
