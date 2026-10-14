@@ -56,6 +56,32 @@ export function useUpdateSpacePrivacy(id: string) {
   return useSpaceMutation<boolean>(id, (isPrivate) => spacesApi.updateSpacePrivacy(id, isPrivate));
 }
 
+export function useUpdateSpaceCover(id: string) {
+  return useSpaceMutation<File>(id, async (file) => {
+    const { url } = await spacesApi.uploadSpaceCover(file);
+    return spacesApi.updateSpaceCover(id, url);
+  });
+}
+
+export function useEditSpaceMessage(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: ({ messageId, text }: { messageId: string; text: string }) => spacesApi.editSpaceMessage(id, messageId, text),
+    onSuccess: () => client.invalidateQueries({ queryKey: spaceMessagesQueryKey(id) }),
+  });
+}
+
+export function useDeleteSpaceMessage(id: string) {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: string) => spacesApi.deleteSpaceMessage(id, messageId),
+    onSuccess: () => {
+      void client.invalidateQueries({ queryKey: spaceMessagesQueryKey(id) });
+      void client.invalidateQueries({ queryKey: ["gallery", "space", id] });
+    },
+  });
+}
+
 export function useDeleteSpace(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -114,13 +140,15 @@ export function useSpaceMessages(id: string, enabled = true) {
     queryKey: spaceMessagesQueryKey(id),
     queryFn: () => spacesApi.getSpaceMessages(id),
     enabled,
+    refetchInterval: enabled ? 5000 : false,
   });
 }
 
 export function useSendSpaceMessage(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (text: string) => spacesApi.sendSpaceMessage(id, text),
+    mutationFn: (draft: string | { text: string; replyToId?: string }) =>
+      spacesApi.sendSpaceMessage(id, typeof draft === "string" ? draft : draft.text, typeof draft === "string" ? undefined : draft.replyToId),
     onSuccess: (message) => {
       queryClient.setQueryData<SpaceMessage[]>(spaceMessagesQueryKey(id), (previous) => [
         ...(previous ?? []),
@@ -133,8 +161,8 @@ export function useSendSpaceMessage(id: string) {
 export function useSendSpaceVoiceMessage(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ recording, clientTempId }: { recording: VoiceRecording; clientTempId: string }) =>
-      spacesApi.sendSpaceVoiceMessage(id, recording.blob, recording.durationMs, clientTempId),
+    mutationFn: ({ recording, clientTempId, replyToId }: { recording: VoiceRecording; clientTempId: string; replyToId?: string }) =>
+      spacesApi.sendSpaceVoiceMessage(id, recording.blob, recording.durationMs, clientTempId, false, replyToId),
     onSuccess: (message) => {
       queryClient.setQueryData<SpaceMessage[]>(spaceMessagesQueryKey(id), (previous) => [
         ...(previous ?? []),
@@ -148,14 +176,15 @@ export function useSendSpaceVoiceMessage(id: string) {
 export function useSendSpaceMediaMessage(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ media, clientTempId }: { media: PreparedMedia; clientTempId: string }) =>
-      spacesApi.sendSpaceMediaMessage(id, media.file, clientTempId),
+    mutationFn: ({ media, clientTempId, replyToId }: { media: PreparedMedia; clientTempId: string; replyToId?: string }) =>
+      spacesApi.sendSpaceMediaMessage(id, media.file, clientTempId, undefined, replyToId),
     onSuccess: (message, vars) => {
       URL.revokeObjectURL(vars.media.previewUrl);
       queryClient.setQueryData<SpaceMessage[]>(spaceMessagesQueryKey(id), (previous) => [
         ...(previous ?? []),
         message,
       ]);
+      void queryClient.invalidateQueries({ queryKey: ["gallery", "space", id] });
     },
     onError: (_error, vars) => {
       URL.revokeObjectURL(vars.media.previewUrl);

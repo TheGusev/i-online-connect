@@ -51,6 +51,18 @@ export async function updateSpacePrivacy(id: string, isPrivate: boolean): Promis
   });
 }
 
+export async function updateSpaceCover(id: string, coverUrl: string): Promise<SpaceDetail> {
+  return request<SpaceDetail>(`/spaces/${id}/cover`, { method: "PATCH", body: { coverUrl } });
+}
+
+export async function editSpaceMessage(spaceId: string, messageId: string, text: string): Promise<SpaceMessage> {
+  return request<SpaceMessage>(`/spaces/${spaceId}/messages/${messageId}`, { method: "PATCH", body: { text } });
+}
+
+export async function deleteSpaceMessage(spaceId: string, messageId: string): Promise<void> {
+  await request(`/spaces/${spaceId}/messages/${messageId}`, { method: "DELETE" });
+}
+
 export async function deleteSpace(id: string): Promise<void> {
   await request<void>(`/spaces/${id}`, { method: "DELETE" });
 }
@@ -87,8 +99,8 @@ export async function getSpaceMessages(spaceId: string): Promise<SpaceMessage[]>
   return request<SpaceMessage[]>(`/spaces/${spaceId}/messages`);
 }
 
-export async function sendSpaceMessage(spaceId: string, text: string): Promise<SpaceMessage> {
-  return request<SpaceMessage>(`/spaces/${spaceId}/messages`, { method: "POST", body: { text } });
+export async function sendSpaceMessage(spaceId: string, text: string, replyToId?: string): Promise<SpaceMessage> {
+  return request<SpaceMessage>(`/spaces/${spaceId}/messages`, { method: "POST", body: { text, replyToId } });
 }
 
 export async function sendSpaceVoiceMessage(
@@ -97,11 +109,13 @@ export async function sendSpaceVoiceMessage(
   durationMs: number,
   clientTempId: string,
   live = false,
+  replyToId?: string,
 ): Promise<SpaceMessage> {
   const form = new FormData();
   form.append("durationMs", String(durationMs));
   form.append("clientTempId", clientTempId);
   if (live) form.append("live", "1");
+  if (replyToId) form.append("replyToId", replyToId);
   const baseMime = recording.type.split(";")[0];
   const fileName = baseMime === "audio/webm" ? "voice.webm" : "voice.m4a";
   form.append("file", recording, fileName);
@@ -117,9 +131,11 @@ export async function sendSpaceMediaMessage(
   file: File,
   clientTempId: string,
   onProgress?: (percent: number) => void,
+  replyToId?: string,
 ): Promise<SpaceMessage> {
   const form = new FormData();
   form.append("clientTempId", clientTempId);
+  if (replyToId) form.append("replyToId", replyToId);
   form.append("file", file, file.name || "attachment");
   return upload<SpaceMessage>(`/spaces/${spaceId}/media`, form, {
     ...(onProgress ? { onProgress } : {}),

@@ -165,6 +165,14 @@ export function MessageBubble({
                 src={message.mediaUrl}
                 durationMs={message.durationMs}
                 className="w-[min(18rem,70vw)]"
+                message={{
+                  id: message.id,
+                  kind: message.kind === "video" ? "video" : "image",
+                  mediaUrl: message.mediaUrl,
+                  createdAt: message.createdAt,
+                  authorId: message.authorId,
+                  authorName: mine ? "Вы" : (participantName ?? "Собеседник"),
+                }}
               />
             ) : (
               <p className="whitespace-pre-wrap break-words">
