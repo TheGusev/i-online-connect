@@ -22,3 +22,4 @@
 - Phone sign-in issues SMS codes via a swappable SmsProvider and stores only HMAC hashes in auth_otps; resend/hourly/IP/daily limits are counted from that table so they work without Redis and survive restarts.
 - Guests may only GET the listings list and detail; every other listings route still requires auth, and guest actions open the in-place phone sign-in sheet (useAuthGate) that resumes the action afterwards.
 - Nearby category filters use an explicit grid variant of the shared selector and a tested selection helper; listing creation keeps the row variant and required-selection behavior to isolate screen presentation changes.
+- ProfileHero isolates the owner's restored gallery through optional presentation props; public profiles keep their existing appearance, while profile editing uses a tested optional-age parser.

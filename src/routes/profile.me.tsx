@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { BellRing, Check, X } from "lucide-react";
+import { BellRing, Check, Pencil, Settings, Share2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -9,10 +9,10 @@ import { Reveal } from "@/components/landing/Reveal";
 import { AppShell } from "@/components/layout/AppShell";
 import { IntentCard, intentOptions } from "@/features/profile/components/IntentCard";
 import { PrivacySection } from "@/features/profile/components/PrivacySection";
-import { BusinessCard } from "@/features/profile/components/BusinessCard";
-import { CompleteCard, type CompletionStepId } from "@/features/profile/components/CompleteCard";
+import { ProfileHero } from "@/features/profile/components/ProfileHero";
+import { badgeLevel } from "@/features/chat/trust";
+import { parseProfileAge } from "@/features/profile/age";
 import { InviteQrSheet } from "@/components/InviteQrSheet";
-import { BottomSheet } from "@/components/ds";
 import { ProfilePanel } from "@/features/profile/components/ProfilePanel";
 import { TagEditor } from "@/features/profile/components/TagEditor";
 import { TrustBadgeExplained } from "@/features/profile/components/TrustBadgeExplained";
@@ -59,7 +59,6 @@ function MyProfilePage() {
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [interestsOpen, setInterestsOpen] = useState(false);
 
   const patch = (next: Partial<MyProfile>) => update.mutate(next);
   const patchPrivacy = (next: Partial<PrivacySettings>) => {
@@ -87,17 +86,10 @@ function MyProfilePage() {
     });
   };
 
-  const onStep = (id: CompletionStepId) => {
-    if (id === "verify") void navigate({ to: "/verification" });
-    else if (id === "interests") setInterestsOpen(true);
-    else if (id === "photo") document.querySelector<HTMLButtonElement>('[aria-label="Добавить фото"]')?.click();
-    else startEdit();
-  };
-
   const save = () => {
     if (!draft) return;
-    const age = draft.age.trim() ? Number.parseInt(draft.age, 10) : null;
-    if (age !== null && (!Number.isFinite(age) || age < 18 || age > 120)) {
+    const { age, valid } = parseProfileAge(draft.age);
+    if (!valid) {
       toast.error("Возраст указывается числом от 18 до 120");
       return;
     }
@@ -131,15 +123,22 @@ function MyProfilePage() {
       {data ? (
         <div className="pb-10">
           <Reveal delay={60} className="mt-4">
-            <BusinessCard
-              profile={data}
-              onEdit={startEdit}
-              onShare={() => setShareOpen(true)}
+            <ProfileHero
+              media={data.media}
+              name={draft ? draft.name : data.name}
+              age={draft ? parseProfileAge(draft.age).age : data.age}
+              city={draft ? draft.city : data.city}
+              trustLevel={badgeLevel(data.trustLevel)}
+              ownerPresentation
+              verified={data.verification === "verified"}
               onUpload={media.upload}
               onDelete={media.remove}
               uploadDisabled={media.full}
+              uploadHint={media.hint}
+              progress={media.progress}
               busy={media.busy}
             />
+            <p className="mt-2 px-1 text-xs text-muted-foreground">{media.hint}</p>
 
             {draft ? (
               <Card className="mt-3 space-y-3 p-4">
@@ -196,7 +195,20 @@ function MyProfilePage() {
                 </div>
               </Card>
             ) : (
-              <CompleteCard profile={data} onStep={onStep} />
+              <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
+                <Button variant="secondary" className="min-w-0 gap-1.5 px-2 text-xs sm:px-5 sm:text-sm" onClick={startEdit}>
+                  <Pencil aria-hidden="true" />
+                  <span className="min-w-0">Редактировать профиль</span>
+                </Button>
+                <Button variant="secondary" size="icon" aria-label="Поделиться" title="Поделиться" onClick={() => setShareOpen(true)}>
+                  <Share2 aria-hidden="true" />
+                </Button>
+                <Button variant="secondary" size="icon" asChild>
+                  <Link to="/settings" aria-label="Настройки" title="Настройки">
+                    <Settings aria-hidden="true" />
+                  </Link>
+                </Button>
+              </div>
             )}
           </Reveal>
 
@@ -295,18 +307,9 @@ function MyProfilePage() {
           <InviteQrSheet
             open={shareOpen}
             onClose={() => setShareOpen(false)}
-            title="Поделиться визиткой"
+            title="Поделиться профилем"
             url={typeof window !== "undefined" ? `${window.location.origin}/profile/${data.id}` : `/profile/${data.id}`}
           />
-          <BottomSheet open={interestsOpen} onClose={() => setInterestsOpen(false)} title="Анкета интересов">
-            <TagEditor
-              items={data.interests}
-              label="Новый интерес"
-              addLabel="Добавить"
-              saving={update.isPending}
-              onSave={(interests) => patch({ interests })}
-            />
-          </BottomSheet>
 
           <Reveal as="footer" className="mt-5">
             <Card className="p-4 text-sm leading-relaxed text-muted-foreground">
