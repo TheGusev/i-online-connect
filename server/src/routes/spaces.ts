@@ -864,7 +864,7 @@ export async function spaceRoutes(app: FastifyInstance) {
         playableMime = "audio/mp4";
         await unlink(saved.filePath).catch(() => undefined);
       }
-      const row = await queryOne<{ id: string; created_at: Date; author_name: string }>(
+      const row = await queryOne<SpaceMessageRow>(
          `WITH inserted AS (
            INSERT INTO space_messages
              (space_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms, reply_to_id)
