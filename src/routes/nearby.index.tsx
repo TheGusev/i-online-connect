@@ -3,7 +3,7 @@ import { MapPin, Plus, Search, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import type { NeedCategory } from "@/api";
-import { Button, SpaceCardSkeleton } from "@/components/ds";
+import { Button, Input, SpaceCardSkeleton } from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
 import { Reveal } from "@/components/landing/Reveal";
 import { WaveHeading } from "@/components/landing/WaveHeading";
@@ -12,6 +12,7 @@ import { ListingCard } from "@/features/nearby/components/ListingCard";
 import { ListingSheet } from "@/features/nearby/components/ListingSheet";
 import { useListings } from "@/features/nearby/hooks";
 import { useAuthGate } from "@/features/auth/phone/AuthSheet";
+import { initialCategory } from "@/features/nearby/category-selection";
 
 export const Route = createFileRoute("/nearby/")({
   validateSearch: (search: Record<string, unknown>): { listing?: string } =>
@@ -42,7 +43,7 @@ function NearbyPage() {
   const { listing } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [city, setCity] = useState("");
-  const [category, setCategory] = useState<NeedCategory | null>(null);
+  const [category, setCategory] = useState<NeedCategory | null>(initialCategory);
   const [q, setQ] = useState("");
   const [limit, setLimit] = useState(PAGE);
 
@@ -61,45 +62,49 @@ function NearbyPage() {
 
   return (
     <AppShell wide public>
-      <header className="mb-4">
-        <WaveHeading as="h1" className="text-2xl font-bold tracking-tight">
-          Срочные объявления и услуги рядом
+      <header className="mb-6">
+        <p className="inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-ink">
+          <MapPin className="size-3.5" aria-hidden="true" />
+          РЯДОМ
+        </p>
+        <WaveHeading as="h1" className="mt-3 text-3xl font-bold">
+          Быстрые решения рядом с домом
         </WaveHeading>
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+          Продать или отдать вещь, найти мастера, компанию на вечер, попутчика или просто попросить
+          помощи по-соседски. Люди те же, что и в знакомствах, — с тем же уровнем доверия.
+        </p>
       </header>
 
       {(
         <>
-          <div className="mb-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <label className="flex h-10 w-[7.5rem] shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 focus-within:border-primary">
-                <MapPin className="size-3.5 shrink-0 text-primary" aria-hidden="true" />
-                <span className="sr-only">Город</span>
-                <input
+          <div className="mb-6 space-y-4">
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
+                <Input
+                  label="Город"
                   value={city}
-                  placeholder={data?.city ?? "Город"}
                   onChange={(event) => {
                     setCity(event.target.value);
                     setLimit(PAGE);
                   }}
-                  className="min-w-0 flex-1 bg-transparent text-xs font-semibold outline-none placeholder:text-foreground"
+                  hint={`Сейчас показываем: ${data?.city || "все города"}`}
                 />
-              </label>
-              <label className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-card px-3 focus-within:border-primary">
-                <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                <span className="sr-only">Поиск по объявлениям</span>
-                <input
+                <Input
+                  label="Поиск по объявлениям"
                   value={q}
-                  placeholder="Поиск"
                   onChange={(event) => {
                     setQ(event.target.value);
                     setLimit(PAGE);
                   }}
-                  className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                 />
-              </label>
+              <Button className="sm:mt-1" onClick={() => gate.guard(() => void navigate({ to: "/nearby/new" }))}>
+                <Plus aria-hidden="true" />
+                Разместить
+              </Button>
             </div>
 
             <CategoryChips
+              layout="grid"
               value={category}
               onChange={(next) => {
                 setCategory(next);
@@ -107,10 +112,6 @@ function NearbyPage() {
               }}
             />
 
-            <Button size="sm" variant="secondary" onClick={() => gate.guard(() => void navigate({ to: "/nearby/new" }))}>
-              <Plus aria-hidden="true" />
-              Разместить
-            </Button>
           </div>
 
           {isError ? (

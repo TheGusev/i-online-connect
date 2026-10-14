@@ -3,4 +3,4 @@
  * включается обратно сменой флага.
  */
 export const SHOW_FEED = false;
-export const SHOW_DATING_CATEGORIES = false;
+export const SHOW_DATING_CATEGORIES = true;

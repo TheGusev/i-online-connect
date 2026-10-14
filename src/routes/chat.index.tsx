@@ -1,23 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Inbox, MessagesSquare } from "lucide-react";
 
-import { AppShell, PageHeader } from "@/components/layout/AppShell";
+import { AppShell } from "@/components/layout/AppShell";
 import { ListItemSkeleton } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { ConversationCard } from "@/features/chat/components/ConversationCard";
 import { useConversations } from "@/features/chat/hooks";
-import { UrgentStrip } from "@/features/nearby/components/UrgentStrip";
 
 export const Route = createFileRoute("/chat/")({
   head: () => ({
     meta: [
-      { title: "Чаты — Я Онлайн" },
+      { title: "Диалоги — Я Онлайн" },
       {
         name: "description",
         content:
           "Спокойный список диалогов: сначала люди, которым вы ещё не ответили, затем активные переписки.",
       },
-      { property: "og:title", content: "Чаты — Я Онлайн" },
+      { property: "og:title", content: "Диалоги — Я Онлайн" },
       {
         property: "og:description",
         content: "Все переписки в одном месте, без таймеров и стриков.",
@@ -37,9 +36,6 @@ function ChatListPage() {
 
   return (
     <AppShell>
-      <PageHeader title="Чаты" />
-      <UrgentStrip />
-
       {isPending ? (
         <div className="space-y-3">
           <ListItemSkeleton />
