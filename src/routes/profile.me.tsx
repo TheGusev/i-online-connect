@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { BellRing, Check, Pencil, Settings, Share2, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import type { MyProfile, PrivacySettings, ProfileIntent } from "@/api";
@@ -22,6 +22,8 @@ import { useMyProfile, useUpdateMyProfile } from "@/features/profile/hooks";
 import { useMediaActions } from "@/features/profile/hooks/useMediaActions";
 
 export const Route = createFileRoute("/profile/me")({
+  validateSearch: (search: Record<string, unknown>): { edit?: boolean } =>
+    search["edit"] === true || search["edit"] === "1" || search["edit"] === 1 ? { edit: true } : {},
   head: () => ({
     meta: [
       { title: "Мой профиль — Я Онлайн" },
@@ -49,6 +51,9 @@ type Draft = {
   bio: string;
   intent: ProfileIntent;
   intentNote: string;
+  valuesText: string;
+  joyText: string;
+  dealbreakersText: string;
 };
 
 function MyProfilePage() {
@@ -83,8 +88,18 @@ function MyProfilePage() {
       bio: data.bio,
       intent: data.intent,
       intentNote: data.intentNote,
+      valuesText: data.questionnaire?.valuesText ?? "",
+      joyText: data.questionnaire?.joyText ?? "",
+      dealbreakersText: data.questionnaire?.dealbreakersText ?? "",
     });
   };
+
+  // «Заполнить анкету» из «Рядом» открывает редактирование сразу.
+  const { edit } = Route.useSearch();
+  useEffect(() => {
+    if (edit && data && !draft) startEdit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [edit, data]);
 
   const save = () => {
     if (!draft) return;
@@ -105,6 +120,11 @@ function MyProfilePage() {
         bio: draft.bio.trim(),
         intent: draft.intent,
         intentNote: draft.intentNote.trim(),
+        questionnaire: {
+          valuesText: draft.valuesText.trim(),
+          joyText: draft.joyText.trim(),
+          dealbreakersText: draft.dealbreakersText.trim(),
+        },
       },
       {
         onSuccess: () => {
@@ -179,6 +199,33 @@ function MyProfilePage() {
                   value={draft.intentNote}
                   onChange={(event) => setDraft({ ...draft, intentNote: event.target.value })}
                 />
+                <div className="space-y-3 border-t border-border pt-3">
+                  <p className="hud-title text-xs">Анкета</p>
+                  {data.completeness ? (
+                    <p className="text-xs text-muted-foreground">
+                      Заполнено {data.completeness.filled} из {data.completeness.total}
+                      {data.completeness.complete ? " — знакомства открыты" : ". Интересы (от 3) и фото добавляются ниже и в галерее."}
+                    </p>
+                  ) : null}
+                  <TextArea
+                    label="Что для тебя по-настоящему важно"
+                    rows={2}
+                    value={draft.valuesText}
+                    onChange={(event) => setDraft({ ...draft, valuesText: event.target.value })}
+                  />
+                  <TextArea
+                    label="Что тебя радует"
+                    rows={2}
+                    value={draft.joyText}
+                    onChange={(event) => setDraft({ ...draft, joyText: event.target.value })}
+                  />
+                  <TextArea
+                    label="Что для тебя неприемлемо (необязательно)"
+                    rows={2}
+                    value={draft.dealbreakersText}
+                    onChange={(event) => setDraft({ ...draft, dealbreakersText: event.target.value })}
+                  />
+                </div>
                 <div className="flex items-center gap-2">
                   <Button className="flex-1" onClick={save} disabled={update.isPending}>
                     <Check className="size-4" aria-hidden="true" />
