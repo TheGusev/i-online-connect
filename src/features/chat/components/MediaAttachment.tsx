@@ -5,7 +5,7 @@
  * так переписку не нужно покидать ради вложения.
  */
 import { Play } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { mediaUrl } from "@/api";
 import { Button } from "@/components/ds";
@@ -23,14 +23,23 @@ export function MediaAttachment({
   durationMs,
   className,
   message,
+  overlay,
 }: {
   kind: "image" | "video";
   src: string;
   durationMs?: number | undefined;
   className?: string;
   message?: import("@/api").GalleryItem;
+  /** Время и галочки поверх вложения справа внизу. */
+  overlay?: ReactNode;
 }) {
   const [lightbox, setLightbox] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const badge = overlay ? (
+    <span className="pointer-events-none absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-background/60 px-1.5 py-0.5 text-[11px] font-medium text-foreground backdrop-blur-sm">
+      {overlay}
+    </span>
+  ) : null;
   const [playing, setPlaying] = useState(false);
   // blob:-предпросмотр отдаём как есть, серверный путь разворачиваем в абсолютный.
   const url = src.startsWith("blob:") ? src : (mediaUrl(src) ?? src);
@@ -39,7 +48,7 @@ export function MediaAttachment({
     return (
       <div
         className={cn(
-          "relative overflow-hidden rounded-2xl border border-primary/25 bg-background/40",
+          "chat-media-frame chat-media-glow relative overflow-hidden rounded-2xl bg-secondary",
           className,
         )}
       >
@@ -51,6 +60,7 @@ export function MediaAttachment({
           className="max-h-72 w-full max-w-full object-contain"
           onPlay={() => setPlaying(true)}
         />
+        {!playing ? badge : null}
         {!playing ? (
           <button
             type="button"
@@ -68,7 +78,7 @@ export function MediaAttachment({
           </button>
         ) : null}
         {durationMs && !playing ? (
-          <span className="absolute bottom-2 right-2 rounded-full bg-background/80 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-foreground">
+          <span className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-foreground">
             {durationLabel(durationMs)}
           </span>
         ) : null}
@@ -88,17 +98,22 @@ export function MediaAttachment({
         }}
         aria-label="Открыть фото"
         className={cn(
-          "block h-auto overflow-hidden rounded-2xl border border-primary/25 p-0",
+          "chat-media-frame chat-media-glow relative block h-auto overflow-hidden rounded-2xl bg-secondary p-0 hover:bg-secondary",
           "[-webkit-touch-callout:none]",
           className,
         )}
       >
+        {!loaded ? <span className="absolute inset-0 animate-pulse bg-secondary" aria-hidden="true" /> : null}
         <img
           src={url}
           alt="Вложение"
           loading="lazy"
-          className="max-h-72 w-full max-w-full object-cover"
+          data-loaded={loaded}
+          onLoad={() => setLoaded(true)}
+          onError={() => setLoaded(true)}
+          className="img-fade block min-h-32 max-h-72 w-full max-w-full object-cover"
         />
+        {badge}
       </Button>
       {lightbox ? (
         <GalleryViewer
