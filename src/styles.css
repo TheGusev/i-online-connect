@@ -214,6 +214,21 @@
     border-color: var(--color-border);
   }
 
+  /* Полосы прокрутки скрыты во всём приложении; сама прокрутка работает. */
+  html,
+  body,
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar,
+  *::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
@@ -746,4 +761,38 @@ html[data-tab-hidden] .chat-sky *, html[data-tab-hidden] .live-icon * { animatio
 @media (prefers-reduced-motion: reduce) {
   .listing-crossfade { animation: none; }
   .duration-reveal { transition: none; }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Свайп между вкладками: экран за пальцем и въезд новой вкладки. */
+.swipe-surface {
+  touch-action: pan-y;
+  will-change: transform;
+}
+.swipe-peek {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 100vw;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background: var(--color-card);
+  color: var(--color-muted-foreground);
+  z-index: 5;
+}
+@keyframes swipe-enter-from-right { from { transform: translateX(28%); opacity: 0.6; } to { transform: none; opacity: 1; } }
+@keyframes swipe-enter-from-left { from { transform: translateX(-28%); opacity: 0.6; } to { transform: none; opacity: 1; } }
+.swipe-enter-right { animation: swipe-enter-from-right 240ms cubic-bezier(0.22, 1, 0.36, 1); }
+.swipe-enter-left { animation: swipe-enter-from-left 240ms cubic-bezier(0.22, 1, 0.36, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .swipe-enter-right,
+  .swipe-enter-left { animation: none; }
 }
