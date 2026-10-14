@@ -4,6 +4,7 @@ import { Siren } from "lucide-react";
 import { MediaImage } from "@/components/ds";
 
 import { useListings } from "../hooks";
+import { ListingAuthor } from "./ListingAuthor";
 import { ListingCountdown } from "./ListingCountdown";
 
 /** Полоса «Срочное рядом» над диалогами: 3–5 свежих срочных объявлений. Без данных не рендерится. */
@@ -30,7 +31,10 @@ export function UrgentStrip() {
                 <MediaImage src={listing.photos[0]} alt={listing.title} className="size-full object-cover" wrapperClassName="size-full" />
               </div>
               <ListingCountdown expiresAt={listing.expiresAt} className="pointer-events-none absolute right-2 top-2" />
-              <p className="line-clamp-2 p-2 text-xs font-semibold leading-snug">{listing.title}</p>
+              <div className="space-y-1.5 p-2">
+                <ListingAuthor author={listing.author} />
+                <p className="line-clamp-2 text-xs font-semibold leading-snug">{listing.title}</p>
+              </div>
             </Link>
           </li>
         ))}
