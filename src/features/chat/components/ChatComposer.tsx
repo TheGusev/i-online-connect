@@ -11,6 +11,9 @@ import {
   prepareChatMedia,
   type PreparedMedia,
 } from "@/features/chat/media";
+import { compressListingPhoto } from "@/features/nearby/compress-image";
+
+const MAX_BATCH_PHOTOS = 10;
 
 const MAX_TEXTAREA_HEIGHT = 128;
 
@@ -38,6 +41,7 @@ export function ChatComposer({
   onMedia,
   mediaSending = false,
   mediaHint,
+  onPhotos,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -62,6 +66,8 @@ export function ChatComposer({
   mediaSending?: boolean;
   /** Почему кнопка вложения недоступна (например, нужна верификация). */
   mediaHint?: string;
+  /** Несколько фото сразу: подпись из поля уходит текстом после них. */
+  onPhotos?: (photos: PreparedMedia[], caption: string) => void;
 }) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -74,6 +80,55 @@ export function ChatComposer({
     [inputRef],
   );
   const voice = useVoiceRecorder((recording) => onVoice?.(recording));
+  const [staged, setStaged] = useState<PreparedMedia[]>([]);
+  const [preparing, setPreparing] = useState(false);
+  const stagedRef = useRef(staged);
+  stagedRef.current = staged;
+  useEffect(() => () => stagedRef.current.forEach((item) => URL.revokeObjectURL(item.previewUrl)), []);
+
+  /** Выбор нескольких файлов: фото копятся в полосе превью, видео уходит как раньше. */
+  const pickFiles = async (list: File[]) => {
+    if (list.length === 0) return;
+    setMediaError(null);
+    const videos = list.filter((file) => file.type.startsWith("video/"));
+    const images = list.filter((file) => !file.type.startsWith("video/"));
+    if (!onPhotos || (images.length === 0 && videos.length === 1)) {
+      if (images.length === 0 && videos.length === 1) return pickMedia(videos[0]);
+      return pickMedia(list[0]);
+    }
+    const notes: string[] = [];
+    if (videos.length) notes.push("Видео отправляется по одному — выберите его отдельно");
+    const room = MAX_BATCH_PHOTOS - stagedRef.current.length;
+    if (images.length > room) notes.push(`За раз можно отправить до ${MAX_BATCH_PHOTOS} фото — взяли первые ${Math.max(0, room)}`);
+    setPreparing(true);
+    const ready: PreparedMedia[] = [];
+    for (const file of images.slice(0, Math.max(0, room))) {
+      try {
+        const prepared = await compressListingPhoto(file);
+        ready.push({ file: prepared, kind: "image", previewUrl: URL.createObjectURL(prepared) });
+      } catch (error) {
+        notes.push(`${file.name}: ${error instanceof Error ? error.message : "не удалось подготовить"}`);
+      }
+    }
+    setPreparing(false);
+    setStaged((prev) => [...prev, ...ready]);
+    if (notes.length) setMediaError(notes.join(". "));
+  };
+
+  const removeStaged = (index: number) =>
+    setStaged((prev) => {
+      const item = prev[index];
+      if (item) URL.revokeObjectURL(item.previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
+
+  const sendStaged = () => {
+    if (!onPhotos || staged.length === 0) return false;
+    onPhotos(staged, value.trim());
+    setStaged([]);
+    onChange("");
+    return true;
+  };
 
   /** Выбор файла: проверяем и уменьшаем фото до отправки. */
   const pickMedia = async (file: File | undefined) => {
@@ -113,6 +168,28 @@ export function ChatComposer({
         </div>
       ) : null}
       <ReplyPanel replyTo={replyTo ?? null} {...(onCancelReply ? { onCancel: onCancelReply } : {})} />
+      {staged.length > 0 || preparing ? (
+        <ul data-no-swipe className="flex gap-2 overflow-x-auto px-3 pt-2.5 sm:px-4" aria-label="Фото к отправке">
+          {staged.map((item, index) => (
+            <li key={item.previewUrl} className="chat-media-frame relative size-16 shrink-0 overflow-hidden rounded-xl bg-secondary">
+              <img src={item.previewUrl} alt={`Фото ${index + 1}`} className="size-full object-cover" />
+              <button
+                type="button"
+                aria-label="Убрать фото"
+                onClick={() => removeStaged(index)}
+                className="absolute right-0.5 top-0.5 grid size-6 place-items-center rounded-full bg-background/85 text-foreground"
+              >
+                <X className="size-3.5" aria-hidden="true" />
+              </button>
+            </li>
+          ))}
+          {preparing ? (
+            <li className="grid size-16 shrink-0 place-items-center rounded-xl border border-dashed border-primary/50">
+              <span className="size-6 animate-spin rounded-full border-2 border-primary/30 border-t-primary" aria-label="Готовим фото" />
+            </li>
+          ) : null}
+        </ul>
+      ) : null}
       {voice.error || mediaError ? (
         <p className="px-4 pt-2 text-xs text-destructive" role="alert">
           {voice.error ?? mediaError}
@@ -130,7 +207,8 @@ export function ChatComposer({
         )}
         onSubmit={(event) => {
           event.preventDefault();
-          if (!sending && !voice.recording) onSend();
+          if (sending || voice.recording || preparing) return;
+          if (!sendStaged()) onSend();
         }}
       >
         {leading || onMedia || voice.recording ? (
@@ -153,12 +231,13 @@ export function ChatComposer({
                     <input
                       ref={fileRef}
                       type="file"
-                      accept={CHAT_MEDIA_ACCEPT}
+                      accept={onPhotos ? `image/*,.heic,.heif,${CHAT_MEDIA_ACCEPT}` : CHAT_MEDIA_ACCEPT}
+                      multiple={Boolean(onPhotos)}
                       className="hidden"
                       onChange={(event) => {
-                        const file = event.target.files?.[0];
+                        const list = Array.from(event.target.files ?? []);
                         event.target.value = "";
-                        void pickMedia(file);
+                        void pickFiles(list);
                       }}
                     />
                     <Button
@@ -210,13 +289,13 @@ export function ChatComposer({
             className="min-h-11 min-w-0 resize-none rounded-3xl border border-input bg-background px-4 py-3 text-base leading-5 outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 sm:text-sm"
           />
         )}
-        {value.trim() || !onVoice ? (
+        {value.trim() || staged.length > 0 || !onVoice ? (
           <Button
             type="submit"
             size="icon"
             aria-label="Отправить"
             loading={sending}
-            disabled={disabled || sending || voiceSending || !value.trim() || voice.recording}
+            disabled={disabled || sending || voiceSending || preparing || (!value.trim() && staged.length === 0) || voice.recording}
             className="shrink-0"
           >
             <SendHorizontal aria-hidden="true" />
