@@ -20,6 +20,10 @@ import { MeetingSheet } from "@/features/chat/components/MeetingSheet";
 import { MessageBubble, quotePreview } from "@/features/chat/components/MessageBubble";
 import { MessageActions } from "@/features/chat/components/MessageActions";
 import { ChatComposer } from "@/features/chat/components/ChatComposer";
+import { MediaAlbum } from "@/features/chat/components/MediaAlbum";
+import { groupMessages } from "@/features/chat/albums";
+import { usePhotoBatch, withPending } from "@/features/chat/usePhotoBatch";
+import { chatApi } from "@/api";
 import { MediaGallery, MediaGalleryButton } from "@/features/chat/components/MediaGallery";
 import { SafetyMenu } from "@/features/chat/components/SafetyMenu";
 import { StarterChips } from "@/features/chat/components/StarterChips";
@@ -96,6 +100,14 @@ function ConversationPage() {
   const send = useSendMessage(id);
   const sendVoice = useSendVoiceMessage(id);
   const sendMedia = useSendMediaMessage(id);
+  const photoBatch = usePhotoBatch<Message>({
+    authorId: myId ?? "me",
+    upload: (file, clientTempId) => chatApi.sendMediaMessage(id, file, clientTempId),
+    commit: (message) => {
+      cache.upsert({ ...message, status: message.status ?? "sent" });
+      void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+    },
+  });
   // Фото и видео доступны после видео-подтверждения профиля: так меньше анонимного спама.
   const verification = useVerificationStatus();
   const canSendMedia = verification.data?.status === "verified";
@@ -415,11 +427,17 @@ function ConversationPage() {
                 </div>
               ) : null}
               <ul className="flex-1 space-y-3">
-                {messages?.map((message, index) => {
-                  const prev = messages[index - 1];
+                {groupMessages(withPending(messages ?? [], photoBatch.pending) as Message[]).map((group, index, groups) => {
+                  const message = group.type === "album" ? group.messages[0]! : group.message;
+                  const prevGroup = groups[index - 1];
+                  const prev = prevGroup
+                    ? prevGroup.type === "album"
+                      ? prevGroup.messages[prevGroup.messages.length - 1]
+                      : prevGroup.message
+                    : undefined;
                   const showDay = !prev || !sameDay(prev.createdAt, message.createdAt);
                   return (
-                    <Fragment key={message.id}>
+                    <Fragment key={group.type === "album" ? `album-${message.clientTempId ?? message.id}` : message.id}>
                       {showDay ? (
                         <li className="flex justify-center py-1">
                           <span className="hud-label rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">
@@ -427,14 +445,27 @@ function ConversationPage() {
                           </span>
                         </li>
                       ) : null}
-                      <MessageBubble
-                        message={message}
-                        onRetry={retry}
-                        onActions={setActionsFor}
-                        onReply={startReply}
-                        onQuoteClick={jumpToMessage}
-                        {...(participant?.name ? { participantName: participant.name } : {})}
-                      />
+                      {group.type === "album" ? (
+                        <MediaAlbum
+                          messages={group.messages}
+                          authorName={participant?.name}
+                          onRetry={(item) => {
+                            if (item.clientTempId) photoBatch.retry(item.clientTempId);
+                          }}
+                        />
+                      ) : (
+                        <MessageBubble
+                          message={message}
+                          onRetry={(item) => {
+                            if (item.clientTempId && photoBatch.retry(item.clientTempId)) return;
+                            retry(item);
+                          }}
+                          onActions={setActionsFor}
+                          onReply={startReply}
+                          onQuoteClick={jumpToMessage}
+                          {...(participant?.name ? { participantName: participant.name } : {})}
+                        />
+                      )}
                     </Fragment>
                   );
                 })}
@@ -493,6 +524,15 @@ function ConversationPage() {
             onCancelReply={() => setReplyTo(null)}
             voiceSending={sendVoice.isPending}
             mediaSending={sendMedia.isPending}
+            {...(canSendMedia && !editingMessage
+              ? {
+                  onPhotos: (photos, caption) => {
+                    const quote = replyTo;
+                    setReplyTo(null);
+                    photoBatch.sendPhotos(photos, caption ? () => send.mutate({ text: caption, clientTempId: crypto.randomUUID(), ...(quote ? { replyTo: quote } : {}) }) : undefined);
+                  },
+                }
+              : {})}
             {...(canSendMedia
               ? {
                   onMedia: (media) => {

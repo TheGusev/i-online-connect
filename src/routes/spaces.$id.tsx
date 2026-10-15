@@ -12,6 +12,11 @@ import { EventList } from "@/features/spaces/components/EventList";
 import { JoinPanel } from "@/features/spaces/components/JoinPanel";
 import { MediaGallery, MediaGalleryButton } from "@/features/chat/components/MediaGallery";
 import { SpaceChat } from "@/features/spaces/components/SpaceChat";
+import { usePhotoBatch, withPending } from "@/features/chat/usePhotoBatch";
+import { spacesApi, type SpaceMessage } from "@/api";
+import { spaceMessagesQueryKey } from "@/features/spaces/hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import { useSessionStore } from "@/store/useSessionStore";
 import { SpaceInviteDialog } from "@/features/spaces/components/SpaceInviteDialog";
 import { InviteQrSheet } from "@/components/InviteQrSheet";
 import { SpaceMenu } from "@/features/spaces/components/SpaceMenu";
@@ -70,6 +75,19 @@ function SpaceDetailPage() {
   const sendMessage = useSendSpaceMessage(id);
   const sendVoice = useSendSpaceVoiceMessage(id);
   const sendMedia = useSendSpaceMediaMessage(id);
+  const queryClient = useQueryClient();
+  const me = useSessionStore((s) => s.user);
+  const photoBatch = usePhotoBatch<SpaceMessage>({
+    authorId: me?.id ?? "me",
+    upload: (file, clientTempId) => spacesApi.sendSpaceMediaMessage(id, file, clientTempId),
+    commit: (message) => {
+      queryClient.setQueryData<SpaceMessage[]>(spaceMessagesQueryKey(id), (previous) =>
+        previous?.some((m) => m.id === message.id) ? previous : [...(previous ?? []), message],
+      );
+      void queryClient.invalidateQueries({ queryKey: ["gallery", "space", id] });
+    },
+  });
+  const myName = me?.name ?? "Вы";
   const editMessage = useEditSpaceMessage(id);
   const deleteMessage = useDeleteSpaceMessage(id);
   const updateCover = useUpdateSpaceCover(id);
@@ -210,7 +228,10 @@ function SpaceDetailPage() {
         <section className="mt-1 flex min-h-0 flex-1 flex-col">
           <SpaceChat
             fill
-            messages={messages ?? []}
+            messages={withPending(messages ?? [], photoBatch.pending).map((m) =>
+              "spaceId" in m ? m : ({ ...m, spaceId: id, authorName: myName } as SpaceMessage),
+            )}
+            onRetryPhoto={(clientTempId) => photoBatch.retry(clientTempId)}
             canWrite={space.isMember}
             isHost={space.isHost ?? false}
             onEdit={(messageId, text) => editMessage.mutateAsync({ messageId, text }).then(() => undefined).catch((error) => {
@@ -221,6 +242,17 @@ function SpaceDetailPage() {
             sending={sendMessage.isPending}
             voiceSending={sendVoice.isPending}
             mediaSending={sendMedia.isPending}
+            {...(canSendMedia
+              ? {
+                  onPhotos: (photos, caption, replyToId) =>
+                    photoBatch.sendPhotos(
+                      photos,
+                      caption
+                        ? () => void sendMessage.mutateAsync({ text: caption, ...(replyToId ? { replyToId } : {}) }).catch(() => undefined)
+                        : undefined,
+                    ),
+                }
+              : {})}
             {...(canSendMedia
               ? {
                   onMedia: (media, replyToId) =>
