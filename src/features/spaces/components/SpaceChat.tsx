@@ -8,10 +8,12 @@ import type { PreparedMedia } from "@/features/chat/media";
 import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
 import { ChatBackground } from "@/features/chat/components/ChatBackground";
 import { cn } from "@/lib/utils";
+import { MediaAlbum } from "@/features/chat/components/MediaAlbum";
+import { groupMessages } from "@/features/chat/albums";
 import { useKeyboardOpen } from "@/hooks/useViewportHeight";
 import { useSessionStore } from "@/store/useSessionStore";
 
-export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onEdit, onDelete, isHost = false, sending, voiceSending, mediaSending, error, fill = false }: {
+export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onPhotos, onRetryPhoto, onEdit, onDelete, isHost = false, sending, voiceSending, mediaSending, error, fill = false }: {
   fill?: boolean;
   messages: SpaceMessage[];
   canWrite: boolean;
@@ -19,6 +21,8 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onEdit
   onSend: (text: string, replyToId?: string) => Promise<void>;
   onVoice: (recording: VoiceRecording, replyToId?: string) => void;
   onMedia?: ((media: PreparedMedia, replyToId?: string) => void) | undefined;
+  onPhotos?: ((photos: PreparedMedia[], caption: string, replyToId?: string) => void) | undefined;
+  onRetryPhoto?: ((clientTempId: string) => void) | undefined;
   onEdit: (messageId: string, text: string) => Promise<void>;
   onDelete: (messageId: string) => void;
   sending?: boolean | undefined;
@@ -75,7 +79,27 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onEdit
         <div ref={scrollerRef} className={cn("relative overflow-y-auto overscroll-contain px-1 py-4", fill || keyboardOpen ? "min-h-0 flex-1" : "min-h-28 max-h-[clamp(7rem,calc(100dvh-34rem),24rem)]")}>
           {messages.length === 0 ? <p className="text-sm text-muted-foreground">В чате пока тихо. Можно поздороваться и спросить, как обычно проходят встречи.</p> : (
             <ul className="space-y-3">
-              {messages.map((message) => {
+              {groupMessages(messages).map((group) => {
+                if (group.type === "album") {
+                  const first = group.messages[0]!;
+                  const mine = first.authorId === myId;
+                  return (
+                    <li key={`album-${first.clientTempId ?? first.id}`} className={cn("flex min-w-0 gap-2", mine && "flex-row-reverse")}>
+                      <Avatar name={first.authorName} size="sm" />
+                      <div className="min-w-0 flex-1">
+                        <p className={cn("mb-1 text-xs text-muted-foreground", mine && "text-right")}>{first.authorName}</p>
+                        <ul>
+                          <MediaAlbum
+                            messages={group.messages.map((m) => ({ ...m, conversationId: m.spaceId }))}
+                            authorName={first.authorName}
+                            onRetry={(m) => { if (m.clientTempId) onRetryPhoto?.(m.clientTempId); }}
+                          />
+                        </ul>
+                      </div>
+                    </li>
+                  );
+                }
+                const message = group.message;
                 const mine = message.authorId === myId;
                 const adapted: Message = { ...message, conversationId: message.spaceId };
                 const author = messages.find((m) => m.authorId === message.replyTo?.authorId)?.authorName;
@@ -85,7 +109,7 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onEdit
                     <div className="min-w-0 flex-1">
                       <p className={cn("mb-1 text-xs text-muted-foreground", mine && "text-right")}>{message.authorName}</p>
                       <ul>
-                        <MessageBubble message={adapted} participantName={author ?? message.authorName} onQuoteClick={jump} {...(canWrite ? { onActions: setActions, onReply: startReply } : {})} />
+                        <MessageBubble message={adapted} participantName={author ?? message.authorName} onQuoteClick={jump} onRetry={(m) => { if (m.clientTempId) onRetryPhoto?.(m.clientTempId); }} {...(canWrite ? { onActions: setActions, onReply: startReply } : {})} />
                       </ul>
                     </div>
                   </li>
@@ -104,6 +128,7 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onEdit
           replyTo={reply ? { authorName: reply.authorId === myId ? "Вы" : (messages.find((m) => m.id === reply.id)?.authorName ?? "Участник"), preview: quotePreview(reply) } : null}
           onCancelReply={() => setReply(null)}
           {...(canWrite && !editing ? { onVoice: (recording: VoiceRecording) => { onVoice(recording, reply?.id); setReply(null); } } : {})}
+          {...(canWrite && onPhotos && !editing ? { onPhotos: (photos: PreparedMedia[], caption: string) => { onPhotos(photos, caption, reply?.id); setReply(null); } } : {})}
           {...(canWrite && onMedia && !editing ? { onMedia: (media: PreparedMedia) => { onMedia(media, reply?.id); setReply(null); } } : {})}
           {...(voiceSending !== undefined ? { voiceSending } : {})}
           {...(mediaSending !== undefined ? { mediaSending } : {})}
