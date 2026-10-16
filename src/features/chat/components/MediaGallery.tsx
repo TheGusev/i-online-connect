@@ -244,6 +244,7 @@ function GalleryViewerReady({
   onIndex,
   onClose,
   onShowInChat,
+  extraActions,
 }: {
   items: GalleryItem[];
   index: number;
