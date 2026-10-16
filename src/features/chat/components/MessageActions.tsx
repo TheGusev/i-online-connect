@@ -32,6 +32,8 @@ export function MessageActions({
   onClose,
   onEdit,
   onDelete,
+  album,
+  onDeleteAlbum,
 }: {
   message: Message | null;
   mine: boolean;
@@ -40,9 +42,14 @@ export function MessageActions({
   onEdit?: (message: Message) => void;
   onDelete: (message: Message) => void;
   onReply?: (message: Message) => void;
+  /** Фото открыто из альбома: реакция ставится на последнее фото, удаление — на выбор. */
+  album?: Message[] | null | undefined;
+  onDeleteAlbum?: ((messages: Message[]) => void) | undefined;
 }) {
   const openedAt = useRef(0);
-  const current = useReaction(message?.id ?? "");
+  const albumLive = (album ?? []).filter((m) => !m.deletedAt);
+  const reactionId = albumLive.length > 1 ? albumLive[albumLive.length - 1]!.id : (message?.id ?? "");
+  const current = useReaction(reactionId);
   const [more, setMore] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
@@ -51,7 +58,7 @@ export function MessageActions({
   useEffect(() => {
     if (!message) return;
     openedAt.current = Date.now();
-    const li = document.getElementById(`message-${message.id}`);
+    const li = document.getElementById(`message-${message.id}`) ?? document.querySelector(`[data-tile-id="${message.id}"]`)?.closest("li") ?? null;
     const el = (li?.querySelector(":scope > div") as HTMLElement | null) ?? null;
     el?.classList.add("ring-2", "ring-primary");
     const rect = (el ?? li)?.getBoundingClientRect();
@@ -59,7 +66,7 @@ export function MessageActions({
     const width = Math.min(320, window.innerWidth - 16);
     if (rect) {
       const left = Math.max(8, Math.min(window.innerWidth - width - 8, mine ? rect.right - width : rect.left));
-      const panelHeight = more ? 310 : 112;
+      const panelHeight = (more ? 310 : 112) + ((album?.length ?? 0) > 1 ? 40 : 0);
       const preferredTop = rect.bottom + 8 + panelHeight <= vh ? rect.bottom + 8 : rect.top - panelHeight - 8;
       setPos({ top: Math.max(8, Math.min(vh - panelHeight - 8, preferredTop)), left });
     } else setPos({ top: 80, left: 8 });
@@ -69,13 +76,13 @@ export function MessageActions({
       window.removeEventListener("keydown", onKey);
       el?.classList.remove("ring-2", "ring-primary");
     };
-  }, [message, mine, onClose, more]);
+  }, [message, mine, onClose, more, album]);
 
   if (!message || typeof document === "undefined") return null;
   const deletable = (canDelete ?? mine) && !message.deletedAt;
   const editable = Boolean(onEdit) && canEditMessage(message, mine);
   const fresh = () => Date.now() - openedAt.current < 400;
-  const react = (emoji: string) => { if (fresh()) return; toggleReaction(message.id, emoji); onClose(); };
+  const react = (emoji: string) => { if (fresh()) return; toggleReaction(reactionId, emoji); onClose(); };
 
   return createPortal(
     <div
@@ -124,7 +131,26 @@ export function MessageActions({
             ))}
           </div>
         ) : null}
-        {editable || deletable ? (
+        {deletable && albumLive.length > 1 ? (
+          <div className="mt-1 flex flex-col border-t border-border pt-1 text-xs font-medium">
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-destructive hover:bg-secondary"
+              onClick={() => { if (fresh()) return; onDelete(message); onClose(); }}
+            >
+              <Trash2 className="size-3.5" aria-hidden="true" />
+              Удалить это фото
+            </button>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-destructive hover:bg-secondary"
+              onClick={() => { if (fresh()) return; if (onDeleteAlbum) onDeleteAlbum(albumLive); else albumLive.forEach(onDelete); onClose(); }}
+            >
+              <Trash2 className="size-3.5" aria-hidden="true" />
+              Удалить весь альбом ({albumLive.length})
+            </button>
+          </div>
+        ) : editable || deletable ? (
           <div className="mt-1 flex border-t border-border pt-1 text-xs font-medium">
             {editable ? (
               <button
