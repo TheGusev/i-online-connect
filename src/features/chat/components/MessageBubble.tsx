@@ -6,6 +6,7 @@ import { useSessionStore } from "@/store/useSessionStore";
 import { mediaUrl } from "@/api";
 import { VoicePlayer } from "./VoicePlayer";
 import { MediaAttachment } from "./MediaAttachment";
+import { ReactionChip } from "./ReactionChip";
 import { useMessageGestures, useReaction } from "@/features/chat/useMessageGestures";
 
 function time(iso: string) {
@@ -80,6 +81,7 @@ export function MessageBubble({
       ) : null}
     </>
   );
+  const chip = reaction && !deleted ? <ReactionChip emoji={reaction} mine={mine} /> : null;
   const voiceInline = voice && Boolean(message.mediaUrl) && !deleted && !failed;
   // Время в строке текста, как в Telegram: только для простых текстовых сообщений.
   const textInline = !deleted && !failed && !voice && !media && !meeting && !quote;
@@ -162,7 +164,7 @@ export function MessageBubble({
                 src={mediaUrl(message.mediaUrl) ?? message.mediaUrl}
                 duration={message.durationMs ?? 0}
                 mine={mine}
-                {...(voiceInline ? { meta: stamp } : {})}
+                {...(voiceInline ? { meta: <>{chip}{stamp}</> } : {})}
               />
             ) : media && message.mediaUrl ? (
               <MediaAttachment
@@ -170,7 +172,7 @@ export function MessageBubble({
                 src={message.mediaUrl}
                 durationMs={message.durationMs}
                 className="w-full max-w-full"
-                {...(failed ? {} : { overlay: stamp })}
+                {...(failed ? {} : { overlay: stamp, ...(chip ? { overlayStart: <ReactionChip emoji={reaction!} mine={false} overlay /> } : {}) })}
                 message={{
                   id: message.id,
                   kind: message.kind === "video" ? "video" : "image",
@@ -195,23 +197,9 @@ export function MessageBubble({
             {caption}
           </p>
         ) : null}
-        {reaction && !deleted ? (
-          <div className="mt-1.5 flex flex-wrap gap-1">
-            <span
-              className={cn(
-                "reaction-pop inline-flex h-6 items-center gap-1 rounded-full px-2 ring-1",
-                mine ? "bg-primary-foreground/20 ring-primary-foreground/60" : "bg-primary/15 ring-primary",
-              )}
-              aria-label={`Ваша реакция ${reaction}`}
-            >
-              <span className="text-[14px] leading-none">{reaction}</span>
-              <span className="text-[11px] font-semibold leading-none">1</span>
-            </span>
-          </div>
-        ) : null}
         <span
           className={cn(
-            "mt-1.5 flex items-center justify-end gap-1 text-[11px]",
+            "mt-1.5 flex flex-wrap items-center justify-between gap-1 text-[11px]",
             mine && !deleted ? "text-primary-foreground/75" : "text-muted-foreground",
             voiceInline && "hidden",
             bare && !failed && "hidden",
@@ -233,7 +221,10 @@ export function MessageBubble({
               ) : null}
             </button>
           ) : (
-            stamp
+            <>
+              {chip ?? <span />}
+              <span className="ml-auto inline-flex items-center gap-1">{stamp}</span>
+            </>
           )}
         </span>
       </div>

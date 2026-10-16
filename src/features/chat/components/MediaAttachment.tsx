@@ -24,6 +24,7 @@ export function MediaAttachment({
   className,
   message,
   overlay,
+  overlayStart,
 }: {
   kind: "image" | "video";
   src: string;
@@ -32,12 +33,17 @@ export function MediaAttachment({
   message?: import("@/api").GalleryItem;
   /** Время и галочки поверх вложения справа внизу. */
   overlay?: ReactNode;
+  /** Слева в той же нижней строке, что и время (реакция). */
+  overlayStart?: ReactNode;
 }) {
   const [lightbox, setLightbox] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const badge = overlay ? (
-    <span className="pointer-events-none absolute bottom-1.5 right-1.5 inline-flex items-center gap-1 rounded-full bg-background/60 px-1.5 py-0.5 text-[11px] font-medium text-foreground backdrop-blur-sm">
-      {overlay}
+    <span className="pointer-events-none absolute inset-x-1.5 bottom-1.5 flex flex-wrap items-center justify-between gap-1">
+      {overlayStart ?? <span />}
+      <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-background/60 px-1.5 py-0.5 text-[11px] font-medium text-foreground backdrop-blur-sm">
+        {overlay}
+      </span>
     </span>
   ) : null;
   const [playing, setPlaying] = useState(false);
