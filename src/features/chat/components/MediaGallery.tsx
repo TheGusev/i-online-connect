@@ -221,17 +221,20 @@ export function GalleryViewer({
   onIndex,
   onClose,
   onShowInChat,
+  extraActions,
 }: {
   items: GalleryItem[];
   index: number;
   onIndex: (index: number) => void;
   onClose: () => void;
   onShowInChat?: ((item: GalleryItem) => void) | undefined;
+  /** Дополнительные действия внизу просмотра (ответить, удалить). */
+  extraActions?: ((item: GalleryItem) => ReactNode) | undefined;
 }) {
   const item = items[index];
   if (!item) return null;
   if (typeof document === "undefined") return null;
-  return createPortal(<GalleryViewerReady items={items} index={index} item={item} onIndex={onIndex} onClose={onClose} onShowInChat={onShowInChat} />, document.body);
+  return createPortal(<GalleryViewerReady items={items} index={index} item={item} onIndex={onIndex} onClose={onClose} onShowInChat={onShowInChat} extraActions={extraActions} />, document.body);
 }
 
 function GalleryViewerReady({
@@ -248,6 +251,7 @@ function GalleryViewerReady({
   onIndex: (index: number) => void;
   onClose: () => void;
   onShowInChat?: ((item: GalleryItem) => void) | undefined;
+  extraActions?: ((item: GalleryItem) => ReactNode) | undefined;
 }) {
   const [zoomed, setZoomed] = useState(false);
   const initialIndex = useRef(index);
@@ -384,15 +388,16 @@ function GalleryViewerReady({
           </Button>
         ) : null}
       </div>
-      {onShowInChat ? <div className="flex justify-center px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2" style={{ opacity: 1 - progress }}>
-        <Button
+      {onShowInChat || extraActions ? <div className="flex flex-wrap justify-center gap-2 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2" style={{ opacity: 1 - progress }}>
+        {extraActions?.(item)}
+        {onShowInChat ? <Button
           type="button"
           variant="secondary"
           onClick={() => onShowInChat(item)}
           className="rounded-full border border-primary/50 px-5 py-2 text-sm font-semibold text-primary hover:bg-primary/10"
         >
           Показать в чате
-        </Button>
+        </Button> : null}
       </div> : null}
     </div>
   );

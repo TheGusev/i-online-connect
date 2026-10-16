@@ -58,7 +58,7 @@ export function MessageActions({
   useEffect(() => {
     if (!message) return;
     openedAt.current = Date.now();
-    const li = document.getElementById(`message-${message.id}`);
+    const li = document.getElementById(`message-${message.id}`) ?? document.querySelector(`[data-tile-id="${message.id}"]`)?.closest("li") ?? null;
     const el = (li?.querySelector(":scope > div") as HTMLElement | null) ?? null;
     el?.classList.add("ring-2", "ring-primary");
     const rect = (el ?? li)?.getBoundingClientRect();
@@ -66,7 +66,7 @@ export function MessageActions({
     const width = Math.min(320, window.innerWidth - 16);
     if (rect) {
       const left = Math.max(8, Math.min(window.innerWidth - width - 8, mine ? rect.right - width : rect.left));
-      const panelHeight = more ? 310 : 112;
+      const panelHeight = (more ? 310 : 112) + ((album?.length ?? 0) > 1 ? 40 : 0);
       const preferredTop = rect.bottom + 8 + panelHeight <= vh ? rect.bottom + 8 : rect.top - panelHeight - 8;
       setPos({ top: Math.max(8, Math.min(vh - panelHeight - 8, preferredTop)), left });
     } else setPos({ top: 80, left: 8 });
@@ -76,7 +76,7 @@ export function MessageActions({
       window.removeEventListener("keydown", onKey);
       el?.classList.remove("ring-2", "ring-primary");
     };
-  }, [message, mine, onClose, more]);
+  }, [message, mine, onClose, more, album]);
 
   if (!message || typeof document === "undefined") return null;
   const deletable = (canDelete ?? mine) && !message.deletedAt;
