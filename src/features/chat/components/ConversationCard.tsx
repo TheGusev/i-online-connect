@@ -62,7 +62,7 @@ export function ConversationCard({ conversation }: { conversation: Conversation 
             conversation.lastMessageRead ? (
               <CheckCheck className="size-3.5 text-primary" aria-label="Прочитано" />
             ) : (
-              <Check className="size-3.5" aria-label="Отправлено" />
+              <Check className="size-3.5 text-primary" aria-label="Отправлено" />
             )
           ) : null}
           {timeLabel(conversation.lastMessageAt)}
