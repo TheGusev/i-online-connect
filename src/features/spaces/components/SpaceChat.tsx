@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { Message, SpaceMessage } from "@/api";
+import { mediaUrl, type Message, type SpaceMessage } from "@/api";
 import { Avatar } from "@/components/ds";
 import { ChatComposer } from "@/features/chat/components/ChatComposer";
 import { MessageBubble, quotePreview } from "@/features/chat/components/MessageBubble";
@@ -36,6 +36,8 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onPhot
   const [actions, setActions] = useState<Message | null>(null);
   const [editing, setEditing] = useState<Message | null>(null);
   const [reply, setReply] = useState<Message | null>(null);
+  const [replyAlbum, setReplyAlbum] = useState<Message[] | null>(null);
+  const [actionsAlbum, setActionsAlbum] = useState<Message[] | null>(null);
   const [editPending, setEditPending] = useState(false);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -44,8 +46,9 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onPhot
     if (scroller) scroller.scrollTop = scroller.scrollHeight;
   };
   useEffect(() => { scrollToBottom(); }, [messages.length, keyboardOpen]);
-  const startReply = (message: Message) => {
+  const startReply = (message: Message, album?: Message[]) => {
     setEditing(null);
+    setReplyAlbum(album && album.length > 1 ? album : null);
     setReply(message);
     inputRef.current?.focus();
   };
@@ -93,6 +96,11 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onPhot
                             messages={group.messages.map((m) => ({ ...m, conversationId: m.spaceId }))}
                             authorName={first.authorName}
                             onRetry={(m) => { if (m.clientTempId) onRetryPhoto?.(m.clientTempId); }}
+                            {...(canWrite ? {
+                              onActions: (m: Message, album: Message[]) => { setActionsAlbum(album); setActions(m); },
+                              onReply: (album: Message[]) => startReply(album[0]!, album),
+                              onDelete: (list: Message[]) => list.forEach((m) => onDelete(m.id)),
+                            } : {})}
                           />
                         </ul>
                       </div>
@@ -109,7 +117,7 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onPhot
                     <div className="min-w-0 flex-1">
                       <p className={cn("mb-1 text-xs text-muted-foreground", mine && "text-right")}>{message.authorName}</p>
                       <ul>
-                        <MessageBubble message={adapted} participantName={author ?? message.authorName} onQuoteClick={jump} onRetry={(m) => { if (m.clientTempId) onRetryPhoto?.(m.clientTempId); }} {...(canWrite ? { onActions: setActions, onReply: startReply } : {})} />
+                        <MessageBubble message={adapted} participantName={author ?? message.authorName} onQuoteClick={jump} onRetry={(m) => { if (m.clientTempId) onRetryPhoto?.(m.clientTempId); }} {...(canWrite ? { onActions: (m: Message) => { setActionsAlbum(null); setActions(m); }, onReply: (m: Message) => startReply(m) } : {})} />
                       </ul>
                     </div>
                   </li>
@@ -125,8 +133,8 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onPhot
           value={text} onChange={setText} inputRef={inputRef} onFocus={scrollToBottom}
           sending={(sending ?? false) || editPending} disabled={!canWrite}
           editing={Boolean(editing)} onCancelEdit={() => { setEditing(null); setText(""); }}
-          replyTo={reply ? { authorName: reply.authorId === myId ? "Вы" : (messages.find((m) => m.id === reply.id)?.authorName ?? "Участник"), preview: quotePreview(reply) } : null}
-          onCancelReply={() => setReply(null)}
+          replyTo={reply ? { authorName: reply.authorId === myId ? "Вы" : (messages.find((m) => m.id === reply.id)?.authorName ?? "Участник"), preview: replyAlbum ? `Фото (${replyAlbum.length})` : quotePreview(reply), ...(replyAlbum?.[0]?.mediaUrl ? { thumb: replyAlbum[0].mediaUrl.startsWith("blob:") ? replyAlbum[0].mediaUrl : (mediaUrl(replyAlbum[0].mediaUrl) ?? undefined) } : {}) } : null}
+          onCancelReply={() => { setReply(null); setReplyAlbum(null); }}
           {...(canWrite && !editing ? { onVoice: (recording: VoiceRecording) => { onVoice(recording, reply?.id); setReply(null); } } : {})}
           {...(canWrite && onPhotos && !editing ? { onPhotos: (photos: PreparedMedia[], caption: string) => { onPhotos(photos, caption, reply?.id); setReply(null); } } : {})}
           {...(canWrite && onMedia && !editing ? { onMedia: (media: PreparedMedia) => { onMedia(media, reply?.id); setReply(null); } } : {})}
@@ -136,7 +144,7 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onPhot
           onSend={() => { void submit().catch(() => undefined); }}
         />
       </div>
-      <MessageActions message={actions} mine={actions?.authorId === myId} canDelete={Boolean(actions && (actions.authorId === myId || isHost))} onClose={() => setActions(null)} onEdit={(message) => { setReply(null); setEditing(message); setText(message.text); inputRef.current?.focus(); }} onDelete={(message) => { onDelete(message.id); if (editing?.id === message.id) { setEditing(null); setText(""); } }} />
+      <MessageActions message={actions} mine={actions?.authorId === myId} canDelete={Boolean(actions && (actions.authorId === myId || isHost))} onClose={() => { setActions(null); setActionsAlbum(null); }} album={actionsAlbum} onDeleteAlbum={(list) => list.forEach((m) => onDelete(m.id))} onEdit={(message) => { setReply(null); setEditing(message); setText(message.text); inputRef.current?.focus(); }} onDelete={(message) => { onDelete(message.id); if (editing?.id === message.id) { setEditing(null); setText(""); } }} />
     </div>
   );
 }

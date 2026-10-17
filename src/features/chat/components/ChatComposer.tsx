@@ -59,7 +59,7 @@ export function ChatComposer({
   editing?: boolean;
   onCancelEdit?: () => void;
   /** Цитата: на какое сообщение отвечаем. */
-  replyTo?: { authorName: string; preview: string } | null;
+  replyTo?: { authorName: string; preview: string; thumb?: string | undefined } | null;
   onCancelReply?: () => void;
   /** Выбранное фото или видео готово к отправке. */
   onMedia?: (media: PreparedMedia) => void;
@@ -335,12 +335,12 @@ export function ChatComposer({
 }
 
 /** Панель «ответ на сообщение» над полем ввода; плавно появляется и исчезает. */
-function ReplyPanel({ replyTo, onCancel }: { replyTo: { authorName: string; preview: string } | null; onCancel?: () => void }) {
+function ReplyPanel({ replyTo, onCancel }: { replyTo: { authorName: string; preview: string; thumb?: string | undefined } | null; onCancel?: () => void }) {
   const [last, setLast] = useState(replyTo);
   useEffect(() => { if (replyTo) setLast(replyTo); }, [replyTo]);
   const shown = replyTo ?? last;
   const open = Boolean(replyTo);
-  const kind = shown?.preview === "Фото" ? "image" : shown?.preview === "Видео" ? "video" : shown?.preview === "Голосовое сообщение" ? "voice" : null;
+  const kind = shown?.preview.startsWith("Фото") ? "image" : shown?.preview === "Видео" ? "video" : shown?.preview === "Голосовое сообщение" ? "voice" : null;
   const KindIcon = kind === "image" ? ImageIcon : kind === "video" ? Video : kind === "voice" ? Mic : null;
   return (
     <div
@@ -357,6 +357,7 @@ function ReplyPanel({ replyTo, onCancel }: { replyTo: { authorName: string; prev
             )}
           >
             <span className="w-0.5 self-stretch rounded-full bg-primary" aria-hidden="true" />
+            {shown.thumb ? <img src={shown.thumb} alt="" className="size-9 shrink-0 rounded-lg object-cover" /> : null}
             <div className="min-w-0 flex-1 text-xs">
               <span className="flex items-center gap-1 font-bold text-primary">
                 <Reply className="size-3 shrink-0" aria-hidden="true" />

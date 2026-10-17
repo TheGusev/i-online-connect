@@ -105,7 +105,7 @@ export function MediaAlbum({
         draggable={false}
         {...gestures.handlers}
         onPointerDownCapture={(event) => {
-          const id = (event.target as HTMLElement).closest<HTMLElement>("[data-tile-id]")?.dataset.tileId;
+          const id = (event.target as HTMLElement).closest<HTMLElement>("[data-tile-id]")?.dataset["tileId"];
           setHeld(messages.find((m) => m.id === id) ?? null);
         }}
         style={{

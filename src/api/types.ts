@@ -37,6 +37,8 @@ export interface Conversation {
   sharedInterests: string[];
   /** Последнее сообщение отправлено вами. */
   lastMessageFromMe: boolean;
+  /** Моё последнее сообщение прочитано собеседником. */
+  lastMessageRead?: boolean;
 }
 
 export type MessageStatus = "sending" | "sent" | "read" | "failed";
