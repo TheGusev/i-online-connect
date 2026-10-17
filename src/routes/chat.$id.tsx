@@ -166,6 +166,7 @@ function ConversationPage() {
       }
       if (event.type === "read" && event.authorId && event.authorId !== myId && myId) {
         cache.markMineRead(myId);
+        void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
       }
     },
     [id, myId, cache, markRead, queryClient],

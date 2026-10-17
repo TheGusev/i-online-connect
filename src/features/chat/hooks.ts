@@ -20,7 +20,8 @@ export const conversationsQueryOptions = {
 };
 
 export function useConversations() {
-  return useQuery(conversationsQueryOptions);
+  // Галочки «прочитано» в списке: короткий опрос, пока список открыт.
+  return useQuery({ ...conversationsQueryOptions, refetchInterval: 15_000, refetchOnWindowFocus: true });
 }
 
 export function useConversation(conversationId: string) {
