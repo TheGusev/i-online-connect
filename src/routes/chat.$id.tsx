@@ -123,6 +123,8 @@ function ConversationPage() {
   const [actionsFor, setActionsFor] = useState<Message | null>(null);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [replyTo, setReplyTo] = useState<MessageQuote | null>(null);
+  const [replyAlbum, setReplyAlbum] = useState<{ thumb?: string | undefined; count: number } | null>(null);
+  const [actionsAlbum, setActionsAlbum] = useState<Message[] | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
@@ -281,8 +283,9 @@ function ConversationPage() {
   };
 
   /** Цитата для плашки и оптимистичного пузыря. */
-  const startReply = (message: Message) => {
+  const startReply = (message: Message, album?: Message[]) => {
     setEditingMessage(null);
+    setReplyAlbum(album && album.length > 1 ? { thumb: album[0]!.mediaUrl ? (album[0]!.mediaUrl.startsWith("blob:") ? album[0]!.mediaUrl : (mediaUrl(album[0]!.mediaUrl) ?? undefined)) : undefined, count: album.length } : null);
     setReplyTo({
       id: message.id,
       authorId: message.authorId,
@@ -452,6 +455,9 @@ function ConversationPage() {
                           onRetry={(item) => {
                             if (item.clientTempId) photoBatch.retry(item.clientTempId);
                           }}
+                          onActions={(item, album) => { setActionsAlbum(album); setActionsFor(item); }}
+                          onReply={(album) => startReply(album[0]!, album)}
+                          onDelete={(list) => list.forEach((item) => deleteMessage.mutate({ messageId: item.id, previous: item }))}
                         />
                       ) : (
                         <MessageBubble
@@ -460,8 +466,8 @@ function ConversationPage() {
                             if (item.clientTempId && photoBatch.retry(item.clientTempId)) return;
                             retry(item);
                           }}
-                          onActions={setActionsFor}
-                          onReply={startReply}
+                          onActions={(m) => { setActionsAlbum(null); setActionsFor(m); }}
+                          onReply={(m) => startReply(m)}
                           onQuoteClick={jumpToMessage}
                           {...(participant?.name ? { participantName: participant.name } : {})}
                         />
@@ -517,11 +523,12 @@ function ConversationPage() {
                 ? {
                     authorName:
                       replyTo.authorId === myId ? "Вы" : (participant?.name ?? "Собеседник"),
-                    preview: quotePreview(replyTo),
+                    preview: replyAlbum ? `Фото (${replyAlbum.count})` : quotePreview(replyTo),
+                    ...(replyAlbum?.thumb ? { thumb: replyAlbum.thumb } : {}),
                   }
                 : null
             }
-            onCancelReply={() => setReplyTo(null)}
+            onCancelReply={() => { setReplyTo(null); setReplyAlbum(null); }}
             voiceSending={sendVoice.isPending}
             mediaSending={sendMedia.isPending}
             {...(canSendMedia && !editingMessage
@@ -578,7 +585,9 @@ function ConversationPage() {
       <MessageActions
         message={actionsFor}
         mine={Boolean(actionsFor && actionsFor.authorId === myId)}
-        onClose={() => setActionsFor(null)}
+        onClose={() => { setActionsFor(null); setActionsAlbum(null); }}
+        album={actionsAlbum}
+        onDeleteAlbum={(list) => list.forEach((item) => deleteMessage.mutate({ messageId: item.id, previous: item }))}
         onReply={startReply}
         onEdit={(message) => {
           setEditingMessage(message);
