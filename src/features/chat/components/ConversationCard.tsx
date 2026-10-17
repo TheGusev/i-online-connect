@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { Check, CheckCheck } from "lucide-react";
 
 import type { Conversation } from "@/api";
 import { Avatar, TrustBadge } from "@/components/ds";
@@ -35,7 +36,7 @@ export function ConversationCard({ conversation }: { conversation: Conversation 
       />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className={cn("truncate text-sm text-foreground", unread ? "font-semibold" : "font-medium")}>
+          <span className={cn("truncate text-sm", unread ? "font-bold text-foreground" : "font-medium text-foreground/80")}>
             {conversation.participant.name}
           </span>
           <TrustBadge
@@ -48,7 +49,7 @@ export function ConversationCard({ conversation }: { conversation: Conversation 
           className={cn(
             "truncate text-sm",
             unread && "mt-0.5",
-            unread ? "font-medium text-foreground" : "text-muted-foreground",
+            unread ? "font-semibold text-foreground" : "text-muted-foreground",
           )}
         >
           {conversation.lastMessageFromMe && conversation.lastMessage ? "Вы: " : ""}
@@ -56,7 +57,14 @@ export function ConversationCard({ conversation }: { conversation: Conversation 
         </p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <span className="text-[10px] font-medium text-muted-foreground">
+        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+          {conversation.lastMessageFromMe && conversation.lastMessage ? (
+            conversation.lastMessageRead ? (
+              <CheckCheck className="size-3.5 text-primary" aria-label="Прочитано" />
+            ) : (
+              <Check className="size-3.5" aria-label="Отправлено" />
+            )
+          ) : null}
           {timeLabel(conversation.lastMessageAt)}
         </span>
         {unread ? (

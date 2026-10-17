@@ -23,7 +23,7 @@ import { ChatComposer } from "@/features/chat/components/ChatComposer";
 import { MediaAlbum } from "@/features/chat/components/MediaAlbum";
 import { groupMessages } from "@/features/chat/albums";
 import { usePhotoBatch, withPending } from "@/features/chat/usePhotoBatch";
-import { chatApi } from "@/api";
+import { chatApi, mediaUrl } from "@/api";
 import { MediaGallery, MediaGalleryButton } from "@/features/chat/components/MediaGallery";
 import { SafetyMenu } from "@/features/chat/components/SafetyMenu";
 import { StarterChips } from "@/features/chat/components/StarterChips";

@@ -234,6 +234,7 @@ const CONVERSATIONS_SELECT = `
          last_msg.text       AS last_message,
          last_msg.created_at AS last_message_at,
          last_msg.author_id  AS last_author_id,
+         (their.last_read_at IS NOT NULL AND last_msg.created_at <= their.last_read_at) AS last_read_by_peer,
          (SELECT count(*) FROM messages m
            WHERE m.conversation_id = c.id
              AND m.author_id <> $1
@@ -276,6 +277,7 @@ interface ConversationRow {
   last_message: string | null;
   last_message_at: Date | null;
   last_author_id: string | null;
+  last_read_by_peer: boolean | null;
   unread_count: number;
   shared_interests: string[] | null;
 }
@@ -301,6 +303,8 @@ function toConversationDto(row: ConversationRow, userId: string) {
     awaitingReply: Boolean(row.last_message_at) && !lastFromMe,
     sharedInterests: row.shared_interests ?? [],
     lastMessageFromMe: lastFromMe,
+    // Моё последнее сообщение собеседник уже прочитал — те же данные, что у двойных галочек в диалоге.
+    lastMessageRead: lastFromMe && Boolean(row.last_read_by_peer),
   };
 }
 
