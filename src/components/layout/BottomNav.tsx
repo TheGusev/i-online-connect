@@ -77,13 +77,14 @@ export function BottomNav({ activeOverride }: { activeOverride?: string | undefi
     const width = listRef.current?.clientWidth ?? 1;
     const slot = width / Math.max(1, orderedItems.length);
     const slots = Math.round((event.clientX - active.startX) / slot);
+    if (slots === 0) return;
+    const draggedPath = order[active.index]!;
     const next = reorderByOffset(order, active.index, slots);
     if (next !== order) {
-      active.index = order.indexOf(next[active.index]!) === active.index ? active.index : next.indexOf(order[active.index]!);
-      active.index = next.indexOf(orderedItems[active.index]?.to as never) as number;
-      active.index = next.indexOf(order[active.index]!);
+      active.index = next.indexOf(draggedPath);
       active.startX = event.clientX;
       setOrder(next);
+      setDragIndex(active.index);
     }
   };
 
