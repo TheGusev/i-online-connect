@@ -5,13 +5,13 @@ import { isKeyboardOpenNow } from "@/hooks/useViewportHeight";
 
 import {
   EDGE_BACK_ZONE,
-  TAB_PATHS,
   classifySwipe,
   isBlockedTarget,
   resist,
   shouldCommit,
   tabIndexOf,
 } from "./swipe-rules";
+import { useTabOrder } from "./useTabOrder";
 
 /** Направление, с которого должна въехать следующая вкладка (живёт между экранами). */
 let pendingEnter: "left" | "right" | null = null;
@@ -34,8 +34,10 @@ export function useScreenSwipe(enabled: boolean) {
   const [peek, setPeek] = useState<PeekState>(null);
   const [enterClass, setEnterClass] = useState<string>("");
   const [optimisticTab, setOptimisticTab] = useState<number | null>(null);
+  // Порядок вкладок общий с нижним меню: пользователь мог его переставить.
+  const [tabOrder] = useTabOrder();
 
-  const tabIndex = location.search && "edit" in (location.search as object) ? -1 : tabIndexOf(location.pathname);
+  const tabIndex = location.search && "edit" in (location.search as object) ? -1 : tabIndexOf(location.pathname, tabOrder);
 
   // Въезд новой вкладки и восстановление прокрутки после свайпа.
   useLayoutEffect(() => {
@@ -104,7 +106,7 @@ export function useScreenSwipe(enabled: boolean) {
 
       if (isTab) {
         const neighbor = tabIndex + (dx < 0 ? 1 : -1);
-        const has = neighbor >= 0 && neighbor < TAB_PATHS.length;
+        const has = neighbor >= 0 && neighbor < tabOrder.length;
         setPeek(has ? { side: dx < 0 ? "right" : "left", index: neighbor } : null);
         setX(resist(dx, has), false);
       } else {
@@ -121,7 +123,7 @@ export function useScreenSwipe(enabled: boolean) {
       const dx = lastX - startX;
       const width = window.innerWidth;
       const target = isTab ? tabIndex + (dx < 0 ? 1 : -1) : -1;
-      const canGo = isTab ? target >= 0 && target < TAB_PATHS.length : dx > 0;
+      const canGo = isTab ? target >= 0 && target < tabOrder.length : dx > 0;
       if (!canGo || !shouldCommit(dx, width, velocity)) {
         setX(0, !reducedMotion());
         window.setTimeout(() => setPeek(null), 260);
@@ -131,7 +133,7 @@ export function useScreenSwipe(enabled: boolean) {
         if (isTab) {
           sessionStorage.setItem(SCROLL_KEY + location.pathname, String(window.scrollY));
           pendingEnter = dx < 0 ? "right" : "left";
-          void navigate({ to: TAB_PATHS[target]! });
+          void navigate({ to: tabOrder[target]! });
         } else {
           router.history.back();
         }
@@ -155,7 +157,7 @@ export function useScreenSwipe(enabled: boolean) {
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
     };
-  }, [enabled, tabIndex, location.pathname, navigate, router]);
+  }, [enabled, tabIndex, location.pathname, navigate, router, tabOrder]);
 
   return { surfaceRef, peek, enterClass, optimisticTab };
 }

@@ -54,11 +54,12 @@ export function isBlockedTarget(target: SwipeTarget | null): boolean {
   return target.closest(NO_SWIPE_SELECTOR) !== null;
 }
 
-/** Порядок вкладок: Чат, Рядом, Сообщества, Профиль. */
-export const TAB_PATHS = ["/chat", "/nearby", "/spaces", "/profile/me"] as const;
+/** Порядок вкладок по умолчанию: Рядом, Чат, Сообщества, Профиль. Текущий — из tab-order. */
+import { DEFAULT_TAB_ORDER } from "./tab-order";
+export const TAB_PATHS = DEFAULT_TAB_ORDER;
 
 const normalize = (path: string) => (path.length > 1 ? path.replace(/\/$/, "") : path);
 
-export function tabIndexOf(pathname: string): number {
-  return TAB_PATHS.indexOf(normalize(pathname) as (typeof TAB_PATHS)[number]);
+export function tabIndexOf(pathname: string, order: readonly string[] = TAB_PATHS): number {
+  return order.indexOf(normalize(pathname));
 }
