@@ -5,13 +5,13 @@ import { isKeyboardOpenNow } from "@/hooks/useViewportHeight";
 
 import {
   EDGE_BACK_ZONE,
-  TAB_PATHS,
   classifySwipe,
   isBlockedTarget,
   resist,
   shouldCommit,
   tabIndexOf,
 } from "./swipe-rules";
+import { useTabOrder } from "./useTabOrder";
 
 /** Направление, с которого должна въехать следующая вкладка (живёт между экранами). */
 let pendingEnter: "left" | "right" | null = null;
