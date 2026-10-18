@@ -3,6 +3,7 @@ import { Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { useUnreadChatCount } from "@/features/chat/hooks";
+import { useTabOrder } from "@/features/navigation/useTabOrder";
 import { useSessionStore } from "@/store/useSessionStore";
 
 import { navItems } from "./nav-items";
@@ -12,7 +13,12 @@ export function SideNav() {
   // Гостю приватная навигация не нужна: за ней всё равно стоит вход.
   const authed = useSessionStore((state) => state.status === "authed");
   const { data: unreadChats = 0 } = useUnreadChatCount(authed);
+  // Порядок общий с нижним меню: пользователь мог его переставить.
+  const [tabOrder] = useTabOrder();
   if (!authed) return null;
+  const orderedItems = tabOrder
+    .map((path) => navItems.find((item) => item.to === path))
+    .filter((item): item is (typeof navItems)[number] => Boolean(item));
 
   return (
     <aside className="hidden w-64 shrink-0 border-r border-border lg:block">
@@ -21,7 +27,7 @@ export function SideNav() {
           {t("app.name")}
         </Link>
         <nav className="flex flex-col gap-1">
-          {navItems.map(({ to, params, labelKey, icon: Icon }) => (
+          {orderedItems.map(({ to, params, labelKey, icon: Icon }) => (
             <Link
               key={to}
               to={to}

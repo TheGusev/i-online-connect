@@ -34,9 +34,12 @@ test("на крайней вкладке сопротивление", () => {
   assert.equal(resist(90, false), 30);
   assert.equal(resist(90, true), 90);
 });
-test("порядок вкладок", () => {
-  assert.equal(tabIndexOf("/chat"), 0);
-  assert.equal(tabIndexOf("/nearby/"), 1);
+test("порядок вкладок по умолчанию и пользовательский", () => {
+  assert.equal(tabIndexOf("/nearby"), 0);
+  assert.equal(tabIndexOf("/chat"), 1);
   assert.equal(tabIndexOf("/profile/me"), 3);
   assert.equal(tabIndexOf("/chat/123"), -1);
+  const custom = ["/spaces", "/chat", "/nearby", "/profile/me"];
+  assert.equal(tabIndexOf("/chat", custom), 1);
+  assert.equal(tabIndexOf("/nearby/", custom), 2);
 });
