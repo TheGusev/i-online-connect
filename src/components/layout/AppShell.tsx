@@ -3,9 +3,10 @@ import type { ReactNode } from "react";
 import { RequireSession } from "@/features/auth/session";
 import { useViewportHeightVar } from "@/hooks/useViewportHeight";
 import { useScreenSwipe } from "@/features/navigation/useScreenSwipe";
+import { useTabOrder } from "@/features/navigation/useTabOrder";
 import { useTranslation } from "react-i18next";
 import { navItems } from "./nav-items";
-import { TAB_PATHS } from "@/features/navigation/swipe-rules";
+
 
 
 import { BottomNav } from "./BottomNav";
@@ -33,7 +34,8 @@ export function AppShell({
   const { t } = useTranslation();
   // Свайпы экранов — только на телефоне/планшете; на компьютере есть боковое меню.
   const { surfaceRef, peek, enterClass, optimisticTab } = useScreenSwipe(true);
-  const peekItem = peek ? navItems.find((item) => item.to === TAB_PATHS[peek.index]) : undefined;
+  const [tabOrder] = useTabOrder();
+  const peekItem = peek ? navItems.find((item) => item.to === tabOrder[peek.index]) : undefined;
   const content = (
     <div className="app-viewport flex bg-background text-foreground">
       <SideNav />
@@ -54,7 +56,7 @@ export function AppShell({
         </main>
       </div>
 
-      {!focused ? <BottomNav activeOverride={optimisticTab === null ? undefined : TAB_PATHS[optimisticTab]} /> : null}
+      {!focused ? <BottomNav activeOverride={optimisticTab === null ? undefined : tabOrder[optimisticTab]} /> : null}
     </div>
   );
 

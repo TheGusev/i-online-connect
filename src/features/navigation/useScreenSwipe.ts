@@ -157,7 +157,7 @@ export function useScreenSwipe(enabled: boolean) {
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
     };
-  }, [enabled, tabIndex, location.pathname, navigate, router]);
+  }, [enabled, tabIndex, location.pathname, navigate, router, tabOrder]);
 
   return { surfaceRef, peek, enterClass, optimisticTab };
 }
