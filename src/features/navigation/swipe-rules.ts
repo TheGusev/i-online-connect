@@ -55,7 +55,8 @@ export function isBlockedTarget(target: SwipeTarget | null): boolean {
 }
 
 /** Порядок вкладок по умолчанию: Рядом, Чат, Сообщества, Профиль. Текущий — из tab-order. */
-export { DEFAULT_TAB_ORDER as TAB_PATHS } from "./tab-order";
+import { DEFAULT_TAB_ORDER } from "./tab-order";
+export const TAB_PATHS = DEFAULT_TAB_ORDER;
 
 const normalize = (path: string) => (path.length > 1 ? path.replace(/\/$/, "") : path);
 
