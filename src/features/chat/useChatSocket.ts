@@ -7,8 +7,10 @@ import type { Message } from "@/api";
 export type ChatSocketStatus = "connecting" | "open" | "closed";
 
 export interface ChatSocketEvent {
-  type: "message" | "typing" | "read" | "message-updated" | "message-deleted";
+  type: "message" | "typing" | "read" | "message-updated" | "message-deleted" | "reaction";
   conversationId: string;
+  reactions?: { emoji: string; count: number }[];
+  actorEmojis?: string[];
   message?: Message;
   /** Для события удаления сообщения. */
   messageId?: string;
