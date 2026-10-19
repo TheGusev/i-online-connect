@@ -146,3 +146,11 @@ export async function getConversationMedia(
   if (before) params.set("before", before);
   return request<import("../types").GalleryPage>(`/chat/conversations/${id}/media?${params}`);
 }
+
+/** Поставить или снять реакцию; ответ — свежая сводка по сообщению. */
+export async function setReaction(conversationId: string, messageId: string, emoji: string, action: "put" | "delete") {
+  return request<{ messageId: string; reactions: import("../types").MessageReaction[] }>(
+    `/chat/conversations/${conversationId}/messages/${messageId}/reactions`,
+    { method: action === "put" ? "PUT" : "DELETE", body: { emoji } },
+  );
+}

@@ -67,7 +67,11 @@ export interface Message {
   replyToId?: string;
   /** Короткая цитата исходного сообщения. */
   replyTo?: MessageQuote;
+  /** Реакции участников: mine — моя. */
+  reactions?: MessageReaction[];
 }
+
+export interface MessageReaction { emoji: string; count: number; mine: boolean }
 
 /** Цитата: минимум для плашки и пузыря ответа. */
 export interface MessageQuote {
@@ -136,6 +140,7 @@ export interface SpaceMessage {
   deletedAt?: string;
   replyToId?: string;
   replyTo?: MessageQuote;
+  reactions?: MessageReaction[];
 }
 
 export interface Space {

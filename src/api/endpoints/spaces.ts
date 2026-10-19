@@ -156,3 +156,10 @@ export async function getSpaceMedia(
   if (before) params.set("before", before);
   return request<import("../types").GalleryPage>(`/spaces/${id}/media?${params}`);
 }
+
+export async function setSpaceReaction(spaceId: string, messageId: string, emoji: string, action: "put" | "delete") {
+  return request<{ messageId: string; reactions: import("../types").MessageReaction[] }>(
+    `/spaces/${spaceId}/messages/${messageId}/reactions`,
+    { method: action === "put" ? "PUT" : "DELETE", body: { emoji } },
+  );
+}
