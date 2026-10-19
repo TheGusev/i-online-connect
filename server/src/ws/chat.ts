@@ -21,11 +21,14 @@ import { queryOne } from "../db.ts";
 import { verifyAccessToken } from "../auth/tokens.ts";
 
 export interface ChatSocketEvent {
-  type: "message" | "typing" | "read" | "message-updated" | "message-deleted";
+  type: "message" | "typing" | "read" | "message-updated" | "message-deleted" | "reaction";
   conversationId: string;
   message?: unknown;
   messageId?: string;
   authorId?: string;
+  /** Для type="reaction": счётчики без mine и текущие реакции автора события. */
+  reactions?: { emoji: string; count: number }[];
+  actorEmojis?: string[];
 }
 
 

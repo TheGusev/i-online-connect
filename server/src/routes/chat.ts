@@ -21,6 +21,7 @@ import { badRequest, forbidden, notFound } from "../http.ts";
 import { assertConversationAccess, currentUserId, requireAuth } from "../auth/middleware.ts";
 import { assertVerified } from "../auth/verified.ts";
 import { isInRoom, publishChatEvent } from "../ws/chat.ts";
+import { deleteReaction, loadReactions, putReaction, reactionBody } from "../chat/reactions.ts";
 import { sendPushToUser } from "../push/send.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 import {
@@ -402,10 +403,12 @@ export async function chatRoutes(app: FastifyInstance) {
     const replies = await loadReplies(
       page.map((row) => row.reply_to_id).filter((value): value is string => Boolean(value)),
     );
+    const reactions = await loadReactions("message_reactions", page.map((row) => row.id), userId);
     return {
-      items: page.map((row) =>
-        toMessageDto(row, row.reply_to_id ? replies.get(row.reply_to_id) : undefined),
-      ),
+      items: page.map((row) => ({
+        ...toMessageDto(row, row.reply_to_id ? replies.get(row.reply_to_id) : undefined),
+        reactions: reactions.get(row.id) ?? [],
+      })),
       hasMore,
       nextBefore: hasMore && page[0] ? page[0].created_at.toISOString() : null,
     };
@@ -850,6 +853,34 @@ export async function chatRoutes(app: FastifyInstance) {
   );
 
 
+
+  // Реакции: PUT ставит (при лимите 1 заменяет прежнюю), DELETE снимает. Тело { emoji }.
+  for (const method of ["PUT", "DELETE"] as const) {
+    app.route<{ Params: { id: string; messageId: string } }>({
+      method,
+      url: "/conversations/:id/messages/:messageId/reactions",
+      handler: async (request) => {
+        const userId = currentUserId(request);
+        const { id, messageId } = z.object({ id: z.string().uuid(), messageId: z.string().uuid() }).parse(request.params);
+        await assertConversationAccess(userId, id);
+        const { emoji } = reactionBody.parse(request.body ?? {});
+        const exists = await queryOne("SELECT 1 FROM messages WHERE id = $1 AND conversation_id = $2 AND deleted_at IS NULL", [messageId, id]);
+        if (!exists) throw notFound("Сообщение не найдено");
+        if (method === "PUT") await putReaction("message_reactions", messageId, userId, emoji);
+        else await deleteReaction("message_reactions", messageId, userId, emoji);
+        const summary = (await loadReactions("message_reactions", [messageId], userId)).get(messageId) ?? [];
+        publishChatEvent(id, {
+          type: "reaction",
+          conversationId: id,
+          messageId,
+          authorId: userId,
+          reactions: summary.map(({ emoji: e, count }) => ({ emoji: e, count })),
+          actorEmojis: summary.filter((r) => r.mine).map((r) => r.emoji),
+        });
+        return { messageId, reactions: summary };
+      },
+    });
+  }
 
   app.post<{ Params: { id: string } }>("/conversations/:id/meetings", SEND_LIMIT, async (request) => {
     const userId = currentUserId(request);
