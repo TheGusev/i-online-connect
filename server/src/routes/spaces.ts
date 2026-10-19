@@ -19,6 +19,7 @@ import { z } from "zod";
 import { query, queryOne, transaction } from "../db.ts";
 import { badRequest, forbidden, notFound } from "../http.ts";
 import { assertSpaceMembership, currentUserId, requireAuth } from "../auth/middleware.ts";
+import { deleteReaction, loadReactions, putReaction, reactionBody } from "../chat/reactions.ts";
 import { assertVerified } from "../auth/verified.ts";
 import {
   assertChatMediaSize,
@@ -705,8 +706,32 @@ export async function spaceRoutes(app: FastifyInstance) {
     );
 
     const replies = await loadSpaceReplies(rows.map((row) => row.reply_to_id).filter((value): value is string => Boolean(value)));
-    return rows.map((row) => toSpaceMessageDto(row, row.reply_to_id ? replies.get(row.reply_to_id) : undefined));
+    const reactions = await loadReactions("space_message_reactions", rows.map((row) => row.id), userId);
+    return rows.map((row) => ({
+      ...toSpaceMessageDto(row, row.reply_to_id ? replies.get(row.reply_to_id) : undefined),
+      reactions: reactions.get(row.id) ?? [],
+    }));
   });
+
+  // Реакции в чате сообщества: остальные участники получают их с периодическим опросом списка.
+  for (const method of ["PUT", "DELETE"] as const) {
+    app.route<{ Params: { id: string; messageId: string } }>({
+      method,
+      url: "/:id/messages/:messageId/reactions",
+      handler: async (request) => {
+        const userId = currentUserId(request);
+        const { id, messageId } = messageParams.parse(request.params);
+        await assertSpaceMembership(userId, id);
+        const { emoji } = reactionBody.parse(request.body ?? {});
+        const exists = await queryOne("SELECT 1 FROM space_messages WHERE id = $1 AND space_id = $2 AND deleted_at IS NULL", [messageId, id]);
+        if (!exists) throw notFound("Сообщение не найдено");
+        if (method === "PUT") await putReaction("space_message_reactions", messageId, userId, emoji);
+        else await deleteReaction("space_message_reactions", messageId, userId, emoji);
+        const summary = (await loadReactions("space_message_reactions", [messageId], userId)).get(messageId) ?? [];
+        return { messageId, reactions: summary };
+      },
+    });
+  }
 
   app.post<{ Params: { id: string } }>("/:id/messages", async (request) => {
     const userId = currentUserId(request);
