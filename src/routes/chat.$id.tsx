@@ -1,4 +1,5 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { isNearBottom } from "@/features/chat/scroll";
 import { ChatBackground } from "@/features/chat/components/ChatBackground";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CalendarHeart, WifiOff } from "lucide-react";
@@ -236,15 +237,20 @@ function ConversationPage() {
   }, [id, initialScrollReady, isPending, messages]);
 
   // Автопрокрутка вниз при новых сообщениях (но не при подгрузке истории вверх).
+  const lastMine = messages?.[messages.length - 1]?.authorId === myId;
   useEffect(() => {
     if (!initialScrollReady) return;
-    scrollToBottom();
+    scrollToBottom(!(keyboardInset > 0 || lastMine));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialScrollReady, lastId, typing, scrollToBottom]);
 
   // Клавиатура сократила видимую область — держим последнее сообщение в кадре.
+  // Прокручиваем один раз и только если до изменения пользователь был у низа.
+  const nearBottomRef = useRef(true);
   useEffect(() => {
-    if (!initialScrollReady) return;
-    scrollToBottom(false);
+    if (!initialScrollReady || !nearBottomRef.current) return;
+    const frame = requestAnimationFrame(() => scrollToBottom(false));
+    return () => cancelAnimationFrame(frame);
   }, [initialScrollReady, keyboardInset, scrollToBottom]);
 
   // Подгрузка ранних сообщений при прокрутке к верху с сохранением позиции.
@@ -286,7 +292,6 @@ function ConversationPage() {
       setDraft("");
       return;
     }
-    if (send.isPending) return;
     send.mutate({
       text,
       clientTempId: crypto.randomUUID(),
@@ -294,7 +299,6 @@ function ConversationPage() {
     });
     setReplyTo(null);
     setDraft("");
-    inputRef.current?.focus();
   };
 
   /** Цитата для плашки и оптимистичного пузыря. */
@@ -343,7 +347,7 @@ function ConversationPage() {
 
   return (
     <ReactionContext.Provider value={toggleReaction}>
-    <div className="keyboard-viewport-fixed flex flex-col overflow-hidden bg-background text-foreground">
+    <div className="keyboard-viewport-fixed flex flex-col overflow-hidden overscroll-none bg-background text-foreground">
       <header className="shrink-0 border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-3 py-2.5">
           <Link
@@ -402,6 +406,10 @@ function ConversationPage() {
       <ChatBackground />
       <main
         ref={scrollerRef}
+        onScroll={(event) => {
+          const el = event.currentTarget;
+          nearBottomRef.current = isNearBottom(el.scrollTop, el.clientHeight, el.scrollHeight);
+        }}
         className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 [-webkit-overflow-scrolling:touch] ${
           !isPending && messages && !initialScrollReady ? "invisible" : ""
         }`}
@@ -499,7 +507,7 @@ function ConversationPage() {
 
       <div
         className={`shrink-0 border-t border-border bg-card/95 backdrop-blur ${
-          keyboardInset > 0 ? "pb-0" : "pb-[env(safe-area-inset-bottom)]"
+          keyboardInset > 0 ? "pb-0" : "pb-[env(safe-area-inset-bottom)] has-[textarea:focus]:pb-0"
         }`}
       >
         <div className="mx-auto w-full max-w-3xl">
@@ -519,8 +527,6 @@ function ConversationPage() {
             onChange={setDraft}
             onSend={submit}
             onTyping={sendTyping}
-            onFocus={() => scrollToBottom(false)}
-            sending={send.isPending || editMessage.isPending}
             editing={Boolean(editingMessage)}
             onCancelEdit={() => {
               setEditingMessage(null);
