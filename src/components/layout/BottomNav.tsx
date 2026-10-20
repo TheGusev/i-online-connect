@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useUnreadChatCount } from "@/features/chat/hooks";
-import { reorderByOffset, TAB_ORDER_HINT_KEY } from "@/features/navigation/tab-order";
+import { indexFromX, moveItem, TAB_ORDER_HINT_KEY } from "@/features/navigation/tab-order";
 import { useTabOrder } from "@/features/navigation/useTabOrder";
 import { useKeyboardOpen } from "@/hooks/useViewportHeight";
 import { useSessionStore } from "@/store/useSessionStore";
@@ -23,10 +23,12 @@ export function BottomNav({ activeOverride }: { activeOverride?: string | undefi
   // и перекрывает поле ввода.
   const keyboardOpen = useKeyboardOpen();
   const [order, setOrder] = useTabOrder();
-  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [drag, setDrag] = useState<{ from: number; to: number; dx: number } | null>(null);
+  const dragIndex = drag?.from ?? null;
   const [showHint, setShowHint] = useState(false);
   const listRef = useRef<HTMLUListElement | null>(null);
-  const press = useRef<{ pointerId: number; startX: number; index: number; timer: number } | null>(null);
+  const press = useRef<{ pointerId: number; startX: number; index: number; timer: number; active: boolean } | null>(null);
+  const suppressClick = useRef(false);
 
   // Одноразовая подсказка про перестановку: после первого входа, гаснет сама.
   useEffect(() => {
@@ -53,54 +55,81 @@ export function BottomNav({ activeOverride }: { activeOverride?: string | undefi
     press.current = null;
   };
 
+  const finishDrag = (save: boolean) => {
+    if (save && drag && drag.to !== drag.from) setOrder(moveItem(order, drag.from, drag.to));
+    setDrag(null);
+    suppressClick.current = true;
+    window.setTimeout(() => {
+      suppressClick.current = false;
+    }, 350);
+  };
+
   const onPointerDown = (event: React.PointerEvent, index: number) => {
-    if (dragIndex !== null) return;
+    if (drag) return;
     const pointerId = event.pointerId;
     const startX = event.clientX;
     const timer = window.setTimeout(() => {
-      setDragIndex(index);
-      // Удержание включило перестановку: блокируем прокрутку и свайп экранов.
-      (event.target as HTMLElement).releasePointerCapture?.(pointerId);
+      if (!press.current) return;
+      press.current.active = true;
+      try {
+        listRef.current?.setPointerCapture(pointerId);
+      } catch {
+        // указатель уже отпущен
+      }
+      setDrag({ from: index, to: index, dx: 0 });
     }, LONG_PRESS_MS);
-    press.current = { pointerId, startX, index, timer };
+    press.current = { pointerId, startX, index, timer, active: false };
   };
 
   const onPointerMove = (event: React.PointerEvent) => {
-    const active = press.current;
-    if (!active || event.pointerId !== active.pointerId) return;
-    if (dragIndex === null) {
-      // Палец ушёл до срабатывания удержания — это прокрутка/свайп, не перестановка.
-      if (Math.abs(event.clientX - active.startX) > 12) cancelPress();
+    const current = press.current;
+    if (!current || event.pointerId !== current.pointerId) return;
+    if (!current.active) {
+      // Палец ушёл до срабатывания удержания — это не перестановка.
+      if (Math.abs(event.clientX - current.startX) > 12) cancelPress();
       return;
     }
     event.preventDefault();
-    const width = listRef.current?.clientWidth ?? 1;
-    const slot = width / Math.max(1, orderedItems.length);
-    const slots = Math.round((event.clientX - active.startX) / slot);
-    if (slots === 0) return;
-    const draggedPath = order[active.index]!;
-    const next = reorderByOffset(order, active.index, slots);
-    if (next !== order) {
-      active.index = next.indexOf(draggedPath);
-      active.startX = event.clientX;
-      setOrder(next);
-      setDragIndex(active.index);
-    }
+    const rect = listRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const to = indexFromX(event.clientX, rect.left, rect.width, orderedItems.length);
+    setDrag({ from: current.index, to, dx: event.clientX - current.startX });
   };
 
   const onPointerUp = (event: React.PointerEvent) => {
-    if (press.current && event.pointerId === press.current.pointerId) cancelPress();
-    if (dragIndex !== null) {
+    const current = press.current;
+    if (!current || event.pointerId !== current.pointerId) return;
+    const wasActive = current.active;
+    cancelPress();
+    if (wasActive) {
       event.preventDefault();
-      setDragIndex(null);
+      finishDrag(true);
     }
+  };
+
+  const onPointerCancel = (event: React.PointerEvent) => {
+    const current = press.current;
+    if (!current || event.pointerId !== current.pointerId) return;
+    const wasActive = current.active;
+    cancelPress();
+    if (wasActive) finishDrag(false);
+  };
+
+  const slotWidth = (listRef.current?.clientWidth ?? 0) / Math.max(1, orderedItems.length);
+  const itemTransform = (index: number): string | undefined => {
+    if (!drag) return undefined;
+    if (index === drag.from) return `translateX(${drag.dx}px) scale(1.12) translateY(-4px)`;
+    if (drag.from < drag.to && index > drag.from && index <= drag.to) return `translateX(${-slotWidth}px)`;
+    if (drag.from > drag.to && index >= drag.to && index < drag.from) return `translateX(${slotWidth}px)`;
+    return undefined;
   };
 
   return (
     <nav
       data-no-swipe
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
-      style={dragIndex !== null ? { touchAction: "none" } : undefined}
+      className="nav-no-callout fixed inset-x-0 bottom-0 z-20 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+      style={{ touchAction: "none" }}
+      onContextMenu={(event) => event.preventDefault()}
     >
       {showHint ? (
         <div className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border border-border bg-card px-4 py-2 text-xs text-muted-foreground shadow-glow">
@@ -111,19 +140,24 @@ export function BottomNav({ activeOverride }: { activeOverride?: string | undefi
         ref={listRef}
         className={orderedItems.length === 5 ? "grid grid-cols-5" : "grid grid-cols-4"}
         onPointerMove={onPointerMove}
+        style={{ touchAction: "none" }}
         onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        onPointerCancel={onPointerCancel}
       >
         {orderedItems.map(({ to, params, labelKey, icon: Icon }, index) => (
           <li
             key={to}
-            className={`min-w-0 ${dragIndex !== null ? (dragIndex === index ? "nav-drag-active" : "nav-drag-wiggle") : ""}`}
+            className={`min-w-0 ${dragIndex !== null ? (dragIndex === index ? "nav-drag-active" : "nav-drag-shift") : ""}`}
+            style={{ transform: itemTransform(index) }}
             onPointerDown={(event) => onPointerDown(event, index)}
           >
             <Link
               to={to}
               {...(params ? { params } : {})}
-              onClickCapture={dragIndex !== null ? (event) => event.preventDefault() : undefined}
+              draggable={false}
+              onClickCapture={(event) => {
+                if (dragIndex !== null || suppressClick.current) event.preventDefault();
+              }}
               activeProps={{
                 className:
                   "text-primary font-semibold before:absolute before:inset-x-3 before:top-0 before:h-0.5 before:rounded-full before:bg-primary",
@@ -131,7 +165,7 @@ export function BottomNav({ activeOverride }: { activeOverride?: string | undefi
               className={`relative flex h-14 ${activeOverride ? (activeOverride === to ? "!text-primary font-semibold before:absolute before:inset-x-3 before:top-0 before:h-0.5 before:rounded-full before:bg-primary" : "!text-muted-foreground !font-normal before:hidden") : ""} min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[10px] leading-none text-muted-foreground transition-colors`}
             >
               <span className="relative">
-                <Icon className="size-6" aria-hidden="true" />
+                <Icon className="size-6" aria-hidden="true" draggable={false} />
                 {to === "/chat" ? <NavBadge count={unreadChats} /> : null}
               </span>
               <span className="w-full truncate text-center">{t(labelKey)}</span>

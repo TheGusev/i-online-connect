@@ -55,3 +55,19 @@ test("индекс вкладки ищется в текущем порядке,
   assert.equal(tabIndexInOrder(custom, "/nearby/"), 2);
   assert.equal(tabIndexInOrder(custom, "/chat/123"), -1);
 });
+
+import { indexFromX, moveItem } from "./tab-order";
+
+test("indexFromX maps finger x to slot and clamps to edges", () => {
+  assert.equal(indexFromX(10, 0, 400, 4), 0);
+  assert.equal(indexFromX(150, 0, 400, 4), 1);
+  assert.equal(indexFromX(399, 0, 400, 4), 3);
+  assert.equal(indexFromX(-50, 0, 400, 4), 0);
+  assert.equal(indexFromX(900, 0, 400, 4), 3);
+  assert.equal(indexFromX(260, 100, 400, 4), 1);
+});
+
+test("moveItem moves an item to the target slot", () => {
+  assert.deepEqual(moveItem(["a", "b", "c", "d"], 0, 2), ["b", "c", "a", "d"]);
+  assert.deepEqual(moveItem(["a", "b", "c", "d"], 3, 0), ["d", "a", "b", "c"]);
+});

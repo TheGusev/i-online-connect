@@ -806,18 +806,13 @@ html[data-tab-hidden] .chat-sky *, html[data-tab-hidden] .live-icon * { animatio
   .album-tile { animation: none; }
 }
 
-/* Перестановка вкладок нижнего меню: перетаскиваемая приподнята, остальные покачиваются. */
-@keyframes nav-wiggle { 0%, 100% { transform: rotate(-1.4deg); } 50% { transform: rotate(1.4deg); } }
-.nav-drag-active {
-  transform: scale(1.12) translateY(-4px);
-  transition: transform 160ms ease;
-  z-index: 1;
-  position: relative;
-}
-.nav-drag-wiggle { animation: nav-wiggle 320ms ease-in-out infinite; }
+/* Перестановка вкладок нижнего меню: перетаскиваемая следует за пальцем (transform задаётся инлайн), остальные сдвигаются. */
+.nav-no-callout, .nav-no-callout * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.nav-drag-active { position: relative; z-index: 1; transition: none; }
+.nav-drag-shift { transition: transform 180ms ease; }
 @media (prefers-reduced-motion: reduce) {
-  .nav-drag-active { transform: none; transition: none; }
-  .nav-drag-wiggle { animation: none; }
+  .nav-drag-shift { transition: none; }
+}
 }
 
 /* Кольцо верификации вокруг аватара: вращается только transform, на GPU. */
