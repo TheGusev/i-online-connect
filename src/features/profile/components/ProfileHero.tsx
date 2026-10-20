@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import type { ProfileMedia } from "@/api";
 import { mediaUrl } from "@/api";
-import { Button, MediaImage, TrustBadge, type TrustLevel } from "@/components/ds";
+import { Avatar, Button, MediaImage, trustRingLabel, type AvatarTrust, type TrustLevel } from "@/components/ds";
 import { cn } from "@/lib/utils";
 
 import { MediaViewer } from "./MediaViewer";
@@ -31,6 +31,7 @@ export function ProfileHero({
   busy,
   ownerPresentation = false,
   verified = false,
+  ring = "none",
 }: {
   media: ProfileMedia[];
   name: string;
@@ -48,7 +49,12 @@ export function ProfileHero({
   /** Isolated owner layout: public profile presentation stays unchanged. */
   ownerPresentation?: boolean;
   verified?: boolean;
+  /** Кольцо верификации у аватара рядом с именем. */
+  ring?: AvatarTrust;
 }) {
+  const [hint, setHint] = useState(false);
+  const ringLabel = trustRingLabel[ring];
+  const avatarSrc = (media.find((item) => item.kind === "photo" && item.isPrimary) ?? media.find((item) => item.kind === "photo"))?.url ?? null;
   const [index, setIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
   const touchStart = useRef<number | null>(null);
@@ -127,22 +133,22 @@ export function ProfileHero({
           ) : (
             <span />
           )}
-          {ownerPresentation ? (
-            verified ? <span className="rounded-full bg-card/95 shadow-soft backdrop-blur"><TrustBadge level="confirmed" size="sm" /></span> : null
-          ) : (
-            <span className="rounded-full bg-card/95 shadow-soft backdrop-blur">
-              <TrustBadge level={trustLevel} size="sm" />
-            </span>
-          )}
         </div>
 
         <div className={cn("pointer-events-none absolute inset-x-0 bottom-0 p-4 pt-10", ownerPresentation ? "bg-gradient-to-t from-background/95 via-background/60 to-transparent" : "bg-gradient-to-t from-foreground/85 via-foreground/30 to-transparent")}>
-          <div className="flex min-w-0 items-center gap-1.5">
+          <div className="flex min-w-0 items-center gap-2">
+          {ringLabel ? (
+            <span className="pointer-events-auto relative shrink-0">
+              <button type="button" aria-label={ringLabel} onClick={() => setHint((v) => !v)} onBlur={() => setHint(false)} onContextMenu={(e) => { e.preventDefault(); setHint(true); }} className="rounded-full">
+                <Avatar name={name} src={avatarSrc} size="md" trust={ring} />
+              </button>
+              {hint ? <span role="tooltip" className="absolute bottom-full left-0 mb-2 whitespace-nowrap rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground shadow-lift">{ringLabel}</span> : null}
+            </span>
+          ) : null}
           <h1 className={cn("min-w-0 break-words text-2xl font-bold sm:text-3xl", ownerPresentation ? "text-foreground" : "truncate text-primary-foreground")}>
             {name}
             {age !== null && Number.isFinite(age) && age > 0 ? `, ${age}` : ""}
           </h1>
-          {ownerPresentation ? <TrustBadge level={trustLevel} size="sm" iconOnly className="shrink-0" /> : null}
           </div>
           <div className="mt-1 flex items-end justify-between gap-3">
             <p className={cn("inline-flex min-w-0 items-center gap-1.5 text-xs", ownerPresentation ? "text-foreground/85" : "text-primary-foreground/85")}>

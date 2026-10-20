@@ -14,7 +14,6 @@ import {
   getTrustLevel,
 } from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
-import { badgeLevel } from "@/features/chat/trust";
 import { ReportModal } from "@/features/trust/components/ReportModal";
 import {
   useCloseListing,

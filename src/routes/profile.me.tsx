@@ -149,6 +149,7 @@ function MyProfilePage() {
               age={draft ? parseProfileAge(draft.age).age : data.age}
               city={draft ? draft.city : data.city}
               trustLevel={badgeLevel(data.trustLevel)}
+              ring={getTrustLevel(data)}
               ownerPresentation
               verified={data.verification === "verified"}
               onUpload={media.upload}

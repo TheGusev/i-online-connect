@@ -3,7 +3,6 @@ import { Check, CheckCheck } from "lucide-react";
 
 import type { Conversation } from "@/api";
 import { Avatar, getTrustLevel } from "@/components/ds";
-import { badgeLevel } from "@/features/chat/trust";
 import { cn } from "@/lib/utils";
 
 function timeLabel(iso: string) {

@@ -64,6 +64,7 @@ function ProfileViewPage() {
               age={data.age}
               city={data.city}
               trustLevel={badgeLevel(data.trustLevel)}
+              ring={getTrustLevel(data)}
             />
             <ProfileActionBar id={data.id} name={data.name} />
           </Reveal>
