@@ -57,3 +57,19 @@ export function tabIndexInOrder(order: readonly string[], pathname: string): num
   const normalized = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
   return order.indexOf(normalized);
 }
+
+/** Индекс слота по x пальца относительно списка вкладок (с ограничением краями). */
+export function indexFromX(x: number, left: number, width: number, count: number): number {
+  if (count <= 0 || width <= 0) return 0;
+  const raw = Math.floor(((x - left) / width) * count);
+  return Math.max(0, Math.min(count - 1, raw));
+}
+
+/** Перемещает элемент from на позицию to. */
+export function moveItem<T>(order: T[], from: number, to: number): T[] {
+  if (from === to) return order;
+  const next = [...order];
+  const [item] = next.splice(from, 1);
+  next.splice(to, 0, item!);
+  return next;
+}
