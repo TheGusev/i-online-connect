@@ -3,7 +3,8 @@
  *
  * Клиент → сервер: join {spaceId}, leave, start_live, end_live, speaking {on}.
  * Сервер → клиент: snapshot, presence {online}, live_started, live_ended,
- *                  speaking {userId,on}, clip {...}.
+ *                  speaking {userId,on}, clip {...}, card_added {card},
+ *                  card_updated {card}, card_removed {cardId}.
  *
  * Состояние в памяти процесса (как и у чата). Под PM2 cluster нужен общий канал.
  */
@@ -15,6 +16,7 @@ import { unlink } from "node:fs/promises";
 import { query, queryOne } from "../db.ts";
 import { mediaPathFromUrl } from "../media/store.ts";
 import { clipFilesToDelete, staleSessionIds } from "../live/clips.ts";
+import type { LiveCardDto } from "../live/cards.ts";
 import { verifyAccessToken } from "../auth/tokens.ts";
 
 export interface LiveClipEvent {
@@ -40,6 +42,7 @@ interface SpaceLive {
   startedAt: string | null;
   speaking: Set<string>;
   clips: LiveClipEvent[];
+  cards: LiveCardDto[];
   sessionId: string | null;
   starting: boolean;
   endTimer: NodeJS.Timeout | null;
@@ -51,7 +54,7 @@ const spaces = new Map<string, SpaceLive>();
 function stateOf(spaceId: string): SpaceLive {
   let s = spaces.get(spaceId);
   if (!s) {
-    s = { conns: new Map(), active: false, startedBy: null, startedAt: null, speaking: new Set(), clips: [], sessionId: null, starting: false, endTimer: null };
+    s = { conns: new Map(), active: false, startedBy: null, startedAt: null, speaking: new Set(), clips: [], cards: [], sessionId: null, starting: false, endTimer: null };
     spaces.set(spaceId, s);
   }
   return s;
@@ -76,6 +79,7 @@ function snapshot(s: SpaceLive, spaceId: string) {
     online: unique(s).length,
     onlineIds: unique(s),
     clips: s.clips.slice(-20),
+    cards: s.cards,
   };
 }
 
@@ -87,6 +91,11 @@ export async function closeLiveSession(sessionId: string): Promise<void> {
       await unlink(file).catch(() => undefined);
     }
     await query("DELETE FROM live_clips WHERE session_id = $1", [sessionId]);
+    const cards = await query<{ media_url: string | null }>("SELECT media_url FROM live_cards WHERE session_id = $1", [sessionId]);
+    for (const file of clipFilesToDelete(cards.map((r) => r.media_url), mediaPathFromUrl)) {
+      await unlink(file).catch(() => undefined);
+    }
+    await query("DELETE FROM live_cards WHERE session_id = $1", [sessionId]);
     await query("UPDATE live_sessions SET ended_at = now() WHERE id = $1 AND ended_at IS NULL", [sessionId]);
   } catch (error) {
     console.error("[live] Не удалось закрыть сессию", sessionId, (error as Error).message);
@@ -100,6 +109,7 @@ function endLive(s: SpaceLive, spaceId: string) {
   if (s.sessionId) void closeLiveSession(s.sessionId);
   s.sessionId = null;
   s.clips = [];
+  s.cards = [];
   s.active = false;
   s.startedBy = null;
   s.startedAt = null;
@@ -141,7 +151,8 @@ async function sweep(includeAll: boolean) {
     const active = [...spaces.values()].map((s) => s.sessionId).filter((x): x is string => Boolean(x));
     await closeSessions(includeAll ? open.map((r) => r.id) : staleSessionIds(open.map((r) => r.id), active));
     const old = await query<{ id: string }>(
-      "SELECT DISTINCT s.id FROM live_sessions s JOIN live_clips c ON c.session_id = s.id WHERE s.ended_at < now() - interval '24 hours'",
+      "SELECT DISTINCT s.id FROM live_sessions s WHERE s.ended_at < now() - interval '24 hours'"
+        + " AND (EXISTS (SELECT 1 FROM live_clips c WHERE c.session_id = s.id) OR EXISTS (SELECT 1 FROM live_cards k WHERE k.session_id = s.id))",
     );
     await closeSessions(old.map((r) => r.id));
   } catch (error) {
@@ -155,6 +166,36 @@ export function publishLiveClip(spaceId: string, clip: LiveClipEvent): void {
   if (!s?.active) return;
   s.clips = [...s.clips, clip].slice(-20);
   broadcast(s, { type: "clip", spaceId, clip });
+}
+
+/** Активная сессия и кто начал эфир (или null, если эфира нет). */
+export function getLiveInfo(spaceId: string): { sessionId: string; startedBy: string | null } | null {
+  const s = spaces.get(spaceId);
+  if (!s?.active || !s.sessionId) return null;
+  return { sessionId: s.sessionId, startedBy: s.startedBy };
+}
+
+/** Карточки стола: зеркало в памяти + рассылка. Вызываются из routes/live-cards.ts. */
+export function publishCardAdded(spaceId: string, sessionId: string, card: LiveCardDto): void {
+  const s = spaces.get(spaceId);
+  if (!s?.active || s.sessionId !== sessionId) return;
+  if (s.cards.some((c) => c.id === card.id)) return;
+  s.cards = [...s.cards, card];
+  broadcast(s, { type: "card_added", spaceId, card });
+}
+
+export function publishCardUpdated(spaceId: string, sessionId: string, card: LiveCardDto): void {
+  const s = spaces.get(spaceId);
+  if (!s?.active || s.sessionId !== sessionId) return;
+  s.cards = s.cards.map((c) => (c.id === card.id ? card : c));
+  broadcast(s, { type: "card_updated", spaceId, card });
+}
+
+export function publishCardRemoved(spaceId: string, sessionId: string, cardId: string): void {
+  const s = spaces.get(spaceId);
+  if (!s?.active || s.sessionId !== sessionId) return;
+  s.cards = s.cards.filter((c) => c.id !== cardId);
+  broadcast(s, { type: "card_removed", spaceId, cardId });
 }
 
 export async function liveSocketRoutes(app: FastifyInstance) {
