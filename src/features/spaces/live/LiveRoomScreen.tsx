@@ -319,7 +319,7 @@ export function LiveRoomScreen({
         myId={myId}
         startedBy={room.startedBy}
         {...(room.cardActions ? { actions: room.cardActions } : {})}
-        onPhoto={setPhoto}
+        onPhoto={(url) => { setOpenCard(null); setPhoto(url); }}
       />
       {photo ? (
         <div className="fixed inset-0 z-[100]">
