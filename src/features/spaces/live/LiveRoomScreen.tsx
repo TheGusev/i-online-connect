@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
-import { LogOut, Mic, Volume2, VolumeX, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { LogOut, Mic, Plus, Volume2, VolumeX, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { createPortal } from "react-dom";
 
@@ -10,19 +10,24 @@ import { getRate, pauseOthers, registerVoice } from "@/features/chat/voicePlayba
 import { useSessionStore } from "@/store/useSessionStore";
 import { Avatar, Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
+import { lockBodyScroll } from "@/lib/scroll-lock";
 
 import { ClipBricks } from "./ClipBricks";
+import { assignSeats } from "./seats";
 import type { LiveClip, LiveParticipant, LiveRoom } from "./useLiveRoom";
 
-const MAX_BALLS = 12;
+/** Лузы стола (проценты): участники сидят в них, центр стола свободен. */
 const POCKETS = [
-  [4, 6], [50, 2], [96, 6], [4, 94], [50, 98], [96, 94],
+  [4, 6], [50, 2], [96, 6], [4, 50], [96, 50], [4, 94], [50, 98], [96, 94],
 ] as const;
+const HALL_SHOWN = 2;
 
-function seatOf(i: number, total: number, speaking: boolean): [number, number] {
-  const angle = (i / Math.max(total, 1)) * Math.PI * 2 - Math.PI / 2;
-  const r = speaking ? 0.62 : 0.78;
-  return [50 + Math.cos(angle) * 38 * r, 50 + Math.sin(angle) * 36 * r];
+/** Где капсула с именем относительно аватара в лузе. */
+function nameSide(x: number, y: number) {
+  if (x < 10) return "left-full top-1/2 ml-1 -translate-y-1/2";
+  if (x > 90) return "right-full top-1/2 mr-1 -translate-y-1/2";
+  if (y < 10) return "top-full left-1/2 mt-1 -translate-x-1/2";
+  return "bottom-full left-1/2 mb-1 -translate-x-1/2";
 }
 
 export function LiveRoomScreen({
@@ -50,6 +55,14 @@ export function LiveRoomScreen({
   const myId = useSessionStore((st) => st.user?.id ?? null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const heardRef = useRef(new Set<string>());
+  const seatsRef = useRef<Record<string, number>>({});
+  const participantKey = room.participants.map((p) => p.userId).join(",");
+  const seats = useMemo(() => {
+    const next = assignSeats(seatsRef.current, room.participants.map((p) => p.userId), POCKETS.length);
+    seatsRef.current = next;
+    return next;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [participantKey]);
   const real = Boolean(room.real && spaceId && !demo);
   const actions = room.actions;
 
@@ -94,18 +107,21 @@ export function LiveRoomScreen({
   useEffect(() => {
     if (!open) return;
     const t = window.setInterval(() => setNow(Date.now()), 2000);
-    document.body.style.overflow = "hidden";
+    const unlockScroll = lockBodyScroll();
     return () => {
       window.clearInterval(t);
-      document.body.style.overflow = "";
+      unlockScroll();
     };
   }, [open]);
 
   if (!open || typeof document === "undefined") return null;
 
-  const balls = room.participants.slice(0, MAX_BALLS);
-  const extra = room.participants.length - balls.length;
-  const pos = new Map(balls.map((p, i) => [p.userId, seatOf(i, balls.length, p.isSpeaking)]));
+  const seated = room.participants.filter((p) => seats[p.userId] !== undefined);
+  const hall = room.participants.filter((p) => seats[p.userId] === undefined);
+  const hallShown = hall.slice(0, HALL_SHOWN);
+  const extra = hall.length - hallShown.length;
+  const pos = new Map(seated.map((p) => [p.userId, POCKETS[seats[p.userId]!]!] as const));
+  const bySeat = new Map(seated.map((p) => [seats[p.userId]!, p]));
 
   function playClip(clip: LiveClip) {
     setActiveClip(clip.id);
@@ -146,14 +162,29 @@ export function LiveRoomScreen({
   const lastClipOf = (userId: string) => [...room.clips].reverse().find((c) => c.userId === userId);
 
   return createPortal(
-    <div className="live-room fixed inset-0 z-[90] flex flex-col bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+    <div data-no-swipe className="live-room fixed inset-0 z-[90] flex flex-col bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]">
       <header className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-bold text-foreground">{title}</h2>
           <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><span className="live-dot" />{room.participants.length} в эфире</p>
         </div>
+        <Button size="icon" variant="ghost" aria-label={muted ? "Включить звук" : "Выключить звук"} onClick={() => setMuted((m) => !m)} className="text-primary">
+          {muted ? <VolumeX /> : <Volume2 />}
+        </Button>
         <Button size="icon" variant="ghost" aria-label="Закрыть эфир" onClick={exit} className="text-primary"><X /></Button>
       </header>
+
+      {hall.length > 0 ? (
+        <div className="mt-2 flex items-center gap-1.5">
+          {hallShown.map((p) => (
+            <button key={p.userId} type="button" aria-label={p.name} onClick={() => setPicked(p)} className={cn("rounded-full", p.isSpeaking && "live-speaking")}>
+              <Avatar name={p.name} src={mediaUrl(p.avatarUrl) ?? null} size="xs" className="rounded-full" />
+            </button>
+          ))}
+          {extra > 0 ? <span className="rounded-full bg-card px-2 py-0.5 text-xs text-muted-foreground">+{extra}</span> : null}
+          <span className="text-xs text-muted-foreground">в зале</span>
+        </div>
+      ) : null}
 
       {real && !unlocked ? (
         <div className="mt-3 flex items-center gap-2">
@@ -166,15 +197,16 @@ export function LiveRoomScreen({
 
       <div className="relative mt-4 min-h-0 flex-1">
         <div className="live-table absolute inset-0 rounded-[2.5rem]" onClick={() => setPicked(null)}>
-          {POCKETS.map(([x, y], i) => (
+          {POCKETS.map(([x, y], i) => bySeat.has(i) ? null : (
             <button
               key={i}
               type="button"
+              aria-label="Позвать в эфир"
               onClick={(e) => { e.stopPropagation(); onInvite?.(); }}
-              className="absolute grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-background/90 text-[8px] font-semibold text-muted-foreground"
+              className="absolute grid size-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-dashed border-primary/50 bg-background/80 text-primary"
               style={{ left: `${x}%`, top: `${y}%` }}
             >
-              + позвать
+              <Plus className="size-5" aria-hidden="true" />
             </button>
           ))}
           <svg className="pointer-events-none absolute inset-0 size-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -199,7 +231,7 @@ export function LiveRoomScreen({
               );
             })}
           </svg>
-          {balls.map((p) => {
+          {seated.map((p) => {
             const [x, y] = pos.get(p.userId)!;
             const glow = p.lastSpokeAt ? Math.max(0, 1 - (now - p.lastSpokeAt) / 60_000) : 0;
             return (
@@ -207,10 +239,10 @@ export function LiveRoomScreen({
                 key={p.userId}
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setPicked(p); }}
-                className="live-ball absolute flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1"
+                className="live-ball absolute -translate-x-1/2 -translate-y-1/2"
                 style={{ left: `${x}%`, top: `${y}%` }}
               >
-                <span className={cn("relative rounded-full", p.isSpeaking && "live-speaking")}>
+                <span className={cn("relative block rounded-full", p.isSpeaking && "live-speaking")}>
                   <span className="absolute -inset-1 rounded-full shadow-glow transition-opacity duration-1000" style={{ opacity: p.isSpeaking ? 1 : glow }} />
                   <Avatar
                     name={p.name}
@@ -219,13 +251,10 @@ export function LiveRoomScreen({
                     className={cn("relative rounded-full border-2", p.isSpeaking ? "border-primary" : "border-border")}
                   />
                 </span>
-                <span className="max-w-16 truncate rounded-full bg-background/70 px-1.5 text-[10px] font-semibold text-foreground">{p.name.split(" ")[0]}</span>
+                <span className={cn("absolute z-10 max-w-20 truncate whitespace-nowrap rounded-full bg-background/80 px-1.5 text-[10px] font-semibold text-foreground", nameSide(x, y))}>{p.name.split(" ")[0]}</span>
               </button>
             );
           })}
-          {extra > 0 ? (
-            <span className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-card px-2 py-0.5 text-xs text-muted-foreground">+{extra}</span>
-          ) : null}
         </div>
 
         {picked ? (
@@ -251,8 +280,8 @@ export function LiveRoomScreen({
       </div>
 
       <footer className="mt-4 flex items-center justify-between gap-3">
-        <Button size="icon" variant="secondary" aria-label={muted ? "Включить звук" : "Выключить звук"} onClick={() => setMuted((m) => !m)}>
-          {muted ? <VolumeX /> : <Volume2 />}
+        <Button size="icon" variant="secondary" aria-label="Добавить на стол" title="Скоро" disabled>
+          <Plus />
         </Button>
         <div className="flex flex-col items-center gap-1">
           <button
