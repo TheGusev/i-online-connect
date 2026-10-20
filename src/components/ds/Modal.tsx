@@ -69,7 +69,10 @@ export function Modal({
   );
 }
 
-export interface BottomSheetProps extends ModalProps {}
+export interface BottomSheetProps extends ModalProps {
+  /** Слой окна поверх полноэкранных экранов (например, эфира). */
+  layerClassName?: string;
+}
 
 const SHEET_LEAVE_MS = 260;
 const SHEET_CLOSE_PX = 100;
@@ -91,6 +94,7 @@ export function BottomSheet({
   children,
   footer,
   className,
+  layerClassName = "z-50",
 }: BottomSheetProps) {
   const [mounted, setMounted] = useState(open);
   const [leaving, setLeaving] = useState(false);
@@ -161,7 +165,7 @@ export function BottomSheet({
   };
 
   return createPortal(
-    <div data-no-swipe className="viewport-overlay z-50 flex items-end justify-center">
+    <div data-no-swipe className={cn("viewport-overlay flex items-end justify-center", layerClassName)}>
       <button
         type="button"
         aria-label="Закрыть"
