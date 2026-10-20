@@ -514,3 +514,18 @@ export interface GalleryPage {
   items: GalleryItem[];
   nextCursor: string | null;
 }
+
+/** Карточка на «столе» эфира. */
+export interface LiveCard {
+  id: string;
+  kind: "photo" | "link" | "note" | "question";
+  authorId: string;
+  text: string;
+  url?: string;
+  domain?: string;
+  mediaUrl?: string;
+  mediaMime?: string;
+  status: "open" | "resolved";
+  createdAt: string;
+  clientTempId: string;
+}
