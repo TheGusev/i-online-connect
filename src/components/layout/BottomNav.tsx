@@ -164,8 +164,8 @@ export function BottomNav({ activeOverride }: { activeOverride?: string | undefi
               }}
               className={`relative flex h-14 ${activeOverride ? (activeOverride === to ? "!text-primary font-semibold before:absolute before:inset-x-3 before:top-0 before:h-0.5 before:rounded-full before:bg-primary" : "!text-muted-foreground !font-normal before:hidden") : ""} min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-[10px] leading-none text-muted-foreground transition-colors`}
             >
-              <span className="relative">
-                <Icon className="size-6" aria-hidden="true" draggable={false} />
+              <span className="relative" draggable={false}>
+                <Icon className="size-6" aria-hidden="true" />
                 {to === "/chat" ? <NavBadge count={unreadChats} /> : null}
               </span>
               <span className="w-full truncate text-center">{t(labelKey)}</span>
