@@ -11,7 +11,7 @@ import {
   Input,
   MediaImage,
   TextArea,
-  TrustBadge,
+  getTrustLevel,
 } from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
 import { badgeLevel } from "@/features/chat/trust";

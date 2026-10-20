@@ -1,8 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { Listing } from "@/api";
-import { Avatar, TrustBadge } from "@/components/ds";
-import { badgeLevel } from "@/features/chat/trust";
+import { Avatar, getTrustLevel, trustRingLabel } from "@/components/ds";
 import { cn } from "@/lib/utils";
 
 /**

@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Check, CheckCheck } from "lucide-react";
 
 import type { Conversation } from "@/api";
-import { Avatar, TrustBadge } from "@/components/ds";
+import { Avatar, getTrustLevel } from "@/components/ds";
 import { badgeLevel } from "@/features/chat/trust";
 import { cn } from "@/lib/utils";
 
