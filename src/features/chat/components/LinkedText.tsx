@@ -36,7 +36,7 @@ export function LinkedText({ text, mine = false }: { text: string; mine?: boolea
         open={confirm !== null}
         onClose={() => setConfirm(null)}
         title="Открыть ссылку?"
-        description={confirm ? `Ссылка ведёт на внешний сайт: ${hostOf(confirm)}. Открыть?` : undefined}
+        description={confirm ? `Ссылка ведёт на внешний сайт: ${hostOf(confirm)}. Открыть?` : ""}
         footer={
           <div className="flex gap-2">
             <Button variant="ghost" onClick={() => setConfirm(null)}>Отмена</Button>
