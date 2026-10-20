@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const HOLD_MS = 350;
 const MOVE_TOLERANCE = 8;
