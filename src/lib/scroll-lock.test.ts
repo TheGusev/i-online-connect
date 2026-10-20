@@ -1,4 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { test } from "node:test";
+import assert from "node:assert/strict";
 
 import { lockBodyScroll } from "./scroll-lock";
 
@@ -7,10 +8,10 @@ interface OverflowState {
   writes: number;
 }
 
-/** Тестовая замена document.body без DOM-окружения: счётчик работает одинаково. */
+/** Тестовая замена document.body без DOM: счётчик работает одинаково. */
 function stubDocument(): OverflowState {
   const state: OverflowState = { value: "", writes: 0 };
-  vi.stubGlobal("document", {
+  (globalThis as { document?: unknown }).document = {
     body: {
       style: {
         get overflow() {
@@ -22,71 +23,70 @@ function stubDocument(): OverflowState {
         },
       },
     },
-  });
+  };
   return state;
 }
 
-describe("lockBodyScroll", () => {
-  let overflow: OverflowState;
+function unstubDocument() {
+  delete (globalThis as { document?: unknown }).document;
+}
 
-  beforeEach(() => {
-    overflow = stubDocument();
-  });
+test("блокирует с первой блокировки и держит hidden, пока жива вторая", () => {
+  const overflow = stubDocument();
+  const unlockA = lockBodyScroll();
+  assert.equal(overflow.value, "hidden");
+  const unlockB = lockBodyScroll();
+  unlockA();
+  assert.equal(overflow.value, "hidden");
+  unlockB();
+  assert.equal(overflow.value, "");
+  unstubDocument();
+});
 
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
+test("в прямом порядке исходное значение возвращается после последней блокировки", () => {
+  const overflow = stubDocument();
+  overflow.value = "auto";
+  const writesBefore = overflow.writes;
+  const unlockA = lockBodyScroll();
+  const unlockB = lockBodyScroll();
+  assert.equal(overflow.value, "hidden");
+  unlockA();
+  assert.equal(overflow.value, "hidden");
+  unlockB();
+  assert.equal(overflow.value, "auto");
+  unlockA();
+  unlockB();
+  assert.equal(overflow.value, "auto");
+  // Одна блокировка: одно hidden + одно восстановление, повторные unlock не пишут.
+  assert.equal(overflow.writes - writesBefore, 2);
+  unstubDocument();
+});
 
-  it("blocks on first lock and keeps hiding while another lock is held", () => {
-    const unlockA = lockBodyScroll();
-    expect(overflow.value).toBe("hidden");
-    const unlockB = lockBodyScroll();
-    unlockA();
-    expect(overflow.value).toBe("hidden");
-    unlockB();
-    expect(overflow.value).toBe("");
-  });
+test("в обратном порядке восстановление происходит ровно один раз", () => {
+  const overflow = stubDocument();
+  overflow.value = "scroll";
+  const writesBefore = overflow.writes;
+  const unlockA = lockBodyScroll();
+  const unlockB = lockBodyScroll();
+  unlockB();
+  assert.equal(overflow.value, "hidden");
+  unlockA();
+  assert.equal(overflow.value, "scroll");
+  unlockA();
+  unlockB();
+  assert.equal(overflow.value, "scroll");
+  assert.equal(overflow.writes - writesBefore, 2);
+  unstubDocument();
+});
 
-  it("restores the original value only after the last lock is released (forward order)", () => {
-    overflow.value = "auto";
-    const writesBefore = overflow.writes;
-    const unlockA = lockBodyScroll();
-    const unlockB = lockBodyScroll();
-    expect(overflow.value).toBe("hidden");
-    unlockA();
-    expect(overflow.value).toBe("hidden");
-    unlockB();
-    expect(overflow.value).toBe("auto");
-    // Один lock -> одно hidden + одно restore; повторные unlock ничего не пишут.
-    unlockA();
-    unlockB();
-    expect(overflow.value).toBe("auto");
-    expect(overflow.writes - writesBefore).toBe(2);
-  });
-
-  it("restores exactly once even when released in reverse order", () => {
-    overflow.value = "scroll";
-    const writesBefore = overflow.writes;
-    const unlockA = lockBodyScroll();
-    const unlockB = lockBodyScroll();
-    unlockB();
-    expect(overflow.value).toBe("hidden");
-    unlockA();
-    expect(overflow.value).toBe("scroll");
-    // Повторный вызов той же unlock ничего не меняет и не пишет.
-    unlockA();
-    unlockB();
-    expect(overflow.value).toBe("scroll");
-    expect(overflow.writes - writesBefore).toBe(2);
-  });
-
-  it("is idempotent when unlocked early and still counts the remaining locks", () => {
-    const unlockA = lockBodyScroll();
-    lockBodyScroll();
-    lockBodyScroll();
-    expect(overflow.value).toBe("hidden");
-    unlockA();
-    unlockA();
-    expect(overflow.value).toBe("hidden");
-  });
+test("повторный unlock одной функции идемпотентен и не сбрасывает другие блокировки", () => {
+  const overflow = stubDocument();
+  const unlockA = lockBodyScroll();
+  lockBodyScroll();
+  lockBodyScroll();
+  assert.equal(overflow.value, "hidden");
+  unlockA();
+  unlockA();
+  assert.equal(overflow.value, "hidden");
+  unstubDocument();
 });
