@@ -17,6 +17,7 @@ import { mediaUrl, type Listing } from "@/api";
 import { Button, Skeleton } from "@/components/ds";
 import { useListing, useRespondToListing } from "@/features/nearby/hooks";
 import { categoryLabel, formatDate, formatPrice, priceApplies } from "@/features/nearby/labels";
+import { lockBodyScroll } from "@/lib/scroll-lock";
 import { cn } from "@/lib/utils";
 
 import { ListingAuthor } from "./ListingAuthor";
