@@ -27,7 +27,6 @@ export function ChatComposer({
   onSend,
   onTyping,
   onFocus,
-  sending = false,
   disabled = false,
   placeholder = "Напишите сообщение…",
   leading,
@@ -198,7 +197,7 @@ export function ChatComposer({
 
       <form
         className={cn(
-          "grid items-end gap-2 px-3 py-2.5 sm:px-4 sm:py-3",
+          "grid items-end gap-2 px-3 py-2.5 focus-within:py-1.5 sm:px-4 sm:py-3 sm:focus-within:py-1.5",
           // Долгое нажатие для записи не должно вызывать лупу и меню выделения iOS.
           "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]",
           leading || onMedia || voice.recording
@@ -207,12 +206,14 @@ export function ChatComposer({
         )}
         onSubmit={(event) => {
           event.preventDefault();
-          if (sending || voice.recording || preparing) return;
+          if (voice.recording || preparing) return;
           if (!sendStaged()) onSend();
+          // Поле остаётся в фокусе — клавиатура не закрывается между сообщениями.
+          requestAnimationFrame(() => localRef.current?.focus({ preventScroll: true }));
         }}
       >
         {leading || onMedia || voice.recording ? (
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1" onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}>
             {voice.recording ? (
               <Button
                 type="button"
@@ -272,7 +273,7 @@ export function ChatComposer({
             ref={setInputRef}
             rows={1}
             value={value}
-            disabled={disabled || sending || voiceSending}
+            disabled={disabled}
             onFocus={onFocus}
             onChange={(event) => {
               onChange(event.target.value);
@@ -294,8 +295,8 @@ export function ChatComposer({
             type="submit"
             size="icon"
             aria-label="Отправить"
-            loading={sending}
-            disabled={disabled || sending || voiceSending || preparing || (!value.trim() && staged.length === 0) || voice.recording}
+            onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}
+            disabled={disabled || preparing || (!value.trim() && staged.length === 0) || voice.recording}
             className="shrink-0"
           >
             <SendHorizontal aria-hidden="true" />

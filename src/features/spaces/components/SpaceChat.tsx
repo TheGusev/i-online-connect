@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { isNearBottom } from "@/features/chat/scroll";
 import { mediaUrl, type Message, type SpaceMessage } from "@/api";
 import { Avatar } from "@/components/ds";
 import { ChatComposer } from "@/features/chat/components/ChatComposer";
@@ -48,7 +49,14 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
     const scroller = scrollerRef.current;
     if (scroller) scroller.scrollTop = scroller.scrollHeight;
   };
-  useEffect(() => { scrollToBottom(); }, [messages.length, keyboardOpen]);
+  const nearBottomRef = useRef(true);
+  useEffect(() => { scrollToBottom(); }, [messages.length]);
+  // Клавиатура: прокручиваем один раз и только если пользователь был у низа.
+  useEffect(() => {
+    if (!nearBottomRef.current) return;
+    const frame = requestAnimationFrame(scrollToBottom);
+    return () => cancelAnimationFrame(frame);
+  }, [keyboardOpen]);
   const startReply = (message: Message, album?: Message[]) => {
     setEditing(null);
     setReplyAlbum(album && album.length > 1 ? album : null);
@@ -73,17 +81,18 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
         setText("");
       } finally { setEditPending(false); }
     } else {
-      await onSend(value, reply?.id);
-      setText((current) => current === text ? "" : current);
+      // Очищаем сразу: поле не блокируется, можно писать следующее сообщение.
+      setText("");
       setReply(null);
+      await onSend(value, reply?.id);
     }
   };
   return (
     <ReactionContext.Provider value={toggleReaction}>
-    <div className={cn("overflow-hidden bg-background", fill ? "flex min-h-0 flex-1 flex-col" : "border-y border-border", !fill && keyboardOpen && "keyboard-viewport-fixed z-50 flex flex-col rounded-none border-0")}>
+    <div className={cn("overflow-hidden overscroll-none bg-background", fill ? "flex min-h-0 flex-1 flex-col" : "border-y border-border", !fill && keyboardOpen && "keyboard-viewport-fixed z-50 flex flex-col rounded-none border-0")}>
       <div className={cn("relative isolate flex flex-col", fill || keyboardOpen ? "min-h-0 flex-1" : "")}>
         <ChatBackground />
-        <div ref={scrollerRef} className={cn("relative overflow-y-auto overscroll-contain px-1 py-4", fill || keyboardOpen ? "min-h-0 flex-1" : "min-h-28 max-h-[clamp(7rem,calc(100dvh-34rem),24rem)]")}>
+        <div ref={scrollerRef} onScroll={(event) => { const el = event.currentTarget; nearBottomRef.current = isNearBottom(el.scrollTop, el.clientHeight, el.scrollHeight); }} className={cn("relative overflow-y-auto overscroll-contain px-1 py-4", fill || keyboardOpen ? "min-h-0 flex-1" : "min-h-28 max-h-[clamp(7rem,calc(100dvh-34rem),24rem)]")}>
           {messages.length === 0 ? <p className="text-sm text-muted-foreground">В чате пока тихо. Можно поздороваться и спросить, как обычно проходят встречи.</p> : (
             <ul className="space-y-3">
               {groupMessages(messages).map((group) => {
@@ -131,11 +140,11 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
           )}
         </div>
       </div>
-      <div className={cn("shrink-0 bg-background/95 backdrop-blur", !keyboardOpen && "pb-[env(safe-area-inset-bottom)]")}>
+      <div className={cn("shrink-0 bg-background/95 backdrop-blur", !keyboardOpen && "pb-[env(safe-area-inset-bottom)] has-[textarea:focus]:pb-0")}>
         {error ? <p className="px-4 pt-2 text-xs text-destructive" role="alert">{error}</p> : null}
         <ChatComposer
-          value={text} onChange={setText} inputRef={inputRef} onFocus={scrollToBottom}
-          sending={(sending ?? false) || editPending} disabled={!canWrite}
+          value={text} onChange={setText} inputRef={inputRef}
+          disabled={!canWrite}
           editing={Boolean(editing)} onCancelEdit={() => { setEditing(null); setText(""); }}
           replyTo={reply ? { authorName: reply.authorId === myId ? "Вы" : (messages.find((m) => m.id === reply.id)?.authorName ?? "Участник"), preview: replyAlbum ? `Фото (${replyAlbum.length})` : quotePreview(reply), ...(replyAlbum?.[0]?.mediaUrl ? { thumb: replyAlbum[0].mediaUrl.startsWith("blob:") ? replyAlbum[0].mediaUrl : (mediaUrl(replyAlbum[0].mediaUrl) ?? undefined) } : {}) } : null}
           onCancelReply={() => { setReply(null); setReplyAlbum(null); }}
