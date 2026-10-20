@@ -15,8 +15,7 @@ test("снятие не трогает чужую реакцию", () => {
     assert.deepEqual(applyMyReaction([{ emoji: "❤️", count: 2, mine: true }], "❤️", "delete"), [{ emoji: "❤️", count: 1, mine: false }]);
   });
 test("событие собеседника сохраняет мои флаги", () => {
-    expect(mergeRemoteReactions([{ emoji: "👍", count: 1, mine: true }], [{ emoji: "👍", count: 2 }], false, ["👍"]))
-      .toEqual([{ emoji: "👍", count: 2, mine: true }]);
+    assert.deepEqual(mergeRemoteReactions([{ emoji: "👍", count: 1, mine: true }], [{ emoji: "👍", count: 2 }], false, ["👍"]), [{ emoji: "👍", count: 2, mine: true }]);
   });
 test("лимит и список эмодзи совпадают с сервером", () => {
     const server = readFileSync("server/src/chat/reactions.ts", "utf8");
