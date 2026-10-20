@@ -10,7 +10,11 @@
 import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "ws";
 
-import { queryOne } from "../db.ts";
+import { unlink } from "node:fs/promises";
+
+import { query, queryOne } from "../db.ts";
+import { mediaPathFromUrl } from "../media/store.ts";
+import { clipFilesToDelete, staleSessionIds } from "../live/clips.ts";
 import { verifyAccessToken } from "../auth/tokens.ts";
 
 export interface LiveClipEvent {
@@ -36,6 +40,8 @@ interface SpaceLive {
   startedAt: string | null;
   speaking: Set<string>;
   clips: LiveClipEvent[];
+  sessionId: string | null;
+  starting: boolean;
   endTimer: NodeJS.Timeout | null;
 }
 
@@ -45,7 +51,7 @@ const spaces = new Map<string, SpaceLive>();
 function stateOf(spaceId: string): SpaceLive {
   let s = spaces.get(spaceId);
   if (!s) {
-    s = { conns: new Map(), active: false, startedBy: null, startedAt: null, speaking: new Set(), clips: [], endTimer: null };
+    s = { conns: new Map(), active: false, startedBy: null, startedAt: null, speaking: new Set(), clips: [], sessionId: null, starting: false, endTimer: null };
     spaces.set(spaceId, s);
   }
   return s;
@@ -73,10 +79,27 @@ function snapshot(s: SpaceLive, spaceId: string) {
   };
 }
 
+/** Закрыть сессию: удалить файлы и строки клипов, поставить ended_at. Не бросает. */
+export async function closeLiveSession(sessionId: string): Promise<void> {
+  try {
+    const rows = await query<{ media_url: string }>("SELECT media_url FROM live_clips WHERE session_id = $1", [sessionId]);
+    for (const file of clipFilesToDelete(rows.map((r) => r.media_url), mediaPathFromUrl)) {
+      await unlink(file).catch(() => undefined);
+    }
+    await query("DELETE FROM live_clips WHERE session_id = $1", [sessionId]);
+    await query("UPDATE live_sessions SET ended_at = now() WHERE id = $1 AND ended_at IS NULL", [sessionId]);
+  } catch (error) {
+    console.error("[live] Не удалось закрыть сессию", sessionId, (error as Error).message);
+  }
+}
+
 function endLive(s: SpaceLive, spaceId: string) {
   if (s.endTimer) clearTimeout(s.endTimer);
   s.endTimer = null;
   if (!s.active) return;
+  if (s.sessionId) void closeLiveSession(s.sessionId);
+  s.sessionId = null;
+  s.clips = [];
   s.active = false;
   s.startedBy = null;
   s.startedAt = null;
@@ -101,6 +124,31 @@ export function isLiveActive(spaceId: string): boolean {
   return spaces.get(spaceId)?.active ?? false;
 }
 
+/** id текущей сессии эфира (или null). */
+export function getLiveSessionId(spaceId: string): string | null {
+  const s = spaces.get(spaceId);
+  return s?.active ? s.sessionId : null;
+}
+
+async function closeSessions(ids: string[]) {
+  for (const id of ids) await closeLiveSession(id);
+}
+
+/** Зависшие открытые сессии и клипы старых сессий (>24 ч). */
+async function sweep(includeAll: boolean) {
+  try {
+    const open = await query<{ id: string }>("SELECT id FROM live_sessions WHERE ended_at IS NULL");
+    const active = [...spaces.values()].map((s) => s.sessionId).filter((x): x is string => Boolean(x));
+    await closeSessions(includeAll ? open.map((r) => r.id) : staleSessionIds(open.map((r) => r.id), active));
+    const old = await query<{ id: string }>(
+      "SELECT DISTINCT s.id FROM live_sessions s JOIN live_clips c ON c.session_id = s.id WHERE s.ended_at < now() - interval '24 hours'",
+    );
+    await closeSessions(old.map((r) => r.id));
+  } catch (error) {
+    console.error("[live] Ошибка очистки сессий:", (error as Error).message);
+  }
+}
+
 /** Разослать новый клип эфира (вызывается из POST /spaces/:id/voice). */
 export function publishLiveClip(spaceId: string, clip: LiveClipEvent): void {
   const s = spaces.get(spaceId);
@@ -120,7 +168,10 @@ export async function liveSocketRoutes(app: FastifyInstance) {
       }
     }
   }, 30_000);
-  app.addHook("onClose", async () => clearInterval(heartbeat));
+  // После рестарта память пуста — закрываем всё открытое; дальше уборка раз в час.
+  void sweep(true);
+  const cleanup = setInterval(() => void sweep(false), 60 * 60_000);
+  app.addHook("onClose", async () => { clearInterval(heartbeat); clearInterval(cleanup); });
 
   app.get<{ Params: { id: string }; Querystring: { token?: string } }>(
     "/live/:id",
@@ -169,16 +220,36 @@ export async function liveSocketRoutes(app: FastifyInstance) {
             broadcast(s, snapshot(s, spaceId));
             break;
           case "start_live":
-            if (!s.active) {
-              s.active = true;
-              s.startedBy = userId;
-              s.startedAt = new Date().toISOString();
-              s.clips = [];
-              broadcast(s, { type: "live_started", spaceId, startedBy: userId, startedAt: s.startedAt });
+            if (s.active) {
+              conn.inLive = true;
+              checkEmpty(s, spaceId);
+              broadcast(s, snapshot(s, spaceId));
+              break;
             }
-            conn.inLive = true;
-            checkEmpty(s, spaceId);
-            broadcast(s, snapshot(s, spaceId));
+            if (s.starting) break;
+            s.starting = true;
+            void (async () => {
+              try {
+                const row = await queryOne<{ id: string; started_at: Date }>(
+                  "INSERT INTO live_sessions (space_id, started_by) VALUES ($1, $2) RETURNING id, started_at",
+                  [spaceId, userId],
+                );
+                if (!row) return;
+                s.sessionId = row.id;
+                s.active = true;
+                s.startedBy = userId;
+                s.startedAt = row.started_at.toISOString();
+                s.clips = [];
+                broadcast(s, { type: "live_started", spaceId, startedBy: userId, startedAt: s.startedAt });
+                if (s.conns.has(socket)) conn.inLive = true;
+                checkEmpty(s, spaceId);
+                broadcast(s, snapshot(s, spaceId));
+              } catch (error) {
+                console.error("[live] Не удалось начать эфир:", (error as Error).message);
+              } finally {
+                s.starting = false;
+              }
+            })();
             break;
           case "end_live":
             if (s.startedBy === userId) endLive(s, spaceId);
@@ -196,7 +267,7 @@ export async function liveSocketRoutes(app: FastifyInstance) {
         }
         checkEmpty(s, spaceId);
         broadcast(s, { type: "presence", spaceId, online: unique(s).length, onlineIds: unique(s) });
-        if (s.conns.size === 0 && !s.active) spaces.delete(spaceId);
+        if (s.conns.size === 0 && !s.active && !s.starting) spaces.delete(spaceId);
       });
     },
   );

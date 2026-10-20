@@ -11,13 +11,14 @@
  * Групповой чат читают и пишут только участники (assertSpaceMembership).
  */
 import type { FastifyInstance } from "fastify";
-import { isLiveActive, publishLiveClip } from "../ws/live.ts";
+import { getLiveSessionId, isLiveActive, publishLiveClip } from "../ws/live.ts";
+import { resolveLiveClipRetry, toLiveClipDto, type LiveClipRow } from "../live/clips.ts";
 import { randomUUID } from "node:crypto";
 import { unlink } from "node:fs/promises";
 import { z } from "zod";
 
 import { query, queryOne, transaction } from "../db.ts";
-import { badRequest, forbidden, notFound } from "../http.ts";
+import { badRequest, conflict, forbidden, notFound } from "../http.ts";
 import { assertSpaceMembership, currentUserId, requireAuth } from "../auth/middleware.ts";
 import { deleteReaction, loadReactions, putReaction, reactionBody } from "../chat/reactions.ts";
 import { assertVerified } from "../auth/verified.ts";
@@ -859,6 +860,7 @@ export async function spaceRoutes(app: FastifyInstance) {
     if (!buffer || buffer.length < 512) throw badRequest("Запись пустая");
     const audioType = detectAudioType(buffer);
     if (!audioType) throw badRequest("Поддерживаются голосовые WebM/Opus и MP4/AAC");
+    if (live) return saveLiveClip(id, userId, clientTempId, buffer, audioType);
     const replyTarget = await assertSpaceReplyTarget(id, replyToValue ? z.string().uuid().parse(replyToValue) : undefined);
     const existing = await queryOne<SpaceMessageRow>(
       `SELECT m.id, m.space_id, m.author_id, p.name AS author_name, m.text, m.kind,
@@ -1004,4 +1006,71 @@ export async function spaceRoutes(app: FastifyInstance) {
       throw error;
     }
   });
+}
+
+const LIVE_CLIP_COLUMNS = "id, client_temp_id, media_url, media_mime, duration_ms, created_at";
+const LIVE_ENDED = "Эфир уже завершён";
+
+/** Клип эфира: только в live_clips, удаляется вместе с сессией. */
+async function saveLiveClip(
+  spaceId: string,
+  userId: string,
+  clientTempId: string,
+  buffer: Buffer,
+  audioType: NonNullable<ReturnType<typeof detectAudioType>>,
+) {
+  const sessionId = getLiveSessionId(spaceId);
+  if (!sessionId || !isLiveActive(spaceId)) throw conflict(LIVE_ENDED);
+  const findExisting = () => queryOne<LiveClipRow>(
+    `SELECT ${LIVE_CLIP_COLUMNS} FROM live_clips WHERE session_id = $1 AND author_id = $2 AND client_temp_id = $3`,
+    [sessionId, userId, clientTempId],
+  );
+  const retry = resolveLiveClipRetry(await findExisting());
+  if (retry.reuse) return toLiveClipDto(retry.clip);
+
+  const saved = await saveVoiceFile(userId, buffer, audioType);
+  let playable = saved;
+  let playableMime: "audio/webm" | "audio/mp4" = audioType.mime;
+  const cleanup = async () => {
+    await unlink(saved.filePath).catch(() => undefined);
+    if (playable.filePath !== saved.filePath) await unlink(playable.filePath).catch(() => undefined);
+  };
+  try {
+    const measured = await audioDurationMs(saved.filePath).catch(() => 0);
+    if (measured < 400) throw badRequest("Запись не содержит воспроизводимого звука");
+    if (measured > 180_500) throw badRequest("Голосовое может длиться не больше 3 минут");
+    const converted = audioType.mime === "audio/mp4"
+      ? null
+      : await transcodeVoiceToAac(saved.filePath, userId).catch(() => null);
+    if (converted) {
+      playable = converted;
+      playableMime = "audio/mp4";
+      await unlink(saved.filePath).catch(() => undefined);
+    }
+    // Эфир мог завершиться, пока шло перекодирование.
+    if (getLiveSessionId(spaceId) !== sessionId) throw conflict(LIVE_ENDED);
+    const row = await queryOne<LiveClipRow>(
+      `INSERT INTO live_clips (session_id, author_id, client_temp_id, media_url, media_mime, duration_ms)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (session_id, author_id, client_temp_id) DO NOTHING
+       RETURNING ${LIVE_CLIP_COLUMNS}`,
+      [sessionId, userId, clientTempId, playable.url, playableMime, Math.min(measured, 180_000)],
+    );
+    if (!row) {
+      // Параллельный дубль уже сохранён — наши файлы лишние.
+      await cleanup();
+      const other = await findExisting();
+      if (!other) throw conflict(LIVE_ENDED);
+      return toLiveClipDto(other);
+    }
+    const dto = toLiveClipDto(row);
+    publishLiveClip(spaceId, {
+      id: dto.id, userId, audioUrl: dto.audioUrl, mime: dto.mime,
+      durationMs: dto.durationMs, createdAt: dto.createdAt, clientTempId,
+    });
+    return dto;
+  } catch (error) {
+    await cleanup();
+    throw error;
+  }
 }
