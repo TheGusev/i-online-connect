@@ -217,3 +217,6 @@ URL, MIME-тип и длительность аудио. Частичный ун
 пагинации не ломались), но текст и медиа стираются, а проверка
 `messages_voice_payload_check` пересоздаётся так, чтобы не срабатывать для
 удалённых голосовых.
+
+## message_reactions / space_message_reactions (028)
+(message_id → messages/space_messages ON DELETE CASCADE, user_id, emoji, created_at), UNIQUE (message_id, user_id, emoji), индекс по message_id.

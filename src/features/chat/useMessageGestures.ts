@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const HOLD_MS = 350;
 const MOVE_TOLERANCE = 8;
@@ -84,28 +84,4 @@ export function useMessageGestures({ onHold, onReply }: { onHold?: () => void; o
       },
     },
   };
-}
-
-/* Быстрые реакции: хранятся на этом устройстве. */
-const KEY = "chat-reactions";
-const listeners = new Set<() => void>();
-let cache: Record<string, string> | null = null;
-function read(): Record<string, string> {
-  if (cache) return cache;
-  try { cache = JSON.parse(localStorage.getItem(KEY) ?? "{}"); } catch { cache = {}; }
-  return cache ?? {};
-}
-export function toggleReaction(messageId: string, emoji: string) {
-  const next = { ...read() };
-  if (next[messageId] === emoji) delete next[messageId]; else next[messageId] = emoji;
-  cache = next;
-  try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* полный storage */ }
-  listeners.forEach((l) => l());
-}
-export function useReaction(messageId: string) {
-  return useSyncExternalStore(
-    (l) => { listeners.add(l); return () => listeners.delete(l); },
-    () => read()[messageId] ?? null,
-    () => null,
-  );
 }

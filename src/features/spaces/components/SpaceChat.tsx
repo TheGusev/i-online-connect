@@ -12,8 +12,10 @@ import { MediaAlbum } from "@/features/chat/components/MediaAlbum";
 import { groupMessages } from "@/features/chat/albums";
 import { useKeyboardOpen } from "@/hooks/useViewportHeight";
 import { useSessionStore } from "@/store/useSessionStore";
+import { ReactionContext, useToggleReaction } from "@/features/chat/reactions";
 
-export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onPhotos, onRetryPhoto, onEdit, onDelete, isHost = false, sending, voiceSending, mediaSending, error, fill = false }: {
+export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedia, onPhotos, onRetryPhoto, onEdit, onDelete, isHost = false, sending, voiceSending, mediaSending, error, fill = false }: {
+  spaceId: string;
   fill?: boolean;
   messages: SpaceMessage[];
   canWrite: boolean;
@@ -31,6 +33,7 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onPhot
   error?: string | null | undefined;
 }) {
   const keyboardOpen = useKeyboardOpen();
+  const toggleReaction = useToggleReaction({ type: "space", id: spaceId });
   const myId = useSessionStore((s) => s.user?.id);
   const [text, setText] = useState("");
   const [actions, setActions] = useState<Message | null>(null);
@@ -76,6 +79,7 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onPhot
     }
   };
   return (
+    <ReactionContext.Provider value={toggleReaction}>
     <div className={cn("overflow-hidden bg-background", fill ? "flex min-h-0 flex-1 flex-col" : "border-y border-border", !fill && keyboardOpen && "keyboard-viewport-fixed z-50 flex flex-col rounded-none border-0")}>
       <div className={cn("relative isolate flex flex-col", fill || keyboardOpen ? "min-h-0 flex-1" : "")}>
         <ChatBackground />
@@ -146,5 +150,6 @@ export function SpaceChat({ messages, canWrite, onSend, onVoice, onMedia, onPhot
       </div>
       <MessageActions message={actions} mine={actions?.authorId === myId} canDelete={Boolean(actions && (actions.authorId === myId || isHost))} onClose={() => { setActions(null); setActionsAlbum(null); }} album={actionsAlbum} onDeleteAlbum={(list) => list.forEach((m) => onDelete(m.id))} onEdit={(message) => { setReply(null); setEditing(message); setText(message.text); inputRef.current?.focus(); }} onDelete={(message) => { onDelete(message.id); if (editing?.id === message.id) { setEditing(null); setText(""); } }} />
     </div>
+    </ReactionContext.Provider>
   );
 }

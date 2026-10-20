@@ -43,6 +43,7 @@ import {
 } from "@/features/chat/hooks";
 import { useChatSocket, type ChatSocketEvent } from "@/features/chat/useChatSocket";
 import { useSessionStore } from "@/store/useSessionStore";
+import { ReactionContext, mergeRemoteReactions, useToggleReaction } from "@/features/chat/reactions";
 
 export const Route = createFileRoute("/chat/$id")({
   head: () => ({
@@ -97,6 +98,7 @@ function ConversationPage() {
   const { data: conversation } = useConversation(id);
   const { messages, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useMessages(id);
   const cache = useMessagesCache(id);
+  const toggleReaction = useToggleReaction({ type: "chat", id });
   const send = useSendMessage(id);
   const sendVoice = useSendVoiceMessage(id);
   const sendMedia = useSendMediaMessage(id);
@@ -159,6 +161,18 @@ function ConversationPage() {
       if (event.type === "message-updated" && event.message) {
         cache.upsert({ ...event.message, status: event.message.status ?? "sent" });
         void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
+      }
+      if (event.type === "reaction" && event.messageId && event.reactions) {
+        const { messageId, reactions, authorId } = event;
+        queryClient.setQueryData<{ pages: { items: Message[] }[] }>(["chat", "messages", id], (prev) => prev && {
+          ...prev,
+          pages: prev.pages.map((p) => ({
+            ...p,
+            items: p.items.map((m) => m.id === messageId
+              ? { ...m, reactions: mergeRemoteReactions(m.reactions, reactions, authorId === myId, event.actorEmojis ?? []) }
+              : m),
+          })),
+        });
       }
       if (event.type === "message-deleted") {
         void queryClient.invalidateQueries({ queryKey: ["chat", "messages", id] });
@@ -328,6 +342,7 @@ function ConversationPage() {
   };
 
   return (
+    <ReactionContext.Provider value={toggleReaction}>
     <div className="keyboard-viewport-fixed flex flex-col overflow-hidden bg-background text-foreground">
       <header className="shrink-0 border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-3 py-2.5">
@@ -614,5 +629,6 @@ function ConversationPage() {
         }}
       />
     </div>
+    </ReactionContext.Provider>
   );
 }

@@ -227,6 +227,7 @@ function SpaceDetailPage() {
 
         <section className="mt-1 flex min-h-0 flex-1 flex-col">
           <SpaceChat
+            spaceId={id}
             fill
             messages={withPending(messages ?? [], photoBatch.pending).map((m) =>
               "spaceId" in m ? m : ({ ...m, spaceId: id, authorName: myName } as SpaceMessage),

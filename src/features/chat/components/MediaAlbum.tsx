@@ -5,11 +5,11 @@ import { mediaUrl, type GalleryItem, type Message } from "@/api";
 import { Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
 import { albumLayout, tileKey } from "@/features/chat/albums";
-import { useMessageGestures, useReaction } from "@/features/chat/useMessageGestures";
+import { useMessageGestures } from "@/features/chat/useMessageGestures";
 import { useSessionStore } from "@/store/useSessionStore";
 
 import { GalleryViewer } from "./MediaGallery";
-import { ReactionChip } from "./ReactionChip";
+import { ReactionChips } from "./ReactionChip";
 
 const time = (iso: string) =>
   new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -46,7 +46,7 @@ export function MediaAlbum({
   const mine = last.authorId === myId || last.authorId === "me";
   const { visible: count, rest, grid, big } = albumLayout(messages.length);
   const visible = messages.slice(0, count);
-  const reaction = useReaction(last.id);
+  const reaction = last.reactions?.length ? last.reactions : null;
   const settled = messages.every((m) => m.status !== "sending" && m.status !== "failed");
 
   const gestures = useMessageGestures({
@@ -174,7 +174,7 @@ export function MediaAlbum({
             );
           })}
           <span className="pointer-events-none absolute inset-x-1.5 bottom-1.5 flex flex-wrap items-center justify-between gap-1">
-            {reaction ? <ReactionChip emoji={reaction} mine={false} overlay /> : <span />}
+            {reaction ? <ReactionChips reactions={reaction} overlay /> : <span />}
             <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-background/60 px-1.5 py-0.5 text-[11px] font-medium text-foreground backdrop-blur-sm">
               {time(last.createdAt)}
               {mine ? (
