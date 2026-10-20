@@ -22,13 +22,14 @@ export function ListingAuthor({
 }) {
   return (
     <div className={cn("flex min-w-0 items-center gap-2", className)}>
-      <Avatar name={author.name} src={author.avatarUrl ?? null} size="list" />
+      <Avatar name={author.name} src={author.avatarUrl ?? null} size={full ? "sm" : "list"} trust={getTrustLevel(author)} />
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-1.5">
           <span className="truncate text-[15px] font-semibold leading-tight text-foreground">{author.name}</span>
-          {full ? null : <TrustBadge level={badgeLevel(author.trustLevel)} size="sm" iconOnly />}
         </span>
-        {full ? <TrustBadge level={badgeLevel(author.trustLevel)} size="sm" className="mt-1" /> : null}
+        {full && trustRingLabel[getTrustLevel(author)] ? (
+          <span className="mt-0.5 block text-xs text-muted-foreground">{trustRingLabel[getTrustLevel(author)]}</span>
+        ) : null}
       </span>
       {trailing}
     </div>

@@ -33,17 +33,13 @@ export function ConversationCard({ conversation }: { conversation: Conversation 
         src={conversation.participant.avatarUrl ?? null}
         size={unread ? "md" : "sm"}
         online={conversation.participant.online}
+        trust={getTrustLevel(conversation.participant)}
       />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className={cn("truncate text-sm", unread ? "font-bold text-foreground" : "font-medium text-foreground/80")}>
             {conversation.participant.name}
           </span>
-          <TrustBadge
-            level={badgeLevel(conversation.participant.trustLevel)}
-            size="sm"
-            iconOnly
-          />
         </div>
         <p
           className={cn(

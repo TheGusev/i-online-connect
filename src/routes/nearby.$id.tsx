@@ -204,10 +204,9 @@ function ListingPage() {
             params={{ id: listing.author.id }}
             className="flex items-center gap-3"
           >
-            <Avatar name={listing.author.name} src={listing.author.avatarUrl} size="sm" />
+            <Avatar name={listing.author.name} src={listing.author.avatarUrl} size="sm" trust={getTrustLevel(listing.author)} />
             <span>
               <span className="block font-semibold">{listing.author.name}</span>
-              <TrustBadge level={badgeLevel(listing.author.trustLevel)} size="sm" />
             </span>
           </Link>
         </Card>
