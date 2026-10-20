@@ -1,5 +1,6 @@
 import { AlertCircle, Check, CheckCheck, CalendarHeart, Clock, Reply } from "lucide-react";
 
+import { LinkedText } from "./LinkedText";
 import type { Message, MessageQuote } from "@/api";
 import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/store/useSessionStore";
@@ -184,7 +185,7 @@ export function MessageBubble({
               />
             ) : (
               <p className="whitespace-pre-wrap break-words">
-                {message.text}
+                <LinkedText text={message.text} mine={mine} />
                 {textInline ? (
                   <span className="invisible ml-2 inline-flex items-center gap-1 text-[11px]" aria-hidden="true">{stamp}</span>
                 ) : null}
@@ -194,7 +195,7 @@ export function MessageBubble({
         )}
         {caption ? (
           <p className={cn("whitespace-pre-wrap break-words rounded-3xl px-4 py-2.5 shadow-soft", bubbleTone)}>
-            {caption}
+            <LinkedText text={caption} mine={mine} />
           </p>
         ) : null}
         <span

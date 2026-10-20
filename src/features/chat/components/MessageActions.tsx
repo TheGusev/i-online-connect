@@ -1,4 +1,5 @@
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -82,6 +83,25 @@ export function MessageActions({
   if (!message || typeof document === "undefined") return null;
   const deletable = (canDelete ?? mine) && !message.deletedAt;
   const editable = Boolean(onEdit) && canEditMessage(message, mine);
+  const copyable = !message.deletedAt && (message.kind ?? "text") === "text" && message.status !== "sending" && message.status !== "failed" && Boolean(message.text);
+  const copy = async () => {
+    if (fresh()) return;
+    try {
+      await navigator.clipboard.writeText(message.text);
+    } catch {
+      const area = document.createElement("textarea");
+      area.value = message.text;
+      area.setAttribute("readonly", "");
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      document.execCommand("copy");
+      area.remove();
+    }
+    toast.success("Скопировано");
+    onClose();
+  };
   const fresh = () => Date.now() - openedAt.current < 400;
   const react = (emoji: string) => { if (fresh()) return; if (target && toggleReaction) toggleReaction(target, emoji); onClose(); };
 
@@ -151,12 +171,22 @@ export function MessageActions({
               Удалить весь альбом ({albumLive.length})
             </button>
           </div>
-        ) : editable || deletable ? (
+        ) : copyable || editable || deletable ? (
           <div className="mt-1 flex border-t border-border pt-1 text-xs font-medium">
+            {copyable ? (
+              <button
+                type="button"
+                className="flex flex-1 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 hover:bg-secondary"
+                onClick={() => void copy()}
+              >
+                <Copy className="size-3.5" aria-hidden="true" />
+                Копировать
+              </button>
+            ) : null}
             {editable ? (
               <button
                 type="button"
-                className="flex flex-1 items-center gap-1.5 rounded-xl px-3 py-2 hover:bg-secondary"
+                className="flex flex-1 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 hover:bg-secondary"
                 onClick={() => { if (fresh()) return; onEdit?.(message); onClose(); }}
               >
                 <Pencil className="size-3.5" aria-hidden="true" />
@@ -166,7 +196,7 @@ export function MessageActions({
             {deletable ? (
               <button
                 type="button"
-                className="flex flex-1 items-center gap-1.5 rounded-xl px-3 py-2 text-destructive hover:bg-secondary"
+                className="flex flex-1 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-destructive hover:bg-secondary"
                 onClick={() => { if (fresh()) return; onDelete(message); onClose(); }}
               >
                 <Trash2 className="size-3.5" aria-hidden="true" />
