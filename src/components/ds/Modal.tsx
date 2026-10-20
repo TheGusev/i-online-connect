@@ -122,11 +122,7 @@ export function BottomSheet({
 
   useEffect(() => {
     if (!mounted) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
+    return lockBodyScroll();
   }, [mounted]);
 
   useEffect(() => {

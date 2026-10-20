@@ -223,14 +223,13 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
 
   useEffect(() => {
     if (!listingId) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") requestClose();
     };
     document.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = previous;
+      unlock();
       document.removeEventListener("keydown", onKey);
     };
   }, [listingId, requestClose]);
