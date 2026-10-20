@@ -84,7 +84,7 @@ export function MediaAttachment({
           </button>
         ) : null}
         {durationMs && !playing ? (
-          <span className="absolute bottom-2 left-2 rounded-full bg-background/80 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-foreground">
+          <span className="absolute left-2 top-2 rounded-full bg-background/80 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-foreground">
             {durationLabel(durationMs)}
           </span>
         ) : null}
