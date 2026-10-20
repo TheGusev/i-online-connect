@@ -198,7 +198,7 @@ export function ChatComposer({
 
       <form
         className={cn(
-          "grid items-end gap-2 px-3 py-2.5 sm:px-4 sm:py-3",
+          "grid items-end gap-2 px-3 py-2.5 focus-within:py-1.5 sm:px-4 sm:py-3 sm:focus-within:py-1.5",
           // Долгое нажатие для записи не должно вызывать лупу и меню выделения iOS.
           "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]",
           leading || onMedia || voice.recording
@@ -207,8 +207,10 @@ export function ChatComposer({
         )}
         onSubmit={(event) => {
           event.preventDefault();
-          if (sending || voice.recording || preparing) return;
+          if (voice.recording || preparing) return;
           if (!sendStaged()) onSend();
+          // Поле остаётся в фокусе — клавиатура не закрывается между сообщениями.
+          requestAnimationFrame(() => localRef.current?.focus({ preventScroll: true }));
         }}
       >
         {leading || onMedia || voice.recording ? (
