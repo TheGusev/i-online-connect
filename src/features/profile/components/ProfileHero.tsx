@@ -21,7 +21,7 @@ export function ProfileHero({
   name,
   age,
   city,
-  trustLevel,
+  trustLevel: _trustLevel,
   onUpload,
   onDelete,
   onPrimary,
