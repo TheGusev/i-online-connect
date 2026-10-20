@@ -2,26 +2,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { lockBodyScroll } from "./scroll-lock";
 
+interface OverflowState {
+  value: string;
+  writes: number;
+}
+
 /** Тестовая замена document.body без DOM-окружения: счётчик работает одинаково. */
-function stubDocument() {
-  const overflowState = { value: "" };
+function stubDocument(): OverflowState {
+  const state: OverflowState = { value: "", writes: 0 };
   vi.stubGlobal("document", {
     body: {
       style: {
         get overflow() {
-          return overflowState.value;
+          return state.value;
         },
         set overflow(next: string) {
-          overflowState.value = next;
+          state.writes += 1;
+          state.value = next;
         },
       },
     },
   });
-  return overflowState;
+  return state;
 }
 
 describe("lockBodyScroll", () => {
-  let overflow: { value: string };
+  let overflow: OverflowState;
 
   beforeEach(() => {
     overflow = stubDocument();
@@ -41,42 +47,40 @@ describe("lockBodyScroll", () => {
     expect(overflow.value).toBe("");
   });
 
-  it("restores the original value exactly once after nested locks", () => {
+  it("restores the original value only after the last lock is released (forward order)", () => {
     overflow.value = "auto";
+    const writesBefore = overflow.writes;
     const unlockA = lockBodyScroll();
     const unlockB = lockBodyScroll();
     expect(overflow.value).toBe("hidden");
-    // Разрядка в прямом порядке: значение возвращается только после последнего.
     unlockA();
     expect(overflow.value).toBe("hidden");
     unlockB();
     expect(overflow.value).toBe("auto");
-    // Повторный вызов той же unlock ничего не меняет.
+    // Один lock -> одно hidden + одно restore; повторные unlock ничего не пишут.
     unlockA();
     unlockB();
     expect(overflow.value).toBe("auto");
+    expect(overflow.writes - writesBefore).toBe(2);
   });
 
-  it("writes the restore exactly once, even with repeated unlocks in any order", () => {
+  it("restores exactly once even when released in reverse order", () => {
     overflow.value = "scroll";
-    let writes = 0;
-    const watch = vi.spyOn(overflow, "value", "set").mockImplementation((next: string) => {
-      if (next === "scroll") writes += 1;
-    });
-    // Разрядка в обратном порядке.
+    const writesBefore = overflow.writes;
     const unlockA = lockBodyScroll();
     const unlockB = lockBodyScroll();
     unlockB();
     expect(overflow.value).toBe("hidden");
     unlockA();
+    expect(overflow.value).toBe("scroll");
+    // Повторный вызов той же unlock ничего не меняет и не пишет.
     unlockA();
     unlockB();
-    // Исходное значение вернулось ровно один раз, повторные unlock не пишут.
-    expect(writes).toBe(1);
-    watch.mockRestore();
+    expect(overflow.value).toBe("scroll");
+    expect(overflow.writes - writesBefore).toBe(2);
   });
 
-  it("is idempotent when unlocked early and still counts the remaining lock", () => {
+  it("is idempotent when unlocked early and still counts the remaining locks", () => {
     const unlockA = lockBodyScroll();
     lockBodyScroll();
     lockBodyScroll();
