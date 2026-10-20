@@ -813,7 +813,6 @@ html[data-tab-hidden] .chat-sky *, html[data-tab-hidden] .live-icon * { animatio
 @media (prefers-reduced-motion: reduce) {
   .nav-drag-shift { transition: none; }
 }
-}
 
 /* Кольцо верификации вокруг аватара: вращается только transform, на GPU. */
 .trust-ring {
