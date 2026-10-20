@@ -13,13 +13,17 @@ import type { LiveRoom } from "../live/useLiveRoom";
 function Section({ icon, title, children, defaultOpen = false }: { icon: ReactNode; title: string; children: ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="rounded-2xl border border-border bg-background">
-      <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-4 py-3 text-left font-semibold text-foreground">
+    <div className="overflow-hidden rounded-2xl border border-border bg-background">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-2 px-4 py-3 text-left font-semibold text-foreground">
         <span className="text-primary [&_svg]:size-4">{icon}</span>
         <span className="flex-1">{title}</span>
         <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
       </button>
-      {open ? <div className="px-4 pb-4">{children}</div> : null}
+      <div className="collapse-grid" data-open={open}>
+        <div>
+          <div className="px-4 pb-4">{children}</div>
+        </div>
+      </div>
     </div>
   );
 }
