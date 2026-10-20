@@ -27,7 +27,6 @@ export function ChatComposer({
   onSend,
   onTyping,
   onFocus,
-  sending = false,
   disabled = false,
   placeholder = "Напишите сообщение…",
   leading,
@@ -214,7 +213,7 @@ export function ChatComposer({
         }}
       >
         {leading || onMedia || voice.recording ? (
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1" onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}>
             {voice.recording ? (
               <Button
                 type="button"
@@ -274,7 +273,7 @@ export function ChatComposer({
             ref={setInputRef}
             rows={1}
             value={value}
-            disabled={disabled || sending || voiceSending}
+            disabled={disabled}
             onFocus={onFocus}
             onChange={(event) => {
               onChange(event.target.value);
@@ -296,8 +295,8 @@ export function ChatComposer({
             type="submit"
             size="icon"
             aria-label="Отправить"
-            loading={sending}
-            disabled={disabled || sending || voiceSending || preparing || (!value.trim() && staged.length === 0) || voice.recording}
+            onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}
+            disabled={disabled || preparing || (!value.trim() && staged.length === 0) || voice.recording}
             className="shrink-0"
           >
             <SendHorizontal aria-hidden="true" />
