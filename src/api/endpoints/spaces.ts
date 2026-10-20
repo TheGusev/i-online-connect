@@ -1,5 +1,6 @@
 import { request, upload } from "../client";
 import type {
+  LiveCard,
   Space,
   SpaceDetail,
   SpaceDraft,
@@ -162,4 +163,32 @@ export async function setSpaceReaction(spaceId: string, messageId: string, emoji
     `/spaces/${spaceId}/messages/${messageId}/reactions`,
     { method: action === "put" ? "PUT" : "DELETE", body: { emoji } },
   );
+}
+
+/** Карточки «стола» эфира. 409 — эфир уже завершён. */
+export async function getLiveCards(spaceId: string): Promise<{ active: boolean; cards: LiveCard[] }> {
+  return request<{ active: boolean; cards: LiveCard[] }>(`/spaces/${spaceId}/live/cards`);
+}
+
+export async function addLiveCard(
+  spaceId: string,
+  input: { kind: "note" | "link" | "question"; text?: string; url?: string; clientTempId: string },
+): Promise<LiveCard> {
+  return request<LiveCard>(`/spaces/${spaceId}/live/cards`, { method: "POST", body: input });
+}
+
+export async function addLivePhotoCard(spaceId: string, file: File, clientTempId: string): Promise<LiveCard> {
+  const form = new FormData();
+  form.append("kind", "photo");
+  form.append("clientTempId", clientTempId);
+  form.append("file", file, file.name || "photo.jpg");
+  return upload<LiveCard>(`/spaces/${spaceId}/live/cards`, form, { timeoutMs: 60_000, timeoutMessage: "Фото не загрузилось за минуту — попробуйте ещё раз" });
+}
+
+export async function updateLiveCard(spaceId: string, cardId: string, status: LiveCard["status"]): Promise<LiveCard> {
+  return request<LiveCard>(`/spaces/${spaceId}/live/cards/${cardId}`, { method: "PATCH", body: { status } });
+}
+
+export async function deleteLiveCard(spaceId: string, cardId: string): Promise<{ ok: true; id: string }> {
+  return request<{ ok: true; id: string }>(`/spaces/${spaceId}/live/cards/${cardId}`, { method: "DELETE" });
 }
