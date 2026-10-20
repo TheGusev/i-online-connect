@@ -3,6 +3,7 @@ import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { lockBodyScroll } from "@/lib/scroll-lock";
 import { cn } from "@/lib/utils";
 
 export interface ModalProps {
@@ -122,11 +123,7 @@ export function BottomSheet({
 
   useEffect(() => {
     if (!mounted) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
+    return lockBodyScroll();
   }, [mounted]);
 
   useEffect(() => {
