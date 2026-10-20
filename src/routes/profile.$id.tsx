@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
-import { Card, Chip } from "@/components/ds";
+import { Card, Chip, getTrustLevel } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { AppShell } from "@/components/layout/AppShell";
 import { badgeLevel } from "@/features/chat/trust";
@@ -64,6 +64,7 @@ function ProfileViewPage() {
               age={data.age}
               city={data.city}
               trustLevel={badgeLevel(data.trustLevel)}
+              ring={getTrustLevel(data)}
             />
             <ProfileActionBar id={data.id} name={data.name} />
           </Reveal>

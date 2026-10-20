@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import type { MyProfile, PrivacySettings, ProfileIntent } from "@/api";
-import { Button, Card, Chip, Input, Select, TextArea } from "@/components/ds";
+import { Button, Card, Chip, getTrustLevel, Input, Select, TextArea } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { AppShell } from "@/components/layout/AppShell";
 import { IntentCard, intentOptions } from "@/features/profile/components/IntentCard";
@@ -149,6 +149,7 @@ function MyProfilePage() {
               age={draft ? parseProfileAge(draft.age).age : data.age}
               city={draft ? draft.city : data.city}
               trustLevel={badgeLevel(data.trustLevel)}
+              ring={getTrustLevel(data)}
               ownerPresentation
               verified={data.verification === "verified"}
               onUpload={media.upload}

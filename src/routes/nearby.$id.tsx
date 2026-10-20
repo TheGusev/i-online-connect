@@ -11,10 +11,9 @@ import {
   Input,
   MediaImage,
   TextArea,
-  TrustBadge,
+  getTrustLevel,
 } from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
-import { badgeLevel } from "@/features/chat/trust";
 import { ReportModal } from "@/features/trust/components/ReportModal";
 import {
   useCloseListing,
@@ -204,10 +203,9 @@ function ListingPage() {
             params={{ id: listing.author.id }}
             className="flex items-center gap-3"
           >
-            <Avatar name={listing.author.name} src={listing.author.avatarUrl} size="sm" />
+            <Avatar name={listing.author.name} src={listing.author.avatarUrl} size="sm" trust={getTrustLevel(listing.author)} />
             <span>
               <span className="block font-semibold">{listing.author.name}</span>
-              <TrustBadge level={badgeLevel(listing.author.trustLevel)} size="sm" />
             </span>
           </Link>
         </Card>

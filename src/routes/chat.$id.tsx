@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { ChatBackground } from "@/features/chat/components/ChatBackground";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, BadgeCheck, CalendarHeart, Sparkles, WifiOff } from "lucide-react";
+import { ArrowLeft, CalendarHeart, WifiOff } from "lucide-react";
 import {
   Fragment,
   useCallback,
@@ -15,7 +15,7 @@ import {
 import { useKeyboardInset } from "@/hooks/useViewportHeight";
 
 import type { MeetingKind, Message, MessageQuote } from "@/api";
-import { Avatar, Button } from "@/components/ds";
+import { Avatar, Button, getTrustLevel } from "@/components/ds";
 import { MeetingSheet } from "@/features/chat/components/MeetingSheet";
 import { MessageBubble, quotePreview } from "@/features/chat/components/MessageBubble";
 import { MessageActions } from "@/features/chat/components/MessageActions";
@@ -364,19 +364,11 @@ function ConversationPage() {
                 name={participant.name}
                 src={participant.avatarUrl ?? null}
                 online={participant.online}
+                trust={getTrustLevel(participant)}
               />
               <span className="min-w-0 flex-1">
                 <span className="flex min-w-0 items-center gap-1">
                   <span className="truncate font-semibold">{participant.name}</span>
-                  {participant.trustLevel === "new" ? (
-                    <Sparkles className="size-3.5 shrink-0 text-warning" aria-label="Новый участник">
-                      <title>Новый участник</title>
-                    </Sparkles>
-                  ) : (
-                    <BadgeCheck className="size-4 shrink-0 text-success" aria-label="Подтверждён">
-                      <title>Подтверждён</title>
-                    </BadgeCheck>
-                  )}
                 </span>
                 <span className="block truncate text-xs text-muted-foreground">
                   {typing

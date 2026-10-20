@@ -23,3 +23,5 @@ export {
 } from "./Field";
 export { Modal, BottomSheet, type ModalProps, type BottomSheetProps } from "./Modal";
 export { Skeleton, ProfileCardSkeleton, SpaceCardSkeleton, ListItemSkeleton } from "./Skeleton";
+export { TrustRing } from "./Avatar";
+export { getTrustLevel, trustRingLabel, type AvatarTrust } from "./trust-ring";
