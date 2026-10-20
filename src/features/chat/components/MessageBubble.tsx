@@ -6,8 +6,8 @@ import { useSessionStore } from "@/store/useSessionStore";
 import { mediaUrl } from "@/api";
 import { VoicePlayer } from "./VoicePlayer";
 import { MediaAttachment } from "./MediaAttachment";
-import { ReactionChip } from "./ReactionChip";
-import { useMessageGestures, useReaction } from "@/features/chat/useMessageGestures";
+import { ReactionChips } from "./ReactionChip";
+import { useMessageGestures } from "@/features/chat/useMessageGestures";
 
 function time(iso: string) {
   return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -56,7 +56,7 @@ export function MessageBubble({
   const deleted = Boolean(message.deletedAt);
   const replyable =
     Boolean(onReply) && !deleted && message.status !== "sending" && message.status !== "failed";
-  const reaction = useReaction(message.id);
+  const reaction = message.reactions?.length ? message.reactions : null;
   const gestures = useMessageGestures({
     ...(onActions && !deleted ? { onHold: () => onActions(message) } : {}),
     ...(replyable ? { onReply: () => onReply?.(message) } : {}),
@@ -81,7 +81,7 @@ export function MessageBubble({
       ) : null}
     </>
   );
-  const chip = reaction && !deleted ? <ReactionChip emoji={reaction} mine={mine} /> : null;
+  const chip = reaction && !deleted ? <ReactionChips reactions={reaction} onBubble={mine} /> : null;
   const voiceInline = voice && Boolean(message.mediaUrl) && !deleted && !failed;
   // Время в строке текста, как в Telegram: только для простых текстовых сообщений.
   const textInline = !deleted && !failed && !voice && !media && !meeting && !quote;
@@ -172,7 +172,7 @@ export function MessageBubble({
                 src={message.mediaUrl}
                 durationMs={message.durationMs}
                 className="w-full max-w-full"
-                {...(failed ? {} : { overlay: stamp, ...(chip ? { overlayStart: <ReactionChip emoji={reaction!} mine={false} overlay /> } : {}) })}
+                {...(failed ? {} : { overlay: stamp, ...(chip ? { overlayStart: <ReactionChips reactions={reaction!} overlay /> } : {}) })}
                 message={{
                   id: message.id,
                   kind: message.kind === "video" ? "video" : "image",

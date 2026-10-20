@@ -4,10 +4,10 @@ import { createPortal } from "react-dom";
 
 import type { Message } from "@/api";
 import { cn } from "@/lib/utils";
-import { toggleReaction, useReaction } from "@/features/chat/useMessageGestures";
+import { MORE_REACTIONS, QUICK_REACTIONS, myReaction, useReactionToggle } from "@/features/chat/reactions";
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
-const EMOJI = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
+const EMOJI = QUICK_REACTIONS;
 const NO_SELECT = "select-none [-webkit-touch-callout:none] [-webkit-user-select:none]";
 
 /** Своё текстовое сообщение можно править сутки после отправки. */
@@ -22,7 +22,7 @@ export function canEditMessage(message: Message, mine: boolean) {
   );
 }
 
-const MORE_EMOJI = "😀 😁 😅 🤣 😊 😍 🥰 😘 😎 🤩 🤔 🤨 😐 🙄 😏 😴 😭 😡 🤯 😱 🥳 😇 🤗 🤝 👏 🙏 💪 👌 ✌️ 🤞 👋 🙌 💯 ✨ 🎉 💔 💕 💖 🌹 🍷 ☕ 🌙 ⭐ 😈 👀 🫶".split(" ");
+const MORE_EMOJI = MORE_REACTIONS;
 
 /** Компактный поповер у сообщения: реакции, «+» с сеткой, изменить и удалить. */
 export function MessageActions({
@@ -48,8 +48,9 @@ export function MessageActions({
 }) {
   const openedAt = useRef(0);
   const albumLive = (album ?? []).filter((m) => !m.deletedAt);
-  const reactionId = albumLive.length > 1 ? albumLive[albumLive.length - 1]!.id : (message?.id ?? "");
-  const current = useReaction(reactionId);
+  const target = albumLive.length > 1 ? albumLive[albumLive.length - 1]! : message;
+  const toggleReaction = useReactionToggle();
+  const current = myReaction(target?.reactions);
   const [more, setMore] = useState(false);
   const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
 
@@ -82,7 +83,7 @@ export function MessageActions({
   const deletable = (canDelete ?? mine) && !message.deletedAt;
   const editable = Boolean(onEdit) && canEditMessage(message, mine);
   const fresh = () => Date.now() - openedAt.current < 400;
-  const react = (emoji: string) => { if (fresh()) return; toggleReaction(reactionId, emoji); onClose(); };
+  const react = (emoji: string) => { if (fresh()) return; if (target && toggleReaction) toggleReaction(target, emoji); onClose(); };
 
   return createPortal(
     <div
