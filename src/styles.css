@@ -819,3 +819,48 @@ html[data-tab-hidden] .chat-sky *, html[data-tab-hidden] .live-icon * { animatio
   .nav-drag-active { transform: none; transition: none; }
   .nav-drag-wiggle { animation: none; }
 }
+
+/* Кольцо верификации вокруг аватара: вращается только transform, на GPU. */
+.trust-ring {
+  position: relative;
+  display: inline-flex;
+  border-radius: 9999px;
+  padding: var(--tr-w, 3px);
+  isolation: isolate;
+}
+.trust-ring::before,
+.trust-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: -1;
+  will-change: transform;
+}
+.trust-ring[data-trust="none"] { padding: 1px; }
+.trust-ring[data-trust="none"]::before { background: var(--border); will-change: auto; }
+.trust-ring[data-trust="verified"]::before {
+  background: conic-gradient(#2563eb, #38bdf8, #2dd4bf, #22c55e, #38bdf8, #2563eb);
+  animation: trust-ring-spin 8s linear infinite;
+}
+.trust-ring[data-trust="video"]::before,
+.trust-ring[data-trust="video"]::after {
+  background: conic-gradient(#ff4d8d, #22d3ee, #facc15, #ff4d8d);
+  animation: trust-ring-spin 5s linear infinite;
+}
+.trust-ring[data-trust="video"]::after {
+  z-index: -2;
+  filter: blur(7px);
+  opacity: 0.5;
+}
+.trust-ring[data-trust="video"][data-small="true"]::after { display: none; }
+.trust-ring[data-trust="special"]::before {
+  background: conic-gradient(#a16207, #eab308 30%, #fef3c7 38%, #eab308 46%, #ca8a04 70%, #a16207);
+  animation: trust-ring-spin 4s linear infinite;
+}
+.trust-ring[data-paused="true"]::before,
+.trust-ring[data-paused="true"]::after { animation-play-state: paused; }
+@keyframes trust-ring-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .trust-ring::before, .trust-ring::after { animation: none; }
+}

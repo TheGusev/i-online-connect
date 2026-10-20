@@ -1,8 +1,10 @@
 import { Check } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 import { mediaUrl } from "@/api";
+
+import { trustRingLabel, type AvatarTrust } from "./trust-ring";
 
 const sizeMap = {
   xs: "size-7 text-[10px]",
@@ -28,7 +30,38 @@ export interface AvatarProps {
   size?: keyof typeof sizeMap;
   verified?: boolean;
   online?: boolean;
+  /** Кольцо верификации; не передано — кольца нет (как раньше). */
+  trust?: AvatarTrust;
   className?: string;
+}
+
+const smallSizes = new Set(["xs", "sm", "list"]);
+
+/** Кольцо верификации. Анимация на паузе, пока аватар вне экрана. */
+export function TrustRing({ trust, size, children }: { trust: AvatarTrust; size: keyof typeof sizeMap; children: ReactNode }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || trust === "none" || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setVisible(entry?.isIntersecting ?? true));
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [trust]);
+  const label = trustRingLabel[trust];
+  return (
+    <span
+      ref={ref}
+      className="trust-ring"
+      data-trust={trust}
+      data-small={size === "xs" || size === "list" ? "true" : undefined}
+      data-paused={visible ? undefined : "true"}
+      style={{ ["--tr-w" as string]: smallSizes.has(size) ? "2px" : "3px" }}
+      {...(label ? { role: "img", "aria-label": label, title: label } : {})}
+    >
+      {children}
+    </span>
+  );
 }
 
 function initials(name: string) {
@@ -46,6 +79,7 @@ export function Avatar({
   size = "md",
   verified = false,
   online = false,
+  trust,
   className,
 }: AvatarProps) {
   // Если файл не отдался, показываем инициалы, а не «битую» картинку.
@@ -53,35 +87,39 @@ export function Avatar({
   useEffect(() => setFailed(false), [src]);
   const resolved = failed ? undefined : mediaUrl(src);
 
+  const photo = (
+    <div
+      className={cn(
+        "flex items-center justify-center overflow-hidden rounded-full bg-primary-soft font-bold text-primary-ink ring-2 ring-card",
+        sizeMap[size],
+      )}
+    >
+      {resolved ? (
+        <img
+          src={resolved}
+          alt={name}
+          className="size-full object-cover"
+          loading="lazy"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span aria-hidden="true">{initials(name)}</span>
+      )}
+    </div>
+  );
+
   return (
     <div
       className={cn(
-        "relative inline-flex shrink-0",
+        "relative inline-flex shrink-0 rounded-full",
         // Онлайн показываем розовым пульсирующим ореолом вместо зелёной точки.
-        online && (size === "xs" || size === "sm" || size === "list" ? "avatar-ring avatar-ring-sm" : "avatar-ring"),
+        online && (smallSizes.has(size) ? "avatar-ring avatar-ring-sm" : "avatar-ring"),
         className,
       )}
       {...(online ? { title: "Сейчас в сети" } : {})}
     >
-      <div
-        className={cn(
-          "flex items-center justify-center overflow-hidden rounded-full bg-primary-soft font-bold text-primary-ink ring-2 ring-card",
-          sizeMap[size],
-        )}
-      >
-        {resolved ? (
-          <img
-            src={resolved}
-            alt={name}
-            className="size-full object-cover"
-            loading="lazy"
-            onError={() => setFailed(true)}
-          />
-        ) : (
-          <span aria-hidden="true">{initials(name)}</span>
-        )}
-      </div>
-      {verified && (
+      {trust ? <TrustRing trust={trust} size={size}>{photo}</TrustRing> : photo}
+      {verified && !trust && (
         <span
           title="Профиль подтверждён"
           className={cn(
