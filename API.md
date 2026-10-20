@@ -409,3 +409,6 @@ Web Push по стандарту VAPID, без сторонних сервисо
 Учитываются переключатели типов уведомлений (`messages`, `spaces`, `matches`),
 демо-профили (`is_seed`) в рассылку не попадают. Подписка, вернувшая 404/410
 (Gone), удаляется из базы как невалидная.
+
+## Реакции (028)
+`PUT|DELETE /api/chat/conversations/:id/messages/:messageId/reactions` и `PUT|DELETE /api/spaces/:id/messages/:messageId/reactions`, тело `{emoji}` → `{messageId, reactions:[{emoji,count,mine}]}`. 403 не участнику, 400 недопустимый эмодзи или `REACTION_LIMIT`. Списки сообщений содержат `reactions`. WS-событие `reaction` в личном чате.
