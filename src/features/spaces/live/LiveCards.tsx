@@ -241,7 +241,7 @@ export function CardDetailSheet({
               ) : null}
               {confirm ? (
                 <>
-                  <Button size="sm" variant="destructive" onClick={() => { actions.removeCard(card); close(); }}>Да, удалить</Button>
+                  <Button size="sm" variant="danger" onClick={() => { actions.removeCard(card); close(); }}>Да, удалить</Button>
                   <Button size="sm" variant="ghost" onClick={() => setConfirm(false)}>Отмена</Button>
                 </>
               ) : (

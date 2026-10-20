@@ -14,6 +14,10 @@ import { lockBodyScroll } from "@/lib/scroll-lock";
 
 import { ClipBricks } from "./ClipBricks";
 import { assignSeats } from "./seats";
+import { AddCardSheet, AllCardsSheet, CardDetailSheet, TableCards } from "./LiveCards";
+import type { LiveCard } from "@/api/types";
+import { useVerificationStatus } from "@/features/trust/hooks";
+import { MediaViewer } from "@/features/profile/components/MediaViewer";
 import type { LiveClip, LiveParticipant, LiveRoom } from "./useLiveRoom";
 
 /** Лузы стола (проценты): участники сидят в них, центр стола свободен. */
@@ -52,6 +56,11 @@ export function LiveRoomScreen({
   const [activeClip, setActiveClip] = useState<string | null>(null);
   const [muted, setMuted] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [allCards, setAllCards] = useState(false);
+  const [openCard, setOpenCard] = useState<LiveCard | null>(null);
+  const [photo, setPhoto] = useState<string | null>(null);
+  const verification = useVerificationStatus();
   const myId = useSessionStore((st) => st.user?.id ?? null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const heardRef = useRef(new Set<string>());
@@ -231,6 +240,7 @@ export function LiveRoomScreen({
               );
             })}
           </svg>
+          <TableCards cards={room.cards} onOpen={setOpenCard} onAll={() => setAllCards(true)} />
           {seated.map((p) => {
             const [x, y] = pos.get(p.userId)!;
             const glow = p.lastSpokeAt ? Math.max(0, 1 - (now - p.lastSpokeAt) / 60_000) : 0;
@@ -280,7 +290,7 @@ export function LiveRoomScreen({
       </div>
 
       <footer className="mt-4 flex items-center justify-between gap-3">
-        <Button size="icon" variant="secondary" aria-label="Добавить на стол" title="Скоро" disabled>
+        <Button size="icon" variant="secondary" aria-label="Добавить на стол" onClick={() => setAdding(true)} disabled={!room.cardActions}>
           <Plus />
         </Button>
         <div className="flex flex-col items-center gap-1">
@@ -300,6 +310,22 @@ export function LiveRoomScreen({
         </div>
         <Button size="icon" variant="ghost" aria-label="Выйти из эфира" onClick={exit} className="text-primary"><LogOut /></Button>
       </footer>
+
+      <AddCardSheet open={adding} onClose={() => setAdding(false)} {...(room.cardActions ? { actions: room.cardActions } : {})} canPhoto={!real || verification.data?.status === "verified"} />
+      <AllCardsSheet open={allCards} cards={room.cards} onClose={() => setAllCards(false)} onOpen={(c) => { setAllCards(false); setOpenCard(c); }} />
+      <CardDetailSheet
+        card={openCard ? (room.cards.find((c) => c.clientTempId === openCard.clientTempId) ?? openCard) : null}
+        onClose={() => setOpenCard(null)}
+        myId={myId}
+        startedBy={room.startedBy}
+        {...(room.cardActions ? { actions: room.cardActions } : {})}
+        onPhoto={setPhoto}
+      />
+      {photo ? (
+        <div className="fixed inset-0 z-[100]">
+          <MediaViewer media={[{ id: "live-card-photo", kind: "photo", url: photo }]} name="Фото со стола" index={0} onIndexChange={() => undefined} onClose={() => setPhoto(null)} />
+        </div>
+      ) : null}
     </div>,
     document.body,
   );
