@@ -198,6 +198,7 @@ export function MessageBubble({
                 ) : null}
               </p>
             )}
+            {firstLink ? <LinkPreviewCard url={firstLink} mine={mine} /> : null}
           </>
         )}
         {caption ? (
