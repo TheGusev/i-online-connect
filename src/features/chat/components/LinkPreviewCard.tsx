@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { chatApi } from "@/api";
-import type { LinkPreview } from "@/api";
+import type { LinkPreview } from "@/api/endpoints/chat";
 import { cn } from "@/lib/utils";
 
 // Кэш на уровне модуля: одна и та же ссылка в разных сообщениях не дёргает сервер повторно.
