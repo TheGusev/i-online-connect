@@ -86,6 +86,9 @@ function snapshot(s: SpaceLive, spaceId: string) {
 /** Закрыть сессию: удалить файлы и строки клипов, поставить ended_at. Не бросает. */
 export async function closeLiveSession(sessionId: string): Promise<void> {
   try {
+    // Сначала закрываем сессию: быстрый перезапуск эфира не упрётся
+    // в уникальный индекс live_sessions_one_active, пока чистятся файлы.
+    await query("UPDATE live_sessions SET ended_at = now() WHERE id = $1 AND ended_at IS NULL", [sessionId]);
     const rows = await query<{ media_url: string }>("SELECT media_url FROM live_clips WHERE session_id = $1", [sessionId]);
     for (const file of clipFilesToDelete(rows.map((r) => r.media_url), mediaPathFromUrl)) {
       await unlink(file).catch(() => undefined);
@@ -96,7 +99,6 @@ export async function closeLiveSession(sessionId: string): Promise<void> {
       await unlink(file).catch(() => undefined);
     }
     await query("DELETE FROM live_cards WHERE session_id = $1", [sessionId]);
-    await query("UPDATE live_sessions SET ended_at = now() WHERE id = $1 AND ended_at IS NULL", [sessionId]);
   } catch (error) {
     console.error("[live] Не удалось закрыть сессию", sessionId, (error as Error).message);
   }

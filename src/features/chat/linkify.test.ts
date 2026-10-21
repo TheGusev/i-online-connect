@@ -20,6 +20,14 @@ test("e-mail не трогает", () => {
   assert.deepEqual(links("пиши на ivan@mail.ru"), []);
 });
 
+test("голый домен — только известная зона или с путём", () => {
+  assert.deepEqual(links("привет.как дела"), []);
+  assert.deepEqual(links("ок.завтра созвон"), []);
+  assert.deepEqual(links("заходи на example.ru"), ["https://example.ru/"]);
+  assert.deepEqual(links("тут example.ru/путь"), ["https://example.ru/%D0%BF%D1%83%D1%82%D1%8C"]);
+  assert.deepEqual(links("сайт example.xyz работает"), ["https://example.xyz/"]);
+});
+
 test("никаких javascript: и data:", () => {
   assert.deepEqual(links("javascript:alert(1) data:text/html,x"), []);
 });

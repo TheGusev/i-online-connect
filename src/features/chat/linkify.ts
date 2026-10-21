@@ -5,6 +5,25 @@ export type TextPart = { type: "text"; value: string } | { type: "link"; value: 
 const LINK_RE = /(^|[^\p{L}\p{N}@._\/-])((?:https?:\/\/|www\.)[^\s<>]+|(?:[\p{L}\p{N}-]+\.)+[\p{L}]{2,}(?::\d+)?(?:\/[^\s<>]*)?)/giu;
 const TRAILING = /[.,!?:;)»”"'\]]+$/u;
 
+/**
+ * Зоны, в которых голый домен (без http(s):// и www.) считаем ссылкой.
+ * Иначе «привет.как» или «ок.завтра» превращались бы в ссылки.
+ * Голый домен с путём (/...) считаем ссылкой при любой зоне.
+ */
+const KNOWN_TLDS = new Set([
+  "ru", "su", "рф", "com", "net", "org", "info", "io", "me", "app", "dev",
+  "co", "ai", "tv", "by", "kz", "ua", "uz", "site", "online", "store",
+  "shop", "tech", "club", "pro", "xyz",
+]);
+
+function bareDomainOk(raw: string): boolean {
+  if (/^(?:https?:\/\/|www\.)/i.test(raw)) return true;
+  if (raw.includes("/")) return true;
+  const host = raw.split(/[/?#:]/)[0]!.toLowerCase();
+  const tld = host.split(".").pop() ?? "";
+  return KNOWN_TLDS.has(tld);
+}
+
 export function splitLinks(text: string): TextPart[] {
   const parts: TextPart[] = [];
   let last = 0;
@@ -19,6 +38,8 @@ export function splitLinks(text: string): TextPart[] {
     const end = start + raw.length;
     // E-mail: сразу после совпадения «@», либо это часть адреса до «@».
     if (text[end] === "@") continue;
+    // Голый домен — только известная зона или есть путь.
+    if (!bareDomainOk(raw)) continue;
     const href = toHref(raw);
     if (!href) continue;
     if (start > last) parts.push({ type: "text", value: text.slice(last, start) });
