@@ -172,34 +172,34 @@ export function MessageActions({
             </button>
           </div>
         ) : copyable || editable || deletable ? (
-          <div className="mt-1 flex border-t border-border pt-1 text-xs font-medium">
+          <div className="mt-1 flex gap-1 border-t border-border pt-1 text-xs font-medium">
             {copyable ? (
               <button
                 type="button"
-                className="flex flex-1 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 hover:bg-secondary"
+                className="flex flex-1 items-center gap-1 whitespace-nowrap rounded-xl px-2 py-2 hover:bg-secondary"
                 onClick={() => void copy()}
               >
-                <Copy className="size-3.5" aria-hidden="true" />
+                <Copy className="size-3" aria-hidden="true" />
                 Копировать
               </button>
             ) : null}
             {editable ? (
               <button
                 type="button"
-                className="flex flex-1 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 hover:bg-secondary"
+                className="flex flex-1 items-center gap-1 whitespace-nowrap rounded-xl px-2 py-2 hover:bg-secondary"
                 onClick={() => { if (fresh()) return; onEdit?.(message); onClose(); }}
               >
-                <Pencil className="size-3.5" aria-hidden="true" />
+                <Pencil className="size-3" aria-hidden="true" />
                 Изменить
               </button>
             ) : null}
             {deletable ? (
               <button
                 type="button"
-                className="flex flex-1 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-destructive hover:bg-secondary"
+                className="flex flex-1 items-center gap-1 whitespace-nowrap rounded-xl px-2 py-2 text-destructive hover:bg-secondary"
                 onClick={() => { if (fresh()) return; onDelete(message); onClose(); }}
               >
-                <Trash2 className="size-3.5" aria-hidden="true" />
+                <Trash2 className="size-3" aria-hidden="true" />
                 Удалить у всех
               </button>
             ) : null}

@@ -40,6 +40,7 @@ import { mediaRoutes } from "./routes/media.ts";
 import { notificationRoutes } from "./routes/notifications.ts";
 import { onboardingRoutes } from "./routes/onboarding.ts";
 import { profileRoutes } from "./routes/profile.ts";
+import { linkPreviewRoutes } from "./routes/link-preview.ts";
 import { presenceRoutes } from "./routes/presence.ts";
 import { pushRoutes } from "./routes/push.ts";
 import { settingsRoutes } from "./routes/settings.ts";
@@ -158,6 +159,7 @@ await app.register(listingRoutes, { prefix: "/api/listings" });
 await app.register(notificationRoutes, { prefix: "/api/notifications" });
 await app.register(pushRoutes, { prefix: "/api/push" });
 await app.register(presenceRoutes, { prefix: "/api/presence" });
+await app.register(linkPreviewRoutes, { prefix: "/api/link-preview" });
 // Админка: отдельный, более строгий лимит поверх общего (300/мин).
 await app.register(
   async (scope) => {

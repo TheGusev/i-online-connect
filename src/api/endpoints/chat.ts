@@ -31,6 +31,18 @@ export async function getUnreadCount(): Promise<{ count: number }> {
   return request<{ count: number }>("/chat/unread-count");
 }
 
+export interface LinkPreview {
+  url: string;
+  title: string | null;
+  image: string | null;
+  domain: string;
+}
+
+/** Предпросмотр ссылки: название страницы, домен, картинка (если есть). */
+export async function getLinkPreview(url: string): Promise<LinkPreview> {
+  return request<LinkPreview>(`/link-preview?url=${encodeURIComponent(url)}`);
+}
+
 /** Открыть (или найти существующий) диалог с человеком. */
 export async function openConversation(
   participantId: string,
