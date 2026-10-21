@@ -1,6 +1,8 @@
 import { AlertCircle, Check, CheckCheck, CalendarHeart, Clock, Reply } from "lucide-react";
 
 import { LinkedText } from "./LinkedText";
+import { LinkPreviewCard } from "./LinkPreviewCard";
+import { splitLinks } from "@/features/chat/linkify";
 import type { Message, MessageQuote } from "@/api";
 import { cn } from "@/lib/utils";
 import { useSessionStore } from "@/store/useSessionStore";
@@ -91,6 +93,11 @@ export function MessageBubble({
   // Сервер кладёт в текст служебные «Фото»/«Видео» — это не подпись.
   const rawCaption = bare ? (message.text ?? "").trim() : "";
   const caption = rawCaption === "Фото" || rawCaption === "Видео" ? "" : rawCaption;
+  // Первая ссылка в тексте — компактная карточка предпросмотра под сообщением.
+  const firstLink =
+    !deleted && !failed && !voice && !media && !meeting
+      ? (splitLinks(message.text ?? "").find((p) => p.type === "link") as { href: string } | undefined)?.href ?? null
+      : null;
   const bubbleTone = mine
     ? "rounded-br-lg bg-primary text-primary-foreground"
     : "rounded-bl-lg border border-border bg-card text-foreground";
