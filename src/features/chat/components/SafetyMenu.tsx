@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 
 import { Button, Modal } from "@/components/ds";
+import { useOverlayPresence } from "@/lib/useOverlayPresence";
+import { cn } from "@/lib/utils";
 import { ReportModal } from "@/features/trust/components/ReportModal";
 
 /** Иконка щита в шапке диалога: жалоба, блокировка и памятка по безопасности. */
@@ -16,6 +18,7 @@ export function SafetyMenu({
   participantId?: string;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { mounted: menuMounted, leaving: menuLeaving } = useOverlayPresence(menuOpen, 160);
   const [infoOpen, setInfoOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -38,14 +41,14 @@ export function SafetyMenu({
         <ShieldCheck className="size-5" aria-hidden="true" />
       </button>
 
-      {menuOpen && typeof document !== "undefined" ? createPortal(
+      {menuMounted && typeof document !== "undefined" ? createPortal(
         <>
           <button
             aria-label="Закрыть меню"
             className="fixed inset-0 z-[80] cursor-default bg-transparent"
             onClick={() => setMenuOpen(false)}
           />
-          <div style={{ top: pos.top, right: pos.right }} className="fixed z-[81] w-60 overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-lift animate-in fade-in zoom-in-95">
+          <div style={{ top: pos.top, right: pos.right }} className={cn("fixed z-[81] w-60 overflow-hidden rounded-2xl border border-border bg-card p-1.5 shadow-lift", menuLeaving ? "menu-leave" : "menu-enter")}>
             <button
               type="button"
               onClick={() => {
