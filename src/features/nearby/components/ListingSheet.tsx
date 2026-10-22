@@ -102,9 +102,9 @@ function ListingGallery({ listing }: { listing: Listing }) {
   const media = listing.photos.map((url, i) => ({ id: `${listing.id}-${i}`, kind: "photo" as const, url }));
   return (
     <div className="relative -mx-5 overflow-hidden bg-secondary">
-      {viewer !== null
+      {typeof document !== "undefined"
         ? createPortal(
-            <MediaViewer media={media} name={listing.title} index={viewer} onIndexChange={setViewer} onClose={() => setViewer(null)} />,
+            <MediaViewer open={viewer !== null} media={media} name={listing.title} index={viewer ?? 0} onIndexChange={setViewer} onClose={() => setViewer(null)} />,
             document.body,
           )
         : null}

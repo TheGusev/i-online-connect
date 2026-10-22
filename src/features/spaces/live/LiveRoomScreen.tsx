@@ -325,11 +325,15 @@ export function LiveRoomScreen({
         {...(room.cardActions ? { actions: room.cardActions } : {})}
         onPhoto={(url) => { setOpenCard(null); setPhoto(url); }}
       />
-      {photo ? (
-        <div className="fixed inset-0 z-[100]">
-          <MediaViewer media={[{ id: "live-card-photo", kind: "photo", url: photo }]} name="Фото со стола" index={0} onIndexChange={() => undefined} onClose={() => setPhoto(null)} />
-        </div>
-      ) : null}
+      <MediaViewer
+        open={photo !== null}
+        media={photo ? [{ id: "live-card-photo", kind: "photo", url: photo }] : []}
+        name="Фото со стола"
+        index={0}
+        onIndexChange={() => undefined}
+        onClose={() => setPhoto(null)}
+        className="z-[100]"
+      />
     </div>,
     document.body,
   );

@@ -238,15 +238,14 @@ export function ProfileHero({
         ) : null}
       </div>
 
-      {viewerOpen && current ? (
-        <MediaViewer
-          media={media}
-          name={name}
-          index={safeIndex}
-          onIndexChange={setIndex}
-          onClose={() => setViewerOpen(false)}
-        />
-      ) : null}
+      <MediaViewer
+        open={viewerOpen && Boolean(current)}
+        media={media}
+        name={name}
+        index={safeIndex}
+        onIndexChange={setIndex}
+        onClose={() => setViewerOpen(false)}
+      />
     </section>
   );
 }
