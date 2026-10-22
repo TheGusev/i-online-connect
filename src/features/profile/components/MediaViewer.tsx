@@ -4,54 +4,73 @@ import { useEffect, useRef } from "react";
 import type { ProfileMedia } from "@/api";
 import { mediaUrl } from "@/api";
 import { MediaImage } from "@/components/ds";
+import { lockBodyScroll } from "@/lib/scroll-lock";
+import { useOverlayPresence } from "@/lib/useOverlayPresence";
+import { cn } from "@/lib/utils";
 
 /**
  * Просмотр кадра на весь экран: тап по фото открывает его целиком,
  * свайп и стрелки переключают, Esc или крестик закрывают.
+ * Окно живёт в DOM, пока идёт анимация выхода (единая layer-анимация).
  */
 export function MediaViewer({
+  open,
   media,
   name,
   index,
   onIndexChange,
   onClose,
+  className,
 }: {
+  open: boolean;
   media: ProfileMedia[];
   name: string;
   index: number;
   onIndexChange: (next: number) => void;
   onClose: () => void;
+  /** Переопределить слой (например, поверх эфира). */
+  className?: string;
 }) {
-  const total = media.length;
-  const item = media[index];
+  const { mounted, leaving } = useOverlayPresence(open, 260);
+  // Во время анимации выхода родитель уже очистил данные — держим последние.
+  const last = useRef<{ media: ProfileMedia[]; index: number }>({ media, index });
+  if (open && media.length > 0) last.current = { media, index };
+  const shownMedia = media.length > 0 ? media : last.current.media;
+  const shownIndex = media.length > 0 ? index : last.current.index;
+
+  const total = shownMedia.length;
+  const item = shownMedia[shownIndex];
   const touchStart = useRef<number | null>(null);
 
   const go = (delta: number) => {
     if (total < 2) return;
-    onIndexChange((index + delta + total) % total);
+    onIndexChange((shownIndex + delta + total) % total);
   };
 
   useEffect(() => {
+    if (!mounted) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
       if (event.key === "ArrowRight") go(1);
       if (event.key === "ArrowLeft") go(-1);
     };
     window.addEventListener("keydown", onKey);
-    // Фон под просмотром не должен прокручиваться.
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const unlock = lockBodyScroll();
     return () => {
       window.removeEventListener("keydown", onKey);
-      document.body.style.overflow = previous;
+      unlock();
     };
   });
 
-  if (!item) return null;
+  if (!mounted || !item) return null;
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-background/97 backdrop-blur"
+      className={cn(
+        "fixed inset-0 z-50 flex flex-col bg-background/97 backdrop-blur",
+        leaving ? "layer-leave" : "layer-enter",
+        className,
+      )}
       role="dialog"
       aria-modal="true"
       aria-label={`${name} — просмотр фото`}
@@ -69,7 +88,7 @@ export function MediaViewer({
     >
       <div className="flex items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
         <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          {index + 1} / {total}
+          {shownIndex + 1} / {total}
         </span>
         <button
           type="button"
@@ -93,7 +112,7 @@ export function MediaViewer({
         ) : (
           <MediaImage
             src={item.url}
-            alt={`${name} — кадр ${index + 1} из ${total}`}
+            alt={`${name} — кадр ${shownIndex + 1} из ${total}`}
             className="max-h-full w-full rounded-2xl object-contain"
           />
         )}

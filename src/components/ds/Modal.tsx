@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { lockBodyScroll } from "@/lib/scroll-lock";
+import { useOverlayPresence } from "@/lib/useOverlayPresence";
 import { cn } from "@/lib/utils";
 
 export interface ModalProps {
@@ -25,6 +26,13 @@ export function Modal({
   footer,
   className,
 }: ModalProps) {
+  const { mounted, leaving } = useOverlayPresence(open, MODAL_LEAVE_MS);
+
+  useEffect(() => {
+    if (!mounted) return;
+    return lockBodyScroll();
+  }, [mounted]);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
@@ -34,20 +42,26 @@ export function Modal({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!mounted || typeof document === "undefined") return null;
 
   return createPortal(
     <div className="viewport-overlay z-50 flex items-center justify-center p-4">
       <button
         aria-label="Закрыть"
-        onClick={onClose}
-        className="absolute inset-0 bg-foreground/35 backdrop-blur-sm animate-in fade-in"
+        onClick={() => {
+          if (!leaving) onClose();
+        }}
+        className={cn(
+          "absolute inset-0 bg-foreground/35 backdrop-blur-sm",
+          leaving ? "backdrop-leave" : "backdrop-enter",
+        )}
       />
       <div
         role="dialog"
         aria-modal="true"
         className={cn(
-          "relative z-10 max-h-[88%] w-full max-w-md overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-lift animate-in fade-in zoom-in-95",
+          "relative z-10 max-h-[88%] w-full max-w-md overflow-y-auto rounded-3xl border border-border bg-card p-6 shadow-lift",
+          leaving ? "pop-leave" : "pop-enter",
           className,
         )}
       >
@@ -74,12 +88,9 @@ export interface BottomSheetProps extends ModalProps {
   layerClassName?: string;
 }
 
+const MODAL_LEAVE_MS = 260;
 const SHEET_LEAVE_MS = 260;
 const SHEET_CLOSE_PX = 100;
-
-function prefersReducedMotion() {
-  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
 
 /**
  * Нижнее окно с той же механикой, что у окна объявления: плавное появление,
@@ -96,33 +107,13 @@ export function BottomSheet({
   className,
   layerClassName = "z-50",
 }: BottomSheetProps) {
-  const [mounted, setMounted] = useState(open);
-  const [leaving, setLeaving] = useState(false);
+  const { mounted, leaving } = useOverlayPresence(open, SHEET_LEAVE_MS);
   const [offset, setOffset] = useState(0);
   const drag = useRef<{ y: number; current: number } | null>(null);
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setMounted(true);
-      setLeaving(false);
-      setOffset(0);
-      return;
-    }
-    if (!mounted) return;
-    if (prefersReducedMotion()) {
-      setMounted(false);
-      setOffset(0);
-      return;
-    }
-    setLeaving(true);
-    const timer = window.setTimeout(() => {
-      setMounted(false);
-      setLeaving(false);
-      setOffset(0);
-    }, SHEET_LEAVE_MS);
-    return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (open) setOffset(0);
   }, [open]);
 
   useEffect(() => {

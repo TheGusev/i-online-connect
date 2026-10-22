@@ -11,6 +11,7 @@ import { useSessionStore } from "@/store/useSessionStore";
 import { Avatar, Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
 import { lockBodyScroll } from "@/lib/scroll-lock";
+import { useOverlayPresence } from "@/lib/useOverlayPresence";
 
 import { ClipBricks } from "./ClipBricks";
 import { assignSeats } from "./seats";
@@ -113,17 +114,20 @@ export function LiveRoomScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room.clips, open, real]);
 
+  const { mounted, leaving } = useOverlayPresence(open, 260);
+
   useEffect(() => {
     if (!open) return;
     const t = window.setInterval(() => setNow(Date.now()), 2000);
-    const unlockScroll = lockBodyScroll();
-    return () => {
-      window.clearInterval(t);
-      unlockScroll();
-    };
+    return () => window.clearInterval(t);
   }, [open]);
 
-  if (!open || typeof document === "undefined") return null;
+  useEffect(() => {
+    if (!mounted) return;
+    return lockBodyScroll();
+  }, [mounted]);
+
+  if (!mounted || typeof document === "undefined") return null;
 
   const seated = room.participants.filter((p) => seats[p.userId] !== undefined);
   const hall = room.participants.filter((p) => seats[p.userId] === undefined);
@@ -171,7 +175,7 @@ export function LiveRoomScreen({
   const lastClipOf = (userId: string) => [...room.clips].reverse().find((c) => c.userId === userId);
 
   return createPortal(
-    <div data-no-swipe className="live-room fixed inset-0 z-[90] flex flex-col bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+    <div data-no-swipe className={cn("live-room fixed inset-0 z-[90] flex flex-col bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-[calc(env(safe-area-inset-top)+0.75rem)]", leaving ? "layer-leave" : "layer-enter")}>
       <header className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-bold text-foreground">{title}</h2>
@@ -321,11 +325,15 @@ export function LiveRoomScreen({
         {...(room.cardActions ? { actions: room.cardActions } : {})}
         onPhoto={(url) => { setOpenCard(null); setPhoto(url); }}
       />
-      {photo ? (
-        <div className="fixed inset-0 z-[100]">
-          <MediaViewer media={[{ id: "live-card-photo", kind: "photo", url: photo }]} name="Фото со стола" index={0} onIndexChange={() => undefined} onClose={() => setPhoto(null)} />
-        </div>
-      ) : null}
+      <MediaViewer
+        open={photo !== null}
+        media={photo ? [{ id: "live-card-photo", kind: "photo", url: photo }] : []}
+        name="Фото со стола"
+        index={0}
+        onIndexChange={() => undefined}
+        onClose={() => setPhoto(null)}
+        className="z-[100]"
+      />
     </div>,
     document.body,
   );

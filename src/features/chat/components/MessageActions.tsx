@@ -5,7 +5,9 @@ import { createPortal } from "react-dom";
 
 import type { Message } from "@/api";
 import { cn } from "@/lib/utils";
+import { useOverlayPresence } from "@/lib/useOverlayPresence";
 import { MORE_REACTIONS, QUICK_REACTIONS, myReaction, useReactionToggle } from "@/features/chat/reactions";
+import { LiveEmoji } from "./LiveEmoji";
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const EMOJI = QUICK_REACTIONS;
@@ -48,8 +50,13 @@ export function MessageActions({
   onDeleteAlbum?: ((messages: Message[]) => void) | undefined;
 }) {
   const openedAt = useRef(0);
+  // Окно живёт в DOM ещё 160 мс после закрытия: держим последнее сообщение.
+  const { mounted, leaving } = useOverlayPresence(message !== null, 160);
+  const lastMessage = useRef<Message | null>(null);
+  if (message) lastMessage.current = message;
+  const shown = message ?? lastMessage.current;
   const albumLive = (album ?? []).filter((m) => !m.deletedAt);
-  const target = albumLive.length > 1 ? albumLive[albumLive.length - 1]! : message;
+  const target = albumLive.length > 1 ? albumLive[albumLive.length - 1]! : shown;
   const toggleReaction = useReactionToggle();
   const current = myReaction(target?.reactions);
   const [more, setMore] = useState(false);
@@ -80,17 +87,18 @@ export function MessageActions({
     };
   }, [message, mine, onClose, more, album]);
 
-  if (!message || typeof document === "undefined") return null;
-  const deletable = (canDelete ?? mine) && !message.deletedAt;
-  const editable = Boolean(onEdit) && canEditMessage(message, mine);
-  const copyable = !message.deletedAt && (message.kind ?? "text") === "text" && message.status !== "sending" && message.status !== "failed" && Boolean(message.text);
+  if (!mounted || !shown || typeof document === "undefined") return null;
+  const current2 = shown; // стабильная ссылка для рендера во время выхода
+  const deletable = (canDelete ?? mine) && !current2.deletedAt;
+  const editable = Boolean(onEdit) && canEditMessage(current2, mine);
+  const copyable = !current2.deletedAt && (current2.kind ?? "text") === "text" && current2.status !== "sending" && current2.status !== "failed" && Boolean(current2.text);
   const copy = async () => {
     if (fresh()) return;
     try {
-      await navigator.clipboard.writeText(message.text);
+      await navigator.clipboard.writeText(current2.text);
     } catch {
       const area = document.createElement("textarea");
-      area.value = message.text;
+      area.value = current2.text;
       area.setAttribute("readonly", "");
       area.style.position = "fixed";
       area.style.opacity = "0";
@@ -107,18 +115,21 @@ export function MessageActions({
 
   return createPortal(
     <div
-      className={cn("fixed inset-0 z-[85] bg-background/40", NO_SELECT)}
+      className={cn("fixed inset-0 z-[85] bg-background/40", leaving ? "backdrop-leave" : "backdrop-enter", NO_SELECT)}
       role="dialog"
       aria-modal="true"
       aria-label="Действия с сообщением"
       onContextMenu={(e) => e.preventDefault()}
-      onPointerDown={(e) => { if (e.target === e.currentTarget && !fresh()) onClose(); }}
+      onPointerDown={(e) => { if (e.target === e.currentTarget && !fresh() && !leaving) onClose(); }}
     >
       <div
-        className="fixed w-[min(320px,calc(100vw-16px))] rounded-3xl border border-border/60 bg-card/85 p-1.5 shadow-glow backdrop-blur-md"
+        className={cn(
+          "fixed w-[min(320px,calc(100vw-16px))] rounded-3xl border border-border/60 bg-card/85 p-1.5 shadow-glow backdrop-blur-md",
+          leaving ? "menu-leave" : "menu-enter",
+        )}
         style={pos ?? undefined}
       >
-        {!message.deletedAt ? (
+        {!current2.deletedAt ? (
           <div className="flex items-center justify-between gap-0.5">
             {EMOJI.map((emoji) => (
               <button
@@ -129,7 +140,7 @@ export function MessageActions({
                 className={cn("grid size-10 place-items-center rounded-full text-xl transition-transform active:scale-90", current === emoji && "bg-primary/20 ring-1 ring-primary")}
                 onClick={() => react(emoji)}
               >
-                {emoji}
+                <LiveEmoji symbol={emoji} seed={emoji} />
               </button>
             ))}
             <button
@@ -145,9 +156,9 @@ export function MessageActions({
         ) : null}
         {more ? (
           <div className="mt-1 grid max-h-[220px] grid-cols-8 gap-0.5 overflow-y-auto border-t border-border pt-1">
-            {MORE_EMOJI.map((emoji) => (
+            {MORE_EMOJI.map((emoji, index) => (
               <button key={emoji} type="button" className="grid aspect-square place-items-center rounded-lg text-xl active:scale-90" onClick={() => react(emoji)}>
-                {emoji}
+                <LiveEmoji symbol={emoji} seed={index} />
               </button>
             ))}
           </div>
@@ -157,7 +168,7 @@ export function MessageActions({
             <button
               type="button"
               className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-destructive hover:bg-secondary"
-              onClick={() => { if (fresh()) return; onDelete(message); onClose(); }}
+              onClick={() => { if (fresh()) return; onDelete(current2); onClose(); }}
             >
               <Trash2 className="size-3.5" aria-hidden="true" />
               Удалить это фото
@@ -187,7 +198,7 @@ export function MessageActions({
               <button
                 type="button"
                 className="flex flex-1 items-center gap-1 whitespace-nowrap rounded-xl px-2 py-2 hover:bg-secondary"
-                onClick={() => { if (fresh()) return; onEdit?.(message); onClose(); }}
+                onClick={() => { if (fresh()) return; onEdit?.(current2); onClose(); }}
               >
                 <Pencil className="size-3" aria-hidden="true" />
                 Изменить
@@ -197,7 +208,7 @@ export function MessageActions({
               <button
                 type="button"
                 className="flex flex-1 items-center gap-1 whitespace-nowrap rounded-xl px-2 py-2 text-destructive hover:bg-secondary"
-                onClick={() => { if (fresh()) return; onDelete(message); onClose(); }}
+                onClick={() => { if (fresh()) return; onDelete(current2); onClose(); }}
               >
                 <Trash2 className="size-3" aria-hidden="true" />
                 Удалить у всех

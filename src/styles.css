@@ -726,6 +726,29 @@ html[data-tab-hidden] .chat-sky *, html[data-tab-hidden] .live-icon * { animatio
 .sheet-leave { animation: sheet-down 260ms cubic-bezier(.4,0,1,1) both; }
 .backdrop-enter { animation: fade-in 320ms ease-out both; }
 .backdrop-leave { animation: fade-out 260ms ease-in both; }
+
+/* ── Единая мягкая анимация окон ────────────────────────────────────────── */
+:root {
+  --motion-enter: 320ms;
+  --motion-leave: 260ms;
+  --motion-ease-in: cubic-bezier(.22,1,.36,1);
+  --motion-ease-out: cubic-bezier(.4,0,1,1);
+}
+@keyframes pop-in { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes pop-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.96); } }
+@keyframes menu-in { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: scale(1); } }
+@keyframes menu-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(.95); } }
+@keyframes layer-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes layer-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(12px); } }
+/* Центральное окно. */
+.pop-enter { animation: pop-in var(--motion-enter) var(--motion-ease-in) both; }
+.pop-leave { animation: pop-out var(--motion-leave) var(--motion-ease-out) both; }
+/* Выпадающее меню и поповер: 160 мс, масштаб от точки привязки. */
+.menu-enter { animation: menu-in 160ms var(--motion-ease-in) both; transform-origin: top right; }
+.menu-leave { animation: menu-out 160ms var(--motion-ease-out) both; transform-origin: top right; }
+/* Полноэкранный слой. */
+.layer-enter { animation: layer-in var(--motion-enter) var(--motion-ease-in) both; }
+.layer-leave { animation: layer-out var(--motion-leave) var(--motion-ease-out) both; }
 .sheet-stagger > * { animation: rise-in 260ms ease-out both; }
 .sheet-stagger > *:nth-child(1) { animation-delay: 60ms; }
 .sheet-stagger > *:nth-child(2) { animation-delay: 110ms; }
@@ -745,7 +768,28 @@ html[data-tab-hidden] .chat-sky *, html[data-tab-hidden] .live-icon * { animatio
 @media (prefers-reduced-motion: reduce) {
   .listing-press, .listing-press:active { transition: none; transform: none; }
   .sheet-enter, .sheet-leave, .backdrop-enter, .backdrop-leave, .sheet-stagger > *, .chat-media-glow { animation: none !important; }
+  .pop-enter, .pop-leave, .menu-enter, .menu-leave, .layer-enter, .layer-leave { animation: none !important; }
   .img-fade, .collapse-grid { transition: none; }
+}
+
+/* ── Живые эмодзи: мягкие бесконечные анимации только transform ─────────── */
+.live-emoji { display: inline-block; will-change: transform; }
+@keyframes live-emoji-fire { 0%, 100% { transform: scale(1) rotate(0deg); } 30% { transform: scale(1.08) rotate(-2deg); } 60% { transform: scale(1.12) rotate(2deg); } }
+@keyframes live-emoji-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+@keyframes live-emoji-shake { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-5deg); } 75% { transform: rotate(5deg); } }
+@keyframes live-emoji-nod { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-2px) rotate(-6deg); } }
+@keyframes live-emoji-wow { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+@keyframes live-emoji-sway { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(1px); } }
+.live-emoji--fire { transform-origin: 50% 100%; animation: live-emoji-fire 1.6s ease-in-out infinite; }
+.live-emoji--heart { animation: live-emoji-pulse 1.4s ease-in-out infinite; }
+.live-emoji--laugh { animation: live-emoji-shake 1.2s ease-in-out infinite; }
+.live-emoji--thumb { animation: live-emoji-nod 2s ease-in-out infinite; }
+.live-emoji--wow { animation: live-emoji-wow 2s ease-in-out infinite; }
+.live-emoji--cry { animation: live-emoji-sway 2s ease-in-out infinite; }
+/* Вкладка скрыта — анимации на паузе (как у chat-sky). */
+html[data-tab-hidden] .live-emoji { animation-play-state: paused !important; }
+@media (prefers-reduced-motion: reduce) {
+  .live-emoji { animation: none !important; }
 }
 
 /* «Рядом»: мягкая смена списка при выборе категории. */

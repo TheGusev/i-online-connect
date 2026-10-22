@@ -14,6 +14,8 @@ import { chatApi, mediaUrl, spacesApi } from "@/api";
 import type { GalleryItem } from "@/api";
 import { Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
+import { lockBodyScroll } from "@/lib/scroll-lock";
+import { useOverlayPresence } from "@/lib/useOverlayPresence";
 import { ZoomablePhoto } from "./ZoomablePhoto";
 
 type Scope = "conversation" | "space";
@@ -81,6 +83,7 @@ export function MediaGallery({
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [viewIndex, setViewIndex] = useState<number | null>(null);
+  const { mounted, leaving } = useOverlayPresence(open, 260);
   const gallery = useMediaGallery(scope, id, filter, open);
   const items = gallery.data?.pages.flatMap((page) => page.items) ?? [];
   const sentinel = useRef<HTMLDivElement>(null);
@@ -100,13 +103,11 @@ export function MediaGallery({
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = previous; };
-  }, [open]);
+    if (!mounted) return;
+    return lockBodyScroll();
+  }, [mounted]);
 
-  if (!open || typeof document === "undefined") return null;
+  if (!mounted || typeof document === "undefined") return null;
 
   const showInChat = (item: GalleryItem) => {
     setViewIndex(null);
@@ -118,7 +119,7 @@ export function MediaGallery({
   };
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label="Фото и видео" className="fixed inset-0 z-[90] flex flex-col overflow-y-auto overscroll-contain bg-background">
+    <div role="dialog" aria-modal="true" aria-label="Фото и видео" className={cn("fixed inset-0 z-[90] flex flex-col overflow-y-auto overscroll-contain bg-background", leaving ? "layer-leave" : "layer-enter")}>
       <div className="sticky top-0 z-10 bg-background">
       <header className="flex items-center gap-3 border-b border-border px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
         <h2 className="hud-title flex-1">Фото и видео</h2>
@@ -201,15 +202,13 @@ export function MediaGallery({
         <div ref={sentinel} className="h-8" />
       </div>
 
-      {viewIndex !== null && items[viewIndex] ? (
-        <GalleryViewer
-          items={items}
-          index={viewIndex}
-          onIndex={setViewIndex}
-          onClose={() => setViewIndex(null)}
-          onShowInChat={showInChat}
-        />
-      ) : null}
+      <GalleryViewer
+        items={items}
+        index={viewIndex}
+        onIndex={setViewIndex}
+        onClose={() => setViewIndex(null)}
+        onShowInChat={showInChat}
+      />
     </div>,
     document.body,
   );
