@@ -156,9 +156,9 @@ export function MessageActions({
         ) : null}
         {more ? (
           <div className="mt-1 grid max-h-[220px] grid-cols-8 gap-0.5 overflow-y-auto border-t border-border pt-1">
-            {MORE_EMOJI.map((emoji) => (
+            {MORE_EMOJI.map((emoji, index) => (
               <button key={emoji} type="button" className="grid aspect-square place-items-center rounded-lg text-xl active:scale-90" onClick={() => react(emoji)}>
-                {emoji}
+                <LiveEmoji symbol={emoji} seed={index} />
               </button>
             ))}
           </div>
@@ -168,7 +168,7 @@ export function MessageActions({
             <button
               type="button"
               className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-destructive hover:bg-secondary"
-              onClick={() => { if (fresh()) return; onDelete(message); onClose(); }}
+              onClick={() => { if (fresh()) return; onDelete(current2); onClose(); }}
             >
               <Trash2 className="size-3.5" aria-hidden="true" />
               Удалить это фото
@@ -198,7 +198,7 @@ export function MessageActions({
               <button
                 type="button"
                 className="flex flex-1 items-center gap-1 whitespace-nowrap rounded-xl px-2 py-2 hover:bg-secondary"
-                onClick={() => { if (fresh()) return; onEdit?.(message); onClose(); }}
+                onClick={() => { if (fresh()) return; onEdit?.(current2); onClose(); }}
               >
                 <Pencil className="size-3" aria-hidden="true" />
                 Изменить
@@ -208,7 +208,7 @@ export function MessageActions({
               <button
                 type="button"
                 className="flex flex-1 items-center gap-1 whitespace-nowrap rounded-xl px-2 py-2 text-destructive hover:bg-secondary"
-                onClick={() => { if (fresh()) return; onDelete(message); onClose(); }}
+                onClick={() => { if (fresh()) return; onDelete(current2); onClose(); }}
               >
                 <Trash2 className="size-3" aria-hidden="true" />
                 Удалить у всех
