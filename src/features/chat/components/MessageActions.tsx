@@ -95,10 +95,10 @@ export function MessageActions({
   const copy = async () => {
     if (fresh()) return;
     try {
-      await navigator.clipboard.writeText(message.text);
+      await navigator.clipboard.writeText(current2.text);
     } catch {
       const area = document.createElement("textarea");
-      area.value = message.text;
+      area.value = current2.text;
       area.setAttribute("readonly", "");
       area.style.position = "fixed";
       area.style.opacity = "0";
@@ -115,18 +115,21 @@ export function MessageActions({
 
   return createPortal(
     <div
-      className={cn("fixed inset-0 z-[85] bg-background/40", NO_SELECT)}
+      className={cn("fixed inset-0 z-[85] bg-background/40", leaving ? "backdrop-leave" : "backdrop-enter", NO_SELECT)}
       role="dialog"
       aria-modal="true"
       aria-label="Действия с сообщением"
       onContextMenu={(e) => e.preventDefault()}
-      onPointerDown={(e) => { if (e.target === e.currentTarget && !fresh()) onClose(); }}
+      onPointerDown={(e) => { if (e.target === e.currentTarget && !fresh() && !leaving) onClose(); }}
     >
       <div
-        className="fixed w-[min(320px,calc(100vw-16px))] rounded-3xl border border-border/60 bg-card/85 p-1.5 shadow-glow backdrop-blur-md"
+        className={cn(
+          "fixed w-[min(320px,calc(100vw-16px))] rounded-3xl border border-border/60 bg-card/85 p-1.5 shadow-glow backdrop-blur-md",
+          leaving ? "menu-leave" : "menu-enter",
+        )}
         style={pos ?? undefined}
       >
-        {!message.deletedAt ? (
+        {!current2.deletedAt ? (
           <div className="flex items-center justify-between gap-0.5">
             {EMOJI.map((emoji) => (
               <button
@@ -137,7 +140,7 @@ export function MessageActions({
                 className={cn("grid size-10 place-items-center rounded-full text-xl transition-transform active:scale-90", current === emoji && "bg-primary/20 ring-1 ring-primary")}
                 onClick={() => react(emoji)}
               >
-                {emoji}
+                <LiveEmoji symbol={emoji} seed={emoji} />
               </button>
             ))}
             <button
