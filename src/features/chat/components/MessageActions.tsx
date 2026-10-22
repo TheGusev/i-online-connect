@@ -5,7 +5,9 @@ import { createPortal } from "react-dom";
 
 import type { Message } from "@/api";
 import { cn } from "@/lib/utils";
+import { useOverlayPresence } from "@/lib/useOverlayPresence";
 import { MORE_REACTIONS, QUICK_REACTIONS, myReaction, useReactionToggle } from "@/features/chat/reactions";
+import { LiveEmoji } from "./LiveEmoji";
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const EMOJI = QUICK_REACTIONS;
@@ -48,8 +50,13 @@ export function MessageActions({
   onDeleteAlbum?: ((messages: Message[]) => void) | undefined;
 }) {
   const openedAt = useRef(0);
+  // Окно живёт в DOM ещё 160 мс после закрытия: держим последнее сообщение.
+  const { mounted, leaving } = useOverlayPresence(message !== null, 160);
+  const lastMessage = useRef<Message | null>(null);
+  if (message) lastMessage.current = message;
+  const shown = message ?? lastMessage.current;
   const albumLive = (album ?? []).filter((m) => !m.deletedAt);
-  const target = albumLive.length > 1 ? albumLive[albumLive.length - 1]! : message;
+  const target = albumLive.length > 1 ? albumLive[albumLive.length - 1]! : shown;
   const toggleReaction = useReactionToggle();
   const current = myReaction(target?.reactions);
   const [more, setMore] = useState(false);
@@ -80,10 +87,11 @@ export function MessageActions({
     };
   }, [message, mine, onClose, more, album]);
 
-  if (!message || typeof document === "undefined") return null;
-  const deletable = (canDelete ?? mine) && !message.deletedAt;
-  const editable = Boolean(onEdit) && canEditMessage(message, mine);
-  const copyable = !message.deletedAt && (message.kind ?? "text") === "text" && message.status !== "sending" && message.status !== "failed" && Boolean(message.text);
+  if (!mounted || !shown || typeof document === "undefined") return null;
+  const current2 = shown; // стабильная ссылка для рендера во время выхода
+  const deletable = (canDelete ?? mine) && !current2.deletedAt;
+  const editable = Boolean(onEdit) && canEditMessage(current2, mine);
+  const copyable = !current2.deletedAt && (current2.kind ?? "text") === "text" && current2.status !== "sending" && current2.status !== "failed" && Boolean(current2.text);
   const copy = async () => {
     if (fresh()) return;
     try {
