@@ -1,6 +1,8 @@
 import type { MessageReaction } from "@/api";
 import { cn } from "@/lib/utils";
 
+import { LiveEmoji } from "./LiveEmoji";
+
 /** Компактный чип реакции для нижней строки сообщения: эмодзи 14px, число 12px; мои подсвечены. */
 export function ReactionChip({ emoji, count, mine, onBubble = false, overlay = false }: { emoji: string; count: number; mine: boolean; onBubble?: boolean; overlay?: boolean }) {
   return (
@@ -15,7 +17,7 @@ export function ReactionChip({ emoji, count, mine, onBubble = false, overlay = f
       )}
       aria-label={mine ? `Ваша реакция ${emoji}, всего ${count}` : `Реакция ${emoji}, всего ${count}`}
     >
-      <span className="text-[14px] leading-none">{emoji}</span>
+      <LiveEmoji symbol={emoji} seed={`${emoji}:${count}`} className="text-[14px] leading-none" />
       <span className="text-[12px] font-semibold leading-none">{count}</span>
     </span>
   );
