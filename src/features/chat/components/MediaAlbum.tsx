@@ -190,15 +190,13 @@ export function MediaAlbum({
           </span>
         </div>
       </div>
-      {viewer !== null ? (
-        <GalleryViewer
-          items={items}
-          index={viewer}
-          onIndex={(i) => { setConfirmDelete(false); setViewer(i); }}
-          onClose={() => { setConfirmDelete(false); setViewer(null); }}
-          {...(onReply || onDelete ? { extraActions: viewerActions } : {})}
-        />
-      ) : null}
+      <GalleryViewer
+        items={items}
+        index={viewer}
+        onIndex={(i) => { setConfirmDelete(false); setViewer(i); }}
+        onClose={() => { setConfirmDelete(false); setViewer(null); }}
+        {...(onReply || onDelete ? { extraActions: viewerActions } : {})}
+      />
     </li>
   );
 }
