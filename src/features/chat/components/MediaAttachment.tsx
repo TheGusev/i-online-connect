@@ -121,14 +121,12 @@ export function MediaAttachment({
         />
         {badge}
       </Button>
-      {lightbox ? (
-        <GalleryViewer
-          items={[message ?? { id: "attachment", kind: "image", mediaUrl: url, authorId: "", authorName: "", createdAt: new Date().toISOString() }]}
-          index={0}
-          onIndex={() => undefined}
-          onClose={() => setLightbox(false)}
-        />
-      ) : null}
+      <GalleryViewer
+        items={[message ?? { id: "attachment", kind: "image", mediaUrl: url, authorId: "", authorName: "", createdAt: new Date().toISOString() }]}
+        index={lightbox ? 0 : null}
+        onIndex={() => undefined}
+        onClose={() => setLightbox(false)}
+      />
     </>
   );
 }

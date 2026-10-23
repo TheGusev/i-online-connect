@@ -3,11 +3,14 @@ import { Bell } from "lucide-react";
 import { useState } from "react";
 
 import { useMarkNotificationsRead, useNotificationSocket, useNotifications } from "@/features/notifications/hooks";
+import { useOverlayPresence } from "@/lib/useOverlayPresence";
+import { cn } from "@/lib/utils";
 import { NotificationItem } from "./NotificationItem";
 
 /** Колокольчик с живым счётчиком: клик по уведомлению ведёт на объявление. */
 export function NotificationsBell() {
   const [open, setOpen] = useState(false);
+  const { mounted, leaving } = useOverlayPresence(open, 160);
   const { data } = useNotifications();
   const markRead = useMarkNotificationsRead();
   useNotificationSocket();
@@ -32,7 +35,7 @@ export function NotificationsBell() {
         ) : null}
       </button>
 
-      {open ? (
+      {mounted ? (
         <>
           <button
             type="button"
@@ -40,7 +43,7 @@ export function NotificationsBell() {
             className="fixed inset-0 z-30 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute right-0 z-40 mt-2 w-80 rounded-2xl border border-border bg-card p-3 shadow-lift">
+          <div className={cn("absolute right-0 z-40 mt-2 w-80 rounded-2xl border border-border bg-card p-3 shadow-lift", leaving ? "menu-leave" : "menu-enter")}>
             <div className="mb-2 flex items-center justify-between px-1">
               <span className="text-sm font-semibold">Уведомления</span>
               {unread > 0 ? (
