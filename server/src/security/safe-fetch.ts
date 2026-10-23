@@ -1,17 +1,20 @@
 /**
  * Безопасная загрузка чужих страниц (предпросмотр ссылок).
  *
- * Защита от SSRF по IP, а не по имени: хост резолвится через dns.lookup,
- * отклоняется, если ЛЮБОЙ адрес приватный/служебный, а соединение идёт
- * с проверенным адресом (undici Agent с connect.lookup, повторяющим
- * проверку), чтобы DNS-подмена после проверки не сработала.
+ * Защита от SSRF по IP, а не по имени: перед каждым запросом хост
+ * резолвится через dns.promises.lookup({all:true}) и отклоняется, если
+ * ЛЮБОЙ адрес приватный/служебный. redirect: "manual" — максимум 3
+ * перехода, на каждом заново проверяются схема (только http/https),
+ * хост, порт (только 80/443) и IP.
  *
- * redirect: "manual" — максимум 3 перехода, на каждом заново проверяются
- * схема (только http/https), хост, порт (только 80/443) и IP.
+ * Отступление от ТЗ: undici не установлен в server/ (новых библиотек не
+ * добавляем), поэтому соединение идёт штатным fetch Node 22 без
+ * закрепления адреса на connect; проверка DNS повторяется непосредственно
+ * перед каждым запросом, что сужает окно DNS-подмены, но не закрывает его
+ * полностью.
  */
 import dns from "node:dns";
 import net from "node:net";
-import { Agent, fetch as undiciFetch } from "undici";
 
 export const MAX_REDIRECTS = 3;
 export const MAX_BYTES = 64 * 1024;
@@ -45,22 +48,23 @@ export function normalizeHost(raw: string): string | null {
 
 function isPrivateIPv4(ip: string): boolean {
   const parts = ip.split(".").map(Number);
-  const [a, b] = parts;
   if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return true;
+  const a = parts[0] as number;
+  const b = parts[1] as number;
+  const c = parts[2] as number;
   if (a === 0) return true; // 0.0.0.0/8 «этот хост»
   if (a === 10) return true; // 10.0.0.0/8
   if (a === 127) return true; // loopback
   if (a === 169 && b === 254) return true; // link-local
-  if (a === 172 && b! >= 16 && b! <= 31) return true; // 172.16.0.0/12
+  if (a === 172 && b >= 16 && b <= 31) return true; // 172.16.0.0/12
   if (a === 192 && b === 168) return true; // 192.168.0.0/16
-  if (a === 100 && b! >= 64 && b! <= 127) return true; // CGNAT 100.64.0.0/10
-  if (a === 192 && b === 0) return true; // 192.0.0.0/24 (IETF)
+  if (a === 100 && b >= 64 && b <= 127) return true; // CGNAT 100.64.0.0/10
+  if (a === 192 && b === 0) return true; // 192.0.0.0/24 (IETF, TEST-NET-1)
   if (a === 192 && b === 88) return true; // 192.88.99.0/24
   if (a === 198 && (b === 18 || b === 19)) return true; // benchmark
   if (a === 198 && b === 51) return true; // TEST-NET-2
-  if (a === 203 && b === 0) return true; // TEST-NET-3
-  if (a === 192 && b === 0 && parts[2] === 2) return true; // TEST-NET-1
-  if (a! >= 224) return true; // multicast 224/4 и зарезервированный 240/4
+  if (a === 203 && b === 0 && c === 113) return true; // TEST-NET-3
+  if (a >= 224) return true; // multicast 224/4 и зарезервированный 240/4
   return false;
 }
 
@@ -69,24 +73,19 @@ function isPrivateIPv6(ip: string): boolean {
   if (lower === "::" || lower === "::1") return true; // unspecified, loopback
   // IPv4-mapped (::ffff:a.b.c.d) проверяем как IPv4.
   const mapped = lower.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/);
-  if (mapped) return isPrivateIPv4(mapped[1]!);
+  if (mapped) return isPrivateIPv4(mapped[1] as string);
   // Разворачиваем сокращение :: и смотрим первые группы.
   const expanded = expandIPv6(lower);
   if (!expanded) return true;
   const groups = expanded.split(":").map((g) => parseInt(g, 16));
-  const first = groups[0]!;
-  const second = groups[1]!;
+  const first = groups[0] as number;
+  const second = groups[1] as number;
   if ((first & 0xfe00) === 0xfc00) return true; // fc00::/7 unique-local
   if ((first & 0xffc0) === 0xfe80) return true; // fe80::/10 link-local
   if ((first & 0xff00) === 0xff00) return true; // ff00::/8 multicast
   if (first === 0x2001 && second === 0x0db8) return true; // documentation
-  if (first === 0 && second === 0 && groups[2] === 0 && groups[3] === 0 && groups[4] === 0xffff) {
-    // ::ffff:0:0/96 в развёрнутом виде — mapped IPv4.
-    const ipv4 = `${groups[6]! >> 8}.${groups[6]! & 0xff}.${groups[7]! >> 8}.${groups[7]! & 0xff}`;
-    return isPrivateIPv4(ipv4);
-  }
-  if (first === 0 && second === 0 && groups[2] === 0 && groups[3] === 0 && groups[4] === 0) return true; // ::/96 deprecated compatible
-  if (first === 0x64 && second === 0xff9b) return true; // 64:ff9b::/96 NAT64 — не публичный адрес назначения
+  if (first === 0x64 && second === 0xff9b) return true; // 64:ff9b::/96 NAT64
+  if (first === 0 && second === 0) return true; // ::/96 (в т.ч. mapped в развёрнутом виде)
   return false;
 }
 
@@ -98,8 +97,8 @@ function expandIPv6(ip: string): string | null {
     const v4 = ip.slice(lastColon + 1);
     const parts = v4.split(".").map(Number);
     if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return null;
-    const hi = ((parts[0]! << 8) | parts[1]!).toString(16);
-    const lo = ((parts[2]! << 8) | parts[3]!).toString(16);
+    const hi = (((parts[0] as number) << 8) | (parts[1] as number)).toString(16);
+    const lo = (((parts[2] as number) << 8) | (parts[3] as number)).toString(16);
     ip = `${ip.slice(0, lastColon)}:${hi}:${lo}`;
   }
   const halves = ip.split("::");
@@ -121,7 +120,7 @@ export function isPublicAddress(address: string): boolean {
   return false;
 }
 
-/** Резолв хоста с проверкой: отклоняем, если ЛЮБОЙ адрес непубличный. */
+/** Резолв хоста с проверкой: пустой список, если ЛЮБОЙ адрес непубличный. */
 export async function resolvePublicAddresses(host: string): Promise<string[]> {
   if (net.isIP(host)) {
     return isPublicAddress(host) ? [host] : [];
@@ -155,32 +154,6 @@ export function safeUrl(raw: string | URL): URL | null {
   return url;
 }
 
-/**
- * Agent, который при подключении повторно резолвит хост и отклоняет
- * непубличные адреса: DNS-подмена после первоначальной проверки не сработает.
- */
-const safeAgent = new Agent({
-  connect: {
-    lookup(hostname, _options, callback) {
-      resolvePublicAddresses(hostname)
-        .then((addresses) => {
-          if (addresses.length === 0) {
-            callback(new Error("SSRF: адрес хоста запрещён"), []);
-            return;
-          }
-          callback(
-            null,
-            addresses.map((address) => ({
-              address,
-              family: net.isIP(address) as 4 | 6,
-            })),
-          );
-        })
-        .catch((error: Error) => callback(error, []));
-    },
-  },
-});
-
 export interface SafeFetchResult {
   /** Декодированное тело (не больше MAX_BYTES или до </head>). */
   text: string;
@@ -188,16 +161,11 @@ export interface SafeFetchResult {
   url: URL;
 }
 
-class BusyError extends Error {
+export class BusyError extends Error {
   constructor() {
     super("busy");
     this.name = "BusyError";
   }
-}
-
-/** Заняты ли все слоты одновременных запросов. */
-export function safeFetchBusy(): boolean {
-  return inFlight >= MAX_CONCURRENT;
 }
 
 function charsetOf(contentType: string | null): string {
@@ -214,7 +182,22 @@ function charsetOf(contentType: string | null): string {
   }
 }
 
-async function readLimited(response: Awaited<ReturnType<typeof undiciFetch>>): Promise<string> {
+const HEAD_END = new TextEncoder().encode("</head");
+
+/** Грубый поиск </head в сырых байтах (ascii-совместимые кодировки). */
+function includesHeadEnd(chunk: Uint8Array): boolean {
+  outer: for (let i = 0; i + HEAD_END.length <= chunk.byteLength; i++) {
+    for (let j = 0; j < HEAD_END.length; j++) {
+      const a = (chunk[i + j] as number) | 0x20; // ascii lower
+      const b = HEAD_END[j] as number;
+      if (a !== b) continue outer;
+    }
+    return true;
+  }
+  return false;
+}
+
+async function readLimited(response: Response): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) return "";
   const chunks: Uint8Array[] = [];
@@ -225,7 +208,6 @@ async function readLimited(response: Awaited<ReturnType<typeof undiciFetch>>): P
     if (done) break;
     chunks.push(value);
     size += value.byteLength;
-    // Грубая проверка по сырым байтам: </head> в utf-8/ascii-совместимых кодировках.
     if (!headClosed && includesHeadEnd(value)) headClosed = true;
     if (size >= MAX_BYTES || headClosed) {
       await reader.cancel().catch(() => undefined);
@@ -243,20 +225,6 @@ async function readLimited(response: Awaited<ReturnType<typeof undiciFetch>>): P
   }
   const charset = charsetOf(response.headers.get("content-type"));
   return new TextDecoder(charset).decode(bytes);
-}
-
-const HEAD_END = new TextEncoder().encode("</head");
-
-function includesHeadEnd(chunk: Uint8Array): boolean {
-  outer: for (let i = 0; i + HEAD_END.length <= chunk.byteLength; i++) {
-    for (let j = 0; j < HEAD_END.length; j++) {
-      const a = chunk[i + j]! | 0x20; // ascii lower
-      const b = HEAD_END[j]!;
-      if (a !== b) continue outer;
-    }
-    return true;
-  }
-  return false;
 }
 
 /**
@@ -280,12 +248,11 @@ export async function safeFetchHtml(raw: string): Promise<SafeFetchResult | null
       if (remaining <= 0) return null;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), remaining);
-      let response: Awaited<ReturnType<typeof undiciFetch>>;
+      let response: Response;
       try {
-        response = await undiciFetch(url, {
+        response = await fetch(url, {
           signal: controller.signal,
           redirect: "manual",
-          dispatcher: safeAgent,
           headers: {
             Accept: "text/html",
             "User-Agent": "YaOnlineBot/1.0 (+link-preview)",
