@@ -223,23 +223,29 @@ export function GalleryViewer({
   extraActions,
 }: {
   items: GalleryItem[];
-  index: number;
+  /** null — закрыт: окно ещё живёт в DOM, пока идёт анимация выхода. */
+  index: number | null;
   onIndex: (index: number) => void;
   onClose: () => void;
   onShowInChat?: ((item: GalleryItem) => void) | undefined;
   /** Дополнительные действия внизу просмотра (ответить, удалить). */
   extraActions?: ((item: GalleryItem) => ReactNode) | undefined;
 }) {
-  const item = items[index];
-  if (!item) return null;
+  const { mounted, leaving } = useOverlayPresence(index !== null, 260);
+  const lastIndex = useRef(0);
+  if (index !== null) lastIndex.current = index;
+  const active = index ?? lastIndex.current;
+  const item = items[active];
+  if (!mounted || !item) return null;
   if (typeof document === "undefined") return null;
-  return createPortal(<GalleryViewerReady items={items} index={index} item={item} onIndex={onIndex} onClose={onClose} onShowInChat={onShowInChat} extraActions={extraActions} />, document.body);
+  return createPortal(<GalleryViewerReady items={items} index={active} item={item} leaving={leaving} onIndex={onIndex} onClose={onClose} onShowInChat={onShowInChat} extraActions={extraActions} />, document.body);
 }
 
 function GalleryViewerReady({
   items,
   index,
   item,
+  leaving,
   onIndex,
   onClose,
   onShowInChat,
@@ -248,6 +254,7 @@ function GalleryViewerReady({
   items: GalleryItem[];
   index: number;
   item: GalleryItem;
+  leaving: boolean;
   onIndex: (index: number) => void;
   onClose: () => void;
   onShowInChat?: ((item: GalleryItem) => void) | undefined;
@@ -285,9 +292,7 @@ function GalleryViewerReady({
   }, [embla, index, onIndex]);
 
   useEffect(() => {
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = previous; };
+    return lockBodyScroll();
   }, []);
 
   useEffect(() => {
@@ -307,7 +312,7 @@ function GalleryViewerReady({
       role="dialog"
       aria-modal="true"
       aria-label="Просмотр вложения"
-      className="fixed inset-0 z-[95] flex select-none flex-col overflow-hidden"
+      className={cn("fixed inset-0 z-[95] flex select-none flex-col overflow-hidden", leaving ? "layer-leave" : "layer-enter")}
       style={{ backgroundColor: `color-mix(in oklab, var(--background) ${Math.round((1 - progress * 0.7) * 100)}%, transparent)` }}
     >
       <header className="flex items-center gap-3 px-4 pb-2 pt-[calc(env(safe-area-inset-top)+0.75rem)]" style={{ opacity: 1 - progress }}>
