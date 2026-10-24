@@ -10,7 +10,6 @@
  */
 import type { FastifyInstance } from "fastify";
 
-import { requireAuth, requireUserId } from "../auth/middleware.ts";
 import { BusyError, safeFetchHtml, safeUrl } from "../security/safe-fetch.ts";
 
 export interface LinkPreview {
@@ -174,6 +173,9 @@ async function fetchPreview(url: URL): Promise<LinkPreview | null> {
 }
 
 export async function linkPreviewRoutes(app: FastifyInstance) {
+  // Ленивый импорт: middleware тянет БД, а чистые функции выше должны
+  // оставаться тестируемыми без неё.
+  const { requireAuth, requireUserId } = await import("../auth/middleware.ts");
   app.addHook("preHandler", requireAuth);
 
   app.get<{ Querystring: { url?: string } }>("/", async (request, reply) => {
