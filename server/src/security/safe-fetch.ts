@@ -85,7 +85,7 @@ function isPrivateIPv6(ip: string): boolean {
   if ((first & 0xff00) === 0xff00) return true; // ff00::/8 multicast
   if (first === 0x2001 && second === 0x0db8) return true; // documentation
   if (first === 0x64 && second === 0xff9b) return true; // 64:ff9b::/96 NAT64
-  if (first === 0 && second === 0 && groups[2] === 0 && groups[3] === 0 && groups[4] === 0xffff) {
+  if (first === 0 && second === 0 && groups[2] === 0 && groups[3] === 0 && groups[4] === 0 && groups[5] === 0xffff) {
     // Развёрнутый IPv4-mapped (::ffff:0:0/96) — проверяем хвост как IPv4.
     const g6 = groups[6] as number;
     const g7 = groups[7] as number;
