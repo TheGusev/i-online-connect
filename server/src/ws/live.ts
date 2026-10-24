@@ -16,6 +16,7 @@ import { unlink } from "node:fs/promises";
 import { query, queryOne } from "../db.ts";
 import { mediaPathFromUrl } from "../media/store.ts";
 import { clipFilesToDelete, staleSessionIds } from "../live/clips.ts";
+import { parseMode, type LiveMode } from "../live/modes.ts";
 import type { LiveCardDto } from "../live/cards.ts";
 import { verifyAccessToken } from "../auth/tokens.ts";
 
@@ -40,6 +41,7 @@ interface SpaceLive {
   active: boolean;
   startedBy: string | null;
   startedAt: string | null;
+  mode: LiveMode;
   speaking: Set<string>;
   clips: LiveClipEvent[];
   cards: LiveCardDto[];
@@ -54,7 +56,7 @@ const spaces = new Map<string, SpaceLive>();
 function stateOf(spaceId: string): SpaceLive {
   let s = spaces.get(spaceId);
   if (!s) {
-    s = { conns: new Map(), active: false, startedBy: null, startedAt: null, speaking: new Set(), clips: [], cards: [], sessionId: null, starting: false, endTimer: null };
+    s = { conns: new Map(), active: false, startedBy: null, startedAt: null, mode: "talk", speaking: new Set(), clips: [], cards: [], sessionId: null, starting: false, endTimer: null };
     spaces.set(spaceId, s);
   }
   return s;
@@ -75,7 +77,7 @@ function snapshot(s: SpaceLive, spaceId: string) {
   return {
     type: "snapshot",
     spaceId,
-    live: { active: s.active, startedBy: s.startedBy, startedAt: s.startedAt, participants: unique(s, true), speaking: [...s.speaking] },
+    live: { active: s.active, startedBy: s.startedBy, startedAt: s.startedAt, mode: s.mode, participants: unique(s, true), speaking: [...s.speaking] },
     online: unique(s).length,
     onlineIds: unique(s),
     clips: s.clips.slice(-20),
@@ -115,6 +117,7 @@ function endLive(s: SpaceLive, spaceId: string) {
   s.active = false;
   s.startedBy = null;
   s.startedAt = null;
+  s.mode = "talk";
   s.speaking.clear();
   for (const c of s.conns.values()) c.inLive = false;
   broadcast(s, { type: "live_ended", spaceId });
@@ -246,7 +249,7 @@ export async function liveSocketRoutes(app: FastifyInstance) {
       };
 
       socket.on("message", (raw: Buffer) => {
-        let msg: { type?: string; on?: boolean };
+        let msg: { type?: string; on?: boolean; mode?: unknown };
         try { msg = JSON.parse(raw.toString()) as typeof msg; } catch { return; }
         conn.alive = true;
         switch (msg.type) {
@@ -273,17 +276,19 @@ export async function liveSocketRoutes(app: FastifyInstance) {
             s.starting = true;
             void (async () => {
               try {
+                const mode = parseMode(msg.mode);
                 const row = await queryOne<{ id: string; started_at: Date }>(
-                  "INSERT INTO live_sessions (space_id, started_by) VALUES ($1, $2) RETURNING id, started_at",
-                  [spaceId, userId],
+                  "INSERT INTO live_sessions (space_id, started_by, mode) VALUES ($1, $2, $3) RETURNING id, started_at",
+                  [spaceId, userId, mode],
                 );
                 if (!row) return;
                 s.sessionId = row.id;
                 s.active = true;
                 s.startedBy = userId;
                 s.startedAt = row.started_at.toISOString();
+                s.mode = mode;
                 s.clips = [];
-                broadcast(s, { type: "live_started", spaceId, startedBy: userId, startedAt: s.startedAt });
+                broadcast(s, { type: "live_started", spaceId, startedBy: userId, startedAt: s.startedAt, mode });
                 if (s.conns.has(socket)) conn.inLive = true;
                 checkEmpty(s, spaceId);
                 broadcast(s, snapshot(s, spaceId));
