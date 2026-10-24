@@ -155,7 +155,8 @@ export function parsePreview(html: string, url: URL): LinkPreview {
   if (!title) {
     const found = findTag(html, "title", 0);
     if (found && found.end > 0) {
-      const inner = html.slice(found.start + found.tag.indexOf(">") + 1, found.end - 1).trim();
+      const close = html.toLowerCase().indexOf("</title", found.end);
+      const inner = html.slice(found.end, close < 0 ? Math.min(html.length, found.end + MAX_TAG_LENGTH) : close).trim();
       if (inner.length > 0) title = decodeEntities(inner);
     }
   }
