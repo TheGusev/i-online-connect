@@ -34,11 +34,10 @@ export async function getUnreadCount(): Promise<{ count: number }> {
 export interface LinkPreview {
   url: string;
   title: string | null;
-  image: string | null;
   domain: string;
 }
 
-/** Предпросмотр ссылки: название страницы, домен, картинка (если есть). */
+/** Предпросмотр ссылки: название страницы и домен (картинки не отдаём). */
 export async function getLinkPreview(url: string): Promise<LinkPreview> {
   return request<LinkPreview>(`/link-preview?url=${encodeURIComponent(url)}`);
 }
