@@ -50,18 +50,7 @@ export function LinkPreviewCard({ url, mine = false }: { url: string; mine?: boo
           : "border-border bg-secondary/60",
       )}
     >
-      {preview.image ? (
-        <img
-          src={preview.image}
-          alt=""
-          loading="lazy"
-          className="h-14 w-14 shrink-0 object-cover"
-          onError={(event) => {
-            event.currentTarget.style.display = "none";
-          }}
-        />
-      ) : null}
-      <span className="flex min-w-0 flex-col justify-center gap-0.5 py-1.5 pr-2.5">
+      <span className="flex min-w-0 flex-col justify-center gap-0.5 py-1.5 pl-3 pr-2.5">
         <span
           className={cn(
             "line-clamp-2 text-xs font-semibold leading-snug",

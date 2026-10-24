@@ -85,7 +85,13 @@ function isPrivateIPv6(ip: string): boolean {
   if ((first & 0xff00) === 0xff00) return true; // ff00::/8 multicast
   if (first === 0x2001 && second === 0x0db8) return true; // documentation
   if (first === 0x64 && second === 0xff9b) return true; // 64:ff9b::/96 NAT64
-  if (first === 0 && second === 0) return true; // ::/96 (в т.ч. mapped в развёрнутом виде)
+  if (first === 0 && second === 0 && groups[2] === 0 && groups[3] === 0 && groups[4] === 0 && groups[5] === 0xffff) {
+    // Развёрнутый IPv4-mapped (::ffff:0:0/96) — проверяем хвост как IPv4.
+    const g6 = groups[6] as number;
+    const g7 = groups[7] as number;
+    return isPrivateIPv4(`${g6 >> 8}.${g6 & 0xff}.${g7 >> 8}.${g7 & 0xff}`);
+  }
+  if (first === 0 && second === 0) return true; // ::/96 deprecated compatible
   return false;
 }
 
@@ -151,6 +157,8 @@ export function safeUrl(raw: string | URL): URL | null {
   if (port !== "80" && port !== "443") return null;
   const host = normalizeHost(url.hostname);
   if (!host) return null;
+  // Хост-IP допустим, только если он публичный.
+  if (net.isIP(host) && !isPublicAddress(host)) return null;
   return url;
 }
 

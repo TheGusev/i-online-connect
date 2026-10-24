@@ -1,27 +1,32 @@
 /**
  * GET /api/link-preview?url=... — компактный предпросмотр ссылки из чата:
- * название страницы, домен и картинка (og:title / og:image / <title>).
+ * название страницы и домен (og:title / <title>). Картинки не отдаём:
+ * клиент никогда не должен напрямую грузить чужие изображения.
  *
- * Кэш в памяти процесса на 30 минут. SSRF-ограничения: только http(s),
- * без IP-адресов и служебных хостов, таймаут 5 с, читаем не больше 256 КБ.
+ * Кэш в памяти процесса на 30 минут. SSRF-защита — в security/safe-fetch.ts:
+ * проверка IP после резолва, только порты 80/443, ручные переходы (максимум 3),
+ * 64 КБ или до </head>, общий таймаут 5 с, не больше 5 одновременных запросов.
+ * Rate limit: 20 запросов в минуту на пользователя.
  */
 import type { FastifyInstance } from "fastify";
 
-import { requireAuth } from "../auth/middleware.ts";
+import { BusyError, safeFetchHtml, safeUrl } from "../security/safe-fetch.ts";
 
 export interface LinkPreview {
   url: string;
   title: string | null;
-  image: string | null;
   domain: string;
 }
 
 const CACHE_TTL_MS = 30 * 60_000;
 const CACHE_MAX = 500;
-const FETCH_TIMEOUT_MS = 5_000;
-const MAX_BYTES = 256 * 1024;
+const RATE_LIMIT_PER_MINUTE = 20;
+const RATE_WINDOW_MS = 60_000;
+/** Один тег не длиннее 1000 символов. */
+const MAX_TAG_LENGTH = 1000;
 
 const cache = new Map<string, { at: number; value: LinkPreview | null }>();
+const rateBuckets = new Map<string, number[]>();
 
 function cached(url: string): LinkPreview | null | undefined {
   const hit = cache.get(url);
@@ -41,20 +46,24 @@ function remember(url: string, value: LinkPreview | null) {
   cache.set(url, { at: Date.now(), value });
 }
 
-/** Только http(s), без IP и служебных хостов — защита от SSRF. */
-export function previewableUrl(raw: string): URL | null {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    return null;
+/** true, если пользователь уложился в 20 запросов в минуту. */
+export function rateLimitOk(userId: string, now = Date.now()): boolean {
+  const bucket = (rateBuckets.get(userId) ?? []).filter((at) => now - at < RATE_WINDOW_MS);
+  if (bucket.length >= RATE_LIMIT_PER_MINUTE) {
+    rateBuckets.set(userId, bucket);
+    return false;
   }
-  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
-  const host = url.hostname.toLowerCase();
-  if (!host.includes(".")) return null;
-  if (host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) return null;
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.startsWith("[")) return null;
-  return url;
+  bucket.push(now);
+  rateBuckets.set(userId, bucket);
+  // Чистим давно неактивных, чтобы карта не росла бесконечно.
+  if (rateBuckets.size > 1000) {
+    for (const [key, hits] of rateBuckets) {
+      if (hits.length === 0 || now - (hits[hits.length - 1] as number) > RATE_WINDOW_MS) {
+        rateBuckets.delete(key);
+      }
+    }
+  }
+  return true;
 }
 
 function decodeEntities(text: string): string {
@@ -67,95 +76,116 @@ function decodeEntities(text: string): string {
     .replace(/&#(\d+);/g, (_, code: string) => String.fromCodePoint(Number(code)));
 }
 
-function metaContent(html: string, property: string): string | null {
-  const re = new RegExp(
-    `<meta[^>]+(?:property|name)=["']${property}["'][^>]*>`,
-    "i",
-  );
-  const tag = html.match(re)?.[0];
-  if (!tag) return null;
-  const content = tag.match(/content=["']([^"']*)["']/i)?.[1];
-  return content ? decodeEntities(content.trim()) : null;
+/**
+ * Линейный поиск следующего тега без регулярных выражений с возвратом:
+ * indexOf по "<title" / "<meta", конец тега — ближайший ">", тег не
+ * длиннее MAX_TAG_LENGTH. Длинная строка из "<meta" без ">" не зависает.
+ */
+function findTag(html: string, name: "title" | "meta", from: number): { tag: string; start: number; end: number } | null {
+  const needle = `<${name}`;
+  let pos = from;
+  for (;;) {
+    const start = html.indexOf(needle, pos);
+    if (start < 0) return null;
+    // Граница тега: после имени идёт пробел, ">", "/" или таб/перевод строки.
+    const after = html[start + needle.length];
+    if (after !== undefined && after !== ">" && after !== "/" && after !== " " && after !== "\t" && after !== "\n" && after !== "\r") {
+      pos = start + needle.length;
+      continue;
+    }
+    let end = html.indexOf(">", start);
+    if (end < 0 || end - start > MAX_TAG_LENGTH) {
+      // Тег не закрыт или слишком длинный — пропускаем его начало.
+      return { tag: html.slice(start, end < 0 ? Math.min(html.length, start + MAX_TAG_LENGTH) : end + 1), start, end: -1 };
+    }
+    return { tag: html.slice(start, end + 1), start, end: end + 1 };
+  }
 }
 
-/** Вытащить название и картинку из HTML страницы. */
+/** Атрибут тега: attr="..." или attr='...', линейный поиск. */
+function attrValue(tag: string, attr: string): string | null {
+  const lower = tag.toLowerCase();
+  let pos = 0;
+  for (;;) {
+    const at = lower.indexOf(attr, pos);
+    if (at < 0) return null;
+    const before = at === 0 ? " " : lower[at - 1];
+    const after = lower[at + attr.length];
+    if ((before === " " || before === "\t" || before === "\n") && (after === "=" || after === " " || after === "\t")) {
+      let eq = at + attr.length;
+      while (lower[eq] === " " || lower[eq] === "\t") eq++;
+      if (lower[eq] !== "=") {
+        pos = at + attr.length;
+        continue;
+      }
+      eq++;
+      while (lower[eq] === " " || lower[eq] === "\t") eq++;
+      const quote = lower[eq];
+      if (quote !== '"' && quote !== "'") {
+        pos = eq;
+        continue;
+      }
+      const close = lower.indexOf(quote, eq + 1);
+      if (close < 0) return null;
+      return tag.slice(eq + 1, close);
+    }
+    pos = at + attr.length;
+  }
+}
+
+/** Вытащить название страницы из HTML (og:title или <title>). */
 export function parsePreview(html: string, url: URL): LinkPreview {
-  const ogTitle = metaContent(html, "og:title");
-  const titleTag = html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1];
-  const title = ogTitle ?? (titleTag ? decodeEntities(titleTag.trim()) : null);
-  let image = metaContent(html, "og:image");
-  if (image) {
-    try {
-      image = new URL(image, url).toString();
-    } catch {
-      image = null;
+  let title: string | null = null;
+  let pos = 0;
+  // Идём по тегам <meta> по порядку: первый og:title побеждает.
+  for (;;) {
+    const found = findTag(html, "meta", pos);
+    if (!found) break;
+    if (found.end < 0) break; // незакрытый/слишком длинный тег — дальше не ищем
+    pos = found.end;
+    const property = attrValue(found.tag, "property") ?? attrValue(found.tag, "name");
+    if (property?.toLowerCase() === "og:title") {
+      const content = attrValue(found.tag, "content");
+      if (content && content.trim().length > 0) {
+        title = decodeEntities(content.trim());
+        break;
+      }
+    }
+  }
+  if (!title) {
+    const found = findTag(html, "title", 0);
+    if (found && found.end > 0) {
+      const close = html.toLowerCase().indexOf("</title", found.end);
+      const inner = html.slice(found.end, close < 0 ? Math.min(html.length, found.end + MAX_TAG_LENGTH) : close).trim();
+      if (inner.length > 0) title = decodeEntities(inner);
     }
   }
   return {
     url: url.toString(),
     title: title && title.length > 0 ? title.slice(0, 200) : null,
-    image,
     domain: url.hostname.replace(/^www\./i, ""),
   };
 }
 
 async function fetchPreview(url: URL): Promise<LinkPreview | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      redirect: "follow",
-      headers: {
-        Accept: "text/html",
-        "User-Agent": "YaOnlineBot/1.0 (+link-preview)",
-      },
-    });
-    const type = response.headers.get("content-type") ?? "";
-    if (!response.ok || !type.includes("text/html")) return null;
-    // Читаем не больше MAX_BYTES, чтобы не грузить большие страницы целиком.
-    const reader = response.body?.getReader();
-    if (!reader) return null;
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      chunks.push(value);
-      if (size >= MAX_BYTES) {
-        await reader.cancel().catch(() => undefined);
-        break;
-      }
-    }
-    const html = new TextDecoder().decode(
-      chunks.length === 1 ? chunks[0]! : concat(chunks),
-    );
-    return parsePreview(html, url);
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-function concat(chunks: Uint8Array[]): Uint8Array {
-  const total = chunks.reduce((sum, c) => sum + c.byteLength, 0);
-  const out = new Uint8Array(total);
-  let offset = 0;
-  for (const c of chunks) {
-    out.set(c, offset);
-    offset += c.byteLength;
-  }
-  return out;
+  const result = await safeFetchHtml(url.toString());
+  if (!result) return null;
+  return parsePreview(result.text, result.url);
 }
 
 export async function linkPreviewRoutes(app: FastifyInstance) {
+  // Ленивый импорт: middleware тянет БД, а чистые функции выше должны
+  // оставаться тестируемыми без неё.
+  const { requireAuth, requireUserId } = await import("../auth/middleware.ts");
   app.addHook("preHandler", requireAuth);
 
   app.get<{ Querystring: { url?: string } }>("/", async (request, reply) => {
+    const userId = requireUserId(request);
+    if (!rateLimitOk(userId)) {
+      return reply.code(429).send({ message: "Слишком много запросов, подождите минуту" });
+    }
     const raw = request.query.url ?? "";
-    const url = previewableUrl(raw);
+    const url = safeUrl(raw);
     if (!url) {
       return reply.code(400).send({ message: "Недопустимая ссылка" });
     }
@@ -164,7 +194,15 @@ export async function linkPreviewRoutes(app: FastifyInstance) {
     if (hit !== undefined) {
       return hit ?? reply.code(404).send({ message: "Предпросмотр недоступен" });
     }
-    const preview = await fetchPreview(url);
+    let preview: LinkPreview | null;
+    try {
+      preview = await fetchPreview(url);
+    } catch (error) {
+      if (error instanceof BusyError) {
+        return reply.code(429).send({ message: "Сервер занят, попробуйте позже" });
+      }
+      throw error;
+    }
     remember(key, preview);
     if (!preview || !preview.title) {
       remember(key, null);
