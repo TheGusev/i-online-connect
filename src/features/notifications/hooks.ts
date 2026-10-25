@@ -204,6 +204,9 @@ export function describeNotification(notification: AppNotification): {
     eventId,
   });
 
+  if (notification.kind === "urgent_reserved") {
+    return result("Ваш лот забронирован", listingTitle, listingId ? `/nearby/${listingId}` : null);
+  }
   if (notification.kind === "urgent_auto_reserved") {
     return result("Сработала ваша цена: лот забронирован на 30 минут", listingTitle, listingId ? `/nearby/${listingId}` : null);
   }

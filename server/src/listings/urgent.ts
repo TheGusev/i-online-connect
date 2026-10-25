@@ -20,6 +20,10 @@ export const DEFAULT_FLOOR_SHARE = 0.55;
 export const NEW_ACCOUNT_MAX_ACTIVE = 1;
 export const ACTIVE_MAX = 3;
 const time = (value: Date | string | number) => new Date(value).getTime();
+export function shouldCloseExpiredLot(input: {lotExpiresAt:Date|string|number; activeReservationExpiresAt?:Date|string|number|null; now:Date|string|number}) {
+  return time(input.lotExpiresAt) <= time(input.now)
+    && (input.activeReservationExpiresAt == null || time(input.activeReservationExpiresAt) <= time(input.now));
+}
 export function priceAt(input: {start:number; floor:number; createdAt:Date|string|number; expiresAt:Date|string|number; steps:number}, now:Date|string|number = Date.now()) {
   const created = time(input.createdAt), end = time(input.expiresAt);
   const steps = Math.max(1, Math.trunc(input.steps));
