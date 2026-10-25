@@ -1,7 +1,7 @@
 import type { PoolClient } from "pg";
 import { query, transaction } from "../db.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
-import { AUTO_HOLD, priceAt, STEPS, pickAutoBidWinner, reservationBan } from "./urgent.ts";
+import { AUTO_HOLD, priceAt, STEPS, pickAutoBidWinner, reservationBan, shouldCloseExpiredLot } from "./urgent.ts";
 
 export interface UrgentLot { id:string; category:string; author_id:string; title:string; state:string; urgent_type:string|null; price_start_minor:number|null; price_floor_minor:number|null; created_at:Date; expires_at:Date; is_seed:boolean }
 export function lotPrice(lot:UrgentLot, now:Date = new Date()) {
@@ -16,6 +16,9 @@ export async function urgentEvent(client:PoolClient, listingId:string, userId:st
   await client.query("INSERT INTO listing_events (listing_id,user_id,kind,meta) VALUES ($1,$2,$3,$4::jsonb)",[listingId,userId,kind,JSON.stringify(meta)]);
 }
 export async function insertUrgentNotification(client:PoolClient, userId:string, kind:string, payload:Record<string,unknown>) {
+  if (kind === 'urgent_reserved' || kind === 'urgent_auto_reserved') {
+    await client.query("DELETE FROM notifications WHERE user_id=$1 AND kind=$2 AND payload->>'listingId'=$3",[userId,kind,payload['listingId']]);
+  }
   const result = await client.query<{id:string;created_at:Date}>(`INSERT INTO notifications (user_id,kind,payload) VALUES ($1,$2,$3::jsonb) ON CONFLICT DO NOTHING RETURNING id,created_at`,[userId,kind,JSON.stringify(payload)]);
   const row = result.rows[0];
   return row ? {userId, notification:{id:row.id,kind,payload,readAt:null,createdAt:row.created_at.toISOString()}} : null;
@@ -50,6 +53,7 @@ export async function reserveLot(client:PoolClient, lot:UrgentLot, buyerId:strin
   // Existing messages schema has text kind only; seller-authored service text, tagged in event.
   await client.query("INSERT INTO messages (conversation_id,author_id,kind,text) VALUES ($1,$2,'text',$3)",
     [conversationId,lot.author_id,`Бронь на ${minutes} минут по цене ${new Intl.NumberFormat('ru-RU').format(price/100)} ₽. Договоритесь о встрече`]);
+  await client.query("UPDATE conversations SET last_message_at = now() WHERE id = $1",[conversationId]);
   await urgentEvent(client,lot.id,buyerId,source === 'auto' ? 'auto_reserve' : 'reserve',{priceMinor:price,minutes,conversationId});
   return {reservationId:result.rows[0]?.id,expiresAt:result.rows[0]?.expires_at.toISOString(),priceMinor:price,source,conversationId};
 }
@@ -66,8 +70,10 @@ export async function runUrgentJobs() {
       const pending:Awaited<ReturnType<typeof insertUrgentNotification>>[] = [];
       for (const lot of lots.rows) {
         await expireReservations(client,lot.id);
+        const held = await client.query<{expires_at:Date}>("SELECT expires_at FROM listing_reservations WHERE listing_id=$1 AND status='active' AND expires_at>now()",[lot.id]);
         if (lot.expires_at.getTime() <= Date.now()) {
           if(lot.urgent_type!=='sell') continue;
+          if (!shouldCloseExpiredLot({lotExpiresAt:lot.expires_at,activeReservationExpiresAt:held.rows[0]?.expires_at,now:Date.now()})) continue;
           await client.query("UPDATE listings SET state='closed',outcome='expired',closed_at=now(),updated_at=now() WHERE id=$1",[lot.id]);
           await client.query("UPDATE listing_reservations SET status='expired' WHERE listing_id=$1 AND status='active'",[lot.id]);
           await client.query("UPDATE listing_bids SET status='cancelled' WHERE listing_id=$1 AND status='active'",[lot.id]);
@@ -75,7 +81,6 @@ export async function runUrgentJobs() {
           pending.push(await insertUrgentNotification(client,lot.author_id,'urgent_expired_relist',{listingId:lot.id,message:'Срок истёк. Можно перезапустить объявление.'}));
           continue;
         }
-        const held = await client.query("SELECT 1 FROM listing_reservations WHERE listing_id=$1 AND status='active'",[lot.id]);
         if (lot.urgent_type==='sell' && !held.rowCount && !lot.is_seed) {
           const result = await client.query<{buyer_id:string;max_price_minor:number;status:string;created_at:Date}>("SELECT * FROM listing_bids WHERE listing_id=$1 AND status='active'",[lot.id]);
           const bids = result.rows.map(b=>({buyerId:b.buyer_id,maxPriceMinor:b.max_price_minor,status:b.status,createdAt:b.created_at}));

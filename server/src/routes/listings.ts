@@ -36,7 +36,7 @@ import { datingAccess, loadCompleteness } from "../profile/completeness.ts";
 import { resolveDuration } from "../listings/durations.ts";
 import { env } from "../env.ts";
 import { URGENT_TYPES, URGENT_DURATIONS, validateSell, suggestPrices, normalizeTitleKey, NEW_ACCOUNT_MAX_ACTIVE, ACTIVE_MAX, floorHintPct } from "../listings/urgent.ts";
-import { expireReservations, lotPrice, reserveLot, buyerAllowed, urgentEvent, type UrgentLot } from "../listings/urgent-jobs.ts";
+import { expireReservations, lotPrice, reserveLot, buyerAllowed, urgentEvent, insertUrgentNotification, deliverUrgent, type UrgentLot } from "../listings/urgent-jobs.ts";
 
 async function requireUrgentPhone(client:import('pg').PoolClient, userId:string) {
   const user=(await client.query<{phone_verified:boolean}>('SELECT phone_verified FROM users WHERE id=$1',[userId])).rows[0];
@@ -317,7 +317,8 @@ export async function listingRoutes(app: FastifyInstance) {
         return action(client,lot);
       });
     } catch(error) {
-      if ((error as {code?:string}).code === '23505') throw new HttpError(409,'Объявление уже забронировано','ALREADY_RESERVED');
+      const databaseError = error as {code?:string;constraint?:string} | null;
+      if (databaseError?.code === '23505' && databaseError.constraint === 'listing_reservations_one_active') throw new HttpError(409,'Объявление уже забронировано','ALREADY_RESERVED');
       throw error;
     }
   }
@@ -360,15 +361,21 @@ export async function listingRoutes(app: FastifyInstance) {
   app.post('/:id/reserve',{config:RESPOND_LIMIT},async request=>{
     const userId=currentUserId(request),{id}=idParam.parse(request.params);
     const {arriveInMinutes}=z.object({arriveInMinutes:z.union([z.literal(15),z.literal(30),z.literal(60)])}).parse(request.body);
-    return urgentMutation(id,userId,async(client,lot)=>{
+    const notices:Awaited<ReturnType<typeof insertUrgentNotification>>[] = [];
+    const response = await urgentMutation(id,userId,async(client,lot)=>{
       assertActiveSell(lot,userId);
       await requireUrgentPhone(client,userId);
       if (!(await buyerAllowed(client,userId,lot.author_id))) throw new HttpError(403,'Бронирование недоступно: неявки у двух продавцов за 30 дней','RESERVATION_BANNED');
       const held=await client.query("SELECT 1 FROM listing_reservations WHERE listing_id=$1 AND status='active'",[id]);
       if(held.rowCount) throw new HttpError(409,'Объявление уже забронировано','ALREADY_RESERVED');
       const reserved=await reserveLot(client,lot,userId,arriveInMinutes,'manual');
+      notices.push(await insertUrgentNotification(client,lot.author_id,'urgent_reserved',{
+        listingId:id,reservationId:reserved.reservationId,expiresAt:reserved.expiresAt,priceMinor:reserved.priceMinor,source:reserved.source,
+      }));
       return {ok:true,...reserved};
     });
+    deliverUrgent(notices);
+    return response;
   });
   app.post('/:id/reserve/cancel',async request=>{
     const userId=currentUserId(request),{id}=idParam.parse(request.params);
