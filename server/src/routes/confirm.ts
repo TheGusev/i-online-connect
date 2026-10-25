@@ -26,11 +26,6 @@ type Channel = "email" | "phone";
 const hashCode = (code: string) => createHash("sha256").update(code).digest("hex");
 const newCode = () => String(randomInt(100000, 1000000));
 
-async function sendPhoneCode(app: FastifyInstance, phone: string, code: string) {
-  // SMS-провайдер пока не подключён: код виден в логе сервера (pm2 logs).
-  app.log.info(`[confirm] код подтверждения телефона ${phone}: ${code}`);
-}
-
 export async function confirmRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
