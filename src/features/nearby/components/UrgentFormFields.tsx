@@ -11,8 +11,8 @@ export interface UrgentFields {
 }
 export const emptyUrgentFields: UrgentFields = { market: "", start: "", floor: "", from: "", to: "", departure: "", seats: "1", pickup: "" };
 export function UrgentTypePicker({ value, onChange }: { value: UrgentType; onChange: (value: UrgentType) => void }) {
-  return <fieldset><legend className="mb-3 text-sm font-semibold">Что нужно срочно</legend><div className="grid grid-cols-2 gap-2">
-    {URGENT_TYPES.map(type => { const Icon = icons[type]; return <Button key={type} type="button" variant={value === type ? "primary" : "secondary"} aria-pressed={value === type} onClick={() => onChange(type)} className="h-auto min-h-20 flex-col whitespace-normal px-3 py-3 text-sm"><Icon className="size-5" aria-hidden="true" />{urgentLabels[type]}</Button>; })}
+  return <fieldset><legend className="mb-3 text-sm font-semibold">Что нужно срочно</legend><div className="flex flex-col gap-2">
+    {URGENT_TYPES.map(type => { const Icon = icons[type]; return <Button key={type} type="button" size="md" fullWidth variant={value === type ? "primary" : "secondary"} aria-pressed={value === type} onClick={() => onChange(type)} className="tracking-normal"><Icon aria-hidden="true" />{urgentLabels[type]}</Button>; })}
   </div></fieldset>;
 }
 export function UrgentFormFields({ type, fields, onChange, minutes }: { type: UrgentType; fields: UrgentFields; onChange: (fields: UrgentFields) => void; minutes: number }) {

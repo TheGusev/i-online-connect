@@ -191,7 +191,7 @@ function NewListingPage() {
       />
 
       <form
-        className="max-w-full space-y-6 overflow-x-hidden pb-28 [&>*]:min-w-0"
+        className="max-w-full space-y-6 overflow-x-hidden pb-6 [&>*]:min-w-0"
         onSubmit={(event) => {
           event.preventDefault();
           if (canSubmit) submit();
@@ -361,8 +361,8 @@ function NewListingPage() {
 
         {(formError || sellError) && <p role="alert" className="text-sm text-destructive">{formError ?? sellError}</p>}
 
-        <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-10 flex gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:bottom-0 lg:left-auto lg:right-0 lg:w-[calc(100%-16rem)] lg:justify-center">
-          <Button type="submit" className="flex-1 lg:flex-none" disabled={!canSubmit} loading={create.isPending}>
+        <div className="flex gap-3 pt-2">
+          <Button type="submit" className="flex-1" disabled={!canSubmit} loading={create.isPending}>
             Опубликовать
           </Button>
           <Button type="button" variant="ghost" onClick={() => void navigate({ to: "/nearby" })}>
