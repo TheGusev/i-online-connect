@@ -6,11 +6,12 @@ import { MediaImage } from "@/components/ds";
 import { useListings } from "../hooks";
 import { ListingAuthor } from "./ListingAuthor";
 import { ListingCountdown } from "./ListingCountdown";
+import { unreservedUrgent } from "../urgent-ui";
 
 /** Полоса «Срочное рядом» над диалогами: 3–5 свежих срочных объявлений. Без данных не рендерится. */
 export function UrgentStrip() {
   const { data } = useListings({ category: "urgent", limit: 5 });
-  const items = (data?.items ?? []).filter((item) => item.state === "active").slice(0, 5);
+  const items = unreservedUrgent(data?.items ?? []).slice(0, 5);
   if (items.length === 0) return null;
 
   return (

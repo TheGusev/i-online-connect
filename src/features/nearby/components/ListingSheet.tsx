@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { ListingAuthor } from "./ListingAuthor";
 import { MediaViewer } from "@/features/profile/components/MediaViewer";
 import { ListingCountdown } from "./ListingCountdown";
+import { UrgentDeal, UrgentPrice } from "./UrgentDeal";
 
 const LEAVE_MS = 260;
 
@@ -205,7 +206,7 @@ function SheetSkeleton() {
 export function ListingSheet({ listingId, onClose }: { listingId?: string; onClose: () => void }) {
   const navigate = useNavigate();
   const gate = useAuthGate();
-  const { data: listing, isPending, isError } = useListing(listingId ?? "", Boolean(listingId));
+  const { data: listing, isPending, isError } = useListing(listingId ?? "", Boolean(listingId), Boolean(listingId));
   const respond = useRespondToListing(listingId ?? "");
   const drag = useRef<{ y: number; current: number } | null>(null);
   const [offset, setOffset] = useState(0);
@@ -273,7 +274,7 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
   return (
     <>
       {createPortal(
-        <div className="viewport-overlay z-50 flex items-end justify-center">
+        <div data-no-swipe className="viewport-overlay z-50 flex items-end justify-center">
           <Button
             variant="ghost"
             size="icon"
@@ -320,7 +321,7 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
                   <ListingGallery listing={listing} />
                   <div>
                     <div className="flex items-start justify-between gap-3">
-                      {priceApplies(listing.category) ? (
+                      {listing.urgentType === "sell" ? <UrgentPrice listing={listing} /> : priceApplies(listing.category) ? (
                         <p className="text-2xl font-black text-primary">
                           {formatPrice(listing.priceMinor, listing.currency)}
                         </p>
@@ -366,11 +367,12 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
                     <p className="whitespace-pre-wrap">{listing.description || "Описание не добавлено"}</p>
                   </SheetSection>
                   <ListingParams listing={listing} />
+                  {listing.urgentType === "sell" && <UrgentDeal listing={listing} />}
                 </div>
               ) : null}
             </div>
 
-            {listing && !listing.isMine && !listing.isSeed ? (
+            {listing && listing.urgentType !== "sell" && !listing.isMine && !listing.isSeed ? (
               <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-card px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
                 <Button fullWidth loading={respond.isPending} disabled={listing.state !== "active"} onClick={respondNow}>
                   <MessageCircle aria-hidden="true" />

@@ -23,6 +23,7 @@ import {
 } from "@/features/nearby/hooks";
 import { categoryLabel, formatDate, formatPrice, priceApplies } from "@/features/nearby/labels";
 import { mediaUrl } from "@/api";
+import { UrgentDeal, UrgentPrice } from "@/features/nearby/components/UrgentDeal";
 
 export const Route = createFileRoute("/nearby/$id")({
   head: () => ({
@@ -48,7 +49,7 @@ export const Route = createFileRoute("/nearby/$id")({
 function ListingPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const { data: listing, isPending, isError } = useListing(id);
+  const { data: listing, isPending, isError } = useListing(id, true, true);
   const respond = useRespondToListing(id);
   const close = useCloseListing(id);
   const update = useUpdateListing(id);
@@ -155,7 +156,7 @@ function ListingPage() {
         ) : (
           <>
             <h1 className="text-3xl font-bold tracking-tight">{listing.title}</h1>
-            {priceApplies(listing.category) ? (
+            {listing.urgentType === "sell" ? <UrgentPrice listing={listing} /> : priceApplies(listing.category) ? (
               <p className="text-2xl font-bold text-primary">
                 {formatPrice(listing.priceMinor, listing.currency)}
               </p>
@@ -210,7 +211,8 @@ function ListingPage() {
           </Link>
         </Card>
 
-        <div className="flex flex-wrap gap-3">
+        {listing.urgentType === "sell" && <UrgentDeal listing={listing} />}
+        {listing.urgentType !== "sell" && <div className="flex flex-wrap gap-3">
           {listing.isMine ? (
             <>
               {!editing ? (
@@ -269,7 +271,7 @@ function ListingPage() {
               </Button>
             </>
           )}
-        </div>
+        </div>}
       </article>
 
       <ReportModal

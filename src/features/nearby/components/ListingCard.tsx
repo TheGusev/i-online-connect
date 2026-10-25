@@ -5,6 +5,7 @@ import type { Listing } from "@/api";
 import { Card, MediaImage } from "@/components/ds";
 import { ListingAuthor } from "./ListingAuthor";
 import { ListingCountdown } from "./ListingCountdown";
+import { UrgentPrice } from "./UrgentDeal";
 
 import { categoryLabel, formatDate, formatPrice, priceApplies } from "../labels";
 
@@ -49,7 +50,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
             trailing={timed ? <ListingCountdown expiresAt={listing.expiresAt} /> : null}
           />
 
-          {priceApplies(listing.category) ? (
+          {listing.urgentType === "sell" ? <UrgentPrice listing={listing} compact /> : priceApplies(listing.category) ? (
             <span className="mt-0.5 text-base font-black leading-none sm:text-lg">
               {formatPrice(listing.priceMinor, listing.currency)}
             </span>
