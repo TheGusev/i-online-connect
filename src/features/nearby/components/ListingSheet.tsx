@@ -367,7 +367,7 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
                     <p className="whitespace-pre-wrap">{listing.description || "Описание не добавлено"}</p>
                   </SheetSection>
                   <ListingParams listing={listing} />
-                  {listing.urgentType === "sell" && <UrgentDeal listing={listing} />}
+                  {listing.urgentType === "sell" && <UrgentDeal key={listing.id} listing={listing} />}
                 </div>
               ) : null}
             </div>

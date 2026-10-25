@@ -211,7 +211,7 @@ function ListingPage() {
           </Link>
         </Card>
 
-        {listing.urgentType === "sell" && <UrgentDeal listing={listing} />}
+        {listing.urgentType === "sell" && <UrgentDeal key={listing.id} listing={listing} />}
         {listing.urgentType !== "sell" && <div className="flex flex-wrap gap-3">
           {listing.isMine ? (
             <>

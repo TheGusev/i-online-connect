@@ -8,7 +8,6 @@ import { useAuthGate } from "@/features/auth/phone/AuthSheet";
 import { HOLD_OPTIONS } from "../urgent";
 import { clockLeft, dropEnd, moneyInput, urgentError } from "../urgent-ui";
 import { formatPrice } from "../labels";
-import { ListingCountdown } from "./ListingCountdown";
 
 function useNow() {
   const [now, setNow] = useState<number | null>(null);
@@ -45,6 +44,10 @@ export function UrgentDeal({ listing }: { listing: Listing }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fixed, setFixed] = useState<{ priceMinor: number; expiresAt: string } | null>(null);
+  const [lastOwn, setLastOwn] = useState(listing.activeReservation ?? null);
+  useEffect(() => {
+    if (listing.activeReservation) setLastOwn(listing.activeReservation);
+  }, [listing.activeReservation]);
   useEffect(() => {
     if (fixed && !listing.reservation?.mine && now !== null && new Date(fixed.expiresAt).getTime() <= now) setFixed(null);
   }, [fixed, listing.reservation?.mine, now]);
@@ -61,6 +64,7 @@ export function UrgentDeal({ listing }: { listing: Listing }) {
   });
   const reservation = listing.reservation;
   const own = listing.activeReservation;
+  const missed = !own && lastOwn && now !== null && new Date(lastOwn.expiresAt).getTime() <= now ? lastOwn : null;
   const held = reservation?.active || (fixed && now !== null && new Date(fixed.expiresAt).getTime() > now);
   const mine = reservation?.mine || Boolean(fixed);
   const active = listing.state === "active" && (now === null || new Date(listing.expiresAt).getTime() > now);
@@ -71,11 +75,11 @@ export function UrgentDeal({ listing }: { listing: Listing }) {
         <div className="flex flex-wrap justify-between gap-2"><dt>Нижняя цена</dt><dd>{formatPrice(listing.priceFloorMinor ?? null)}</dd></div>
         <div><dt className="inline">Поставили «Мою цену»: </dt><dd className="inline">{listing.bidsCount ?? 0}, максимум {listing.highestBidMinor == null ? "—" : formatPrice(listing.highestBidMinor)}</dd></div>
       </dl>
-      {own && <div className="space-y-1 text-sm"><p>Бронь: {own.buyerName}</p><p>{formatPrice(own.priceMinor)} · ещё {now === null ? "—:—" : clockLeft(own.expiresAt, now)}</p></div>}
+      {(own || missed) && <div className="space-y-1 text-sm"><p>Бронь: {(own ?? missed)?.buyerName}</p><p>{formatPrice((own ?? missed)?.priceMinor ?? null)} · ещё {now === null ? "—:—" : clockLeft((own ?? missed)?.expiresAt, now)}</p></div>}
       <div className="flex flex-wrap gap-2">
-        <Button disabled={!active || !own || busy} onClick={() => run(() => listingsApi.completeUrgentListing(listing.id, "sold"), "Продажа завершена")}>Продано</Button>
-        <Button variant="secondary" disabled={busy || !own || now === null || new Date(own.expiresAt).getTime() > now} onClick={() => run(() => listingsApi.reportListingNoShow(listing.id), "Неявка отмечена")}>Не пришёл</Button>
-        <Button variant="ghost" disabled={!own || busy} onClick={() => run(() => listingsApi.cancelListingReservation(listing.id), "Бронь снята")}>Снять бронь</Button>
+        <Button disabled={!active || !own || busy} onClick={() => run(async () => { await listingsApi.completeUrgentListing(listing.id, "sold"); setLastOwn(null); }, "Продажа завершена")}>Продано</Button>
+        <Button variant="secondary" disabled={busy || !active || !(own ?? missed) || now === null || new Date((own ?? missed)?.expiresAt ?? "").getTime() > now} onClick={() => run(async () => { await listingsApi.reportListingNoShow(listing.id); setLastOwn(null); }, "Неявка отмечена")}>Не пришёл</Button>
+        <Button variant="ghost" disabled={!own || busy} onClick={() => run(async () => { await listingsApi.cancelListingReservation(listing.id); setLastOwn(null); }, "Бронь снята")}>Снять бронь</Button>
       </div>
     </> : !active ? <p className="text-sm text-muted-foreground">{listing.outcome === "sold" ? "Продано" : "Объявление завершено"}</p> : held ? <div className="space-y-2">
       <p className="text-sm font-semibold">{mine ? "Ваша бронь" : "Забронировано"}, ещё {now === null ? "—:—" : clockLeft(reservation?.expiresAt ?? fixed?.expiresAt, now)}</p>
