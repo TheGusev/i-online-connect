@@ -86,12 +86,17 @@ export async function settingsRoutes(app: FastifyInstance) {
     const patch = z
       .object({
         email: z.string().email().max(254).optional(),
-        phone: z.string().max(32).optional(),
+        currentPassword: z.string().max(200).optional(),
         language: z.enum(["ru", "en"]).optional(),
       })
-      .parse(request.body);
+      .strict().parse(request.body);
 
     if (patch.email) {
+      const account = await queryOne<{ password_hash: string | null }>("SELECT password_hash FROM users WHERE id = $1", [userId]);
+      if (!account) throw notFound("Аккаунт не найден");
+      if (account.password_hash && (!patch.currentPassword || !(await verifyPassword(account.password_hash, patch.currentPassword)))) {
+        throw unauthorized("Для смены email введите текущий пароль");
+      }
       const taken = await queryOne("SELECT 1 FROM users WHERE email = $1 AND id <> $2", [
         patch.email,
         userId,
@@ -104,12 +109,10 @@ export async function settingsRoutes(app: FastifyInstance) {
          email = COALESCE($2, email),
          -- при смене email подтверждение сбрасывается
          email_verified = CASE WHEN $2 IS NULL THEN email_verified ELSE false END,
-         phone = COALESCE($3, phone),
-         phone_verified = CASE WHEN $3 IS NULL THEN phone_verified ELSE false END,
-         language = COALESCE($4, language),
+         language = COALESCE($3, language),
          updated_at = now()
        WHERE id = $1`,
-      [userId, patch.email ?? null, patch.phone ?? null, patch.language ?? null],
+      [userId, patch.email ?? null, patch.language ?? null],
     );
 
     return (await loadBundle(userId)).account;

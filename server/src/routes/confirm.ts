@@ -14,7 +14,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import { query, queryOne } from "../db.ts";
-import { badRequest, notFound } from "../http.ts";
+import { HttpError, badRequest, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { confirmationEmail, sendMail } from "../mail/smtp.ts";
 
@@ -81,15 +81,7 @@ export async function confirmRoutes(app: FastifyInstance) {
   });
 
   app.post("/phone/request", requestLimit, async (request) => {
-    const userId = currentUserId(request);
-    const account = await loadAccount(userId);
-    if (!account.phone) throw badRequest("Сначала укажите номер телефона в настройках аккаунта");
-    if (account.phone_verified) return { status: "verified" as const, sent: false };
-
-    const code = await issueCode(userId, "phone", account.phone);
-    await sendPhoneCode(app, account.phone, code);
-
-    return { status: "sent" as const, destination: account.phone, expiresInMinutes: CODE_TTL_MINUTES };
+    throw new HttpError(410, "Используйте привязку номера через SMS в настройках аккаунта");
   });
 
   const codeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, "Код состоит из 6 цифр") });
@@ -124,7 +116,6 @@ export async function confirmRoutes(app: FastifyInstance) {
   });
 
   app.post("/phone/verify", async (request) => {
-    const { code } = codeSchema.parse(request.body);
-    return verify(currentUserId(request), "phone", code);
+    throw new HttpError(410, "Используйте привязку номера через SMS в настройках аккаунта");
   });
 }
