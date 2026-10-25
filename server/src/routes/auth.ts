@@ -34,6 +34,7 @@ import {
 import { claimPhone } from "../auth/phone-account.ts";
 import { consumePhoneCode } from "../auth/consume-phone-code.ts";
 import { passwordResetRoutes } from "./password-reset.ts";
+import { oauthRoutes } from "./oauth.ts";
 import { getSmsProvider, maskPhone, otpText } from "../sms/provider.ts";
 
 /** Счётчики «запрошено / подтверждено» для журнала: видно накрутку и падение доставки. */
@@ -195,6 +196,7 @@ export async function authRoutes(app: FastifyInstance) {
     return { status: "verified" as const };
   });
   await passwordResetRoutes(app);
+  await oauthRoutes(app);
 
   app.post("/phone/verify", { config: { rateLimit: { max: 30, timeWindow: "10 minutes" } } }, async (request, reply) => {
     const body = phoneBody.extend({ code: z.string().regex(/^\d{6}$/, "Код — 6 цифр") }).parse(request.body);

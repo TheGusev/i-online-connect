@@ -57,7 +57,14 @@ const app = Fastify({
   logger: {
     level: env.isProd ? "info" : "debug",
     // В логи не должны попадать тела запросов: там пароли и селфи.
-    redact: ["req.headers.authorization", "req.headers.cookie"],
+    redact: ["req.headers.authorization", "req.headers.cookie", "res.headers.set-cookie"],
+    serializers: {
+      req(request) {
+        const url = String(request.url ?? "");
+        return { method: request.method, url: /\/api\/auth\/(yandex|telegram)\/callback/.test(url) ? url.split("?")[0] : url,
+          remoteAddress: request.ip };
+      },
+    },
   },
   // Nginx стоит впереди: доверяем X-Forwarded-For, иначе rate limit
   // увидит один IP (сам Nginx) на всех пользователей.

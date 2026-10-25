@@ -79,7 +79,7 @@ export async function checkRequestLimits(phone: string, ip: string): Promise<Lim
     return wait(3600, "Слишком много запросов с вашей сети. Попробуйте через час");
   }
   const daily = await queryOne<{ n: string }>(
-    "SELECT count(*) AS n FROM auth_otps WHERE created_at > now() - interval '1 day'",
+    "SELECT count(*) AS n FROM auth_otps WHERE purpose IN ('login','link') AND created_at > now() - interval '1 day'",
   );
   if (Number(daily?.n ?? 0) >= env.SMS_DAILY_LIMIT) {
     return wait(3600, "Отправка SMS временно недоступна. Попробуйте позже или войдите по почте");
