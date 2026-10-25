@@ -3,11 +3,12 @@ import { Loader2, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { listingsApi, mediaUrl, type NeedCategory } from "@/api";
+import { listingsApi, mediaUrl, type Listing, type NeedCategory } from "@/api";
 import type { ListingPhoto } from "@/api/endpoints/listings";
 import { Button, Chip, Input, TextArea } from "@/components/ds";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { CategoryChips } from "@/features/nearby/components/CategoryChips";
+import { ListingCard } from "@/features/nearby/components/ListingCard";
 import { useCreateListing, useListing } from "@/features/nearby/hooks";
 import { URGENT_DURATIONS, type UrgentType } from "@/features/nearby/urgent";
 import { moneyInput, sellFormError, urgentError } from "@/features/nearby/urgent-ui";
@@ -122,6 +123,44 @@ function NewListingPage() {
     (urgentType !== "buy" || moneyInput(price) !== null)
   );
   const canSubmit = title.trim().length >= 3 && Boolean(typeFieldsValid) && !sellError && !create.isPending && !uploading;
+
+  // Живой предпросмотр: карточка ровно в том виде, в каком её увидят в «Рядом».
+  const preview = useMemo<Listing>(() => {
+    const rubles = Number(price.replace(",", "."));
+    const profile = me.data;
+    return {
+      id: "preview",
+      category,
+      city: profile?.city ?? "Ваш город",
+      district: district.trim() || undefined,
+      title: title.trim() || "Заголовок объявления",
+      description: description.trim(),
+      priceMinor: showPrice && price.trim() && Number.isFinite(rubles) ? Math.round(rubles * 100) : null,
+      currency: "RUB",
+      state: "active",
+      expiresAt: new Date(Date.now() + minutes * 60_000).toISOString(),
+      createdAt: new Date().toISOString(),
+      photos: photos.map((photo) => photo.url),
+      responsesCount: 0,
+      respondedConversationId: null,
+      isMine: true,
+      author: {
+        id: profile?.id ?? "me",
+        name: profile?.name ?? "Вы",
+        trustLevel: profile?.trustLevel ?? "new",
+        avatarUrl: profile?.avatarUrl ?? null,
+      },
+      ...(category === "urgent" ? {
+        urgentType,
+        ...(urgentType === "sell" ? {
+          startPriceMinor: moneyInput(urgentFields.start),
+          currentPriceMinor: moneyInput(urgentFields.start),
+          priceFloorMinor: moneyInput(urgentFields.floor),
+          marketPriceMinor: moneyInput(urgentFields.market),
+        } : {}),
+      } : {}),
+    };
+  }, [me.data, category, district, title, description, price, showPrice, minutes, photos, urgentType, urgentFields]);
 
   const upload = async (file: File) => {
     if (photos.length >= MAX_PHOTOS) return;
@@ -357,6 +396,14 @@ function NewListingPage() {
               <p className="mt-2 text-xs text-muted-foreground">Объявление исчезнет: {expiresAt}</p>
             </div>
           </div>
+        </fieldset>
+
+        <fieldset>
+          <legend className="mb-3 text-sm font-semibold">Предпросмотр</legend>
+          <div className="pointer-events-none" aria-hidden="true">
+            <ListingCard listing={preview} />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">Так карточку увидят люди в разделе «Рядом». Проверьте фото, цену и текст перед публикацией.</p>
         </fieldset>
 
         {(formError || sellError) && <p role="alert" className="text-sm text-destructive">{formError ?? sellError}</p>}
