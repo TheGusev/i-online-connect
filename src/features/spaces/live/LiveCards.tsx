@@ -1,5 +1,5 @@
 import { Check, ExternalLink, HelpCircle, Image as ImageIcon, Link2, StickyNote, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import { mediaUrl } from "@/api";
@@ -9,6 +9,7 @@ import { compressListingPhoto } from "@/features/nearby/compress-image";
 import { cn } from "@/lib/utils";
 
 import { canManageCard, MAX_CARD_TEXT, safeLink, tableCards } from "./cards";
+import { cardKindsForMode } from "./modes";
 import type { LiveCardActions } from "./useLiveRoom";
 
 const LAYER = "z-[95]";
@@ -66,9 +67,15 @@ export function AllCardsSheet({ open, cards, onClose, onOpen }: { open: boolean;
   );
 }
 
-/** «Добавить на стол»: фото, ссылка, заметка или вопрос. */
-export function AddCardSheet({ open, onClose, actions, canPhoto }: { open: boolean; onClose: () => void; actions?: LiveCardActions; canPhoto: boolean }) {
+/** «Добавить на стол»: виды карточек режима эфира в его порядке. */
+export function AddCardSheet({ open, onClose, actions, canPhoto, mode }: { open: boolean; onClose: () => void; actions?: LiveCardActions; canPhoto: boolean; mode?: string | null | undefined }) {
   const [kind, setKind] = useState<LiveCard["kind"] | null>(null);
+  const kinds = cardKindsForMode(mode);
+  // Смена режима: выбранный вид, которого нет в режиме, сбрасывается.
+  useEffect(() => {
+    if (kind && !kinds.includes(kind)) setKind(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<{ file: File; preview: string } | null>(null);
@@ -115,8 +122,8 @@ export function AddCardSheet({ open, onClose, actions, canPhoto }: { open: boole
   return (
     <BottomSheet open={open} onClose={close} title="Добавить на стол" layerClassName={LAYER}>
       <div className="space-y-3 pb-4">
-        <div className="grid grid-cols-4 gap-2">
-          {(["photo", "link", "note", "question"] as const).map((k) => {
+        <div className={cn("grid gap-2", kinds.length === 4 ? "grid-cols-4" : "grid-cols-3")}>
+          {kinds.map((k) => {
             const Icon = KIND_ICON[k];
             return (
               <button

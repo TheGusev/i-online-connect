@@ -43,6 +43,8 @@ export interface LiveRoom {
   /** Реальный эфир (не демо): доступны действия. */
   real?: boolean;
   startedBy?: string | null;
+  /** Режим эфира (talk/work/learn/family/cinema); null — ещё не выбран. */
+  mode?: string | null;
   actions?: LiveActions;
   /** Карточки на столе эфира. */
   cards: LiveCard[];
@@ -65,7 +67,7 @@ export interface LiveCardActions {
 }
 
 export interface LiveActions {
-  start: () => void;
+  start: (mode?: string) => void;
   end: () => void;
   join: () => void;
   leave: () => void;
@@ -208,13 +210,14 @@ interface ServerClip {
 interface ServerState {
   active: boolean;
   startedBy: string | null;
+  mode: string | null;
   participants: string[];
   speaking: string[];
   clips: ServerClip[];
   online: number | null;
   cards: LiveCard[];
 }
-const EMPTY_SERVER: ServerState = { active: false, startedBy: null, participants: [], speaking: [], clips: [], online: null, cards: [] };
+const EMPTY_SERVER: ServerState = { active: false, startedBy: null, mode: null, participants: [], speaking: [], clips: [], online: null, cards: [] };
 
 function toClip(c: ServerClip): LiveClip {
   return { id: c.id, userId: c.userId, durationMs: c.durationMs, createdAt: Date.parse(c.createdAt), audioUrl: c.audioUrl, clientTempId: c.clientTempId };
@@ -262,11 +265,11 @@ function useRealLiveRoom(spaceId: string, enabled: boolean, members: LiveSeedMem
         setState((prev) => {
           switch (ev["type"]) {
             case "snapshot": {
-              const live = ev["live"] as { active: boolean; startedBy: string | null; participants: string[]; speaking: string[] };
-              return { ...live, clips: (ev["clips"] as ServerClip[]) ?? [], online: Number(ev["online"]), cards: (ev["cards"] as LiveCard[] | undefined) ?? [] };
+              const live = ev["live"] as { active: boolean; startedBy: string | null; mode?: string; participants: string[]; speaking: string[] };
+              return { ...live, mode: live.mode ?? null, clips: (ev["clips"] as ServerClip[]) ?? [], online: Number(ev["online"]), cards: (ev["cards"] as LiveCard[] | undefined) ?? [] };
             }
             case "presence": return { ...prev, online: Number(ev["online"]) };
-            case "live_started": return { ...prev, active: true, startedBy: String(ev["startedBy"]), clips: [], cards: [] };
+            case "live_started": return { ...prev, active: true, startedBy: String(ev["startedBy"]), mode: typeof ev["mode"] === "string" ? ev["mode"] : null, clips: [], cards: [] };
             case "card_added":
             case "card_updated":
             case "card_removed":
@@ -319,7 +322,7 @@ function useRealLiveRoom(spaceId: string, enabled: boolean, members: LiveSeedMem
   }, []);
 
   const actions = useMemo<LiveActions>(() => ({
-    start: () => { inLiveRef.current = true; send({ type: "start_live" }); },
+    start: (mode?: string) => { inLiveRef.current = true; send({ type: "start_live", ...(mode ? { mode } : {}) }); },
     end: () => { inLiveRef.current = false; send({ type: "end_live" }); },
     join: () => { inLiveRef.current = true; send({ type: "join", spaceId }); },
     leave: () => { inLiveRef.current = false; send({ type: "leave" }); },
@@ -396,6 +399,7 @@ function useRealLiveRoom(spaceId: string, enabled: boolean, members: LiveSeedMem
       online: state.online,
       real: true,
       startedBy: state.startedBy,
+      mode: state.mode,
       actions,
       cards: state.cards,
       cardActions,
