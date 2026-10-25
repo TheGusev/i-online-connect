@@ -20,6 +20,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
 import { runSeedRefresh } from "./seed/refresh.ts";
+import { runUrgentJobs } from "./listings/urgent-jobs.ts";
 
 
 import { rateLimitSubject } from "./auth/tokens.ts";
@@ -208,6 +209,10 @@ void (async () => {
 
 
 // Корректное завершение: PM2 присылает SIGINT/SIGTERM при reload.
+const urgentTimer = setInterval(() => { void runUrgentJobs(); }, 15000);
+urgentTimer.unref();
+app.addHook("onClose", async () => { clearInterval(urgentTimer); });
+
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {
     app.log.info(`Получен ${signal}, закрываю соединения`);

@@ -13,6 +13,7 @@
 
 - Community detail uses the shared AppShell's focused mode to hide duplicate global bars while keeping its session gate and viewport handling; this keeps the mobile chat and owner controls visible without changing other screens.
 - Listings preserve stored expiry timestamps and derive expired status on reads; this avoids scheduled jobs while keeping historic listings available to their authors.
+- Ordinary listings derive expired status on reads; urgent sell outcomes and reservations additionally use a guarded PostgreSQL job, so their transactional completion and notifications survive restarts.
 - Spaces expose their existing creation timestamp through the API for client-side age labels; no new database field is needed.
 - Seller storefronts read existing listing fields through a dedicated authenticated endpoint; this keeps active and completed tabs accurate without duplicating listing data.
 - Interest-based space ordering is derived on the client from the signed-in user's interests and existing space interests; this avoids changing the spaces API for presentation-only ranking.
@@ -26,6 +27,7 @@
 - Profile completeness ("анкета заполнена") is computed on the server in server/src/profile/completeness-rules.ts and gates the dating category in listings; the UI only mirrors it, so access cannot be bypassed.
 - Demo seed data lives in server/scripts/seed-data.mjs with one unique image file per listing and per author, enforced by tests/seed-images.test.mjs.
 - Listing durations per category live in server/src/listings/durations.ts with a client copy in src/features/nearby/durations.ts; server/tests/durations.test.mjs keeps them identical because the server builds only from its own folder.
+- Urgent deal price rules live in server/src/listings/urgent.ts with a byte-identical browser copy; urgent-jobs.ts owns shared row-locked reservation primitives and a cross-process advisory-locked scheduler, so manual and automatic holds cannot race.
 - Tab swipes and iOS-style edge-back live in src/features/navigation (pure rules in swipe-rules.ts, tested) and attach in AppShell; zones marked data-no-swipe, inputs and dialogs never start a screen swipe, so horizontal galleries keep their own gestures.
 - Listing photo limits live in server/src/listings/photos.ts (pure, tested); attachMedia rejects foreign files and deletes files dropped from a listing.
 - Message reactions live in message_reactions / space_message_reactions; rules (allowed emoji, REACTIONS_PER_USER) sit in server/src/chat/reactions.ts with a client copy in src/features/chat/reactions.ts kept identical by a test; direct chats push a WebSocket "reaction" event, communities rely on the existing message polling.
