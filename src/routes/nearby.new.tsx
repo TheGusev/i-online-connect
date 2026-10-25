@@ -115,7 +115,13 @@ function NewListingPage() {
 
   const showPrice = category === "urgent" ? urgentType === "buy" || urgentType === "help" : priceApplies(category);
   const sellError = category === "urgent" && urgentType === "sell" ? sellFormError(moneyInput(urgentFields.start), moneyInput(urgentFields.floor), photos.length, previous.data?.isMine ? previous.data.startPriceMinor : undefined) : null;
-  const canSubmit = title.trim().length >= 3 && !sellError && !create.isPending && !uploading;
+  const typeFieldsValid = category !== "urgent" || (
+    (urgentType !== "ride" || (urgentFields.from.trim() && urgentFields.to.trim() && urgentFields.departure && Number(urgentFields.seats) >= 1 && Number(urgentFields.seats) <= 99)) &&
+    (urgentType !== "giveaway" || urgentFields.pickup) &&
+    (urgentType !== "help" || description.trim()) &&
+    (urgentType !== "buy" || moneyInput(price) !== null)
+  );
+  const canSubmit = title.trim().length >= 3 && Boolean(typeFieldsValid) && !sellError && !create.isPending && !uploading;
 
   const upload = async (file: File) => {
     if (photos.length >= MAX_PHOTOS) return;
@@ -211,6 +217,7 @@ function NewListingPage() {
           maxLength={120}
           onChange={(event) => setTitle(event.target.value)}
           hint="Коротко и по делу: «Отдам детский велосипед», «Нужен репетитор по математике»"
+          required={category === "urgent"}
         />
 
         <Input
@@ -225,6 +232,7 @@ function NewListingPage() {
           label={category === "urgent" && urgentType === "help" ? "Что случилось" : "Описание"}
           value={description}
           rows={5}
+          required={category === "urgent" && urgentType === "help"}
           maxLength={2000}
           onChange={(event) => setDescription(event.target.value)}
         />
@@ -236,6 +244,7 @@ function NewListingPage() {
             label={category === "urgent" ? urgentType === "buy" ? "Потолок цены, ₽" : "Бюджет, ₽ (необязательно)" : "Цена, ₽ (необязательно)"}
             value={price}
             inputMode="decimal"
+            required={category === "urgent" && urgentType === "buy"}
             onChange={(event) => setPrice(event.target.value)}
             hint="Оставьте пустым — покажем «Договорная»"
           />
