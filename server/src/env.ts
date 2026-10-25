@@ -71,6 +71,12 @@ const schema = z.object({
   // Куда приходят обращения из формы поддержки.
   SUPPORT_EMAIL: z.string().default(""),
 
+  YANDEX_CLIENT_ID: z.string().default(""),
+  YANDEX_CLIENT_SECRET: z.string().default(""),
+  TELEGRAM_CLIENT_ID: z.string().default(""),
+  TELEGRAM_CLIENT_SECRET: z.string().default(""),
+  PUBLIC_BASE_URL: z.string().url().default("https://xn--41a.site"),
+
 
   // Автосверка лица на верификации. Без AI_API_KEY заявки уходят в ручную
   // очередь модерации — сервер при этом работает как обычно.

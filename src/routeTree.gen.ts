@@ -18,6 +18,7 @@ import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as NearbyRouteImport } from './routes/nearby'
 import { Route as NotificationsRouteImport } from './routes/notifications'
+import { Route as OauthCallbackRouteImport } from './routes/oauth-callback'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as RulesRouteImport } from './routes/rules'
 import { Route as SafetyCenterRouteImport } from './routes/safety-center'
@@ -79,6 +80,11 @@ const NearbyRoute = NearbyRouteImport.update({
 const NotificationsRoute = NotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthCallbackRoute = OauthCallbackRouteImport.update({
+  id: '/oauth-callback',
+  path: '/oauth-callback',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/feed': typeof FeedRoute
   '/nearby': typeof NearbyRouteWithChildren
   '/notifications': typeof NotificationsRoute
+  '/oauth-callback': typeof OauthCallbackRoute
   '/onboarding': typeof OnboardingRoute
   '/rules': typeof RulesRoute
   '/safety-center': typeof SafetyCenterRoute
@@ -203,6 +210,7 @@ export interface FileRoutesByTo {
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
   '/notifications': typeof NotificationsRoute
+  '/oauth-callback': typeof OauthCallbackRoute
   '/onboarding': typeof OnboardingRoute
   '/rules': typeof RulesRoute
   '/safety-center': typeof SafetyCenterRoute
@@ -231,6 +239,7 @@ export interface FileRoutesById {
   '/feed': typeof FeedRoute
   '/nearby': typeof NearbyRouteWithChildren
   '/notifications': typeof NotificationsRoute
+  '/oauth-callback': typeof OauthCallbackRoute
   '/onboarding': typeof OnboardingRoute
   '/rules': typeof RulesRoute
   '/safety-center': typeof SafetyCenterRoute
@@ -261,6 +270,7 @@ export interface FileRouteTypes {
     | '/feed'
     | '/nearby'
     | '/notifications'
+    | '/oauth-callback'
     | '/onboarding'
     | '/rules'
     | '/safety-center'
@@ -287,6 +297,7 @@ export interface FileRouteTypes {
     | '/design-system'
     | '/feed'
     | '/notifications'
+    | '/oauth-callback'
     | '/onboarding'
     | '/rules'
     | '/safety-center'
@@ -314,6 +325,7 @@ export interface FileRouteTypes {
     | '/feed'
     | '/nearby'
     | '/notifications'
+    | '/oauth-callback'
     | '/onboarding'
     | '/rules'
     | '/safety-center'
@@ -343,6 +355,7 @@ export interface RootRouteChildren {
   FeedRoute: typeof FeedRoute
   NearbyRoute: typeof NearbyRouteWithChildren
   NotificationsRoute: typeof NotificationsRoute
+  OauthCallbackRoute: typeof OauthCallbackRoute
   OnboardingRoute: typeof OnboardingRoute
   RulesRoute: typeof RulesRoute
   SafetyCenterRoute: typeof SafetyCenterRoute
@@ -418,6 +431,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof NotificationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth-callback': {
+      id: '/oauth-callback'
+      path: '/oauth-callback'
+      fullPath: '/oauth-callback'
+      preLoaderRoute: typeof OauthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -592,6 +612,7 @@ const rootRouteChildren: RootRouteChildren = {
   FeedRoute: FeedRoute,
   NearbyRoute: NearbyRouteWithChildren,
   NotificationsRoute: NotificationsRoute,
+  OauthCallbackRoute: OauthCallbackRoute,
   OnboardingRoute: OnboardingRoute,
   RulesRoute: RulesRoute,
   SafetyCenterRoute: SafetyCenterRoute,
