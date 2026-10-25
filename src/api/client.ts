@@ -55,7 +55,7 @@ export function setToken(token: string | null) {
 
 export class ApiError extends Error {
   status: number;
-  code?: string;
+  code: string | undefined;
   constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = "ApiError";

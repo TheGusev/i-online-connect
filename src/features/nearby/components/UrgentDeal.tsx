@@ -45,6 +45,9 @@ export function UrgentDeal({ listing }: { listing: Listing }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fixed, setFixed] = useState<{ priceMinor: number; expiresAt: string } | null>(null);
+  useEffect(() => {
+    if (fixed && !listing.reservation?.mine && now !== null && new Date(fixed.expiresAt).getTime() <= now) setFixed(null);
+  }, [fixed, listing.reservation?.mine, now]);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["listings"] });
   const run = (action: () => Promise<unknown>, success: string, close = false) => gate.guard(async () => {
     if (busy) return;
