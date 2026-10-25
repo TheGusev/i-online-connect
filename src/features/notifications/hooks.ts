@@ -238,6 +238,13 @@ export function describeNotification(notification: AppNotification): {
       profileId ? `/profile/${profileId}` : conversationId ? `/chat/${conversationId}` : null,
     );
   }
+  if (notification.kind === "space_message_deleted") {
+    return result(
+      "Сообщение удалено администратором сообщества",
+      str("spaceTitle") ? `Сообщество «${str("spaceTitle")}»` : null,
+      spaceId ? `/spaces/${spaceId}` : null,
+    );
+  }
   if (notification.kind === "space_event") {
     const href = spaceId
       ? `/spaces/${spaceId}${eventId ? `?eventId=${encodeURIComponent(eventId)}` : ""}`

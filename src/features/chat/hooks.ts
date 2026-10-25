@@ -338,7 +338,7 @@ export function useEditMessage(conversationId: string) {
   });
 }
 
-/** Удаление своего сообщения: на месте остаётся пометка «Сообщение удалено». */
+/** Удаление своего сообщения: пузырь исчезает сразу, при ошибке возвращается. */
 export function useDeleteMessage(conversationId: string) {
   const queryClient = useQueryClient();
   const cache = useMessagesCache(conversationId);
@@ -346,13 +346,8 @@ export function useDeleteMessage(conversationId: string) {
   return useMutation({
     mutationFn: ({ messageId }: { messageId: string; previous: Message }) =>
       chatApi.deleteMessage(conversationId, messageId),
-    onMutate: ({ messageId, previous }) => {
-      cache.upsert({
-        ...previous,
-        id: messageId,
-        text: "",
-        deletedAt: new Date().toISOString(),
-      });
+    onMutate: ({ messageId }) => {
+      cache.remove(messageId);
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });

@@ -176,6 +176,8 @@ function ConversationPage() {
         });
       }
       if (event.type === "message-deleted") {
+        // Удалённое сообщение просто исчезает из открытого списка.
+        if (event.messageId) cache.remove(event.messageId);
         void queryClient.invalidateQueries({ queryKey: ["chat", "messages", id] });
         void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
       }
