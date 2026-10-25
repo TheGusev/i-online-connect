@@ -384,6 +384,7 @@ export async function listingRoutes(app: FastifyInstance) {
     const userId=currentUserId(request),{id}=idParam.parse(request.params);
     return urgentMutation(id,userId,async(client,lot)=>{
       if(lot.author_id!==userId) throw forbidden();
+      if(lot.urgent_type!=='sell') throw badRequest('Неявка относится только к срочной продаже');
       // Only the most recent reservation may be marked; cannot punish an older buyer after a new hold.
       const held=(await client.query<{id:string;buyer_id:string;status:string;expires_at:Date}>("SELECT * FROM listing_reservations WHERE listing_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1 FOR UPDATE",[id])).rows[0];
       if(!held || held.status!=='expired' || held.expires_at.getTime()>Date.now()) throw badRequest('Отметить неявку можно только после истечения брони');
