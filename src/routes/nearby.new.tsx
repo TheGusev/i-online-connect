@@ -3,12 +3,15 @@ import { Loader2, Plus, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-import { listingsApi, type NeedCategory } from "@/api";
+import { listingsApi, mediaUrl, type NeedCategory } from "@/api";
 import type { ListingPhoto } from "@/api/endpoints/listings";
 import { Button, Chip, Input, TextArea } from "@/components/ds";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { CategoryChips } from "@/features/nearby/components/CategoryChips";
-import { useCreateListing } from "@/features/nearby/hooks";
+import { useCreateListing, useListing } from "@/features/nearby/hooks";
+import { URGENT_DURATIONS, type UrgentType } from "@/features/nearby/urgent";
+import { moneyInput, sellFormError, urgentError } from "@/features/nearby/urgent-ui";
+import { emptyUrgentFields, UrgentFormFields, UrgentTypePicker } from "@/features/nearby/components/UrgentFormFields";
 import { CATEGORY_ORDER, priceApplies } from "@/features/nearby/labels";
 import { DatingLockSheet } from "@/features/nearby/components/DatingLockSheet";
 import {
@@ -23,10 +26,12 @@ import { compressListingPhoto } from "@/features/nearby/compress-image";
 const MAX_PHOTOS = 3;
 
 export const Route = createFileRoute("/nearby/new")({
-  validateSearch: (search: Record<string, unknown>): { category?: NeedCategory } =>
-    CATEGORY_ORDER.includes(search["category"] as NeedCategory)
+  validateSearch: (search: Record<string, unknown>): { category?: NeedCategory; relist?: string } => ({
+    ...(CATEGORY_ORDER.includes(search["category"] as NeedCategory)
       ? { category: search["category"] as NeedCategory }
-      : {},
+      : {}),
+    ...(typeof search["relist"] === "string" ? { relist: search["relist"] } : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Новое объявление в разделе «Рядом» — Я Онлайн" },
@@ -52,6 +57,11 @@ function NewListingPage() {
   const create = useCreateListing();
 
   const search = Route.useSearch();
+  const previous = useListing(search.relist ?? "", Boolean(search.relist));
+  const [prefilled, setPrefilled] = useState<string | null>(null);
+  const [urgentType, setUrgentType] = useState<UrgentType>("sell");
+  const [urgentFields, setUrgentFields] = useState(emptyUrgentFields);
+  const [formError, setFormError] = useState<string | null>(null);
   const me = useMyProfile();
   const datingOpen = me.data?.completeness?.complete === true;
   const [lockOpen, setLockOpen] = useState(false);
@@ -68,12 +78,12 @@ function NewListingPage() {
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
   const [district, setDistrict] = useState("");
-  const [minutes, setMinutes] = useState<number>(LISTING_DURATIONS.urgent.default);
+  const [minutes, setMinutes] = useState<number>(URGENT_DURATIONS.sell.default);
   // Плавная смена блока срока: короткое скрытие и показ вариантов новой категории.
   const [shownCategory, setShownCategory] = useState<NeedCategory>(category);
   const [durationOpen, setDurationOpen] = useState(true);
   useEffect(() => {
-    setMinutes((prev) => durationForCategory(category, prev));
+    if (category !== "urgent") setMinutes((prev) => durationForCategory(category, prev));
     if (category === shownCategory) return;
     setDurationOpen(false);
     const timer = window.setTimeout(() => {
@@ -82,13 +92,30 @@ function NewListingPage() {
     }, 200);
     return () => window.clearTimeout(timer);
   }, [category, shownCategory]);
+  useEffect(() => {
+    if (category === "urgent") setMinutes(URGENT_DURATIONS[urgentType].default);
+  }, [category, urgentType]);
   const expiresAt = useMemo(() => expiryLabel(minutes), [minutes]);
   const [photos, setPhotos] = useState<ListingPhoto[]>([]);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<number | null>(null);
 
-  const showPrice = priceApplies(category);
-  const canSubmit = title.trim().length >= 3 && !create.isPending && !uploading;
+  useEffect(() => {
+    const lot = previous.data;
+    if (!lot || !lot.isMine || lot.id === prefilled) return;
+    setPrefilled(lot.id);
+    setCategory("urgent");
+    setUrgentType(lot.urgentType ?? "sell");
+    setTitle(lot.title);
+    setDescription(lot.description);
+    setDistrict(lot.district ?? "");
+    setPrice(lot.priceMinor == null ? "" : String(lot.priceMinor / 100));
+    setUrgentFields({ ...emptyUrgentFields, start: lot.startPriceMinor == null ? "" : String(lot.startPriceMinor / 100), floor: lot.priceFloorMinor == null ? "" : String(lot.priceFloorMinor / 100), market: lot.marketPriceMinor == null ? "" : String(lot.marketPriceMinor / 100) });
+  }, [previous.data, prefilled]);
+
+  const showPrice = category === "urgent" ? urgentType === "buy" || urgentType === "help" : priceApplies(category);
+  const sellError = category === "urgent" && urgentType === "sell" ? sellFormError(moneyInput(urgentFields.start), moneyInput(urgentFields.floor), photos.length, previous.data?.isMine ? previous.data.startPriceMinor : undefined) : null;
+  const canSubmit = title.trim().length >= 3 && !sellError && !create.isPending && !uploading;
 
   const upload = async (file: File) => {
     if (photos.length >= MAX_PHOTOS) return;
@@ -114,6 +141,8 @@ function NewListingPage() {
     });
 
   const submit = () => {
+    if (sellError) { setFormError(sellError); return; }
+    setFormError(null);
     const rubles = Number(price.replace(",", "."));
     const priceMinor =
       showPrice && price.trim() && Number.isFinite(rubles) ? Math.round(rubles * 100) : null;
@@ -122,21 +151,27 @@ function NewListingPage() {
       {
         category,
         title: title.trim(),
-        description: description.trim(),
+        description: [description.trim(), ...(category === "urgent" && urgentType === "ride" ? [`Откуда: ${urgentFields.from}`, `Куда: ${urgentFields.to}`, `Выезд: ${urgentFields.departure.replace("T", " ")}`, `Мест: ${urgentFields.seats}`] : []), ...(category === "urgent" && urgentType === "giveaway" ? [`Забрать: ${urgentFields.pickup.replace("T", " ")}`] : [])].filter(Boolean).join("\n").slice(0, 2000),
         priceMinor,
         district: district.trim() || undefined,
         mediaIds: photos.map((item) => item.id),
         expiresInMinutes: minutes,
+        ...(category === "urgent" ? {
+          urgentType,
+          ...(urgentType === "sell" ? { priceStartMinor: moneyInput(urgentFields.start) ?? 0, priceFloorMinor: moneyInput(urgentFields.floor) ?? 0, ...(moneyInput(urgentFields.market) !== null ? { marketPriceMinor: moneyInput(urgentFields.market) ?? 0 } : {}) } : {}),
+        } : {}),
       },
       {
         onSuccess: (listing) => {
-          toast.success("Объявление опубликовано", {
+          toast.success("Объявление опубликовано", category === "urgent" ? {} : {
             description: "Людям из вашего города с похожими интересами уже ушло уведомление.",
           });
           void navigate({ to: "/nearby/$id", params: { id: listing.id } });
         },
         onError: (cause) => {
-          toast.error(cause instanceof Error ? cause.message : "Не удалось опубликовать");
+          const message = category === "urgent" ? urgentError(cause) : cause instanceof Error ? cause.message : "Не удалось опубликовать";
+          setFormError(message);
+          toast.error(message);
         },
       },
     );
@@ -168,8 +203,10 @@ function NewListingPage() {
           />
         </fieldset>
 
+        {category === "urgent" && <UrgentTypePicker value={urgentType} onChange={setUrgentType} />}
+        {search.relist && <p className="text-sm text-muted-foreground">{previous.isError || (previous.data && !previous.data.isMine) ? "Прошлый лот недоступен для перезапуска" : "Перезапуск: старт не выше старта прошлого лота"}</p>}
         <Input
-          label="Заголовок"
+          label={category === "urgent" && urgentType === "buy" ? "Что нужно" : category === "urgent" && urgentType === "giveaway" ? "Предмет" : "Заголовок"}
           value={title}
           maxLength={120}
           onChange={(event) => setTitle(event.target.value)}
@@ -185,16 +222,18 @@ function NewListingPage() {
         />
 
         <TextArea
-          label="Описание"
+          label={category === "urgent" && urgentType === "help" ? "Что случилось" : "Описание"}
           value={description}
           rows={5}
           maxLength={2000}
           onChange={(event) => setDescription(event.target.value)}
         />
 
+        {category === "urgent" && <UrgentFormFields type={urgentType} fields={urgentFields} onChange={setUrgentFields} minutes={minutes} />}
+
         {showPrice ? (
           <Input
-            label="Цена, ₽ (необязательно)"
+            label={category === "urgent" ? urgentType === "buy" ? "Потолок цены, ₽" : "Бюджет, ₽ (необязательно)" : "Цена, ₽ (необязательно)"}
             value={price}
             inputMode="decimal"
             onChange={(event) => setPrice(event.target.value)}
@@ -205,7 +244,7 @@ function NewListingPage() {
         <div>
           <div className="mb-3 flex items-baseline justify-between">
             <p className="text-sm font-semibold">Фото</p>
-            <span className="text-xs text-muted-foreground">до 3 фото</span>
+            <span className="text-xs text-muted-foreground">{category === "urgent" && urgentType === "sell" ? "2–3 фото" : "до 3 фото"}</span>
           </div>
           <div className="grid grid-cols-3 gap-2.5">
             {Array.from({ length: MAX_PHOTOS }, (_, slot) => {
@@ -271,6 +310,22 @@ function NewListingPage() {
               );
             })}
           </div>
+          {previous.data?.isMine && previous.data.photos.length > 0 && photos.length === 0 && <Button type="button" variant="secondary" className="mt-3" loading={uploading} onClick={async () => {
+            const lot = previous.data;
+            if (!lot) return;
+            setUploading(true);
+            try {
+              const copied: ListingPhoto[] = [];
+              for (const [i, url] of lot.photos.slice(0, MAX_PHOTOS).entries()) {
+                const response = await fetch(mediaUrl(url) ?? url);
+                if (!response.ok) throw new Error("Не удалось загрузить фото прошлого лота");
+                const file = new File([await response.blob()], `relist-${i}.jpg`, { type: "image/jpeg" });
+                const prepared = await compressListingPhoto(file);
+                copied.push(await listingsApi.uploadListingPhoto(prepared));
+              }
+              setPhotos(copied);
+            } catch (cause) { toast.error(urgentError(cause)); } finally { setUploading(false); }
+          }}>Загрузить фото прошлого лота</Button>}
         </div>
 
         <fieldset>
@@ -278,7 +333,7 @@ function NewListingPage() {
           <div className="duration-reveal" data-open={durationOpen}>
             <div className="min-h-0 overflow-hidden">
               <div className="flex flex-wrap gap-1.5">
-                {LISTING_DURATIONS[shownCategory].options.map((option) => (
+                {(category === "urgent" ? URGENT_DURATIONS[urgentType].options : LISTING_DURATIONS[shownCategory].options).map((option) => (
                   <Chip
                     key={option}
                     size="sm"
@@ -294,6 +349,8 @@ function NewListingPage() {
             </div>
           </div>
         </fieldset>
+
+        {(formError || sellError) && <p role="alert" className="text-sm text-destructive">{formError ?? sellError}</p>}
 
         <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-10 flex gap-3 border-t border-border bg-background/95 px-4 py-3 backdrop-blur lg:bottom-0 lg:left-auto lg:right-0 lg:w-[calc(100%-16rem)] lg:justify-center">
           <Button type="submit" className="flex-1 lg:flex-none" disabled={!canSubmit} loading={create.isPending}>
