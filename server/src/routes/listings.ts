@@ -275,7 +275,7 @@ async function attachMedia(listingId: string, userId: string, mediaIds: string[]
   }
 
   // Снятые с объявления файлы, которые больше нигде не используются, удаляем.
-  const dropped = previous.map((row) => row.file_id).filter((id): id is string => Boolean(id) && !fileIds.has(id!));
+  const dropped = previous.map((row) => row.file_id).filter((id): id is string => id !== null && !fileIds.has(id));
   if (dropped.length) {
     const removed = await query<{ url: string }>(
       `DELETE FROM listing_files f WHERE f.user_id = $1 AND f.id = ANY($2::uuid[])
@@ -657,11 +657,23 @@ export async function listingRoutes(app: FastifyInstance) {
         const result=await client.query<{id:string}>(`INSERT INTO listings(author_id,category,city,district,title,description,price_minor,expires_at,urgent_type,market_price_minor,price_start_minor,price_floor_minor)
           VALUES($1,$2::need_category,$3,$4,$5,$6,$7,now()+make_interval(mins=>$8::int),$9,$10,$11,$12) RETURNING id`,
           [userId,draft.category,city,draft.district ?? '',draft.title,draft.description ?? '',start ?? draft.priceMinor ?? null,durationMinutes,urgentType,urgentType==='sell' ? draft.marketPriceMinor ?? null : null,start,floor]);
-        return result.rows[0];
+        const saved=result.rows[0];
+        if(urgentType && saved && draft.mediaIds?.length) {
+          if(checkListingPhotos(draft.mediaIds)) throw badRequest('Фото не должны повторяться');
+          // Lock and validate each owned photo before making the sell visible.
+          const files=await client.query<{id:string}>('SELECT id FROM listing_files WHERE user_id=$1 AND id=ANY($2::uuid[]) FOR UPDATE',[userId,draft.mediaIds]);
+          const legacy=await client.query<{id:string}>("SELECT id FROM profile_media WHERE user_id=$1 AND kind='photo' AND id=ANY($2::uuid[]) FOR UPDATE",[userId,draft.mediaIds]);
+          const fileIds=new Set(files.rows.map(f=>f.id)), legacyIds=new Set(legacy.rows.map(f=>f.id));
+          for(const [position,mediaId] of draft.mediaIds.entries()) {
+            if(!fileIds.has(mediaId) && !legacyIds.has(mediaId)) throw new HttpError(400,'Фото должно быть загружено вами','FOREIGN_PHOTO');
+            await client.query('INSERT INTO listing_media(listing_id,media_id,file_id,position) VALUES($1,$2,$3,$4)',[saved.id,fileIds.has(mediaId)?null:mediaId,fileIds.has(mediaId)?mediaId:null,position]);
+          }
+        }
+        return saved;
       });
       if (!row) throw badRequest("Не удалось сохранить объявление");
 
-      if (draft.mediaIds?.length) await attachMedia(row.id, userId, draft.mediaIds);
+      if (!urgentType && draft.mediaIds?.length) await attachMedia(row.id, userId, draft.mediaIds);
 
       // Уведомления не должны блокировать ответ: ошибки только логируем.
       void notifyListingMatches({
