@@ -9,6 +9,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 
 import { query, queryOne } from "../db.ts";
+import type pg from "pg";
 import { env } from "../env.ts";
 import { unauthorized } from "../http.ts";
 
@@ -87,7 +88,9 @@ export async function revokeRefreshToken(token: string): Promise<void> {
 }
 
 /** Разлогинить пользователя на всех устройствах (смена пароля, удаление). */
-export async function revokeAllForUser(userId: string): Promise<void> {
+export async function revokeAllForUser(userId: string, client?: pg.PoolClient): Promise<void> {
+  const sql = "UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL";
+  if (client) { await client.query(sql, [userId]); return; }
   await query(
     "UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL",
     [userId],

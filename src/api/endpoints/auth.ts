@@ -48,3 +48,9 @@ export async function verifyPhoneCode(
   setToken(session.token);
   return session;
 }
+
+export const getAuthConfig = () => request<{ passwordResetEnabled: boolean }>("/auth/config");
+export const requestPasswordReset = (email: string) => request<void>("/auth/password/reset/request", { method: "POST", body: { email } });
+export const confirmPasswordReset = (email: string, code: string, newPassword: string) => request<void>("/auth/password/reset/confirm", { method: "POST", body: { email, code, newPassword } });
+export const requestPhoneLink = (phone: string) => request<void>("/auth/phone/link/request", { method: "POST", body: { phone } });
+export const verifyPhoneLink = (phone: string, code: string) => request<{ status: "verified" }>("/auth/phone/link/verify", { method: "POST", body: { phone, code } });

@@ -1,6 +1,7 @@
 import { request } from "../client";
 import type {
   AccountSettings,
+  AccountPatch,
   DeleteAccountReceipt,
   DeleteAccountRequest,
   NotificationSettings,
@@ -12,7 +13,7 @@ export async function getSettings(): Promise<SettingsBundle> {
   return request<SettingsBundle>("/settings");
 }
 
-export async function updateAccount(patch: Partial<AccountSettings>): Promise<AccountSettings> {
+export async function updateAccount(patch: AccountPatch): Promise<AccountSettings> {
   return request<AccountSettings>("/settings/account", { method: "PATCH", body: patch });
 }
 
