@@ -27,9 +27,11 @@ export interface ListingNotificationInput {
   city: string;
   title: string;
   priceMinor: number | null;
+  expiresAt?: Date;
 }
 
 export async function notifyListingMatches(input: ListingNotificationInput): Promise<number> {
+  if (input.category === "urgent" && input.expiresAt && input.expiresAt.getTime() - Date.now() < 600000) return 0;
   const recipients = await query<Recipient>(
     `SELECT u.id AS user_id, u.email, p.name
        FROM user_needs n
@@ -90,6 +92,7 @@ export async function notifyListingMatches(input: ListingNotificationInput): Pro
 
     // Офлайн — мягкое письмо-напоминание. Ошибка почты не должна ронять
     // публикацию объявления.
+    if (input.category === "urgent") continue;
     try {
       const greeting = recipient.name ? `${recipient.name}, привет!` : "Привет!";
       await sendMail({

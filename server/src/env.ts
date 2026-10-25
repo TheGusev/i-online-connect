@@ -59,6 +59,7 @@ const schema = z.object({
 
   ACCOUNT_RESTORE_DAYS: z.coerce.number().int().positive().default(14),
   DAILY_MATCH_LIMIT: z.coerce.number().int().positive().default(5),
+  URGENT_SELL_CITIES: z.string().default(""),
 
   // Почта: SMTP собственного сервера. Пусто — письма не уходят, код
   // подтверждения пишется в лог (удобно для локальной разработки).
@@ -122,6 +123,7 @@ if (!parsed.success) {
 
 export const env = {
   ...parsed.data,
+  urgentSellCities: parsed.data.URGENT_SELL_CITIES.split(",").map(city => city.trim().toLocaleLowerCase("ru-RU")).filter(Boolean),
   isProd: parsed.data.NODE_ENV === "production",
   corsOrigins: parsed.data.CORS_ORIGINS.split(",")
     .map((value) => value.trim())

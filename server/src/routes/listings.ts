@@ -34,6 +34,14 @@ import {
 import { publishUserEvent } from "../ws/notifications.ts";
 import { datingAccess, loadCompleteness } from "../profile/completeness.ts";
 import { resolveDuration } from "../listings/durations.ts";
+import { env } from "../env.ts";
+import { URGENT_TYPES, URGENT_DURATIONS, validateSell, suggestPrices, normalizeTitleKey, NEW_ACCOUNT_MAX_ACTIVE, ACTIVE_MAX, floorHintPct } from "../listings/urgent.ts";
+import { expireReservations, lotPrice, reserveLot, buyerAllowed, urgentEvent, type UrgentLot } from "../listings/urgent-jobs.ts";
+
+async function requireUrgentPhone(client:import('pg').PoolClient, userId:string) {
+  const user=(await client.query<{phone_verified:boolean}>('SELECT phone_verified FROM users WHERE id=$1',[userId])).rows[0];
+  if(!user?.phone_verified) throw new HttpError(403,'Подтвердите номер телефона для срочной сделки','PHONE_REQUIRED');
+}
 
 const profileIncomplete = () =>
   new HttpError(403, "Заполните анкету, чтобы открыть знакомства", "PROFILE_INCOMPLETE");
@@ -97,6 +105,10 @@ const createSchema = z.object({
   city: z.string().trim().min(2).max(120).optional(),
   district: z.string().trim().max(120).optional(),
   mediaIds: z.array(z.string().uuid()).optional(),
+  urgentType: z.enum(URGENT_TYPES).optional(),
+  marketPriceMinor: z.number().int().min(0).max(1_000_000_000).optional(),
+  priceStartMinor: z.number().int().min(0).max(1_000_000_000).optional(),
+  priceFloorMinor: z.number().int().min(0).max(1_000_000_000).optional(),
   expiresInDays: z.number().int().min(1).max(90).optional(),
   expiresInMinutes: z.number().int().positive().optional(),
 });
@@ -114,7 +126,16 @@ const LISTING_SELECT = `
   SELECT l.id, l.category, l.city, l.district, l.title, l.description, l.price_minor, l.currency,
          CASE WHEN l.state = 'active' AND l.expires_at <= now() THEN 'expired'::listing_state ELSE l.state END AS state,
          l.expires_at, l.created_at, l.is_seed,
-         l.author_id,
+         l.author_id, l.urgent_type, l.market_price_minor, l.price_start_minor, l.price_floor_minor, l.outcome, l.final_price_minor, l.closed_at,
+         (SELECT count(*)::int FROM listing_watchers w WHERE w.listing_id=l.id) AS watchers_count,
+         EXISTS(SELECT 1 FROM listing_watchers w WHERE w.listing_id=l.id AND w.user_id=$1) AS i_watch,
+         (SELECT max_price_minor FROM listing_bids b WHERE b.listing_id=l.id AND b.buyer_id=$1 AND b.status='active') AS my_bid,
+         (SELECT count(*)::int FROM listing_bids b WHERE b.listing_id=l.id AND b.status='active') AS bids_count,
+         (SELECT max(max_price_minor) FROM listing_bids b WHERE b.listing_id=l.id AND b.status='active') AS highest_bid,
+         (SELECT json_build_object('active',true,'mine',r.buyer_id=$1,'expiresAt',r.expires_at,'priceMinor',r.price_minor,'source',r.source)
+          FROM listing_reservations r WHERE r.listing_id=l.id AND r.status='active' AND r.expires_at>now()) AS reservation,
+         (SELECT json_build_object('id',r.id,'buyerName',bp.name,'expiresAt',r.expires_at,'priceMinor',r.price_minor,'source',r.source)
+          FROM listing_reservations r JOIN profiles bp ON bp.user_id=r.buyer_id WHERE r.listing_id=l.id AND r.status='active' AND r.expires_at>now()) AS owner_reservation,
          p.name        AS author_name,
          p.trust_level AS author_trust,
          (SELECT url FROM profile_media
@@ -136,6 +157,9 @@ const LISTING_SELECT = `
 `;
 
 interface ListingRow {
+  urgent_type: string|null; market_price_minor:number|null; price_start_minor:number|null; price_floor_minor:number|null;
+  outcome:string|null; final_price_minor:number|null; closed_at:Date|null; watchers_count:number; i_watch:boolean; my_bid:number|null;
+  bids_count:number; highest_bid:number|null; reservation:unknown; owner_reservation:unknown;
   id: string;
   category: (typeof NEED_CATEGORIES)[number];
   city: string;
@@ -158,7 +182,17 @@ interface ListingRow {
 }
 
 function toListingDto(row: ListingRow, userId: string | null) {
+  const price=row.urgent_type==='sell' ? lotPrice(row) : null;
+  const own=userId!==null && row.author_id===userId;
   return {
+    urgentType:row.urgent_type, startPriceMinor:row.price_start_minor, currentPriceMinor:price?.priceMinor ?? row.price_minor,
+    nextDropAt:price?.nextDropAt ?? null,lastDropAt:price?.lastDropAt ?? null,
+    discountFromStartPct:price && row.price_start_minor ? Math.floor((1-price.priceMinor/row.price_start_minor)*100) : 0,
+    floorHintPct:price ? floorHintPct(row.price_start_minor ?? 0,row.price_floor_minor ?? 0) : null,
+    watchersCount:row.watchers_count,iWatch:row.i_watch,myBid:row.my_bid!==null ? {maxPriceMinor:row.my_bid} : null,
+    reservation:row.reservation ?? {active:false,mine:false,expiresAt:null,priceMinor:null,source:null},
+    outcome:row.outcome,finalPriceMinor:row.final_price_minor,closedAt:row.closed_at?.toISOString() ?? null,
+    ...(own ? {priceFloorMinor:row.price_floor_minor,marketPriceMinor:row.market_price_minor,bidsCount:row.bids_count,highestBidMinor:row.highest_bid,activeReservation:row.owner_reservation} : {}),
     id: row.id,
     category: row.category,
     city: row.city,
@@ -241,7 +275,7 @@ async function attachMedia(listingId: string, userId: string, mediaIds: string[]
   }
 
   // Снятые с объявления файлы, которые больше нигде не используются, удаляем.
-  const dropped = previous.map((row) => row.file_id).filter((id): id is string => Boolean(id) && !fileIds.has(id!));
+  const dropped = previous.map((row) => row.file_id).filter((id): id is string => id !== null && !fileIds.has(id));
   if (dropped.length) {
     const removed = await query<{ url: string }>(
       `DELETE FROM listing_files f WHERE f.user_id = $1 AND f.id = ANY($2::uuid[])
@@ -268,6 +302,112 @@ export async function listingRoutes(app: FastifyInstance) {
     const tail = route.replace(/^\/api\/listings/, "") || "/";
     if (request.method === "GET" && PUBLIC_GET.has(tail) && !request.headers.authorization) return;
     await requireAuth(request, reply);
+  });
+
+  // Urgent mutations share the listing row lock with the background worker.
+  async function urgentMutation(id:string, userId:string, action:(client:import('pg').PoolClient, lot:UrgentLot)=>Promise<unknown>) {
+    try {
+      return await transaction(async client => {
+        const lot = (await client.query<UrgentLot>('SELECT * FROM listings WHERE id=$1 FOR UPDATE',[id])).rows[0];
+        if (!lot) throw notFound('Объявление не найдено');
+        if (lot.category !== 'urgent') throw badRequest('Это не срочное объявление');
+        const blocked = await client.query('SELECT 1 FROM blocks WHERE (user_id=$1 AND blocked_id=$2) OR (user_id=$2 AND blocked_id=$1)',[userId,lot.author_id]);
+        if (blocked.rowCount) throw forbidden('Объявление недоступно');
+        await expireReservations(client,id);
+        return action(client,lot);
+      });
+    } catch(error) {
+      if ((error as {code?:string}).code === '23505') throw new HttpError(409,'Объявление уже забронировано','ALREADY_RESERVED');
+      throw error;
+    }
+  }
+  const assertActiveSell = (lot:UrgentLot,userId:string) => {
+    if (lot.urgent_type !== 'sell' || lot.state !== 'active' || lot.expires_at.getTime() <= Date.now() || lot.is_seed) throw badRequest('Продажа уже недоступна');
+    if (lot.author_id === userId) throw badRequest('Это ваше объявление');
+  };
+  for (const method of ['post','delete'] as const) app[method]('/:id/watch', async request => {
+    const userId=currentUserId(request), {id}=idParam.parse(request.params);
+    return urgentMutation(id,userId,async(client,lot)=>{
+      if (method==='post') {
+        if (lot.state!=='active' || lot.expires_at.getTime()<=Date.now()) throw badRequest('Объявление завершено');
+        const inserted=await client.query('INSERT INTO listing_watchers(listing_id,user_id) VALUES($1,$2) ON CONFLICT DO NOTHING RETURNING user_id',[id,userId]);
+        if(inserted.rowCount) await urgentEvent(client,id,userId,'watch');
+      } else await client.query('DELETE FROM listing_watchers WHERE listing_id=$1 AND user_id=$2',[id,userId]);
+      return {ok:true};
+    });
+  });
+  app.put('/:id/bid',async request=>{
+    const userId=currentUserId(request),{id}=idParam.parse(request.params);
+    const {maxPriceMinor}=z.object({maxPriceMinor:z.number().int().min(0).max(1_000_000_000)}).parse(request.body);
+    return urgentMutation(id,userId,async(client,lot)=>{
+      assertActiveSell(lot,userId);
+      await requireUrgentPhone(client,userId);
+      if (!(await buyerAllowed(client,userId,lot.author_id))) throw forbidden('Бронирование недоступно после неявок');
+      if(maxPriceMinor>=lotPrice(lot).priceMinor) throw new HttpError(400,'Цена уже достигнута. Забронируйте по текущей цене','BID_ABOVE_CURRENT');
+      await client.query(`INSERT INTO listing_bids(listing_id,buyer_id,max_price_minor) VALUES($1,$2,$3)
+        ON CONFLICT(listing_id,buyer_id) DO UPDATE SET max_price_minor=$3,status='active',created_at=now()`,[id,userId,maxPriceMinor]);
+      await urgentEvent(client,id,userId,'bid',{maxPriceMinor});
+      return {ok:true,myBid:{maxPriceMinor}};
+    });
+  });
+  app.delete('/:id/bid',async request=>{
+    const userId=currentUserId(request),{id}=idParam.parse(request.params);
+    return urgentMutation(id,userId,async client=>{
+      await client.query("UPDATE listing_bids SET status='cancelled' WHERE listing_id=$1 AND buyer_id=$2 AND status='active'",[id,userId]);
+      return {ok:true};
+    });
+  });
+  app.post('/:id/reserve',{config:RESPOND_LIMIT},async request=>{
+    const userId=currentUserId(request),{id}=idParam.parse(request.params);
+    const {arriveInMinutes}=z.object({arriveInMinutes:z.union([z.literal(15),z.literal(30),z.literal(60)])}).parse(request.body);
+    return urgentMutation(id,userId,async(client,lot)=>{
+      assertActiveSell(lot,userId);
+      await requireUrgentPhone(client,userId);
+      if (!(await buyerAllowed(client,userId,lot.author_id))) throw new HttpError(403,'Бронирование недоступно: неявки у двух продавцов за 30 дней','RESERVATION_BANNED');
+      const held=await client.query("SELECT 1 FROM listing_reservations WHERE listing_id=$1 AND status='active'",[id]);
+      if(held.rowCount) throw new HttpError(409,'Объявление уже забронировано','ALREADY_RESERVED');
+      const reserved=await reserveLot(client,lot,userId,arriveInMinutes,'manual');
+      return {ok:true,...reserved};
+    });
+  });
+  app.post('/:id/reserve/cancel',async request=>{
+    const userId=currentUserId(request),{id}=idParam.parse(request.params);
+    return urgentMutation(id,userId,async(client,lot)=>{
+      const held=(await client.query<{id:string;buyer_id:string}>("SELECT * FROM listing_reservations WHERE listing_id=$1 AND status='active' FOR UPDATE",[id])).rows[0];
+      if(!held) throw badRequest('Активной брони нет');
+      if(held.buyer_id!==userId && lot.author_id!==userId) throw forbidden();
+      await client.query("UPDATE listing_reservations SET status='cancelled' WHERE id=$1",[held.id]);
+      return {ok:true};
+    });
+  });
+  app.post('/:id/reserve/no-show',async request=>{
+    const userId=currentUserId(request),{id}=idParam.parse(request.params);
+    return urgentMutation(id,userId,async(client,lot)=>{
+      if(lot.author_id!==userId) throw forbidden();
+      if(lot.urgent_type!=='sell') throw badRequest('Неявка относится только к срочной продаже');
+      // Only the most recent reservation may be marked; cannot punish an older buyer after a new hold.
+      const held=(await client.query<{id:string;buyer_id:string;status:string;expires_at:Date}>("SELECT * FROM listing_reservations WHERE listing_id=$1 ORDER BY created_at DESC,id DESC LIMIT 1 FOR UPDATE",[id])).rows[0];
+      if(!held || held.status!=='expired' || held.expires_at.getTime()>Date.now()) throw badRequest('Отметить неявку можно только после истечения брони');
+      await client.query("UPDATE listing_reservations SET status='no_show' WHERE id=$1",[held.id]);
+      await urgentEvent(client,id,held.buyer_id,'no_show',{reservationId:held.id});
+      return {ok:true};
+    });
+  });
+  app.post('/:id/complete',async request=>{
+    const userId=currentUserId(request),{id}=idParam.parse(request.params);
+    const {outcome}=z.object({outcome:z.enum(['sold','given','done','cancelled'])}).parse(request.body);
+    return urgentMutation(id,userId,async(client,lot)=>{
+      if(lot.author_id!==userId) throw forbidden();
+      if(lot.state!=='active') throw badRequest('Объявление уже завершено');
+      const held=(await client.query<{id:string;price_minor:number}>("SELECT * FROM listing_reservations WHERE listing_id=$1 AND status='active'",[id])).rows[0];
+      if(outcome==='sold' && (lot.urgent_type!=='sell' || !held)) throw badRequest('Для продажи нужна активная бронь');
+      const finalPriceMinor=outcome==='sold' ? held?.price_minor ?? null : null;
+      await client.query("UPDATE listings SET state='closed',outcome=$2,final_price_minor=$3,closed_at=now(),updated_at=now() WHERE id=$1",[id,outcome,finalPriceMinor]);
+      await client.query("UPDATE listing_reservations SET status=$2 WHERE listing_id=$1 AND status='active'",[id,outcome==='cancelled'?'cancelled':'completed']);
+      await client.query("UPDATE listing_bids SET status='cancelled' WHERE listing_id=$1 AND status='active'",[id]);
+      await urgentEvent(client,id,userId,outcome,{finalPriceMinor});
+      return {ok:true,outcome,finalPriceMinor};
+    });
   });
 
   // ── Фото объявления ──────────────────────────────────────────────────────
@@ -331,6 +471,7 @@ export async function listingRoutes(app: FastifyInstance) {
   // ── Поиск ────────────────────────────────────────────────────────────────
   app.get("/", { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } }, async (request) => {
     const userId = request.userId ?? null;
+    await expireReservations();
     const filters = z
       .object({
         city: z.string().trim().min(2).max(120).optional(),
@@ -379,7 +520,9 @@ export async function listingRoutes(app: FastifyInstance) {
                        AND rl.category = l.category) < ${SEED_HIDE_THRESHOLD}
               )
           AND ($7::boolean IS NOT TRUE OR l.category <> 'dating')
-        ORDER BY l.is_seed ASC, l.created_at DESC
+          AND ($8::boolean IS NOT TRUE OR l.author_id=$1 OR l.expires_at>=now()+interval '2 minutes')
+        ORDER BY CASE WHEN $8::boolean THEN EXISTS(SELECT 1 FROM listing_reservations r WHERE r.listing_id=l.id AND r.status='active' AND r.expires_at>now()) END ASC,
+                 CASE WHEN $8::boolean THEN l.expires_at END ASC, l.is_seed ASC, l.created_at DESC
         LIMIT $6`,
       [
         userId,
@@ -389,6 +532,7 @@ export async function listingRoutes(app: FastifyInstance) {
         filters.onlyMyNeeds ?? false,
         filters.limit ?? 30,
         excludeDating,
+        filters.category === "urgent",
       ],
     );
 
@@ -397,6 +541,7 @@ export async function listingRoutes(app: FastifyInstance) {
 
   app.get("/mine", async (request) => {
     const userId = currentUserId(request);
+    await expireReservations();
     const rows = await query<ListingRow>(
       `${LISTING_SELECT} WHERE l.author_id = $1 ORDER BY l.created_at DESC LIMIT 100`,
       [userId],
@@ -405,6 +550,7 @@ export async function listingRoutes(app: FastifyInstance) {
   });
 
   app.get<{ Params: { userId: string } }>("/user/:userId", async (request) => {
+    await expireReservations();
     const viewerId = currentUserId(request);
     const { userId } = z.object({ userId: z.string().uuid() }).parse(request.params);
     const rows = await query<ListingRow>(
@@ -425,8 +571,14 @@ export async function listingRoutes(app: FastifyInstance) {
   app.get<{ Params: { id: string } }>("/:id", { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } }, async (request) => {
     const userId = request.userId ?? null;
     const { id } = idParam.parse(request.params);
+    await expireReservations(undefined,id);
     const row = await queryOne<ListingRow>(`${LISTING_SELECT} WHERE l.id = $2`, [userId, id]);
     if (!row) throw notFound("Объявление не найдено");
+    if(userId && row.category==='urgent') await transaction(async client=>{
+      await client.query('SELECT id FROM listings WHERE id=$1 FOR UPDATE',[id]);
+      await client.query(`INSERT INTO listing_events(listing_id,user_id,kind) SELECT $1,$2,'view'
+        WHERE NOT EXISTS(SELECT 1 FROM listing_events WHERE listing_id=$1 AND user_id=$2 AND kind='view' AND created_at>=now()-interval '1 day')`,[id,userId]);
+    });
     return toListingDto(row, userId);
   });
 
@@ -450,9 +602,18 @@ export async function listingRoutes(app: FastifyInstance) {
       const userId = currentUserId(request);
       const draft = createSchema.parse(request.body);
       if (draft.mediaIds) checkPhotosEarly(draft.mediaIds);
-      const durationMinutes = resolveDuration(draft.category, draft);
-      if (durationMinutes === null) {
-        throw new HttpError(400, "Такой срок недоступен для этой категории", "INVALID_DURATION");
+      const urgentType = draft.category === 'urgent' ? draft.urgentType ?? (draft.priceStartMinor !== undefined || draft.priceFloorMinor !== undefined || draft.marketPriceMinor !== undefined || draft.priceMinor != null ? 'sell' : 'help') : null;
+      const urgentDuration = urgentType ? URGENT_DURATIONS[urgentType] : null;
+      const durationMinutes = urgentDuration ? draft.expiresInMinutes ?? (draft.expiresInDays !== undefined ? draft.expiresInDays*1440 : urgentDuration.default) : resolveDuration(draft.category,draft);
+      if(durationMinutes===null || (urgentDuration && !urgentDuration.options.includes(durationMinutes))) throw new HttpError(400,'Такой срок недоступен для этого типа','INVALID_DURATION');
+      const suggestions=draft.marketPriceMinor !== undefined ? suggestPrices(draft.marketPriceMinor) : null;
+      const start=urgentType==='sell' ? draft.priceStartMinor ?? draft.priceMinor ?? suggestions?.start ?? null : null;
+      const floor=urgentType==='sell' ? draft.priceFloorMinor ?? suggestions?.floor ?? null : null;
+      if(urgentType==='sell') {
+        if(start===null || floor===null) throw badRequest('Укажите стартовую и минимальную цены');
+        const problem=validateSell({start,floor});
+        if(problem) throw new HttpError(400,{FLOOR_ABOVE_START:'Минимум выше стартовой цены',START_TOO_HIGH:'Старт не может быть выше 150% минимума',FLOOR_TOO_LOW:'Минимальная цена — 100 ₽'}[problem],problem);
+        if((draft.mediaIds?.length ?? 0)<2) throw badRequest('Для продажи нужны минимум два фото');
       }
       if (draft.category === "dating" && !(await loadCompleteness(userId)).complete) {
         throw profileIncomplete();
@@ -478,25 +639,42 @@ export async function listingRoutes(app: FastifyInstance) {
       const city = draft.city ?? profile?.city ?? null;
       if (!city) throw badRequest("Укажите город в профиле — объявления показываются по городу");
 
-      const row = await queryOne<{ id: string }>(
-        `INSERT INTO listings (author_id, category, city, district, title, description, price_minor, expires_at)
-          VALUES ($1, $2::need_category, $3, $8, $4, $5, $6,
-                  now() + make_interval(mins => $7::int))
-         RETURNING id`,
-        [
-          userId,
-          draft.category,
-          city,
-          draft.title,
-          draft.description ?? "",
-          draft.priceMinor ?? null,
-          durationMinutes,
-          draft.district ?? "",
-        ],
-      );
+      const row = await transaction(async client=>{
+        // Author lock serializes limits and relisting checks across concurrent requests.
+        await client.query('SELECT id FROM users WHERE id=$1 FOR UPDATE',[userId]);
+        if(urgentType) {
+          const owner=(await client.query<{trust_level:string}>('SELECT trust_level FROM profiles WHERE user_id=$1',[userId])).rows[0];
+          const count=(await client.query<{count:number}>("SELECT count(*)::int AS count FROM listings WHERE author_id=$1 AND category='urgent' AND state='active' AND expires_at>now()",[userId])).rows[0]?.count ?? 0;
+          if(count >= (owner?.trust_level==='new' ? NEW_ACCOUNT_MAX_ACTIVE : ACTIVE_MAX)) throw new HttpError(400,'Лимит активных срочных объявлений достигнут','URGENT_ACTIVE_LIMIT');
+        }
+        if(urgentType==='sell') {
+          await requireUrgentPhone(client,userId);
+          if(env.urgentSellCities.length && !env.urgentSellCities.includes(city.trim().toLocaleLowerCase('ru-RU'))) throw new HttpError(403,'Срочные продажи пока недоступны в этом городе','URGENT_SELL_NOT_AVAILABLE');
+          const previous=await client.query<{title:string;created_at:Date;price_start_minor:number|null}>("SELECT title,created_at,price_start_minor FROM listings WHERE author_id=$1 AND urgent_type='sell' AND created_at>now()-interval '7 days' ORDER BY created_at DESC",[userId]);
+          const same=previous.rows.find(r=>normalizeTitleKey(r.title)===normalizeTitleKey(draft.title));
+          if(same && Date.now()-same.created_at.getTime()<86400000) throw new HttpError(409,'Такой лот уже выставлялся за последние 24 часа','DUPLICATE_RECENT');
+          if(same && start!==null && same.price_start_minor!==null && start>same.price_start_minor) throw new HttpError(400,'Стартовая цена не должна превышать цену прошлого лота','START_ABOVE_PREVIOUS');
+        }
+        const result=await client.query<{id:string}>(`INSERT INTO listings(author_id,category,city,district,title,description,price_minor,expires_at,urgent_type,market_price_minor,price_start_minor,price_floor_minor)
+          VALUES($1,$2::need_category,$3,$4,$5,$6,$7,now()+make_interval(mins=>$8::int),$9,$10,$11,$12) RETURNING id`,
+          [userId,draft.category,city,draft.district ?? '',draft.title,draft.description ?? '',start ?? draft.priceMinor ?? null,durationMinutes,urgentType,urgentType==='sell' ? draft.marketPriceMinor ?? null : null,start,floor]);
+        const saved=result.rows[0];
+        if(urgentType && saved && draft.mediaIds?.length) {
+          if(checkListingPhotos(draft.mediaIds)) throw badRequest('Фото не должны повторяться');
+          // Lock and validate each owned photo before making the sell visible.
+          const files=await client.query<{id:string}>('SELECT id FROM listing_files WHERE user_id=$1 AND id=ANY($2::uuid[]) FOR UPDATE',[userId,draft.mediaIds]);
+          const legacy=await client.query<{id:string}>("SELECT id FROM profile_media WHERE user_id=$1 AND kind='photo' AND id=ANY($2::uuid[]) FOR UPDATE",[userId,draft.mediaIds]);
+          const fileIds=new Set(files.rows.map(f=>f.id)), legacyIds=new Set(legacy.rows.map(f=>f.id));
+          for(const [position,mediaId] of draft.mediaIds.entries()) {
+            if(!fileIds.has(mediaId) && !legacyIds.has(mediaId)) throw new HttpError(400,'Фото должно быть загружено вами','FOREIGN_PHOTO');
+            await client.query('INSERT INTO listing_media(listing_id,media_id,file_id,position) VALUES($1,$2,$3,$4)',[saved.id,fileIds.has(mediaId)?null:mediaId,fileIds.has(mediaId)?mediaId:null,position]);
+          }
+        }
+        return saved;
+      });
       if (!row) throw badRequest("Не удалось сохранить объявление");
 
-      if (draft.mediaIds?.length) await attachMedia(row.id, userId, draft.mediaIds);
+      if (!urgentType && draft.mediaIds?.length) await attachMedia(row.id, userId, draft.mediaIds);
 
       // Уведомления не должны блокировать ответ: ошибки только логируем.
       void notifyListingMatches({
@@ -506,7 +684,8 @@ export async function listingRoutes(app: FastifyInstance) {
         category: draft.category,
         city,
         title: draft.title,
-        priceMinor: draft.priceMinor ?? null,
+        priceMinor: start ?? draft.priceMinor ?? null,
+        expiresAt: new Date(Date.now()+durationMinutes*60000),
       }).catch((error) => console.error("[listings] уведомления не отправлены", error));
 
       const created = await queryOne<ListingRow>(`${LISTING_SELECT} WHERE l.id = $2`, [
@@ -523,6 +702,9 @@ export async function listingRoutes(app: FastifyInstance) {
     const { id } = idParam.parse(request.params);
     await assertOwnListing(id, userId);
     const patch = patchSchema.parse(request.body);
+    const urgent = await queryOne<{urgent_type:string|null}>("SELECT urgent_type FROM listings WHERE id=$1",[id]);
+    if(urgent?.urgent_type && patch.state!==undefined) throw badRequest('Завершите срочную сделку через действие завершения');
+    if(urgent?.urgent_type==='sell' && (patch.priceMinor!==undefined || patch.title!==undefined || patch.mediaIds!==undefined)) throw badRequest('Цены, заголовок и фото опубликованной продажи менять нельзя');
     if (patch.mediaIds) checkPhotosEarly(patch.mediaIds);
 
     await query(
@@ -556,7 +738,12 @@ export async function listingRoutes(app: FastifyInstance) {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
     await assertOwnListing(id, userId);
-    await query("UPDATE listings SET state = 'closed', updated_at = now() WHERE id = $1", [id]);
+    await transaction(async client=>{
+      await client.query('SELECT id FROM listings WHERE id=$1 FOR UPDATE',[id]);
+      await client.query("UPDATE listings SET state='closed',outcome=CASE WHEN urgent_type IS NOT NULL THEN COALESCE(outcome,'cancelled') ELSE outcome END,closed_at=CASE WHEN urgent_type IS NOT NULL THEN COALESCE(closed_at,now()) ELSE closed_at END,updated_at=now() WHERE id=$1",[id]);
+      await client.query("UPDATE listing_reservations SET status='cancelled' WHERE listing_id=$1 AND status='active'",[id]);
+      await client.query("UPDATE listing_bids SET status='cancelled' WHERE listing_id=$1 AND status='active'",[id]);
+    });
     return { ok: true as const };
   });
 
