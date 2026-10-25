@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { priceAt, URGENT_DURATIONS } from "./urgent";
 import { priceAt as serverPriceAt } from "../../../server/src/listings/urgent";
-import { clockLeft, moneyInput, priceSteps, sellFormError, unreservedUrgent } from "./urgent-ui";
+import { clockLeft, moneyInput, priceSteps, sellFormError, unreservedUrgent, urgentListings } from "./urgent-ui";
 
 test("browser price equals server for every duration and time boundary", () => {
   for (const minutes of URGENT_DURATIONS.sell.options) {
@@ -38,6 +38,16 @@ test("six-hour seller preview has 8 drops and final floor at 85 percent", () => 
   assert.equal(steps.length, 8);
   assert.equal(steps[7]?.afterMinutes, 306);
   assert.equal(steps[7]?.priceMinor, 10000);
+});
+test("urgent-only filter excludes other listing categories", () => {
+  const urgent = { category: "urgent" as const, state: "active" as const, expiresAt: new Date(5000).toISOString() };
+  const ordinary = { ...urgent, category: "services" as const };
+  assert.deepEqual(urgentListings([ordinary, urgent], 1000), [urgent]);
+});
+test("urgent-only filter orders by remaining time, soonest first", () => {
+  const later = { category: "urgent" as const, state: "active" as const, expiresAt: new Date(61000).toISOString() };
+  const sooner = { ...later, expiresAt: new Date(31000).toISOString() };
+  assert.deepEqual(urgentListings([later, sooner], 1000), [sooner, later]);
 });
 test("currency input rejects invalid values and supports decimal comma", () => {
   assert.equal(moneyInput("100,50"), 10050);
