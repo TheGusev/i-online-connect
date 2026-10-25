@@ -1,5 +1,5 @@
 import { Check, ExternalLink, HelpCircle, Image as ImageIcon, Link2, StickyNote, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import { mediaUrl } from "@/api";
@@ -71,6 +71,11 @@ export function AllCardsSheet({ open, cards, onClose, onOpen }: { open: boolean;
 export function AddCardSheet({ open, onClose, actions, canPhoto, mode }: { open: boolean; onClose: () => void; actions?: LiveCardActions; canPhoto: boolean; mode?: string | null }) {
   const [kind, setKind] = useState<LiveCard["kind"] | null>(null);
   const kinds = cardKindsForMode(mode);
+  // Смена режима: выбранный вид, которого нет в режиме, сбрасывается.
+  useEffect(() => {
+    if (kind && !kinds.includes(kind)) setKind(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
   const [file, setFile] = useState<{ file: File; preview: string } | null>(null);
