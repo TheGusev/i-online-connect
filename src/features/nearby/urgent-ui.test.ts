@@ -41,7 +41,7 @@ test("six-hour seller preview has 8 drops and final floor at 85 percent", () => 
 });
 test("urgent-only filter excludes other listing categories", () => {
   const urgent = { category: "urgent" as const, state: "active" as const, expiresAt: new Date(5000).toISOString() };
-  const ordinary = { ...urgent, category: "services" as const };
+  const ordinary = { ...urgent, category: "service" as const };
   assert.deepEqual(urgentListings([ordinary, urgent], 1000), [urgent]);
 });
 test("urgent-only filter orders by remaining time, soonest first", () => {
