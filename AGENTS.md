@@ -14,6 +14,7 @@
 - Community detail uses the shared AppShell's focused mode to hide duplicate global bars while keeping its session gate and viewport handling; this keeps the mobile chat and owner controls visible without changing other screens.
 - Listings preserve stored expiry timestamps and derive expired status on reads; this avoids scheduled jobs while keeping historic listings available to their authors.
 - Ordinary listings derive expired status on reads; urgent sell outcomes and reservations additionally use a guarded PostgreSQL job, so their transactional completion and notifications survive restarts.
+- Urgent sell jobs defer expiry while a reservation is ongoing; reservation notifications replace only same-kind same-lot notices transactionally and are delivered after commit, while service messages advance conversation activity without marking either participant read.
 - Spaces expose their existing creation timestamp through the API for client-side age labels; no new database field is needed.
 - Seller storefronts read existing listing fields through a dedicated authenticated endpoint; this keeps active and completed tabs accurate without duplicating listing data.
 - Interest-based space ordering is derived on the client from the signed-in user's interests and existing space interests; this avoids changing the spaces API for presentation-only ranking.

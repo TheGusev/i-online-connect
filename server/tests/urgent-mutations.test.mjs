@@ -54,7 +54,7 @@ test('repeat manual and auto notifications delete only the same user/kind/lot be
     assert.equal(calls.length,kind==='urgent_final_call'?1:2);
     if (kind!=='urgent_final_call') {
       assert.match(calls[0].sql,/DELETE FROM notifications WHERE user_id=\$1 AND kind=\$2 AND payload->>'listingId'=\$3/);
-      assert.deepEqual(calls[0].params,['seller',kind,id]);
+      assert.deepEqual(Array.from(calls[0].params),['seller',kind,id]);
       assert.match(calls[1].sql,/INSERT INTO notifications/);
     }
   }
@@ -67,7 +67,7 @@ test('manual reserve persists exact seller payload before commit and delivers af
   const handlers=await routes(client,{
     buyerAllowed:async()=>true, reserveLot:async()=>reserved,
     insertUrgentNotification:async (...args)=>{ assert.equal(committed,false); return j.insertUrgentNotification(...args); },
-    deliverUrgent:notices=>{assert.equal(committed,true); assert.equal(notices[0].userId,'seller'); assert.deepEqual(notices[0].notification.payload,{listingId:id,reservationId:'hold',expiresAt:reserved.expiresAt,priceMinor:10000,source:'manual'});},
+    deliverUrgent:notices=>{assert.equal(committed,true); assert.equal(notices[0].userId,'seller'); assert.deepEqual(JSON.parse(JSON.stringify(notices[0].notification.payload)),{listingId:id,reservationId:'hold',expiresAt:reserved.expiresAt,priceMinor:10000,source:'manual'});},
   },()=>{committed=true;});
   // Phone verification lookup is required before reservation.
   const query=client.query;
@@ -82,7 +82,7 @@ test('reservation message advances conversation timestamp without marking partic
   const message=calls.findIndex(call=>call.sql.startsWith('INSERT INTO messages'));
   assert.ok(message>=0);
   assert.equal(calls[message+1].sql,'UPDATE conversations SET last_message_at = now() WHERE id = $1');
-  assert.deepEqual(calls[message+1].params,['chat']);
+  assert.deepEqual(Array.from(calls[message+1].params),['chat']);
   assert.equal(calls.some(call=>call.sql.includes('last_read_at')),false);
 });
 test('only active reservation index violations become ALREADY_RESERVED', async () => {
@@ -101,7 +101,7 @@ test('seller completes sold after lot expiry while reservation is active', async
   const response=await handlers.get('post /:id/complete')(request('seller',{outcome:'sold'}));
   assert.equal(response.outcome,'sold');
   assert.equal(response.finalPriceMinor,10000);
-  assert.deepEqual(calls.find(call=>call.sql.startsWith('UPDATE listings')).params,[id,'sold',10000]);
+  assert.deepEqual(Array.from(calls.find(call=>call.sql.startsWith('UPDATE listings')).params),[id,'sold',10000]);
 });
 test('worker does not close expired lot or expire ongoing hold', async () => {
   const calls=[];
