@@ -55,19 +55,34 @@ try {
  await test('member cannot delete someone else', async () => {
    const m=await message(); assert.equal((await call(member,'DELETE',`/messages/${m.id}`)).statusCode,403);
  });
- await test('organizer deletes any message', async () => {
-   const m=await message(); assert.equal((await call(host,'DELETE',`/messages/${m.id}`)).statusCode,200);
-   const row=await queryOne('SELECT text,deleted_at FROM space_messages WHERE id=$1',[m.id]); assert.equal(row.text,''); assert.ok(row.deleted_at);
- });
- await test('deleted media is erased and excluded from gallery', async () => {
-   const dir=path.join(process.env.MEDIA_DIR,author.id); await mkdir(dir,{recursive:true});
-   const filename=`${randomUUID()}.png`; await writeFile(path.join(dir,filename),Buffer.alloc(600));
-   const m=await message('image',0,`/api/media-file/${author.id}/${filename}`);
-   assert.equal((await call(author,'DELETE',`/messages/${m.id}`)).statusCode,200);
-   const gallery=await call(author,'GET','/media'); assert.equal(gallery.json().items.some(i=>i.id===m.id),false);
-   const row=await queryOne('SELECT media_url,deleted_at FROM space_messages WHERE id=$1',[m.id]); assert.equal(row.media_url,null); assert.ok(row.deleted_at);
-   await assert.rejects(access(path.join(dir,filename)));
- });
+ await test('organizer deletes any message, author is notified', async () => {
+    const m=await message(); assert.equal((await call(host,'DELETE',`/messages/${m.id}`)).statusCode,200);
+    const row=await queryOne('SELECT text,deleted_at,deleted_by FROM space_messages WHERE id=$1',[m.id]);
+    assert.equal(row.text,'Исходный текст'); assert.ok(row.deleted_at); assert.equal(row.deleted_by,host.id);
+    const note=await queryOne("SELECT kind,payload FROM notifications WHERE user_id=$1 AND kind='space_message_deleted' ORDER BY created_at DESC LIMIT 1",[author.id]);
+    assert.ok(note); assert.equal(note.payload.spaceId,spaceId);
+  });
+  await test('deleted media is kept on disk but hidden from gallery', async () => {
+    const dir=path.join(process.env.MEDIA_DIR,author.id); await mkdir(dir,{recursive:true});
+    const filename=`${randomUUID()}.png`; await writeFile(path.join(dir,filename),Buffer.alloc(600));
+    const m=await message('image',0,`/api/media-file/${author.id}/${filename}`);
+    assert.equal((await call(author,'DELETE',`/messages/${m.id}`)).statusCode,200);
+    const gallery=await call(author,'GET','/media'); assert.equal(gallery.json().items.some(i=>i.id===m.id),false);
+    const row=await queryOne('SELECT media_url,deleted_at,deleted_by FROM space_messages WHERE id=$1',[m.id]);
+    assert.equal(row.media_url,`/api/media-file/${author.id}/${filename}`); assert.ok(row.deleted_at); assert.equal(row.deleted_by,author.id);
+    await access(path.join(dir,filename));
+  });
+  await test('deleted message is hidden from list and quotes', async () => {
+    const m=await message();
+    const reply=await call(author,'POST','/messages',{text:'Ответ',replyToId:m.id});
+    assert.equal(reply.statusCode,200);
+    assert.equal((await call(author,'DELETE',`/messages/${m.id}`)).statusCode,200);
+    const list=await call(member,'GET','/messages');
+    const items=list.json();
+    assert.equal(items.some(i=>i.id===m.id),false);
+    const shown=items.find(i=>i.id===reply.json().id);
+    assert.ok(shown); assert.equal(shown.replyTo,undefined);
+  });
  await test('reply stays in same community', async () => {
    const m=await message(); const ok=await call(author,'POST','/messages',{text:'Ответ',replyToId:m.id});
    assert.equal(ok.statusCode,200); assert.equal(ok.json().replyTo.id,m.id);
@@ -83,6 +98,7 @@ try {
  });
 } finally {
  await app.close();
+ await query('DELETE FROM notifications WHERE user_id=ANY($1::uuid[])',[ids]);
  await query('DELETE FROM spaces WHERE id=ANY($1::uuid[])',[spaces]);
  await query('DELETE FROM users WHERE id=ANY($1::uuid[])',[ids]);
  await pool.end();
