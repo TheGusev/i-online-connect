@@ -85,7 +85,7 @@ async function loadSpaceReplies(ids: string[]) {
   const unique = [...new Set(ids)];
   if (unique.length === 0) return new Map<string, ReturnType<typeof toSpaceReplyDto>>();
   const rows = await query<SpaceReplyRow>(
-    "SELECT id, author_id, text, kind, deleted_at FROM space_messages WHERE id = ANY($1::uuid[])",
+    "SELECT id, author_id, text, kind, deleted_at FROM space_messages WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL",
     [unique],
   );
   return new Map(rows.map((row) => [row.id, toSpaceReplyDto(row)]));
@@ -701,6 +701,7 @@ export async function spaceRoutes(app: FastifyInstance) {
          FROM space_messages m
          JOIN profiles p ON p.user_id = m.author_id
         WHERE m.space_id = $1
+          AND m.deleted_at IS NULL
         ORDER BY m.created_at
         LIMIT 300`,
       [id],
@@ -819,16 +820,37 @@ export async function spaceRoutes(app: FastifyInstance) {
         throw forbidden("Удалять чужие сообщения может только организатор");
       }
       if (!current.deleted_at) {
+        // Мягкое удаление: запись и файл остаются, клиентам сообщение не отдаём.
         await query(
-          `UPDATE space_messages
-              SET text = '', media_url = NULL, media_mime = NULL, duration_ms = NULL,
-                  deleted_at = now()
+          `UPDATE space_messages SET deleted_at = now(), deleted_by = $3
             WHERE id = $1 AND space_id = $2`,
-          [messageId, id],
+          [messageId, id, userId],
         );
-        if (current.media_url) {
-          const filePath = mediaPathFromUrl(current.media_url);
-          if (filePath) await unlink(filePath).catch(() => undefined);
+        // Если удалил организатор, автору — короткое уведомление в центр уведомлений.
+        if (current.author_id !== userId) {
+          try {
+            const space = await queryOne<{ title: string }>("SELECT title FROM spaces WHERE id = $1", [id]);
+            const payload = { spaceId: id, spaceTitle: space?.title ?? "Сообщество" };
+            const notification = await queryOne<{ id: string; created_at: Date }>(
+              `INSERT INTO notifications (user_id, kind, payload)
+               VALUES ($1, 'space_message_deleted', $2::jsonb) RETURNING id, created_at`,
+              [current.author_id, JSON.stringify(payload)],
+            );
+            if (notification) {
+              publishUserEvent(current.author_id, {
+                type: "notification",
+                notification: {
+                  id: notification.id,
+                  kind: "space_message_deleted",
+                  payload,
+                  readAt: null,
+                  createdAt: notification.created_at.toISOString(),
+                },
+              });
+            }
+          } catch (error) {
+            console.error("[spaces] уведомление об удалении сообщения", error);
+          }
         }
       }
       return { id: messageId, deleted: true as const };

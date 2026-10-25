@@ -18,7 +18,6 @@ function time(iso: string) {
 
 /** Короткий текст цитаты: голос и встреча подписываются словами. */
 export function quotePreview(quote: MessageQuote) {
-  if (quote.deleted) return "Сообщение удалено";
   if (quote.kind === "voice") return "Голосовое сообщение";
   if (quote.kind === "image") return "Фото";
   if (quote.kind === "video") return "Видео";
@@ -130,7 +129,6 @@ export function MessageBubble({
           meeting && !mine && "border-primary/25 bg-gradient-warm",
           message.status === "sending" && "opacity-70",
           failed && "ring-2 ring-destructive/60",
-          deleted && "border border-dashed border-border bg-secondary/40 text-muted-foreground",
         )}
       >
         {quote ? (
@@ -151,10 +149,7 @@ export function MessageBubble({
             <span className="line-clamp-2 break-words opacity-90">{quotePreview(quote)}</span>
           </button>
         ) : null}
-        {deleted ? (
-          <p className="italic">Сообщение удалено</p>
-        ) : (
-          <>
+        <>
             {meeting ? (
               <span
                 className={cn(
@@ -199,8 +194,7 @@ export function MessageBubble({
               </p>
             )}
             {firstLink ? <LinkPreviewCard url={firstLink} mine={mine} /> : null}
-          </>
-        )}
+        </>
         {caption ? (
           <p className={cn("whitespace-pre-wrap break-words rounded-3xl px-4 py-2.5 shadow-soft", bubbleTone)}>
             <LinkedText text={caption} mine={mine} />

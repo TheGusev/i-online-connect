@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Bell, CalendarDays, Heart, MessageCircle, MapPin } from "lucide-react";
+import { Bell, CalendarDays, Heart, MessageCircle, MapPin, Trash2 } from "lucide-react";
 
 import type { AppNotification } from "@/api";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { formatPrice } from "@/features/nearby/labels";
 const kindIcons = {
   new_message: MessageCircle,
   space_event: CalendarDays,
+  space_message_deleted: Trash2,
   match: Heart,
   listing_match: MapPin,
   listing_response: MapPin,

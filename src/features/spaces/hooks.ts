@@ -75,6 +75,12 @@ export function useDeleteSpaceMessage(id: string) {
   const client = useQueryClient();
   return useMutation({
     mutationFn: (messageId: string) => spacesApi.deleteSpaceMessage(id, messageId),
+    onMutate: (messageId) => {
+      // Удалённое сообщение исчезает сразу, без плашки «удалено».
+      client.setQueryData<SpaceMessage[]>(spaceMessagesQueryKey(id), (previous) =>
+        (previous ?? []).filter((message) => message.id !== messageId),
+      );
+    },
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: spaceMessagesQueryKey(id) });
       void client.invalidateQueries({ queryKey: ["gallery", "space", id] });

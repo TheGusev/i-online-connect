@@ -33,7 +33,6 @@ import {
   MAX_CHAT_VIDEO_MS,
   MAX_VOICE_BYTES,
   mediaDurationMs,
-  mediaPathFromUrl,
   saveChatMediaFile,
   saveVoiceFile,
   transcodeVoiceToAac,
@@ -87,7 +86,7 @@ async function loadReplies(ids: string[]) {
   const unique = [...new Set(ids)];
   if (unique.length === 0) return new Map<string, ReturnType<typeof toReplyDto>>();
   const rows = await query<ReplyRow>(
-    `SELECT id, author_id, text, kind, deleted_at FROM messages WHERE id = ANY($1::uuid[])`,
+    `SELECT id, author_id, text, kind, deleted_at FROM messages WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL`,
     [unique],
   );
   return new Map(rows.map((row) => [row.id, toReplyDto(row)]));
@@ -96,7 +95,7 @@ async function loadReplies(ids: string[]) {
 async function loadReply(id: string | null | undefined) {
   if (!id) return undefined;
   const row = await queryOne<ReplyRow>(
-    `SELECT id, author_id, text, kind, deleted_at FROM messages WHERE id = $1`,
+    `SELECT id, author_id, text, kind, deleted_at FROM messages WHERE id = $1 AND deleted_at IS NULL`,
     [id],
   );
   return row ? toReplyDto(row) : undefined;
@@ -237,8 +236,9 @@ const CONVERSATIONS_SELECT = `
          last_msg.author_id  AS last_author_id,
          (their.last_read_at IS NOT NULL AND last_msg.created_at <= their.last_read_at) AS last_read_by_peer,
          (SELECT count(*) FROM messages m
-           WHERE m.conversation_id = c.id
+            WHERE m.conversation_id = c.id
              AND m.author_id <> $1
+             AND m.deleted_at IS NULL
              AND (me.last_read_at IS NULL OR m.created_at > me.last_read_at)
          )::int AS unread_count,
          ARRAY(
@@ -254,7 +254,8 @@ const CONVERSATIONS_SELECT = `
     JOIN profiles op    ON op.user_id = other.id
     LEFT JOIN LATERAL (
       SELECT text, created_at, author_id FROM messages
-       WHERE conversation_id = c.id ORDER BY created_at DESC LIMIT 1
+       WHERE conversation_id = c.id AND deleted_at IS NULL
+       ORDER BY created_at DESC LIMIT 1
     ) last_msg ON true
    WHERE me.archived_at IS NULL
      AND other.deleted_at IS NULL
@@ -392,6 +393,7 @@ export async function chatRoutes(app: FastifyInstance) {
          LEFT JOIN conversation_participants their
            ON their.conversation_id = m.conversation_id AND their.user_id <> $2
         WHERE m.conversation_id = $1
+          AND m.deleted_at IS NULL
           AND ($3::timestamptz IS NULL OR m.created_at < $3::timestamptz)
         ORDER BY m.created_at DESC, m.id DESC
         LIMIT $4`,
@@ -425,6 +427,7 @@ export async function chatRoutes(app: FastifyInstance) {
           AND EXISTS (
             SELECT 1 FROM messages m
              WHERE m.conversation_id = c.id AND m.author_id <> $1
+               AND m.deleted_at IS NULL
                AND (me.last_read_at IS NULL OR m.created_at > me.last_read_at)
           )`,
       [userId],
@@ -813,7 +816,7 @@ export async function chatRoutes(app: FastifyInstance) {
     },
   );
 
-  /** Удаление своего сообщения: текст и медиа стираются у обоих участников. */
+  /** Удаление своего сообщения: мягкая пометка, запись и файл остаются, клиентам не отдаём. */
   app.delete<{ Params: { id: string; messageId: string } }>(
     "/conversations/:id/messages/:messageId",
     EDIT_LIMIT,
@@ -834,17 +837,10 @@ export async function chatRoutes(app: FastifyInstance) {
 
       if (!current.deleted_at) {
         await query(
-          `UPDATE messages
-              SET text = '', media_url = NULL, media_mime = NULL, duration_ms = NULL,
-                  deleted_at = now()
+          `UPDATE messages SET deleted_at = now()
             WHERE id = $1 AND conversation_id = $2 AND author_id = $3`,
           [messageId, id, userId],
         );
-        // Файл вложения больше не нужен — освобождаем диск.
-        if (current.media_url) {
-          const filePath = mediaPathFromUrl(current.media_url);
-          if (filePath) await unlink(filePath).catch(() => undefined);
-        }
       }
 
       publishChatEvent(id, { type: "message-deleted", conversationId: id, messageId });
