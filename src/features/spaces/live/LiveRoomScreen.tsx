@@ -14,6 +14,7 @@ import { lockBodyScroll } from "@/lib/scroll-lock";
 import { useOverlayPresence } from "@/lib/useOverlayPresence";
 
 import { ClipBricks } from "./ClipBricks";
+import { DEFAULT_LIVE_MODE, LIVE_MODES, liveMode, type LiveModeId } from "./modes";
 import { assignSeats } from "./seats";
 import { AddCardSheet, AllCardsSheet, CardDetailSheet, TableCards } from "./LiveCards";
 import type { LiveCard } from "@/api/types";
@@ -61,6 +62,7 @@ export function LiveRoomScreen({
   const [allCards, setAllCards] = useState(false);
   const [openCard, setOpenCard] = useState<LiveCard | null>(null);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [mode, setMode] = useState<LiveModeId>(DEFAULT_LIVE_MODE);
   const verification = useVerificationStatus();
   const myId = useSessionStore((st) => st.user?.id ?? null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -159,7 +161,7 @@ export function LiveRoomScreen({
   };
   const micDown = () => {
     if (!real || !actions) return;
-    if (!room.active) actions.start();
+    if (!room.active) actions.start(mode);
     actions.speaking(true);
     void recorder.start();
   };
@@ -179,7 +181,12 @@ export function LiveRoomScreen({
       <header className="flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-bold text-foreground">{title}</h2>
-          <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground"><span className="live-dot" />{room.participants.length} в эфире</p>
+          <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="live-dot" />{room.participants.length} в эфире
+            {room.active && room.mode ? (
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 font-semibold text-primary">{liveMode(room.mode).title}</span>
+            ) : null}
+          </p>
         </div>
         <Button size="icon" variant="ghost" aria-label={muted ? "Включить звук" : "Выключить звук"} onClick={() => setMuted((m) => !m)} className="text-primary">
           {muted ? <VolumeX /> : <Volume2 />}
@@ -245,6 +252,44 @@ export function LiveRoomScreen({
             })}
           </svg>
           <TableCards cards={room.cards} onOpen={setOpenCard} onAll={() => setAllCards(true)} />
+          {real && !room.active ? (
+            <div className="pointer-events-none absolute inset-x-[8%] top-1/2 flex -translate-y-1/2 flex-col items-center">
+              <div className="pointer-events-auto w-full max-w-sm rounded-3xl border border-border bg-card/80 p-4 shadow-lift backdrop-blur-md">
+                <p className="text-center text-sm font-bold text-foreground">Какой эфир начнём?</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {LIVE_MODES.map((m) => {
+                    const Icon = m.icon;
+                    const chosen = mode === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        disabled={!m.available}
+                        aria-pressed={chosen}
+                        onClick={(e) => { e.stopPropagation(); if (m.available) setMode(m.id); }}
+                        className={cn(
+                          "flex flex-col items-center gap-1 rounded-2xl border-2 px-2 py-3 text-center transition-colors",
+                          chosen ? "border-primary bg-primary/10" : "border-border bg-background/60",
+                          !m.available && "opacity-50",
+                        )}
+                      >
+                        <Icon className={cn("size-5", chosen ? "text-primary" : "text-muted-foreground")} aria-hidden="true" />
+                        <span className="text-xs font-bold text-foreground">{m.title}</span>
+                        <span className="text-[10px] leading-tight text-muted-foreground">{m.hint}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <Button
+                  className="mt-3 w-full"
+                  onClick={(e) => { e.stopPropagation(); unlock(); actions?.start(mode); }}
+                  disabled={!actions}
+                >
+                  <Mic /> Начать эфир
+                </Button>
+              </div>
+            </div>
+          ) : null}
           {seated.map((p) => {
             const [x, y] = pos.get(p.userId)!;
             const glow = p.lastSpokeAt ? Math.max(0, 1 - (now - p.lastSpokeAt) / 60_000) : 0;
@@ -310,12 +355,12 @@ export function LiveRoomScreen({
           >
             <Mic className="size-8" />
           </button>
-          <span className="text-[11px] text-muted-foreground">{recorder.recording ? `Говорите… ${recorder.seconds} с` : real ? (room.active ? "Держите, чтобы сказать" : "Держите, чтобы начать эфир") : `Держите, чтобы сказать · в очереди ${room.queue}`}</span>
+          <span className="text-[11px] text-muted-foreground">{recorder.recording ? `Говорите… ${recorder.seconds} с` : real ? (room.active ? "Держите, чтобы сказать" : "Выберите режим и начните эфир") : `Держите, чтобы сказать · в очереди ${room.queue}`}</span>
         </div>
         <Button size="icon" variant="ghost" aria-label="Выйти из эфира" onClick={exit} className="text-primary"><LogOut /></Button>
       </footer>
 
-      <AddCardSheet open={adding} onClose={() => setAdding(false)} {...(room.cardActions ? { actions: room.cardActions } : {})} canPhoto={!real || verification.data?.status === "verified"} />
+      <AddCardSheet open={adding} onClose={() => setAdding(false)} {...(room.cardActions ? { actions: room.cardActions } : {})} canPhoto={!real || verification.data?.status === "verified"} mode={room.active ? room.mode : mode} />
       <AllCardsSheet open={allCards} cards={room.cards} onClose={() => setAllCards(false)} onOpen={(c) => { setAllCards(false); setOpenCard(c); }} />
       <CardDetailSheet
         card={openCard ? (room.cards.find((c) => c.clientTempId === openCard.clientTempId) ?? openCard) : null}
