@@ -25,6 +25,7 @@ export function useListings(filters: ListingFilters, enabled = true) {
         ...(filters.limit ? { limit: filters.limit } : {}),
       }),
     enabled,
+    refetchInterval: filters.category === "urgent" ? 15_000 : false,
   });
 }
 
@@ -32,11 +33,12 @@ export function listingQueryKey(id: string) {
   return ["listings", "detail", id] as const;
 }
 
-export function useListing(id: string, enabled = true) {
+export function useListing(id: string, enabled = true, poll = false) {
   return useQuery({
     queryKey: listingQueryKey(id),
     queryFn: () => listingsApi.getListing(id),
     enabled,
+    refetchInterval: poll ? 10_000 : false,
   });
 }
 

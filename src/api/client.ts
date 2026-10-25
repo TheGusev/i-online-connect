@@ -55,10 +55,12 @@ export function setToken(token: string | null) {
 
 export class ApiError extends Error {
   status: number;
-  constructor(status: number, message: string) {
+  code?: string;
+  constructor(status: number, message: string, code?: string) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -195,13 +197,15 @@ async function tokenAfter401(sentToken: string): Promise<string | null> {
 
 async function toApiError(response: Response) {
   let message = `HTTP ${response.status}`;
+  let code: string | undefined;
   try {
-    const data = (await response.json()) as { message?: string };
+    const data = (await response.json()) as { message?: string; error?: string };
     if (data?.message) message = data.message;
+    if (typeof data?.error === "string") code = data.error;
   } catch {
     /* тело ответа не JSON — оставляем код статуса */
   }
-  return new ApiError(response.status, message);
+  return new ApiError(response.status, message, code);
 }
 
 /** Реальный HTTP-запрос к внешнему REST API. */

@@ -442,6 +442,25 @@ export interface ListingAuthor {
 
 export interface Listing {
   id: string;
+  urgentType?: "sell" | "buy" | "help" | "ride" | "giveaway" | null;
+  startPriceMinor?: number | null;
+  currentPriceMinor?: number | null;
+  priceFloorMinor?: number | null;
+  marketPriceMinor?: number | null;
+  nextDropAt?: string | null;
+  lastDropAt?: string | null;
+  discountFromStartPct?: number;
+  floorHintPct?: number | null;
+  watchersCount?: number;
+  iWatch?: boolean;
+  myBid?: { maxPriceMinor: number } | null;
+  bidsCount?: number;
+  highestBidMinor?: number | null;
+  reservation?: { active: boolean; mine: boolean; expiresAt: string | null; priceMinor: number | null; source: string | null };
+  activeReservation?: { id: string; buyerName: string; expiresAt: string; priceMinor: number; source: string } | null;
+  outcome?: string | null;
+  finalPriceMinor?: number | null;
+  closedAt?: string | null;
   category: NeedCategory;
   city: string;
   /** Район города: показываем вместо расстояния — координат мы не спрашиваем. */
@@ -471,6 +490,10 @@ export interface ListingSearchResult {
 
 export interface ListingDraft {
   category: NeedCategory;
+  urgentType?: "sell" | "buy" | "help" | "ride" | "giveaway";
+  priceStartMinor?: number;
+  priceFloorMinor?: number;
+  marketPriceMinor?: number;
   title: string;
   description?: string;
   priceMinor?: number | null;
