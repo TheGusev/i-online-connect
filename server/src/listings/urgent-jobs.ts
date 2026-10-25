@@ -62,11 +62,12 @@ export async function runUrgentJobs() {
       // Cross-process guard: PM2 workers cannot run the same batch concurrently.
       const lock = await client.query<{locked:boolean}>("SELECT pg_try_advisory_xact_lock(310031) AS locked");
       if (!lock.rows[0]?.locked) return [];
-      const lots = await client.query<UrgentLot>("SELECT * FROM listings WHERE urgent_type='sell' AND state='active' AND outcome IS NULL ORDER BY id FOR UPDATE SKIP LOCKED");
+      const lots = await client.query<UrgentLot>("SELECT * FROM listings WHERE category='urgent' AND state='active' AND outcome IS NULL ORDER BY id FOR UPDATE SKIP LOCKED");
       const pending:Awaited<ReturnType<typeof insertUrgentNotification>>[] = [];
       for (const lot of lots.rows) {
         await expireReservations(client,lot.id);
         if (lot.expires_at.getTime() <= Date.now()) {
+          if(lot.urgent_type!=='sell') continue;
           await client.query("UPDATE listings SET state='closed',outcome='expired',closed_at=now(),updated_at=now() WHERE id=$1",[lot.id]);
           await client.query("UPDATE listing_reservations SET status='expired' WHERE listing_id=$1 AND status='active'",[lot.id]);
           await client.query("UPDATE listing_bids SET status='cancelled' WHERE listing_id=$1 AND status='active'",[lot.id]);
@@ -75,7 +76,7 @@ export async function runUrgentJobs() {
           continue;
         }
         const held = await client.query("SELECT 1 FROM listing_reservations WHERE listing_id=$1 AND status='active'",[lot.id]);
-        if (!held.rowCount && !lot.is_seed) {
+        if (lot.urgent_type==='sell' && !held.rowCount && !lot.is_seed) {
           const result = await client.query<{buyer_id:string;max_price_minor:number;status:string;created_at:Date}>("SELECT * FROM listing_bids WHERE listing_id=$1 AND status='active'",[lot.id]);
           const bids = result.rows.map(b=>({buyerId:b.buyer_id,maxPriceMinor:b.max_price_minor,status:b.status,createdAt:b.created_at}));
           let winner = pickAutoBidWinner(bids,lotPrice(lot).priceMinor);
