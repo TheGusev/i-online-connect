@@ -17,6 +17,7 @@ import { DatingLockSheet } from "@/features/nearby/components/DatingLockSheet";
 import { useMyProfile } from "@/features/profile/hooks";
 import { useSessionStore } from "@/store/useSessionStore";
 import { scrollUnderHeader } from "@/features/nearby/scroll-to";
+import { unreservedUrgent } from "@/features/nearby/urgent-ui";
 
 /** Поиск переживает переход между вкладками свайпом. */
 let rememberedQuery = "";
@@ -74,7 +75,7 @@ function NearbyPage() {
   const datingOpen = authed && completeness?.complete === true;
   const [lockOpen, setLockOpen] = useState(false);
 
-  const items = data?.items ?? [];
+  const items = category === "urgent" ? unreservedUrgent(data?.items ?? []) : data?.items ?? [];
   const postRef = useRef<HTMLDivElement>(null);
   const goPost = () =>
     gate.guard(() =>

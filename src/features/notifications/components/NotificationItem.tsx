@@ -5,6 +5,8 @@ import type { AppNotification } from "@/api";
 import { cn } from "@/lib/utils";
 
 import { describeNotification } from "../hooks";
+import { useListing } from "@/features/nearby/hooks";
+import { formatPrice } from "@/features/nearby/labels";
 
 const kindIcons = {
   new_message: MessageCircle,
@@ -25,6 +27,9 @@ export function NotificationItem({
 }) {
   const { title, description, href, conversationId, profileId, spaceId, eventId, listingId } =
     describeNotification(item);
+  const lot = useListing(listingId ?? "", item.kind === "urgent_final_call" && Boolean(listingId));
+  const displayTitle = item.kind === "urgent_final_call" && lot.data?.currentPriceMinor != null
+    ? `Скоро конец: цена сейчас ${formatPrice(lot.data.currentPriceMinor)}` : title;
   const Icon = kindIcons[item.kind as keyof typeof kindIcons] ?? Bell;
   const content = (
     <>
@@ -37,7 +42,7 @@ export function NotificationItem({
         <Icon className={compact ? "size-4" : "size-5"} aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold leading-snug text-foreground">{title}</span>
+        <span className="block text-sm font-semibold leading-snug text-foreground">{displayTitle}</span>
         {description ? (
           <span className="mt-0.5 block truncate text-xs text-foreground/80">{description}</span>
         ) : null}
@@ -79,6 +84,8 @@ export function NotificationItem({
     );
   }
   if (listingId && href?.startsWith("/nearby/")) {
+    if (item.kind === "urgent_expired_relist") return <Link to="/nearby/new" search={{ category: "urgent", relist: listingId }} onClick={onPick} className={className}>{content}</Link>;
+    if (item.kind.startsWith("urgent_")) return <Link to="/nearby" search={{ listing: listingId }} onClick={onPick} className={className}>{content}</Link>;
     return <Link to="/nearby/$id" params={{ id: listingId }} onClick={onPick} className={className}>{content}</Link>;
   }
   return <button type="button" onClick={onPick} className={className}>{content}</button>;

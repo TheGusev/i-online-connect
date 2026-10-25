@@ -63,6 +63,28 @@ export async function closeListing(id: string): Promise<{ ok: true }> {
   return request<{ ok: true }>(`/listings/${id}/close`, { method: "POST" });
 }
 
+export function watchListing(id: string, watch: boolean) {
+  return request<{ ok: true }>(`/listings/${id}/watch`, { method: watch ? "POST" : "DELETE" });
+}
+export function setListingBid(id: string, maxPriceMinor: number | null) {
+  return request<{ ok: true; myBid?: { maxPriceMinor: number } }>(`/listings/${id}/bid`, {
+    method: maxPriceMinor === null ? "DELETE" : "PUT",
+    ...(maxPriceMinor === null ? {} : { body: { maxPriceMinor } }),
+  });
+}
+export function reserveListing(id: string, arriveInMinutes: 15 | 30 | 60) {
+  return request<{ ok: true; priceMinor: number; expiresAt: string; conversationId: string }>(`/listings/${id}/reserve`, { method: "POST", body: { arriveInMinutes } });
+}
+export function cancelListingReservation(id: string) {
+  return request<{ ok: true }>(`/listings/${id}/reserve/cancel`, { method: "POST" });
+}
+export function reportListingNoShow(id: string) {
+  return request<{ ok: true }>(`/listings/${id}/reserve/no-show`, { method: "POST" });
+}
+export function completeUrgentListing(id: string, outcome: "sold" | "cancelled") {
+  return request<{ ok: true; outcome: string; finalPriceMinor: number | null }>(`/listings/${id}/complete`, { method: "POST", body: { outcome } });
+}
+
 /** Отклик открывает обычный диалог — отдельного чата объявлений нет. */
 export async function respondToListing(
   id: string,
