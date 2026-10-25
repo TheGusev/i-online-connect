@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {test} from 'node:test';
-import {priceAt,STEPS,URGENT_DURATIONS,validateSell,floorHintPct,reservationBan,pickAutoBidWinner,normalizeTitleKey,suggestPrices,HOLD_OPTIONS,AUTO_HOLD,ACTIVE_MAX,NEW_ACCOUNT_MAX_ACTIVE} from '../src/listings/urgent.ts';
+import {priceAt,STEPS,URGENT_DURATIONS,validateSell,floorHintPct,reservationBan,pickAutoBidWinner,normalizeTitleKey,suggestPrices,HOLD_OPTIONS,AUTO_HOLD,ACTIVE_MAX,NEW_ACCOUNT_MAX_ACTIVE,shouldCloseExpiredLot} from '../src/listings/urgent.ts';
 const base={start:150000,floor:100000,createdAt:0,expiresAt:3600000,steps:5};
+test('expired lot without reservation closes',()=>assert.equal(shouldCloseExpiredLot({lotExpiresAt:1000,now:2000}),true));
+test('expired lot with ongoing reservation stays active',()=>assert.equal(shouldCloseExpiredLot({lotExpiresAt:1000,activeReservationExpiresAt:3000,now:2000}),false));
+test('expired lot closes once reservation ends',()=>assert.equal(shouldCloseExpiredLot({lotExpiresAt:1000,activeReservationExpiresAt:2000,now:2000}),true));
+test('unexpired lot does not close',()=>assert.equal(shouldCloseExpiredLot({lotExpiresAt:3000,now:2000}),false));
 test('client copy is byte-identical',()=>assert.equal(readFileSync(new URL('../src/listings/urgent.ts',import.meta.url),'utf8'),readFileSync(new URL('../../src/features/nearby/urgent.ts',import.meta.url),'utf8')));
 for(const [minutes,steps] of Object.entries(STEPS)) test(`price boundaries for ${minutes} minutes`,()=>{
   const lot={...base,expiresAt:Number(minutes)*60000,steps};
