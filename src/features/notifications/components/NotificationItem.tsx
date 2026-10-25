@@ -79,6 +79,8 @@ export function NotificationItem({
     );
   }
   if (listingId && href?.startsWith("/nearby/")) {
+    if (item.kind === "urgent_expired_relist") return <Link to="/nearby/new" search={{ category: "urgent", relist: listingId }} onClick={onPick} className={className}>{content}</Link>;
+    if (item.kind.startsWith("urgent_")) return <Link to="/nearby" search={{ listing: listingId }} onClick={onPick} className={className}>{content}</Link>;
     return <Link to="/nearby/$id" params={{ id: listingId }} onClick={onPick} className={className}>{content}</Link>;
   }
   return <button type="button" onClick={onPick} className={className}>{content}</button>;

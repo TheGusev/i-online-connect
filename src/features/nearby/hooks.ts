@@ -38,7 +38,7 @@ export function useListing(id: string, enabled = true, poll = false) {
     queryKey: listingQueryKey(id),
     queryFn: () => listingsApi.getListing(id),
     enabled,
-    refetchInterval: poll ? 10_000 : false,
+    refetchInterval: poll ? (query) => query.state.data?.category === "urgent" ? 10_000 : false : false,
   });
 }
 

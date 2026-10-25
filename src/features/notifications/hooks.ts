@@ -7,6 +7,7 @@ import { getToken, notificationsApi } from "@/api";
 import type { AppNotification, NotificationFeed } from "@/api";
 import { resolveWsUrl } from "@/features/chat/useChatSocket";
 import { useSessionStore } from "@/store/useSessionStore";
+import { formatPrice } from "@/features/nearby/labels";
 
 export const notificationsQueryKey = ["notifications"] as const;
 
@@ -202,6 +203,17 @@ export function describeNotification(notification: AppNotification): {
     spaceId,
     eventId,
   });
+
+  if (notification.kind === "urgent_auto_reserved") {
+    return result("Сработала ваша цена: лот забронирован на 30 минут", listingTitle, listingId ? `/nearby/${listingId}` : null);
+  }
+  if (notification.kind === "urgent_final_call") {
+    const price = typeof payload["priceMinor"] === "number" ? payload["priceMinor"] : typeof payload["currentPriceMinor"] === "number" ? payload["currentPriceMinor"] : null;
+    return result(price === null ? "Скоро конец срочного лота" : `Скоро конец: цена сейчас ${formatPrice(price)}`, listingTitle, listingId ? `/nearby/${listingId}` : null);
+  }
+  if (notification.kind === "urgent_expired_relist") {
+    return result("Не продано: перезапустить с новым полом?", listingTitle, listingId ? `/nearby/new?category=urgent&relist=${encodeURIComponent(listingId)}` : null);
+  }
 
   if (notification.kind === "listing_response") {
     return result(`Новый отклик на «${listingTitle}»`, null, listingId ? `/nearby/${listingId}` : null);
