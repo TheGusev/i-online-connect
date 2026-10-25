@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { MapPin, Plus, Search, Sparkles } from "lucide-react";
+import { Clock, MapPin, Plus, Search, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
 
 import type { NeedCategory } from "@/api";
-import { Button, Input, SpaceCardSkeleton } from "@/components/ds";
+import { Button, Input, SpaceCardSkeleton, Toggle } from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
 import { Reveal } from "@/components/landing/Reveal";
 import { WaveHeading } from "@/components/landing/WaveHeading";
@@ -17,7 +17,7 @@ import { DatingLockSheet } from "@/features/nearby/components/DatingLockSheet";
 import { useMyProfile } from "@/features/profile/hooks";
 import { useSessionStore } from "@/store/useSessionStore";
 import { scrollUnderHeader } from "@/features/nearby/scroll-to";
-import { unreservedUrgent } from "@/features/nearby/urgent-ui";
+import { urgentListings } from "@/features/nearby/urgent-ui";
 
 /** Поиск переживает переход между вкладками свайпом. */
 let rememberedQuery = "";
@@ -75,7 +75,8 @@ function NearbyPage() {
   const datingOpen = authed && completeness?.complete === true;
   const [lockOpen, setLockOpen] = useState(false);
 
-  const items = category === "urgent" ? unreservedUrgent(data?.items ?? []) : data?.items ?? [];
+  const urgentOnly = category === "urgent";
+  const items = urgentOnly ? urgentListings(data?.items ?? []) : data?.items ?? [];
   const postRef = useRef<HTMLDivElement>(null);
   const goPost = () =>
     gate.guard(() =>
@@ -139,6 +140,25 @@ function NearbyPage() {
               }}
             />
 
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2" data-no-swipe>
+              <div className="flex items-center gap-3">
+                <Toggle
+                  label="Только срочные сделки"
+                  checked={urgentOnly}
+                  onChange={(next) => {
+                    setCategory(next ? "urgent" : null);
+                    setLimit(PAGE);
+                  }}
+                />
+                <span className="text-sm font-medium">Только срочные сделки</span>
+              </div>
+              {urgentOnly ? (
+                <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+                  <Clock className="size-3.5 shrink-0" aria-hidden="true" />
+                  Сначала заканчивающиеся
+                </span>
+              ) : null}
+            </div>
           </div>
 
           <div
@@ -184,7 +204,7 @@ function NearbyPage() {
                 ))}
               </ul>
 
-              {items.length >= limit ? (
+              {(data?.items.length ?? 0) >= limit ? (
                 <div className="mt-8 text-center">
                   <Button variant="secondary" onClick={() => setLimit((prev) => prev + PAGE)}>
                     <Sparkles aria-hidden="true" />

@@ -49,6 +49,9 @@ export function unreservedUrgent<T extends Pick<Listing, "state" | "expiresAt" |
   return items.filter(item => item.state === "active" && new Date(item.expiresAt).getTime() > now && !item.reservation?.active)
     .sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime());
 }
+export function urgentListings<T extends Pick<Listing, "category" | "state" | "expiresAt" | "reservation">>(items: readonly T[], now = Date.now()) {
+  return unreservedUrgent(items.filter(item => item.category === "urgent"), now);
+}
 export function clockLeft(at: string | null | undefined, now: number) {
   const seconds = Math.max(0, Math.ceil(((at ? new Date(at).getTime() : now) - now) / 1000));
   return `${Math.floor(seconds / 60).toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
