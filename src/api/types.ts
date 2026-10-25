@@ -377,6 +377,8 @@ export interface AccountSettings {
   phoneVerified: boolean;
 }
 
+export type AccountPatch = { email?: string; currentPassword?: string; language?: string };
+
 export type NotificationChannel =
   | "matches"
   | "messages"

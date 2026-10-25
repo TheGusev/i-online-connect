@@ -7,6 +7,7 @@ import type { AccountSettings } from "@/api";
 import { Button, Card, Input, Modal } from "@/components/ds";
 import { InviteQrSheet } from "@/components/InviteQrSheet";
 import { ContactConfirm } from "@/features/settings/components/ContactConfirm";
+import { PhoneLink } from "@/features/settings/components/PhoneLink";
 import { useChangePassword, useUpdateAccount } from "@/features/settings/hooks";
 
 import { supportedLanguages } from "@/i18n";
@@ -88,11 +89,7 @@ export function AccountSection({ account }: { account: AccountSettings }) {
           label="Телефон"
           value={account.phone}
           verified={account.phoneVerified}
-          action={
-            account.phoneVerified ? null : (
-              <ContactConfirm channel="phone" value={account.phone} disabled={!account.phone} />
-            )
-          }
+          action={<PhoneLink />}
         />
       </Card>
 

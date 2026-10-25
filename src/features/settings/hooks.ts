@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
   settingsApi,
-  type AccountSettings,
+  type AccountPatch,
   type DeleteAccountRequest,
   type NotificationSettings,
   type PasswordChange,
@@ -18,7 +18,7 @@ export function useSettings() {
 export function useUpdateAccount() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (patch: Partial<AccountSettings>) => settingsApi.updateAccount(patch),
+    mutationFn: (patch: AccountPatch) => settingsApi.updateAccount(patch),
     onSuccess: (account) => {
       queryClient.setQueryData(settingsKey, (prev: SettingsBundle | undefined) =>
         prev ? { ...prev, account } : prev,

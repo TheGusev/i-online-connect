@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { authApi } from "@/api";
+import { PasswordResetFlow } from "@/features/auth/PasswordResetFlow";
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, MessageCircle } from "lucide-react";
@@ -32,7 +35,8 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const { t } = useTranslation();
-  const [mode, setMode] = useState<"welcome" | "phone" | "email">("welcome");
+  const [mode, setMode] = useState<"welcome" | "phone" | "email" | "reset">("welcome");
+  const config = useQuery({ queryKey: ["auth-config"], queryFn: authApi.getAuthConfig, enabled: mode === "email", retry: false });
   const navigate = useNavigate();
   const status = useSessionStore((state) => state.status);
   const login = useLogin();
@@ -112,7 +116,7 @@ function AuthPage() {
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="border-b border-border">
         <div className="mx-auto flex w-full max-w-2xl items-center px-4 py-3 lg:px-6">
-          <Button variant="ghost" size="sm" onClick={() => setMode("welcome")}>
+          <Button variant="ghost" size="sm" onClick={() => setMode(mode === "reset" ? "email" : "welcome")}>
             <ArrowLeft aria-hidden="true" />
             Назад
           </Button>
@@ -120,10 +124,11 @@ function AuthPage() {
       </header>
 
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10">
-        <h1 className="text-3xl font-extrabold tracking-tight">{t("auth.title")}</h1>
-        <p className="mt-2 text-sm text-muted-foreground">{t("auth.subtitle")}</p>
+        <h1 className="text-3xl font-extrabold tracking-tight">{mode === "reset" ? "Восстановление пароля" : t("auth.title")}</h1>
+        {mode !== "reset" && <p className="mt-2 text-sm text-muted-foreground">{t("auth.subtitle")}</p>}
 
         <Card className="mt-6 space-y-4 p-5">
+          {mode === "reset" ? <PasswordResetFlow initialEmail={email} onDone={() => { setPassword(""); setError(null); setMode("email"); }} /> : <>
           <Input
             label={t("auth.email")}
             type="email"
@@ -146,6 +151,8 @@ function AuthPage() {
           <Button className="w-full" disabled={login.isPending} onClick={submit}>
             {login.isPending ? t("auth.loading") : t("auth.submit")}
           </Button>
+          {config.data?.passwordResetEnabled && <Button variant="ghost" fullWidth onClick={() => setMode("reset")}>Забыли пароль?</Button>}
+          </>}
         </Card>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
