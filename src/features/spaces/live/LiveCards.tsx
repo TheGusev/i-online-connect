@@ -68,7 +68,7 @@ export function AllCardsSheet({ open, cards, onClose, onOpen }: { open: boolean;
 }
 
 /** «Добавить на стол»: виды карточек режима эфира в его порядке. */
-export function AddCardSheet({ open, onClose, actions, canPhoto, mode }: { open: boolean; onClose: () => void; actions?: LiveCardActions; canPhoto: boolean; mode?: string | null }) {
+export function AddCardSheet({ open, onClose, actions, canPhoto, mode }: { open: boolean; onClose: () => void; actions?: LiveCardActions; canPhoto: boolean; mode?: string | null | undefined }) {
   const [kind, setKind] = useState<LiveCard["kind"] | null>(null);
   const kinds = cardKindsForMode(mode);
   // Смена режима: выбранный вид, которого нет в режиме, сбрасывается.

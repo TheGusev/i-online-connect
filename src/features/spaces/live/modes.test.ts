@@ -1,44 +1,45 @@
-import { describe, expect, it } from "bun:test";
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 
 import { cardKindsForMode, DEFAULT_LIVE_MODE, LIVE_MODES, liveMode } from "./modes";
 
 describe("конфиг режимов эфира", () => {
   it("пять режимов в заданном порядке", () => {
-    expect(LIVE_MODES.map((m) => m.id)).toEqual(["talk", "work", "learn", "family", "cinema"]);
+    assert.deepEqual(LIVE_MODES.map((m) => m.id), ["talk", "work", "learn", "family", "cinema"]);
   });
 
   it("названия и подсказки на русском", () => {
-    expect(liveMode("talk").title).toBe("Разговор");
-    expect(liveMode("talk").hint).toBe("просто поговорить");
-    expect(liveMode("work").title).toBe("Работа");
-    expect(liveMode("learn").title).toBe("Обучение");
-    expect(liveMode("family").title).toBe("Семья");
-    expect(liveMode("cinema").title).toBe("Кино");
+    assert.equal(liveMode("talk").title, "Разговор");
+    assert.equal(liveMode("talk").hint, "просто поговорить");
+    assert.equal(liveMode("work").title, "Работа");
+    assert.equal(liveMode("learn").title, "Обучение");
+    assert.equal(liveMode("family").title, "Семья");
+    assert.equal(liveMode("cinema").title, "Кино");
   });
 
   it("кино недоступно, остальные доступны", () => {
-    expect(liveMode("cinema").available).toBe(false);
+    assert.equal(liveMode("cinema").available, false);
     for (const id of ["talk", "work", "learn", "family"] as const) {
-      expect(liveMode(id).available).toBe(true);
+      assert.equal(liveMode(id).available, true);
     }
   });
 
   it("неизвестный режим даёт Разговор", () => {
-    expect(liveMode("party").id).toBe("talk");
-    expect(liveMode(null).id).toBe("talk");
-    expect(liveMode(undefined).id).toBe("talk");
-    expect(DEFAULT_LIVE_MODE).toBe("talk");
+    assert.equal(liveMode("party").id, "talk");
+    assert.equal(liveMode(null).id, "talk");
+    assert.equal(liveMode(undefined).id, "talk");
+    assert.equal(DEFAULT_LIVE_MODE, "talk");
   });
 
   it("виды карточек по режиму и в его порядке", () => {
-    expect(cardKindsForMode("talk")).toEqual(["photo", "link", "note", "question"]);
-    expect(cardKindsForMode("work")).toEqual(["note", "question", "link", "photo"]);
-    expect(cardKindsForMode("learn")).toEqual(["question", "photo", "link", "note"]);
-    expect(cardKindsForMode("family")).toEqual(["photo", "note", "link"]);
+    assert.deepEqual(cardKindsForMode("talk"), ["photo", "link", "note", "question"]);
+    assert.deepEqual(cardKindsForMode("work"), ["note", "question", "link", "photo"]);
+    assert.deepEqual(cardKindsForMode("learn"), ["question", "photo", "link", "note"]);
+    assert.deepEqual(cardKindsForMode("family"), ["photo", "note", "link"]);
   });
 
   it("эфир без режима показывает все четыре вида", () => {
-    expect(cardKindsForMode(null)).toEqual(["photo", "link", "note", "question"]);
-    expect(cardKindsForMode(undefined)).toEqual(["photo", "link", "note", "question"]);
+    assert.deepEqual(cardKindsForMode(null), ["photo", "link", "note", "question"]);
+    assert.deepEqual(cardKindsForMode(undefined), ["photo", "link", "note", "question"]);
   });
 });
