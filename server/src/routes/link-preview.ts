@@ -176,11 +176,11 @@ async function fetchPreview(url: URL): Promise<LinkPreview | null> {
 export async function linkPreviewRoutes(app: FastifyInstance) {
   // Ленивый импорт: middleware тянет БД, а чистые функции выше должны
   // оставаться тестируемыми без неё.
-  const { requireAuth, requireUserId } = await import("../auth/middleware.ts");
+  const { requireAuth, currentUserId } = await import("../auth/middleware.ts");
   app.addHook("preHandler", requireAuth);
 
   app.get<{ Querystring: { url?: string } }>("/", async (request, reply) => {
-    const userId = requireUserId(request);
+    const userId = currentUserId(request);
     if (!rateLimitOk(userId)) {
       return reply.code(429).send({ message: "Слишком много запросов, подождите минуту" });
     }
