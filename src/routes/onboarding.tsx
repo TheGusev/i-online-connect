@@ -12,6 +12,7 @@ import { ProfilePreview } from "@/features/onboarding/ProfilePreview";
 import { ValuesPicker, VALUE_OPTIONS, type ValuesKey } from "@/features/onboarding/ValuesPicker";
 import { ONBOARDING_STEPS, useOnboardingStore } from "@/store/useOnboardingStore";
 import { useSessionStore } from "@/store/useSessionStore";
+import { SocialLoginButtons } from "@/features/auth/SocialLoginButtons";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -61,7 +62,7 @@ function OnboardingPage() {
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const setUser = useSessionStore((state) => state.setUser);
 
-  const stepId = ONBOARDING_STEPS[stepIndex]!;
+  const stepId = ONBOARDING_STEPS[stepIndex] ?? "name";
   const total = ONBOARDING_STEPS.length;
 
   // Появление сообщения AI с небольшой задержкой — как в живой переписке.
@@ -470,6 +471,7 @@ function AboutStep({
  */
 function AccountStep({ name, onDone }: { name: string; onDone: (email: string) => void }) {
   const { t } = useTranslation();
+  const status = useSessionStore((state) => state.status);
   const setSession = useSessionStore((state) => state.setSession);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -503,8 +505,11 @@ function AccountStep({ name, onDone }: { name: string; onDone: (email: string) =
     }
   };
 
+  if (status === "authed") return <Button className="min-h-11" onClick={() => onDone("Аккаунт создан")}>Продолжить</Button>;
+
   return (
     <div className="space-y-4">
+      <SocialLoginButtons />
       <Input
         label={t("onboarding.s8.email")}
         type="email"

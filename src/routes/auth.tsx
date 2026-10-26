@@ -6,6 +6,7 @@ import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-ro
 import { useTranslation } from "react-i18next";
 import { ArrowLeft, MessageCircle } from "lucide-react";
 import { PhoneAuthFlow } from "@/features/auth/phone/PhoneAuthFlow";
+import { SocialLoginButtons } from "@/features/auth/SocialLoginButtons";
 
 import { Button, Card, Input } from "@/components/ds";
 import { useLogin } from "@/features/auth/hooks";
@@ -93,6 +94,7 @@ function AuthPage() {
         <button type="button" onClick={() => setMode("email")} className="mt-3 min-h-11 text-sm font-semibold text-muted-foreground">
           Войти по почте
         </button>
+        <div className="mt-3"><SocialLoginButtons /></div>
         <Link to="/nearby" className="mt-8 grid min-h-11 place-items-center text-sm text-muted-foreground underline-offset-4 hover:underline">
           Посмотреть объявления рядом
         </Link>
@@ -108,6 +110,7 @@ function AuthPage() {
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pt-10 text-foreground">
         <PhoneAuthFlow onBack={() => setMode("welcome")} onDone={() => void navigate({ to: "/chat" })} />
+        <div className="mt-4"><SocialLoginButtons /></div>
       </main>
     );
   }
@@ -154,6 +157,7 @@ function AuthPage() {
           {config.data?.passwordResetEnabled && <Button variant="ghost" fullWidth onClick={() => setMode("reset")}>Забыли пароль?</Button>}
           </>}
         </Card>
+        {mode === "email" && <div className="mt-4"><SocialLoginButtons /></div>}
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {t("auth.noAccount")}{" "}

@@ -8,6 +8,7 @@ import { Button, Card, Input, Modal } from "@/components/ds";
 import { InviteQrSheet } from "@/components/InviteQrSheet";
 import { ContactConfirm } from "@/features/settings/components/ContactConfirm";
 import { PhoneLink } from "@/features/settings/components/PhoneLink";
+import { LoginMethods } from "@/features/settings/components/LoginMethods";
 import { useChangePassword, useUpdateAccount } from "@/features/settings/hooks";
 
 import { supportedLanguages } from "@/i18n";
@@ -81,7 +82,7 @@ export function AccountSection({ account }: { account: AccountSettings }) {
           value={account.email}
           verified={account.emailVerified}
           action={
-            account.emailVerified ? null : <ContactConfirm channel="email" value={account.email} />
+            account.emailVerified || !account.email ? null : <ContactConfirm channel="email" value={account.email} />
           }
         />
         <ContactRow
@@ -92,6 +93,8 @@ export function AccountSection({ account }: { account: AccountSettings }) {
           action={<PhoneLink />}
         />
       </Card>
+
+      <LoginMethods />
 
       <Card className="p-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
