@@ -17,7 +17,6 @@ function OAuthCallback() {
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     const url = new URL(window.location.href), provider = url.searchParams.get("provider"), state = url.searchParams.get("state"), reason = url.searchParams.get("oauth");
-    window.history.replaceState(window.history.state, "", url.pathname);
     if (reason || (provider !== "yandex" && provider !== "telegram") || !state) {
       setError(reason === "account_unavailable" ? "Аккаунт удалён или заблокирован" : "Вход не завершён. Попробуйте снова"); return;
     }
@@ -26,6 +25,7 @@ function OAuthCallback() {
     let active = true;
     redemption.promise.then(result => {
       if (!active) return;
+      window.history.replaceState(window.history.state, "", url.pathname);
       useSessionStore.getState().setSession(result);
       if (result.isNew) { useOnboardingStore.getState().reset(); useOnboardingStore.getState().patchDraft({ name: result.user.name }); }
       void navigate({ to: result.isNew ? "/onboarding" : "/chat", replace: true });

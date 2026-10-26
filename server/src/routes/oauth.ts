@@ -71,20 +71,22 @@ export async function oauthRoutes(app: FastifyInstance) {
         await query("INSERT INTO auth_otps (phone,code_hash,expires_at,purpose,user_id,attempts) VALUES ($1,$2,$3,'oauth-result',$4,$5)",
           [`oauth-result:${digest(result.state)}`, digest(result.verifier), new Date(result.expires), account.id, account.isNew ? 1 : 0]);
         reply.setCookie("ya_oauth_result", signFlow(result, env.JWT_REFRESH_SECRET), { ...cookieOptions, maxAge: 60 });
-        return reply.redirect(`${publicBase()}/auth/callback?provider=${provider}&state=${result.state}`);
+        return reply.redirect(`${publicBase()}/oauth-callback?provider=${provider}&state=${result.state}`);
       } catch (error) {
         const kind = error instanceof HttpError ? error.code ?? `http_${error.statusCode}` : error instanceof Error && /^(oauth_|provider_|telegram_)[\w]+$/.test(error.message) ? error.message : "provider_response_invalid";
         request.log.warn({ provider, kind }, "[oauth] вход не завершён");
         const reason = error instanceof HttpError && error.statusCode === 409 ? "identity_taken" : error instanceof HttpError && error.statusCode === 403 ? "account_unavailable" : "failed";
-        return reply.redirect(`${publicBase()}/${linking ? "settings" : "auth/callback"}?oauth=${reason}`);
+        return reply.redirect(`${publicBase()}/${linking ? "settings" : "oauth-callback"}?oauth=${reason}`);
       }
     });
   }
   app.post("/oauth/result", { config: rate }, async (request, reply) => {
     reply.header("Cache-Control", "no-store");
     const { provider, state } = z.object({ provider: providerSchema, state: z.string().max(200) }).parse(request.body);
-    const flow = readFlow(request.cookies.ya_oauth_result, env.JWT_REFRESH_SECRET, provider, state);
     reply.clearCookie("ya_oauth_result", { path: "/api/auth" });
+    let flow: OAuthFlow;
+    try { flow = readFlow(request.cookies.ya_oauth_result, env.JWT_REFRESH_SECRET, provider, state); }
+    catch { throw badRequest("Вход истёк — попробуйте снова"); }
     const result = await transaction(async client => {
       const row = await client.query<{ user_id: string; attempts: number }>("UPDATE auth_otps SET consumed_at=now() WHERE phone=$1 AND code_hash=$2 AND purpose='oauth-result' AND consumed_at IS NULL AND expires_at>now() RETURNING user_id,attempts",
         [`oauth-result:${digest(flow.state)}`, digest(flow.verifier)]);
