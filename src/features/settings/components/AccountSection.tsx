@@ -205,14 +205,14 @@ function ContactRow({
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 p-6">
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 items-center gap-3">
         <span className="text-muted-foreground">{icon}</span>
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-          <p className="font-medium">{value || "не указан"}</p>
+          <p className="break-all font-medium">{value || "не указан"}</p>
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         {verified ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-success-soft px-3 py-1 text-xs font-medium text-foreground">
             <BadgeCheck className="size-3.5" aria-hidden="true" />
