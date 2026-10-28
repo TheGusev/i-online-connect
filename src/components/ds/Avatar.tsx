@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { mediaUrl } from "@/api";
 
-import { trustRingLabel, type AvatarTrust } from "./trust-ring";
+import { avatarIndicators, trustRingLabel, type AvatarTrust } from "./trust-ring";
 
 const sizeMap = {
   xs: "size-7 text-[10px]",
@@ -86,6 +86,7 @@ export function Avatar({
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [src]);
   const resolved = failed ? undefined : mediaUrl(src);
+  const indicators = avatarIndicators(online, trust, verified);
 
   const photo = (
     <div
@@ -118,17 +119,17 @@ export function Avatar({
       )}
       {...(online ? { title: "Сейчас в сети" } : {})}
     >
-      {trust ? <TrustRing trust={trust} size={size}>{photo}</TrustRing> : photo}
-      {verified && !trust && (
+      {indicators.trustRing && trust ? <TrustRing trust={trust} size={size}>{photo}</TrustRing> : photo}
+      {indicators.badge && (
         <span
-          title="Профиль подтверждён"
+          title={trust ? (trustRingLabel[trust] ?? "Профиль подтверждён") : "Профиль подтверждён"}
           className={cn(
             "absolute -bottom-0.5 -right-0.5 grid place-items-center rounded-full bg-gradient-verified text-primary-foreground ring-2 ring-card",
             badgeMap[size],
           )}
         >
           <Check strokeWidth={3.5} aria-hidden="true" />
-          <span className="sr-only">Подтверждён</span>
+          <span className="sr-only">{trust ? trustRingLabel[trust] : "Подтверждён"}</span>
         </span>
       )}
       {online && <span className="sr-only">Сейчас в сети</span>}
