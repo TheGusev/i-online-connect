@@ -26,6 +26,8 @@ export interface PreparedMedia {
   /** blob: ссылка для предпросмотра — освобождается вызывающим кодом. */
   previewUrl: string;
   durationMs?: number;
+  width?: number;
+  height?: number;
 }
 
 function mb(bytes: number) {

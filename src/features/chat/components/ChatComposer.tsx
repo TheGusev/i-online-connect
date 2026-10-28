@@ -12,6 +12,7 @@ import {
   type PreparedMedia,
 } from "@/features/chat/media";
 import { compressListingPhoto } from "@/features/nearby/compress-image";
+import { readPhotoDimensions } from "@/features/chat/photo-dimensions";
 
 const MAX_BATCH_PHOTOS = 10;
 
@@ -104,7 +105,14 @@ export function ChatComposer({
     for (const file of images.slice(0, Math.max(0, room))) {
       try {
         const prepared = await compressListingPhoto(file);
-        ready.push({ file: prepared, kind: "image", previewUrl: URL.createObjectURL(prepared) });
+        const previewUrl = URL.createObjectURL(prepared);
+        try {
+          const size = await readPhotoDimensions(previewUrl);
+          ready.push({ file: prepared, kind: "image", previewUrl, ...size });
+        } catch (error) {
+          URL.revokeObjectURL(previewUrl);
+          throw error;
+        }
       } catch (error) {
         notes.push(`${file.name}: ${error instanceof Error ? error.message : "не удалось подготовить"}`);
       }
@@ -134,7 +142,12 @@ export function ChatComposer({
     if (!file || !onMedia) return;
     setMediaError(null);
     try {
-      onMedia(await prepareChatMedia(file));
+      const media = await prepareChatMedia(file);
+      if (media.kind === "image") {
+        try { Object.assign(media, await readPhotoDimensions(media.previewUrl)); }
+        catch (error) { URL.revokeObjectURL(media.previewUrl); throw error; }
+      }
+      onMedia(media);
     } catch (error) {
       setMediaError(error instanceof Error ? error.message : "Не удалось подготовить вложение");
     }
@@ -197,7 +210,7 @@ export function ChatComposer({
 
       <form
         className={cn(
-          "grid items-end gap-2 px-3 py-2.5 focus-within:py-1.5 sm:px-4 sm:py-3 sm:focus-within:py-1.5",
+          "grid min-h-16 items-end gap-2 px-3 py-2.5 sm:px-4",
           // Долгое нажатие для записи не должно вызывать лупу и меню выделения iOS.
           "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]",
           leading || onMedia || voice.recording
@@ -247,10 +260,10 @@ export function ChatComposer({
                       variant="secondary"
                       aria-label="Отправить фото или видео"
                       {...(mediaHint ? { title: mediaHint } : {})}
-                      loading={mediaSending}
+                      aria-busy={mediaSending}
                       disabled={disabled || mediaSending}
                       onClick={() => fileRef.current?.click()}
-                      className="shrink-0 border border-primary/40 text-primary hover:bg-primary/10"
+                      className="size-11 shrink-0 border border-primary/40 text-primary hover:bg-primary/10"
                     >
                       <ImagePlus aria-hidden="true" />
                     </Button>
@@ -297,7 +310,7 @@ export function ChatComposer({
             aria-label="Отправить"
             onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}
             disabled={disabled || preparing || (!value.trim() && staged.length === 0) || voice.recording}
-            className="shrink-0"
+            className="size-11 shrink-0"
           >
             <SendHorizontal aria-hidden="true" />
           </Button>
@@ -315,7 +328,7 @@ export function ChatComposer({
             draggable={false}
             onContextMenu={(event) => event.preventDefault()}
             className={cn(
-              "shrink-0 touch-none select-none",
+              "size-11 shrink-0 touch-none select-none",
               "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]",
               voice.recording
                 ? "bg-primary text-primary-foreground shadow-glow animate-pulse"
