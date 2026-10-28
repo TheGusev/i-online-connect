@@ -11,6 +11,7 @@ import { VoicePlayer } from "./VoicePlayer";
 import { MediaAttachment } from "./MediaAttachment";
 import { ReactionChips } from "./ReactionChip";
 import { useMessageGestures } from "@/features/chat/useMessageGestures";
+import { memo } from "react";
 
 function time(iso: string) {
   return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -29,7 +30,7 @@ export function quotePreview(quote: MessageQuote) {
 const NO_SELECT =
   "select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [-webkit-user-select:none]";
 
-export function MessageBubble({
+export const MessageBubble = memo(function MessageBubble({
   message,
   onRetry,
   onActions,
@@ -121,7 +122,7 @@ export function MessageBubble({
           "relative max-w-[78%] touch-pan-y text-sm leading-relaxed",
           // Долгое нажатие и свайп не должны вызывать выделение текста и лупу iOS.
           NO_SELECT,
-          bare ? "flex w-[min(19rem,78%)] flex-col gap-1" : cn("rounded-3xl px-4 py-3 shadow-soft", bubbleTone),
+          bare ? "flex w-[min(19rem,78%)] flex-col gap-1 rounded-2xl" : cn("rounded-3xl px-4 py-3 shadow-soft", bubbleTone),
           // Голосовые компактнее и без лишней рамки вокруг плеера.
           voiceInline && "px-3 py-2",
           voiceInline && !mine && "border-transparent bg-card/70",
@@ -234,7 +235,7 @@ export function MessageBubble({
       {swipe.offset < -4 ? <SwipeHint offset={swipe.offset} side="right" /> : null}
     </li>
   );
-}
+});
 
 /** Значок «ответ» в круге: появляется сбоку и растёт по мере свайпа. */
 function SwipeHint({ offset, side }: { offset: number; side: "left" | "right" }) {

@@ -8,6 +8,9 @@ import { cn } from "@/lib/utils";
 import { useOverlayPresence } from "@/lib/useOverlayPresence";
 import { MORE_REACTIONS, QUICK_REACTIONS, myReaction, useReactionToggle } from "@/features/chat/reactions";
 import { LiveEmoji } from "./LiveEmoji";
+import { Button } from "@/components/ds";
+import { useKeyboardInset } from "@/hooks/useViewportHeight";
+import { computeActionsPosition } from "@/features/chat/actions-position";
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const EMOJI = QUICK_REACTIONS;
@@ -56,36 +59,63 @@ export function MessageActions({
   if (message) lastMessage.current = message;
   const shown = message ?? lastMessage.current;
   const albumLive = (album ?? []).filter((m) => !m.deletedAt);
-  const target = albumLive.length > 1 ? albumLive[albumLive.length - 1]! : shown;
+  const target = albumLive.length > 1 ? albumLive[albumLive.length - 1] : shown;
   const toggleReaction = useReactionToggle();
   const current = myReaction(target?.reactions);
   const [more, setMore] = useState(false);
-  const [pos, setPos] = useState<{ top?: number; bottom?: number; left: number } | null>(null);
+  const [pos, setPos] = useState<ReturnType<typeof computeActionsPosition> | null>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const keyboardInset = useKeyboardInset();
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
-  useEffect(() => { setMore(false); }, [message]);
+  useEffect(() => { setMore(false); setPos(null); openedAt.current = Date.now(); }, [message?.id]);
 
   useEffect(() => {
     if (!message) return;
-    openedAt.current = Date.now();
-    const li = document.getElementById(`message-${message.id}`) ?? document.querySelector(`[data-tile-id="${message.id}"]`)?.closest("li") ?? null;
-    const el = (li?.querySelector(":scope > div") as HTMLElement | null) ?? null;
-    el?.classList.add("ring-2", "ring-primary");
-    const rect = (el ?? li)?.getBoundingClientRect();
-    const vh = window.visualViewport?.height ?? window.innerHeight;
-    const width = Math.min(320, window.innerWidth - 16);
-    if (rect) {
-      const left = Math.max(8, Math.min(window.innerWidth - width - 8, mine ? rect.right - width : rect.left));
-      const panelHeight = (more ? 310 : 112) + ((album?.length ?? 0) > 1 ? 40 : 0);
-      const preferredTop = rect.bottom + 8 + panelHeight <= vh ? rect.bottom + 8 : rect.top - panelHeight - 8;
-      setPos({ top: Math.max(8, Math.min(vh - panelHeight - 8, preferredTop)), left });
-    } else setPos({ top: 80, left: 8 });
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    const li = document.getElementById(`message-${message.id}`);
+    const tile = Array.from(document.querySelectorAll<HTMLElement>("[data-tile-id]")).find((node) => node.dataset["tileId"] === message.id);
+    const bubble = li?.querySelector<HTMLElement>("[data-bubble]");
+    const el = tile ?? bubble?.querySelector<HTMLElement>("[data-message-photo], video")?.closest<HTMLElement>(".chat-media-frame") ?? bubble ?? li;
+    el?.classList.add("message-actions-selected");
+    let frame = 0;
+    const update = () => {
+      if (!el) return;
+      const vv = window.visualViewport;
+      const viewport = { top: vv?.offsetTop ?? 0, height: vv?.height ?? window.innerHeight, width: vv?.width ?? window.innerWidth };
+      let rect = el.getBoundingClientRect();
+      const scroller = el.closest<HTMLElement>("main") ?? el.closest<HTMLElement>("[data-chat-scroller]");
+      const scrollRect = scroller?.getBoundingClientRect();
+      const upper = Math.max(viewport.top + 8, (scrollRect?.top ?? viewport.top) + 8);
+      const lower = Math.min(viewport.top + viewport.height - 8, (scrollRect?.bottom ?? viewport.top + viewport.height) - 8);
+      if (scroller && (rect.bottom > lower || rect.top < upper)) {
+        const delta = rect.height > lower - upper ? rect.top - upper : rect.bottom > lower ? rect.bottom - lower : rect.top - upper;
+        scroller.scrollTop += delta;
+        rect = el.getBoundingClientRect();
+      }
+      setPos(computeActionsPosition({ rect, viewport, panelHeight: panelRef.current?.offsetHeight || (more ? 310 : 112) + (albumLive.length > 1 ? 72 : 0), mine }));
+    };
+    const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(update); };
+    schedule();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
+    if (panelRef.current) observer?.observe(panelRef.current);
+    window.visualViewport?.addEventListener("resize", schedule);
+    window.visualViewport?.addEventListener("scroll", schedule);
+    window.addEventListener("resize", schedule);
+    window.addEventListener("scroll", schedule, true);
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") closeRef.current(); };
     window.addEventListener("keydown", onKey);
     return () => {
       window.removeEventListener("keydown", onKey);
-      el?.classList.remove("ring-2", "ring-primary");
+      cancelAnimationFrame(frame);
+      observer?.disconnect();
+      window.visualViewport?.removeEventListener("resize", schedule);
+      window.visualViewport?.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      window.removeEventListener("scroll", schedule, true);
+      el?.classList.remove("message-actions-selected");
     };
-  }, [message, mine, onClose, more, album]);
+  }, [message?.id, mine, more, albumLive.length, keyboardInset]);
 
   if (!mounted || !shown || typeof document === "undefined") return null;
   const current2 = shown; // стабильная ссылка для рендера во время выхода
@@ -115,7 +145,7 @@ export function MessageActions({
 
   return createPortal(
     <div
-      className={cn("fixed inset-0 z-[85] bg-background/40", leaving ? "backdrop-leave" : "backdrop-enter", NO_SELECT)}
+      className={cn("viewport-overlay z-[85] bg-background/40", !pos && "invisible", leaving ? "backdrop-leave" : "backdrop-enter", NO_SELECT)}
       role="dialog"
       aria-modal="true"
       aria-label="Действия с сообщением"
@@ -123,8 +153,9 @@ export function MessageActions({
       onPointerDown={(e) => { if (e.target === e.currentTarget && !fresh() && !leaving) onClose(); }}
     >
       <div
+        ref={panelRef}
         className={cn(
-          "fixed w-[min(320px,calc(100vw-16px))] rounded-3xl border border-border/60 bg-card/85 p-1.5 shadow-glow backdrop-blur-md",
+          "absolute w-[min(320px,calc(100%-16px))] overflow-y-auto rounded-3xl border border-border/60 bg-card/85 p-1.5 shadow-glow backdrop-blur-md",
           leaving ? "menu-leave" : "menu-enter",
         )}
         style={pos ?? undefined}

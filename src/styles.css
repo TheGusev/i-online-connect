@@ -763,6 +763,9 @@ html[data-tab-hidden] .chat-sky *, html[data-tab-hidden] .live-icon * { animatio
 .collapse-grid > * { overflow: hidden; min-height: 0; }
 /* Фото в чатах: тонкая рамка бренда и одноразовая подсветка */
 .chat-media-frame { border: 1.5px solid color-mix(in oklab, var(--color-primary) 60%, transparent); }
+.message-actions-selected { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* Album edges inherit their rounded grid, including the selected tile. */
+.message-actions-selected[data-tile-id] { border-radius: inherit; outline-offset: -2px; }
 @keyframes media-glow { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-primary) 0%, transparent); } 35% { box-shadow: 0 0 14px 2px color-mix(in oklab, var(--color-primary) 55%, transparent); } 100% { box-shadow: 0 0 0 0 transparent; } }
 .chat-media-glow { animation: media-glow 600ms ease-out 1; }
 @media (prefers-reduced-motion: reduce) {

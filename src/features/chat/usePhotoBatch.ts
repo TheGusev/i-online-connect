@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { PreparedMedia } from "@/features/chat/media";
+import { getPhotoDimensions, rememberPhotoDimensions } from "./photo-dimensions";
 
 /** Пауза между фото: сервер ограничивает частоту отправки. */
 const SEND_PAUSE_MS = 150;
@@ -24,7 +25,7 @@ const wait = (ms: number) => new Promise((resolve) => window.setTimeout(resolve,
  * Отправка нескольких фото: каждое уходит отдельным сообщением строго по порядку,
  * а до ответа сервера показывается из локального превью. Подпись — следом текстом.
  */
-export function usePhotoBatch<T extends { clientTempId?: string | undefined }>({
+export function usePhotoBatch<T extends { id?: string; mediaUrl?: string; clientTempId?: string | undefined }>({
   authorId,
   upload,
   commit,
@@ -55,6 +56,11 @@ export function usePhotoBatch<T extends { clientTempId?: string | undefined }>({
     if (!file) return;
     try {
       const message = await latest.current.upload(file, clientTempId);
+      const size = getPhotoDimensions(clientTempId);
+      if (size) {
+        if (message.id) rememberPhotoDimensions(message.id, size);
+        if (message.mediaUrl) rememberPhotoDimensions(message.mediaUrl, size);
+      }
       latest.current.commit(message);
       files.current.delete(clientTempId);
       setPending((items) => {
@@ -89,6 +95,7 @@ export function usePhotoBatch<T extends { clientTempId?: string | undefined }>({
       const now = Date.now();
       const created = photos.map((media, index) => {
         const clientTempId = crypto.randomUUID();
+        if (media.width && media.height) rememberPhotoDimensions(clientTempId, { width: media.width, height: media.height });
         files.current.set(clientTempId, media.file);
         return {
           id: `tmp-${clientTempId}`,

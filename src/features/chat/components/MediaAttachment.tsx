@@ -11,6 +11,7 @@ import { mediaUrl } from "@/api";
 import { Button } from "@/components/ds";
 import { cn } from "@/lib/utils";
 import { GalleryViewer } from "./MediaGallery";
+import { getPhotoDimensions, photoAspectRatio } from "@/features/chat/photo-dimensions";
 
 function durationLabel(ms: number) {
   const total = Math.round(ms / 1000);
@@ -49,6 +50,7 @@ export function MediaAttachment({
   const [playing, setPlaying] = useState(false);
   // blob:-предпросмотр отдаём как есть, серверный путь разворачиваем в абсолютный.
   const url = src.startsWith("blob:") ? src : (mediaUrl(src) ?? src);
+  const dimensions = getPhotoDimensions(message?.id) ?? getPhotoDimensions(src);
 
   if (kind === "video") {
     return (
@@ -97,6 +99,7 @@ export function MediaAttachment({
       <Button
         variant="ghost"
         data-message-photo
+        style={{ aspectRatio: photoAspectRatio(dimensions) }}
         type="button"
         onClick={(event) => {
           event.stopPropagation();
@@ -117,7 +120,7 @@ export function MediaAttachment({
           data-loaded={loaded}
           onLoad={() => setLoaded(true)}
           onError={() => setLoaded(true)}
-          className="img-fade block min-h-32 max-h-72 w-full max-w-full object-cover"
+          className="img-fade block size-full max-w-full object-cover"
         />
         {badge}
       </Button>
