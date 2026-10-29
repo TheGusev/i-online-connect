@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import { useOverlayPresence } from "@/lib/useOverlayPresence";
 import { MORE_REACTIONS, QUICK_REACTIONS, myReaction, useReactionToggle } from "@/features/chat/reactions";
 import { LiveEmoji } from "./LiveEmoji";
-import { Button } from "@/components/ds";
 import { useKeyboardInset } from "@/hooks/useViewportHeight";
 import { computeActionsPosition } from "@/features/chat/actions-position";
 
@@ -69,7 +68,9 @@ export function MessageActions({
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
-  useEffect(() => { setMore(false); setPos(null); openedAt.current = Date.now(); }, [message?.id]);
+  useEffect(() => {
+    if (message) { setMore(false); setPos(null); openedAt.current = Date.now(); }
+  }, [message?.id]);
 
   useEffect(() => {
     if (!message) return;
@@ -115,7 +116,7 @@ export function MessageActions({
       window.removeEventListener("scroll", schedule, true);
       el?.classList.remove("message-actions-selected");
     };
-  }, [message?.id, mine, more, albumLive.length, keyboardInset]);
+  }, [message?.id, mine, more, albumLive.length, keyboardInset, mounted]);
 
   if (!mounted || !shown || typeof document === "undefined") return null;
   const current2 = shown; // стабильная ссылка для рендера во время выхода

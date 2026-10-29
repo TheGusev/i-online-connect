@@ -5,10 +5,11 @@ import {
   useQueryClient,
   type InfiniteData,
 } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { chatApi } from "@/api";
-import type { MeetingKind, Message, MessageQuote } from "@/api";
+import type { Conversation, MeetingKind, Message, MessageQuote } from "@/api";
+import { rememberPhotoDimensions } from "./photo-dimensions";
 import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
 import type { PreparedMedia } from "@/features/chat/media";
 import type { MessagesPage } from "@/api/endpoints/chat";
@@ -25,9 +26,11 @@ export function useConversations() {
 }
 
 export function useConversation(conversationId: string) {
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ["chat", "conversation", conversationId] as const,
     queryFn: () => chatApi.getConversation(conversationId),
+    placeholderData: () => queryClient.getQueryData<Conversation[]>(conversationsQueryOptions.queryKey)?.find((item) => item.id === conversationId),
   });
 }
 
@@ -51,9 +54,9 @@ export function useMessages(conversationId: string | null) {
   });
 
   // Страницы приходят «новые → старые», внутри страницы — по возрастанию.
-  const messages: Message[] | undefined = query.data
+  const messages: Message[] | undefined = useMemo(() => query.data
     ? [...query.data.pages].reverse().flatMap((page) => page.items)
-    : undefined;
+    : undefined, [query.data]);
 
   return { ...query, messages };
 }
@@ -61,7 +64,7 @@ export function useMessages(conversationId: string | null) {
 /** Точечные правки кэша сообщений без перезапроса истории. */
 export function useMessagesCache(conversationId: string) {
   const queryClient = useQueryClient();
-  const key = messagesQueryKey(conversationId);
+  const key = useMemo(() => messagesQueryKey(conversationId), [conversationId]);
 
   const mutate = useCallback(
     (fn: (items: Message[]) => Message[]) => {
@@ -123,7 +126,7 @@ export function useMessagesCache(conversationId: string) {
     [queryClient, key],
   );
 
-  return { upsert, remove, markMineRead };
+  return useMemo(() => ({ upsert, remove, markMineRead }), [upsert, remove, markMineRead]);
 }
 
 /** Подсказки первой фразы нужны только для пустого диалога. */
@@ -276,6 +279,7 @@ export function useSendMediaMessage(conversationId: string) {
     }) => chatApi.sendMediaMessage(conversationId, media.file, clientTempId, replyTo?.id),
     onMutate: ({ media, clientTempId, replyTo }) => {
       const id = `tmp-${clientTempId}`;
+      if (media.width && media.height) rememberPhotoDimensions(id, { width: media.width, height: media.height });
       cache.upsert({
         id,
         clientTempId,
@@ -292,8 +296,13 @@ export function useSendMediaMessage(conversationId: string) {
       });
       return { id, previewUrl: media.previewUrl };
     },
-    onSuccess: (message, _vars, ctx) => {
+    onSuccess: (message, vars, ctx) => {
       if (ctx?.previewUrl) URL.revokeObjectURL(ctx.previewUrl);
+      if (vars.media.width && vars.media.height) {
+        const size = { width: vars.media.width, height: vars.media.height };
+        rememberPhotoDimensions(message.id, size);
+        if (message.mediaUrl) rememberPhotoDimensions(message.mediaUrl, size);
+      }
       cache.upsert({ ...message, status: message.status ?? "sent" }, ctx?.id);
       void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
     },

@@ -132,10 +132,21 @@ export function usePhotoBatch<T extends { id?: string; mediaUrl?: string; client
 }
 
 /** Убираем из ожидающих те, что уже пришли по сети (например, через WebSocket). */
-export function withPending<T extends { clientTempId?: string | undefined }>(
+export function withPending<T extends { id?: string; mediaUrl?: string; clientTempId?: string | undefined }>(
   messages: readonly T[],
   pending: readonly PendingPhoto[],
 ): (T | PendingPhoto)[] {
   const arrived = new Set(messages.map((m) => m.clientTempId).filter(Boolean));
+  messages.forEach((message) => {
+    const size = getPhotoDimensions(message.clientTempId);
+    if (size) {
+      if (message.id) rememberPhotoDimensions(message.id, size);
+      if (message.mediaUrl) rememberPhotoDimensions(message.mediaUrl, size);
+    }
+  });
+  pending.forEach((photo) => {
+    const size = getPhotoDimensions(photo.clientTempId);
+    if (size) rememberPhotoDimensions(photo.id, size);
+  });
   return [...messages, ...pending.filter((p) => !arrived.has(p.clientTempId))];
 }
