@@ -130,6 +130,7 @@ function ConversationPage() {
   const [actionsAlbum, setActionsAlbum] = useState<Message[] | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const topSentinelRef = useRef<HTMLDivElement | null>(null);
   const [scrollReadyFor, setScrollReadyFor] = useState<string | null>(null);
   const initialScrollReady = scrollReadyFor === id;
@@ -242,13 +243,25 @@ function ConversationPage() {
   const lastMine = messages?.[messages.length - 1]?.authorId === myId;
   useEffect(() => {
     if (!initialScrollReady) return;
-    scrollToBottom(!(keyboardInset > 0 || lastMine));
+    if (nearBottomRef.current || lastMine) scrollToBottom(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialScrollReady, lastId, typing, scrollToBottom]);
 
   // Клавиатура сократила видимую область — держим последнее сообщение в кадре.
   // Прокручиваем один раз и только если до изменения пользователь был у низа.
   const nearBottomRef = useRef(true);
+  const historyLoadingRef = useRef(false);
+  useLayoutEffect(() => {
+    const content = contentRef.current;
+    const scroller = scrollerRef.current;
+    if (!content || !scroller || !initialScrollReady || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (nearBottomRef.current && !historyLoadingRef.current) scroller.scrollTop = scroller.scrollHeight;
+    });
+    observer.observe(content);
+    observer.observe(scroller);
+    return () => observer.disconnect();
+  }, [initialScrollReady]);
   useEffect(() => {
     if (!initialScrollReady || !nearBottomRef.current) return;
     const frame = requestAnimationFrame(() => scrollToBottom(false));
@@ -267,11 +280,13 @@ function ConversationPage() {
         if (!entries[0]?.isIntersecting || isFetchingNextPage) return;
         const prevHeight = scroller.scrollHeight;
         const prevTop = scroller.scrollTop;
+        historyLoadingRef.current = true;
         void fetchNextPage().then(() => {
           requestAnimationFrame(() => {
             scroller.scrollTop = prevTop + (scroller.scrollHeight - prevHeight);
+            historyLoadingRef.current = false;
           });
-        });
+        }).catch(() => { historyLoadingRef.current = false; });
       },
       { root: scroller },
     );
@@ -304,9 +319,10 @@ function ConversationPage() {
   };
 
   /** Цитата для плашки и оптимистичного пузыря. */
-  const startReply = (message: Message, album?: Message[]) => {
+  const startReply = useCallback((message: Message, album?: Message[]) => {
     setEditingMessage(null);
-    setReplyAlbum(album && album.length > 1 ? { thumb: album[0]!.mediaUrl ? (album[0]!.mediaUrl.startsWith("blob:") ? album[0]!.mediaUrl : (mediaUrl(album[0]!.mediaUrl) ?? undefined)) : undefined, count: album.length } : null);
+    const firstPhoto = album?.[0];
+    setReplyAlbum(album && album.length > 1 ? { thumb: firstPhoto?.mediaUrl ? (firstPhoto.mediaUrl.startsWith("blob:") ? firstPhoto.mediaUrl : (mediaUrl(firstPhoto.mediaUrl) ?? undefined)) : undefined, count: album.length } : null);
     setReplyTo({
       id: message.id,
       authorId: message.authorId,
@@ -314,10 +330,10 @@ function ConversationPage() {
       text: message.text,
     });
     inputRef.current?.focus();
-  };
+  }, []);
 
   /** Переход к исходному сообщению с короткой подсветкой. */
-  const jumpToMessage = (messageId: string) => {
+  const jumpToMessage = useCallback((messageId: string) => {
     const node = document.getElementById(`message-${messageId}`);
     if (!node) return;
     node.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -329,9 +345,10 @@ function ConversationPage() {
       bubble.classList.add("msg-flash");
       window.setTimeout(() => bubble.classList.remove("msg-flash"), 1300);
     }, 350);
-  };
+  }, []);
 
-  const retry = (message: Message) => {
+  const retry = useCallback((message: Message) => {
+    if (message.clientTempId && photoBatch.retry(message.clientTempId)) return;
     if (message.kind === "voice") {
       const variables = sendVoice.variables;
       if (!sendVoice.isPending && variables && variables.clientTempId === message.clientTempId) {
@@ -345,13 +362,14 @@ function ConversationPage() {
       clientTempId: message.clientTempId ?? crypto.randomUUID(),
       retryId: message.id,
     });
-  };
+  }, [photoBatch.retry, send.isPending, send.mutate, sendVoice.isPending, sendVoice.variables, sendVoice.mutate]);
+  const openActions = useCallback((message: Message) => { setActionsAlbum(null); setActionsFor(message); }, []);
 
   return (
     <ReactionContext.Provider value={toggleReaction}>
     <div className="keyboard-viewport-fixed flex flex-col overflow-hidden overscroll-none bg-background text-foreground">
       <header className="shrink-0 border-b border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-3 py-2.5">
+        <div className="mx-auto flex min-h-[76px] w-full max-w-3xl items-center gap-3 px-3 py-2.5">
           <Link
             to="/chat"
             aria-label="К списку диалогов"
@@ -386,7 +404,10 @@ function ConversationPage() {
               </span>
             </Link>
           ) : (
-            <span className="flex-1 text-sm text-muted-foreground">Загружаем диалог…</span>
+            <span className="flex min-w-0 flex-1 items-center gap-2.5" aria-label="Загружаем диалог">
+              <span className="size-12 shrink-0 animate-pulse rounded-full bg-secondary" />
+              <span className="flex flex-col gap-2"><span className="h-4 w-24 animate-pulse rounded bg-secondary" /><span className="h-3 w-16 animate-pulse rounded bg-secondary" /></span>
+            </span>
           )}
 
           <MediaGalleryButton onClick={() => setGalleryOpen(true)} className="size-10" />
@@ -416,7 +437,7 @@ function ConversationPage() {
           !isPending && messages && !initialScrollReady ? "invisible" : ""
         }`}
       >
-        <div className="mx-auto flex w-full max-w-3xl flex-col">
+        <div ref={contentRef} className="mx-auto flex w-full max-w-3xl flex-col">
           {shared.length > 0 ? (
             <p className="mb-4 rounded-2xl bg-primary-soft/50 px-4 py-2.5 text-xs text-primary-ink">
               Общее у вас: {shared.join(", ")}
@@ -449,7 +470,8 @@ function ConversationPage() {
               ) : null}
               <ul className="flex-1 space-y-3">
                 {groupMessages(withPending(messages ?? [], photoBatch.pending) as Message[]).map((group, index, groups) => {
-                  const message = group.type === "album" ? group.messages[0]! : group.message;
+                  const message = group.type === "album" ? group.messages[0] : group.message;
+                  if (!message) return null;
                   const prevGroup = groups[index - 1];
                   const prev = prevGroup
                     ? prevGroup.type === "album"
@@ -458,7 +480,7 @@ function ConversationPage() {
                     : undefined;
                   const showDay = !prev || !sameDay(prev.createdAt, message.createdAt);
                   return (
-                    <Fragment key={group.type === "album" ? `album-${message.clientTempId ?? message.id}` : message.id}>
+                    <Fragment key={group.type === "album" ? `album-${message.clientTempId ?? message.id}` : message.clientTempId ?? message.id}>
                       {showDay ? (
                         <li className="flex justify-center py-1">
                           <span className="hud-label rounded-full bg-secondary px-3 py-1 text-[11px] text-muted-foreground">
@@ -474,18 +496,15 @@ function ConversationPage() {
                             if (item.clientTempId) photoBatch.retry(item.clientTempId);
                           }}
                           onActions={(item, album) => { setActionsAlbum(album); setActionsFor(item); }}
-                          onReply={(album) => startReply(album[0]!, album)}
+                          onReply={(album) => { if (album[0]) startReply(album[0], album); }}
                           onDelete={(list) => list.forEach((item) => deleteMessage.mutate({ messageId: item.id, previous: item }))}
                         />
                       ) : (
                         <MessageBubble
                           message={message}
-                          onRetry={(item) => {
-                            if (item.clientTempId && photoBatch.retry(item.clientTempId)) return;
-                            retry(item);
-                          }}
-                          onActions={(m) => { setActionsAlbum(null); setActionsFor(m); }}
-                          onReply={(m) => startReply(m)}
+                          onRetry={retry}
+                          onActions={openActions}
+                          onReply={startReply}
                           onQuoteClick={jumpToMessage}
                           {...(participant?.name ? { participantName: participant.name } : {})}
                         />
