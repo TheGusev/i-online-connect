@@ -69,7 +69,9 @@ export function MessageActions({
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
 
-  useEffect(() => { setMore(false); setPos(null); openedAt.current = Date.now(); }, [message?.id]);
+  useEffect(() => {
+    if (message) { setMore(false); setPos(null); openedAt.current = Date.now(); }
+  }, [message?.id]);
 
   useEffect(() => {
     if (!message) return;
@@ -115,7 +117,7 @@ export function MessageActions({
       window.removeEventListener("scroll", schedule, true);
       el?.classList.remove("message-actions-selected");
     };
-  }, [message?.id, mine, more, albumLive.length, keyboardInset]);
+  }, [message?.id, mine, more, albumLive.length, keyboardInset, mounted]);
 
   if (!mounted || !shown || typeof document === "undefined") return null;
   const current2 = shown; // стабильная ссылка для рендера во время выхода
