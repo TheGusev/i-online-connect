@@ -91,7 +91,8 @@ export function Avatar({
   const photo = (
     <div
       className={cn(
-        "flex items-center justify-center overflow-hidden rounded-full bg-primary-soft font-bold text-primary-ink ring-2 ring-card",
+        "flex items-center justify-center overflow-hidden rounded-full bg-primary-soft font-bold text-primary-ink",
+        !online && "ring-2 ring-card",
         sizeMap[size],
       )}
     >

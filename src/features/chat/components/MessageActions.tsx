@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import { useOverlayPresence } from "@/lib/useOverlayPresence";
 import { MORE_REACTIONS, QUICK_REACTIONS, myReaction, useReactionToggle } from "@/features/chat/reactions";
 import { LiveEmoji } from "./LiveEmoji";
-import { Button } from "@/components/ds";
 import { useKeyboardInset } from "@/hooks/useViewportHeight";
 import { computeActionsPosition } from "@/features/chat/actions-position";
 
