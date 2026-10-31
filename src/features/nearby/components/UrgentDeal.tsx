@@ -8,6 +8,7 @@ import { useAuthGate } from "@/features/auth/phone/AuthSheet";
 import { HOLD_OPTIONS } from "../urgent";
 import { clockLeft, dropEnd, moneyInput, urgentError } from "../urgent-ui";
 import { formatPrice } from "../labels";
+import { VerifiedContactStep } from "@/features/auth/VerifiedContactStep";
 
 function useNow() {
   const [now, setNow] = useState<number | null>(null);
@@ -58,7 +59,7 @@ export function UrgentDeal({ listing }: { listing: Listing }) {
     try { await action(); toast.success(success); if (close) setPanel(null); await refresh(); }
     catch (cause) {
       setError(urgentError(cause));
-      if ((cause as { code?: string }).code === "PHONE_REQUIRED") setPanel("phone");
+      if (["CONTACT_NOT_VERIFIED", "PHONE_REQUIRED"].includes((cause as { code?: string }).code ?? "")) setPanel("phone");
       await refresh();
     } finally { setBusy(false); }
   });
@@ -105,7 +106,7 @@ export function UrgentDeal({ listing }: { listing: Listing }) {
       {error && <p role="alert" className="text-destructive">{error}</p>}
       <Button fullWidth loading={busy} disabled={moneyInput(bid) === null} onClick={() => run(() => listingsApi.setListingBid(listing.id, moneyInput(bid)), "Моя цена сохранена", true)}>Сохранить</Button>
     </BottomSheet>
-    <BottomSheet open={panel === "phone"} onClose={() => setPanel(null)} title="Подтвердите телефон" layerClassName="z-[60]" description="Для бронирования и своей цены нужен подтверждённый телефон в настройках аккаунта." />
+    <BottomSheet open={panel === "phone"} onClose={() => setPanel(null)} title="Подтвердите способ связи" layerClassName="z-[60]"><VerifiedContactStep /></BottomSheet>
     {gate.sheet}
   </section>;
 }
