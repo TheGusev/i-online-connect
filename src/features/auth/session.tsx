@@ -13,6 +13,8 @@ import {
 } from "@/api";
 import { Button } from "@/components/ds";
 import { useSessionStore } from "@/store/useSessionStore";
+import { needsFirstEntry } from "./first-entry";
+import { ShortEntry } from "./ShortEntry";
 
 /** Ошибка, после которой сессию можно считать недействительной. */
 function isInvalidSession(cause: unknown) {
@@ -142,8 +144,10 @@ export function SessionOffline() {
 /** Гейт приватных экранов: без сессии уводим на вход. */
 export function RequireSession({ children }: { children: React.ReactNode }) {
   const status = useSessionStore((state) => state.status);
+  const user = useSessionStore((state) => state.user);
   if (status === "loading") return <SessionLoading />;
   if (status === "offline") return <SessionOffline />;
   if (status === "guest") return <Navigate to="/auth" replace />;
+  if (needsFirstEntry(user)) return <ShortEntry />;
   return <>{children}</>;
 }

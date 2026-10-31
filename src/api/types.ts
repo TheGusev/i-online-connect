@@ -318,6 +318,7 @@ export interface ProfileCompleteness {
 }
 
 export interface MyProfile extends ProfileDetail {
+  adultConfirmed?: boolean;
   privacy: PrivacySettings;
   verification: VerificationStatus;
   stats: OwnerTrustStats;

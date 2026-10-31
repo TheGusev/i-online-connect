@@ -12,6 +12,7 @@ import { LoginMethods } from "@/features/settings/components/LoginMethods";
 import { useChangePassword, useUpdateAccount } from "@/features/settings/hooks";
 
 import { supportedLanguages } from "@/i18n";
+import { PHONE_LOGIN_ENABLED } from "@/features/auth/first-entry";
 
 const languageNames: Record<string, string> = { ru: "Русский", en: "English" };
 
@@ -85,13 +86,13 @@ export function AccountSection({ account }: { account: AccountSettings }) {
             account.emailVerified || !account.email ? null : <ContactConfirm channel="email" value={account.email} />
           }
         />
-        <ContactRow
+        {PHONE_LOGIN_ENABLED && <ContactRow
           icon={<Phone className="size-4" aria-hidden="true" />}
           label="Телефон"
           value={account.phone}
           verified={account.phoneVerified}
           action={<PhoneLink />}
-        />
+        />}
       </Card>
 
       <LoginMethods />
@@ -209,7 +210,7 @@ function ContactRow({
         <span className="text-muted-foreground">{icon}</span>
         <div>
           <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
-          <p className="break-all font-medium">{value || "не указан"}</p>
+          <p className="break-all font-medium">{value ? "Указан" : "Не указан"}</p>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-3">

@@ -4,6 +4,7 @@ import { normalizePhone } from "./phone.ts";
 import { claimPhone } from "./phone-account.ts";
 import type { OAuthProvider } from "./oauth-security.ts";
 import type { ProviderProfile } from "./oauth-providers.ts";
+import { env } from "../env.ts";
 
 export async function oauthAccount(client: pg.PoolClient, provider: OAuthProvider, profile: ProviderProfile, linkUserId?: string) {
   // Serializes all identity attach/detach and phone ownership changes across PM2 processes.
@@ -47,7 +48,7 @@ export async function unlinkIdentity(client: pg.PoolClient, userId: string, prov
   const result = await client.query<{ email: string | null; password_hash: string | null; phone_verified: boolean; phone: string | null }>("SELECT email,password_hash,phone_verified,phone FROM users WHERE id=$1 FOR UPDATE", [userId]);
   const account = result.rows[0];
   if (!account) throw forbidden();
-  const remaining = await client.query<{ n: string }>("SELECT count(*) AS n FROM user_identities WHERE user_id=$1 AND provider<>$2", [userId,provider]);
-  if (!canUnlink(Boolean(account.email && account.password_hash), Boolean(account.phone && account.phone_verified), Number(remaining.rows[0]?.n ?? 0))) throw conflict("Нельзя отвязать последний способ входа");
+  const remaining = await client.query<{ n: string }>("SELECT count(*) AS n FROM user_identities WHERE user_id=$1 AND provider<>$2 AND (provider<>'phone' OR $3)", [userId,provider,env.PHONE_LOGIN_ENABLED === "true"]);
+  if (!canUnlink(Boolean(account.email && account.password_hash), env.PHONE_LOGIN_ENABLED === "true" && Boolean(account.phone && account.phone_verified), Number(remaining.rows[0]?.n ?? 0))) throw conflict("Нельзя отвязать последний способ входа");
   await client.query("DELETE FROM user_identities WHERE user_id=$1 AND provider=$2", [userId,provider]);
 }

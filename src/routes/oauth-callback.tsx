@@ -4,6 +4,7 @@ import { authApi } from "@/api";
 import { Button } from "@/components/ds";
 import { useSessionStore } from "@/store/useSessionStore";
 import { useOnboardingStore } from "@/store/useOnboardingStore";
+import { needsFirstEntry } from "@/features/auth/first-entry";
 
 export const Route = createFileRoute("/oauth-callback")({
   head: () => ({ meta: [{ title: "Завершение входа — Я Онлайн" }, { name: "description", content: "Безопасное завершение входа через Яндекс ID или Telegram в Я Онлайн." },
@@ -28,7 +29,7 @@ function OAuthCallback() {
       window.history.replaceState(window.history.state, "", url.pathname);
       useSessionStore.getState().setSession(result);
       if (result.isNew) { useOnboardingStore.getState().reset(); useOnboardingStore.getState().patchDraft({ name: result.user.name }); }
-      void navigate({ to: result.isNew ? "/onboarding" : "/chat", replace: true });
+      void navigate({ to: needsFirstEntry(result.user) ? "/onboarding" : "/chat", replace: true });
     }).catch(cause => { if (active) setError(cause instanceof Error ? cause.message : "Не удалось завершить вход"); });
     return () => { active = false; };
   }, [navigate]);

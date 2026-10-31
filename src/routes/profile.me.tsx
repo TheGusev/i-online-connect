@@ -20,6 +20,7 @@ import { TrustStatsSection } from "@/features/profile/components/TrustStatsSecti
 import { VerificationSection } from "@/features/profile/components/VerificationSection";
 import { useMyProfile, useUpdateMyProfile } from "@/features/profile/hooks";
 import { useMediaActions } from "@/features/profile/hooks/useMediaActions";
+import { EntryNotices } from "@/features/auth/EntryNotices";
 
 export const Route = createFileRoute("/profile/me")({
   validateSearch: (search: Record<string, unknown>): { edit?: boolean } =>
@@ -105,7 +106,7 @@ function MyProfilePage() {
     if (!draft) return;
     const { age, valid } = parseProfileAge(draft.age);
     if (!valid) {
-      toast.error("Возраст указывается числом от 18 до 120");
+      toast.error("Возраст указывается числом от 18 до 100");
       return;
     }
     if (draft.name.trim().length < 2) {
@@ -142,6 +143,7 @@ function MyProfilePage() {
 
       {data ? (
         <div className="pb-10">
+          <EntryNotices recovery />
           <Reveal delay={60} className="mt-4">
             <ProfileHero
               media={data.media}
@@ -282,6 +284,7 @@ function MyProfilePage() {
 
           {!draft ? (
             <>
+              <Button asChild variant="secondary" className="mt-5"><Link to="/onboarding">Заполнить анкету</Link></Button>
               <ProfilePanel title="О себе" defaultOpen storageKey="me-about" className="mt-5">
                 <p className="max-w-2xl text-base leading-loose text-muted-foreground">
                   {data.bio || "Пока пусто — расскажи о себе через «Редактировать профиль»."}

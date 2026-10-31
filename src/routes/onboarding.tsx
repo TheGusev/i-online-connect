@@ -13,6 +13,9 @@ import { ValuesPicker, VALUE_OPTIONS, type ValuesKey } from "@/features/onboardi
 import { ONBOARDING_STEPS, useOnboardingStore } from "@/store/useOnboardingStore";
 import { useSessionStore } from "@/store/useSessionStore";
 import { SocialLoginButtons } from "@/features/auth/SocialLoginButtons";
+import { needsFirstEntry } from "@/features/auth/first-entry";
+import { ShortEntry } from "@/features/auth/ShortEntry";
+import { SessionLoading, SessionOffline } from "@/features/auth/session";
 
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
@@ -38,6 +41,22 @@ export const Route = createFileRoute("/onboarding")({
 const INTENTS: OnboardingIntent[] = ["serious", "friends", "projects", "unsure"];
 
 function OnboardingPage() {
+  const status = useSessionStore(state => state.status);
+  const user = useSessionStore(state => state.user);
+  const [name, setName] = useState("");
+  if (status === "loading") return <SessionLoading />;
+  if (status === "offline") return <SessionOffline />;
+  if (status === "guest") return <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 px-6 py-10 text-foreground">
+    <h1 className="text-3xl font-extrabold">Создать аккаунт</h1>
+    <Input label="Имя" maxLength={80} value={name} onChange={event => setName(event.target.value)} />
+    <AccountStep name={name.trim()} onDone={() => undefined} />
+    <Button asChild variant="ghost"><Link to="/auth">Уже есть аккаунт</Link></Button>
+  </main>;
+  if (needsFirstEntry(user)) return <ShortEntry />;
+  return <QuestionnairePage />;
+}
+
+function QuestionnairePage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const {
@@ -401,7 +420,7 @@ function NameStep({
       onError(t("onboarding.s1.ageError"));
       return;
     }
-    if (parsed < 18) {
+    if (parsed < 18 || parsed > 100) {
       onError(t("onboarding.s1.ageMin"));
       return;
     }
@@ -482,6 +501,7 @@ function AccountStep({ name, onDone }: { name: string; onDone: (email: string) =
 
   const submit = async () => {
     const value = email.trim();
+    if (name.trim().length < 2) { setFormError("Укажите имя"); return; }
     // Требования совпадают с backend (server/src/auth/passwords.ts).
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value);
     const passwordOk =
