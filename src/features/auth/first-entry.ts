@@ -1,4 +1,4 @@
-export const PHONE_LOGIN_ENABLED = import.meta.env.VITE_PHONE_LOGIN_ENABLED === "true";
+export const PHONE_LOGIN_ENABLED = import.meta.env?.["VITE_PHONE_LOGIN_ENABLED"] === "true";
 export function needsFirstEntry(user: { age?: number | null } | null | undefined) {
   return Boolean(user && (!Number.isInteger(user.age) || Number(user.age) < 18 || Number(user.age) > 100));
 }

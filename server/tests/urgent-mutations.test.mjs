@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 import { z } from 'zod';
 import * as rules from '../src/listings/urgent.ts';
+import * as contacts from '../src/auth/contact-rules.ts';
 
 // Run the actual modules with injected dependencies, not a PostgreSQL connection.
 function load(relative, dependencies) {
@@ -19,7 +20,7 @@ function load(relative, dependencies) {
 }
 function jobs(db = {}, publish = () => {}) {
   return load('../src/listings/urgent-jobs.ts', {
-    '../db.ts': db, '../ws/notifications.ts': { publishUserEvent: publish }, './urgent.ts': rules,
+    '../db.ts': db, '../ws/notifications.ts': { publishUserEvent: publish }, './urgent.ts': rules, '../auth/contact-rules.ts': contacts,
   });
 }
 const id = '00000000-0000-4000-8000-000000000001';
@@ -38,7 +39,7 @@ async function routes(client, urgent, onCommit = () => {}) {
     '../http.ts': http, '../listings/photos.ts': {}, '../auth/middleware.ts': { currentUserId: request => request.userId },
     '../listings/notify.ts': {}, '../media/store.ts': {}, '../ws/notifications.ts': {},
     '../profile/completeness.ts': {}, '../listings/durations.ts': {}, '../env.ts': { env: {} },
-    '../listings/urgent.ts': rules, '../listings/urgent-jobs.ts': { expireReservations: async () => {}, ...urgent },
+    '../listings/urgent.ts': rules, '../listings/urgent-jobs.ts': { expireReservations: async () => {}, ...urgent }, '../auth/contact-rules.ts': contacts,
   });
   await module.listingRoutes(app);
   return handlers;

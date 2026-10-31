@@ -43,7 +43,7 @@ export function ShortEntry() {
   return <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-5 px-6 py-10 text-foreground" data-no-swipe>
     <h1 className="text-3xl font-extrabold">Расскажи о себе</h1>
     <label className="flex cursor-pointer items-center gap-4">
-      <Avatar name={name || "?"} src={preview ?? user?.avatarUrl} size="lg" />
+      <Avatar name={name || "?"} src={preview ?? user?.avatarUrl ?? null} size="lg" />
       <span className="text-sm text-primary">Фото по желанию</span>
       <input aria-label="Фото по желанию" type="file" accept="image/*" className="sr-only" onChange={event => setPhoto(event.target.files?.[0] ?? null)} />
     </label>

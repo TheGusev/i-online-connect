@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { test } from 'node:test';
 
 process.env.NODE_ENV = 'test';
+process.env.PHONE_LOGIN_ENABLED = 'true';
 process.env.DATABASE_URL ||= 'postgres://nobody@127.0.0.1:5546/space_test';
 process.env.JWT_ACCESS_SECRET ||= randomUUID() + randomUUID();
 process.env.JWT_REFRESH_SECRET ||= randomUUID() + randomUUID();
