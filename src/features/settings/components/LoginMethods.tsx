@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { authApi } from "@/api";
 import type { OAuthProvider } from "@/api/endpoints/auth";
 import { Button, Card, Modal } from "@/components/ds";
+import { PHONE_LOGIN_ENABLED } from "@/features/auth/first-entry";
 
 export function LoginMethods() {
   const queryClient = useQueryClient();
@@ -37,7 +38,7 @@ export function LoginMethods() {
       <h2 className="font-semibold">Способы входа</h2>
       {methods.isError && <p className="mt-3 text-sm text-destructive">Не удалось загрузить способы входа</p>}
       {methods.isPending ? <p className="mt-3 text-sm text-muted-foreground">Загрузка…</p> : <div className="mt-3 divide-y divide-border">
-        {[{ name: "Телефон", enabled: methods.data?.phone }, { name: "Почта и пароль", enabled: methods.data?.email }].map(item => <div key={item.name} className="flex min-h-11 flex-wrap items-center justify-between gap-2 py-2 text-sm"><span>{item.name}</span><span className="text-muted-foreground">{item.enabled ? "Подключён" : "Не подключён"}</span></div>)}
+        {[...(PHONE_LOGIN_ENABLED ? [{ name: "Телефон", enabled: methods.data?.phone }] : []), { name: "Почта и пароль", enabled: methods.data?.email }].map(item => <div key={item.name} className="flex min-h-11 flex-wrap items-center justify-between gap-2 py-2 text-sm"><span>{item.name}</span><span className="text-muted-foreground">{item.enabled ? "Подключён" : "Не подключён"}</span></div>)}
         {(["yandex", "telegram"] as const).map(provider => {
           const linked = methods.data?.linked.includes(provider);
           const enabled = config.data?.providers?.[provider];

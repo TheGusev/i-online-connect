@@ -61,8 +61,7 @@ const schema = z.object({
   DAILY_MATCH_LIMIT: z.coerce.number().int().positive().default(5),
   URGENT_SELL_CITIES: z.string().default(""),
 
-  // Почта: SMTP собственного сервера. Пусто — письма не уходят, код
-  // подтверждения пишется в лог (удобно для локальной разработки).
+  // Без SMTP письма не отправляются; контакты и коды не журналируются.
   SMTP_HOST: z.string().default(""),
   SMTP_PORT: z.coerce.number().int().positive().default(587),
   SMTP_USER: z.string().default(""),
@@ -100,12 +99,13 @@ const schema = z.object({
   VAPID_SUBJECT: z.string().default("mailto:admin@localhost"),
 
   // ── Вход по номеру телефона ───────────────────────────────────────────────
+  PHONE_LOGIN_ENABLED: z.enum(["true", "false"]).default("false"),
   // Через запятую: какие коды стран принимаем.
   ALLOWED_PHONE_PREFIXES: z.string().default("+7"),
   // Секрет HMAC для хешей кодов. Пусто — берётся JWT_REFRESH_SECRET.
   OTP_SECRET: z.string().default(""),
   SMS_DAILY_LIMIT: z.coerce.number().int().positive().default(500),
-  // log — только для разработки (код пишется в журнал), http — внешний провайдер.
+  // log — только метаданные, без кода и контактов; http — внешний провайдер.
   SMS_PROVIDER: z.enum(["log", "http"]).default("log"),
   SMS_API_URL: z.string().default(""),
   SMS_API_KEY: z.string().default(""),

@@ -27,7 +27,7 @@ export async function oauthRoutes(app: FastifyInstance) {
     const id = currentUserId(request);
     const linked = await query<{ provider: string }>("SELECT DISTINCT provider FROM user_identities WHERE user_id=$1", [id]);
     const account = await queryOne<{ email_login: boolean; phone_login: boolean }>("SELECT (email IS NOT NULL AND password_hash IS NOT NULL) AS email_login, (phone IS NOT NULL AND phone_verified) AS phone_login FROM users WHERE id=$1", [id]);
-    return { linked: linked.map(row => row.provider), email: account?.email_login ?? false, phone: account?.phone_login ?? false };
+    return { linked: linked.map(row => row.provider), email: account?.email_login ?? false, phone: env.PHONE_LOGIN_ENABLED === "true" && (account?.phone_login ?? false) };
   });
   async function start(reply: FastifyReply, provider: "yandex" | "telegram", userId?: string) {
     if (!providerEnabled(provider)) throw badRequest("Этот способ входа пока недоступен");

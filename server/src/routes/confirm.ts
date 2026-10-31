@@ -1,116 +1,84 @@
-/**
- * POST /api/confirm/email/request  — выслать код на текущий email
- * POST /api/confirm/email/verify   — подтвердить email кодом
- * POST /api/confirm/phone/request  — выслать код на телефон
- * POST /api/confirm/phone/verify   — подтвердить телефон кодом
- *
- * Код — 6 цифр, живёт 15 минут, хранится только как SHA-256 хэш,
- * максимум 5 попыток ввода. Email уходит через SMTP (server/src/mail/smtp.ts),
- * код для телефона пока пишется в лог сервера — SMS-шлюз подключается позже
- * в одной функции sendPhoneCode.
- */
-import { createHash, randomInt } from "node:crypto";
+import { randomInt } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-
-import { query, queryOne } from "../db.ts";
+import { transaction } from "../db.ts";
+import { env } from "../env.ts";
 import { HttpError, badRequest, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
+import { hashCode, codesMatch } from "../auth/phone.ts";
 import { confirmationEmail, sendMail } from "../mail/smtp.ts";
-
-const CODE_TTL_MINUTES = 15;
-const MAX_ATTEMPTS = 5;
-
-type Channel = "email" | "phone";
-
-const hashCode = (code: string) => createHash("sha256").update(code).digest("hex");
-const newCode = () => String(randomInt(100000, 1000000));
 
 export async function confirmRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
-
-  async function loadAccount(userId: string) {
-    const account = await queryOne<{
-      email: string;
-      phone: string | null;
-      name: string;
-      email_verified: boolean;
-      phone_verified: boolean;
-    }>(
-      `SELECT u.email, u.phone, u.email_verified, u.phone_verified, COALESCE(p.name, '') AS name
-         FROM users u LEFT JOIN profiles p ON p.user_id = u.id
-        WHERE u.id = $1 AND u.deleted_at IS NULL`,
-      [userId],
-    );
-    if (!account) throw notFound("Аккаунт не найден");
-    return account;
-  }
-
-  async function issueCode(userId: string, channel: Channel, destination: string) {
-    const code = newCode();
-    // Прежние неиспользованные коды этого канала гасим: активен только последний.
-    await query(
-      "UPDATE contact_confirmations SET consumed_at = now() WHERE user_id = $1 AND channel = $2 AND consumed_at IS NULL",
-      [userId, channel],
-    );
-    await query(
-      `INSERT INTO contact_confirmations (user_id, channel, destination, code_hash, expires_at)
-       VALUES ($1, $2, $3, $4, now() + ($5 || ' minutes')::interval)`,
-      [userId, channel, destination, hashCode(code), String(CODE_TTL_MINUTES)],
-    );
-    return code;
-  }
-
   const requestLimit = { config: { rateLimit: { max: 5, timeWindow: "15 minutes" } } };
-
-  app.post("/email/request", requestLimit, async (request) => {
+  app.post("/email/request", requestLimit, async request => {
+    if (!env.SMTP_HOST) throw new HttpError(503, "Подтверждение почты временно недоступно");
     const userId = currentUserId(request);
-    const account = await loadAccount(userId);
-    if (account.email_verified) return { status: "verified" as const, sent: false };
-
-    const code = await issueCode(userId, "email", account.email);
-    const { sent } = await sendMail({ to: account.email, ...confirmationEmail(code, account.name) });
-    if (!sent) app.log.warn(`[confirm] код email ${account.email}: ${code}`);
-
-    return { status: "sent" as const, destination: account.email, expiresInMinutes: CODE_TTL_MINUTES };
+    const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    const issued = await transaction(async client => {
+      // One lock serializes account + IP counters across all worker processes.
+      await client.query("SELECT pg_advisory_xact_lock(hashtext('email-confirm-limits'))");
+      const account = (await client.query<{ email: string | null; email_verified: boolean; name: string }>(
+        `SELECT u.email, u.email_verified, COALESCE(p.name,'') AS name FROM users u
+         LEFT JOIN profiles p ON p.user_id=u.id WHERE u.id=$1 AND u.deleted_at IS NULL FOR UPDATE OF u`, [userId])).rows[0];
+      if (!account) throw notFound("Аккаунт не найден");
+      if (account.email_verified) return null;
+      if (!account.email) throw badRequest("Добавьте почту в настройках аккаунта или привяжите Яндекс/Telegram");
+      const stats = (await client.query<{ account_count: number; ip_count: number; last_at: Date | null }>(
+        `SELECT count(*) FILTER (WHERE user_id=$1)::int AS account_count,
+          count(*) FILTER (WHERE ip=$2)::int AS ip_count,
+          max(created_at) FILTER (WHERE user_id=$1) AS last_at FROM contact_confirmations
+          WHERE channel='email' AND created_at>now()-interval '1 hour'`, [userId, request.ip])).rows[0];
+      if ((stats?.account_count ?? 0) >= 5 || (stats?.ip_count ?? 0) >= 20 ||
+          (stats?.last_at && Date.now()-stats.last_at.getTime()<60_000)) {
+        throw new HttpError(429, "Слишком много запросов. Попробуйте позже");
+      }
+      const previous = await client.query<{ attempts: number }>(
+        `UPDATE contact_confirmations SET consumed_at=now() WHERE user_id=$1 AND channel='email'
+          AND consumed_at IS NULL RETURNING attempts`, [userId]);
+      const attempts = Math.max(0, ...previous.rows.map(row => row.attempts));
+      const row = (await client.query<{ id: string }>(
+        `INSERT INTO contact_confirmations (user_id,channel,destination,code_hash,expires_at,attempts,ip)
+          VALUES ($1,'email',$2,$3,now()+interval '10 minutes',$4,$5) RETURNING id`,
+        [userId, account.email, hashCode(`confirm:${userId}:${account.email}`, code), attempts >= 5 ? 0 : attempts, request.ip])).rows[0];
+      return { ...account, id: row?.id };
+    });
+    if (!issued) return { status: "verified" as const, sent: false };
+    try {
+      const result = await sendMail({ to: issued.email ?? "", ...confirmationEmail(code, issued.name) });
+      if (!result.sent) throw new Error("Delivery unavailable");
+    } catch {
+      request.log.warn("[confirm] Ошибка доставки письма");
+      throw new HttpError(503, "Не удалось отправить письмо. Попробуйте позже");
+    }
+    return { status: "sent" as const, expiresInMinutes: 10 };
   });
-
-  app.post("/phone/request", requestLimit, async (request) => {
-    throw new HttpError(410, "Используйте привязку номера через SMS в настройках аккаунта");
-  });
-
   const codeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, "Код состоит из 6 цифр") });
-
-  async function verify(userId: string, channel: Channel, code: string) {
-    const row = await queryOne<{ id: string; code_hash: string; attempts: number }>(
-      `SELECT id, code_hash, attempts FROM contact_confirmations
-        WHERE user_id = $1 AND channel = $2 AND consumed_at IS NULL AND expires_at > now()
-        ORDER BY created_at DESC LIMIT 1`,
-      [userId, channel],
-    );
-    if (!row) throw badRequest("Код истёк — запросите новый");
-    if (row.attempts >= MAX_ATTEMPTS) {
-      await query("UPDATE contact_confirmations SET consumed_at = now() WHERE id = $1", [row.id]);
-      throw badRequest("Слишком много попыток — запросите новый код");
-    }
-
-    if (row.code_hash !== hashCode(code)) {
-      await query("UPDATE contact_confirmations SET attempts = attempts + 1 WHERE id = $1", [row.id]);
-      throw badRequest("Код не совпадает");
-    }
-
-    await query("UPDATE contact_confirmations SET consumed_at = now() WHERE id = $1", [row.id]);
-    const column = channel === "email" ? "email_verified" : "phone_verified";
-    await query(`UPDATE users SET ${column} = true WHERE id = $1`, [userId]);
-    return { status: "verified" as const };
-  }
-
-  app.post("/email/verify", async (request) => {
+  app.post("/email/verify", { config: { rateLimit: { max: 30, timeWindow: "10 minutes" } } }, async request => {
     const { code } = codeSchema.parse(request.body);
-    return verify(currentUserId(request), "email", code);
+    const userId = currentUserId(request);
+    // Return errors from the transaction rather than throwing, so wrong attempts commit.
+    const error = await transaction(async client => {
+      const account = (await client.query<{ email: string | null }>("SELECT email FROM users WHERE id=$1 AND deleted_at IS NULL FOR UPDATE", [userId])).rows[0];
+      const row = (await client.query<{ id: string; code_hash: string; attempts: number; expires_at: Date; destination: string }>(
+        `SELECT id,code_hash,attempts,expires_at,destination FROM contact_confirmations
+         WHERE user_id=$1 AND channel='email' AND consumed_at IS NULL ORDER BY created_at DESC LIMIT 1 FOR UPDATE`, [userId])).rows[0];
+      if (!row || row.expires_at.getTime() <= Date.now() || row.destination !== account?.email) return "Код истёк — запросите новый";
+      if (row.attempts >= 5) return "Слишком много попыток — запросите новый код";
+      const valid = codesMatch(row.code_hash, `confirm:${userId}:${row.destination}`, code);
+      await client.query(`UPDATE contact_confirmations SET attempts=attempts+1,
+        consumed_at=CASE WHEN $2 OR attempts+1>=5 THEN now() ELSE NULL END WHERE id=$1`, [row.id, valid]);
+      if (!valid) return "Код не совпадает";
+      await client.query("UPDATE users SET email_verified=true, updated_at=now() WHERE id=$1 AND email=$2", [userId, row.destination]);
+      return null;
+    });
+    if (error) throw badRequest(error);
+    return { status: "verified" as const };
   });
-
-  app.post("/phone/verify", async (request) => {
-    throw new HttpError(410, "Используйте привязку номера через SMS в настройках аккаунта");
-  });
+  for (const suffix of ["request", "verify"]) {
+    app.post(`/phone/${suffix}`, async () => {
+      if (env.PHONE_LOGIN_ENABLED !== "true") throw notFound("Не найдено");
+      throw new HttpError(410, "Используйте привязку номера через SMS в настройках аккаунта");
+    });
+  }
 }

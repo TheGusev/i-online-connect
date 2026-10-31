@@ -11,10 +11,11 @@ import { queryOne, transaction } from "../db.ts";
 import { badRequest, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { toUserDto, type ProfileRow } from "../types.ts";
+import { profileAgeSchema } from "../profile/age.ts";
 
 const draftSchema = z.object({
   name: z.string().min(2).max(80),
-  age: z.number().int().min(18, "Платформа доступна с 18 лет").max(120),
+  age: profileAgeSchema,
   intent: z.enum(["serious", "friends", "projects", "unsure"]),
   about: z.string().max(2000).default(""),
   interests: z.array(z.string().min(1).max(60)).max(20).default([]),

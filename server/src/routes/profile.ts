@@ -11,10 +11,11 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
 import { query, queryOne, transaction } from "../db.ts";
-import { forbidden, notFound } from "../http.ts";
+import { badRequest, forbidden, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { toUserDto, type ProfileRow } from "../types.ts";
 import { loadCompleteness } from "../profile/completeness.ts";
+import { profileAgeSchema } from "../profile/age.ts";
 
 const BASE_SELECT = `
   SELECT u.id, p.name, p.age, p.city, p.bio, p.trust_level, p.trust_score, u.last_seen_at,
@@ -129,7 +130,8 @@ export async function profileRoutes(app: FastifyInstance) {
     name: z.string().min(2).max(80).optional(),
     bio: z.string().max(1000).optional(),
     city: z.string().max(120).optional(),
-    age: z.number().int().min(18).max(120).optional(),
+    age: profileAgeSchema.optional(),
+    adultConfirmed: z.boolean().optional(),
     intent: z.enum(["serious", "friends", "projects", "unsure"]).optional(),
     intentNote: z.string().max(300).optional(),
     questionnaire: z
@@ -153,6 +155,13 @@ export async function profileRoutes(app: FastifyInstance) {
   app.patch("/me", async (request) => {
     const userId = currentUserId(request);
     const patch = patchSchema.parse(request.body);
+
+    if (patch.age !== undefined) {
+      const current = await queryOne<{ age: number }>("SELECT age FROM profiles WHERE user_id = $1", [userId]);
+      if (!current?.age && (patch.adultConfirmed !== true || !patch.city?.trim() || !patch.name?.trim())) {
+        throw badRequest("Укажите имя, город и подтвердите, что вам есть 18 лет");
+      }
+    }
 
     // Обновляем только переданные поля: COALESCE оставляет прежнее значение.
     await query(

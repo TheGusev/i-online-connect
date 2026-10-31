@@ -75,7 +75,7 @@ function ProfileViewPage() {
             storageKey="about"
             className="mt-5"
           >
-            <p className="max-w-2xl text-base leading-loose text-muted-foreground">{data.bio}</p>
+            <p className="max-w-2xl text-base leading-loose text-muted-foreground">{data.bio || "Профиль не заполнен"}</p>
           </ProfilePanel>
 
           <ProfilePanel title="Ищу" defaultOpen storageKey="intent">

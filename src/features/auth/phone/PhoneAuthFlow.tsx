@@ -6,6 +6,8 @@ import { Avatar, Button } from "@/components/ds";
 import { useSessionStore } from "@/store/useSessionStore";
 
 import { formatNational, nationalDigits, normalizeRuPhone } from "./phone";
+import { needsFirstEntry } from "../first-entry";
+import { ShortEntry } from "../ShortEntry";
 
 type Step = "phone" | "code" | "name";
 
@@ -39,6 +41,7 @@ export function PhoneAuthFlow({
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const phone = normalizeRuPhone(digits);
+  const user = useSessionStore(state => state.user);
 
   useEffect(() => {
     if (step !== "code") return;
@@ -81,7 +84,7 @@ export function PhoneAuthFlow({
     try {
       const session = await authApi.verifyPhoneCode(phone, value);
       setSession(session);
-      if (session.isNew || !session.user?.name) setStep("name");
+      if (needsFirstEntry(session.user)) setStep("name");
       else onDone();
     } catch (cause) {
       setError(messageOf(cause, "Неверный код"));
@@ -125,6 +128,8 @@ export function PhoneAuthFlow({
     if (step === "code") setStep("phone");
     else onBack?.();
   };
+
+  if (user && needsFirstEntry(user)) return <ShortEntry />;
 
   return (
     <div className="flex flex-col">

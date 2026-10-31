@@ -12,7 +12,7 @@ import { providerEnabled } from "../auth/oauth-providers.ts";
 
 const emailBody = z.object({ email: z.string().email().max(254) });
 export async function passwordResetRoutes(app: FastifyInstance) {
-  app.get("/config", async () => ({ passwordResetEnabled: Boolean(env.SMTP_HOST), providers: { yandex: providerEnabled("yandex"), telegram: providerEnabled("telegram") } }));
+  app.get("/config", async () => ({ phoneLoginEnabled: env.PHONE_LOGIN_ENABLED === "true", emailConfirmationEnabled: Boolean(env.SMTP_HOST), passwordResetEnabled: Boolean(env.SMTP_HOST), providers: { yandex: providerEnabled("yandex"), telegram: providerEnabled("telegram") } }));
   app.post("/password/reset/request", async (request, reply) => {
     const { email } = emailBody.parse(request.body);
     if (!env.SMTP_HOST) return reply.status(204).send();

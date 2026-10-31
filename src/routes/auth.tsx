@@ -7,6 +7,8 @@ import { useTranslation } from "react-i18next";
 import { ArrowLeft, MessageCircle } from "lucide-react";
 import { PhoneAuthFlow } from "@/features/auth/phone/PhoneAuthFlow";
 import { SocialLoginButtons } from "@/features/auth/SocialLoginButtons";
+import { PHONE_LOGIN_ENABLED, needsFirstEntry } from "@/features/auth/first-entry";
+import { ShortEntry } from "@/features/auth/ShortEntry";
 
 import { Button, Card, Input } from "@/components/ds";
 import { useLogin } from "@/features/auth/hooks";
@@ -20,13 +22,13 @@ export const Route = createFileRoute("/auth")({
       {
         name: "description",
         content:
-          "Вход в «Я Онлайн» по номеру телефона: срочные дела, чаты и сообщества в одном месте.",
+          "Вход в «Я Онлайн» через Яндекс ID, Telegram или почту: чаты и сообщества в одном месте.",
       },
       { property: "og:type", content: "website" },
       { property: "og:title", content: "Вход в «Я Онлайн»" },
       {
         property: "og:description",
-        content: "Срочные дела — в одном чате. Вход по номеру телефона.",
+        content: "Вход через Яндекс ID, Telegram или почту.",
       },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -47,14 +49,7 @@ function AuthPage() {
   const [error, setError] = useState<string | null>(null);
 
   const user = useSessionStore((state) => state.user);
-  // Новый аккаунт без имени: показываем только шаг «Как вас зовут?».
-  if (status === "authed" && user && !user.name.trim()) {
-    return (
-      <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pt-10 text-foreground">
-        <PhoneAuthFlow initialStep="name" onDone={() => void navigate({ to: "/chat" })} />
-      </main>
-    );
-  }
+  if (status === "authed" && needsFirstEntry(user)) return <ShortEntry />;
   if (status === "loading" && mode !== "phone") return <SessionLoading />;
   if (status === "offline") return <SessionOffline />;
   if (status === "authed") return <Navigate to="/chat" replace />;
@@ -88,13 +83,13 @@ function AuthPage() {
           <h1 className="mt-6 text-4xl font-extrabold tracking-tight">Я онлайн</h1>
           <p className="mt-2 text-lg text-muted-foreground">Срочные дела — в одном чате</p>
         </div>
-        <Button className="h-12 w-full shadow-glow" onClick={() => setMode("phone")}>
+        <div className="mb-3"><SocialLoginButtons /></div>
+        {PHONE_LOGIN_ENABLED && <Button className="h-12 w-full shadow-glow" onClick={() => setMode("phone")}>
           Войти по номеру
-        </Button>
-        <button type="button" onClick={() => setMode("email")} className="mt-3 min-h-11 text-sm font-semibold text-muted-foreground">
+        </Button>}
+        <Button variant="secondary" onClick={() => setMode("email")} className="mt-3 min-h-11">
           Войти по почте
-        </button>
-        <div className="mt-3"><SocialLoginButtons /></div>
+        </Button>
         <Link to="/nearby" className="mt-8 grid min-h-11 place-items-center text-sm text-muted-foreground underline-offset-4 hover:underline">
           Посмотреть объявления рядом
         </Link>
@@ -106,7 +101,7 @@ function AuthPage() {
     );
   }
 
-  if (mode === "phone") {
+  if (mode === "phone" && PHONE_LOGIN_ENABLED) {
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pt-10 text-foreground">
         <PhoneAuthFlow onBack={() => setMode("welcome")} onDone={() => void navigate({ to: "/chat" })} />

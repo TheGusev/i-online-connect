@@ -1,6 +1,6 @@
 /**
  * Отправка SMS через сменный драйвер. Код не привязан к конкретному провайдеру:
- * «log» — разработка (пишет в журнал маскированный номер и код), «http» — заготовка.
+ * «log» — только метаданные без номера и кода, «http» — внешний провайдер.
  */
 import type { FastifyBaseLogger } from "fastify";
 
@@ -16,12 +16,12 @@ export function maskPhone(phone: string): string {
 
 function logProvider(log: FastifyBaseLogger): SmsProvider {
   return {
-    async send(phone, text) {
+    async send() {
       if (env.isProd) {
         log.error("[sms] драйвер log в production: SMS не отправлена");
         return;
       }
-      log.info({ phone: maskPhone(phone), text }, "[sms:log] сообщение для разработки");
+      log.info("[sms:log] отправка отключена, содержимое скрыто");
     },
   };
 }
@@ -37,7 +37,7 @@ function httpProvider(log: FastifyBaseLogger): SmsProvider {
         signal: AbortSignal.timeout(10_000),
       });
       if (!response.ok) {
-        log.warn({ status: response.status, phone: maskPhone(phone) }, "[sms] провайдер отклонил отправку");
+        log.warn({ status: response.status }, "[sms] провайдер отклонил отправку");
         throw new Error("Не удалось отправить SMS");
       }
     },

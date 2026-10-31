@@ -5,7 +5,8 @@ import { toast } from "sonner";
 
 import { listingsApi, mediaUrl, type Listing, type NeedCategory } from "@/api";
 import type { ListingPhoto } from "@/api/endpoints/listings";
-import { Button, Chip, Input, TextArea } from "@/components/ds";
+import { BottomSheet, Button, Chip, Input, TextArea } from "@/components/ds";
+import { VerifiedContactStep } from "@/features/auth/VerifiedContactStep";
 import { AppShell, PageHeader } from "@/components/layout/AppShell";
 import { CategoryChips } from "@/features/nearby/components/CategoryChips";
 import { ListingCard } from "@/features/nearby/components/ListingCard";
@@ -63,6 +64,7 @@ function NewListingPage() {
   const [urgentType, setUrgentType] = useState<UrgentType>("sell");
   const [urgentFields, setUrgentFields] = useState(emptyUrgentFields);
   const [formError, setFormError] = useState<string | null>(null);
+  const [contactOpen, setContactOpen] = useState(false);
   const me = useMyProfile();
   const datingOpen = me.data?.completeness?.complete === true;
   const [lockOpen, setLockOpen] = useState(false);
@@ -215,6 +217,7 @@ function NewListingPage() {
         },
         onError: (cause) => {
           const message = category === "urgent" ? urgentError(cause) : cause instanceof Error ? cause.message : "Не удалось опубликовать";
+          if (["CONTACT_NOT_VERIFIED", "PHONE_REQUIRED"].includes((cause as { code?: string }).code ?? "")) setContactOpen(true);
           setFormError(message);
           toast.error(message);
         },
@@ -224,6 +227,7 @@ function NewListingPage() {
 
   return (
     <AppShell>
+      <BottomSheet open={contactOpen} onClose={() => setContactOpen(false)} title="Подтвердите способ связи"><VerifiedContactStep /></BottomSheet>
       <PageHeader
         title="Новое объявление"
         description="Город подставим из профиля — повторно спрашивать не будем."

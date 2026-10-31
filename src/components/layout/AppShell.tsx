@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { RequireSession } from "@/features/auth/session";
+import { EntryNotices } from "@/features/auth/EntryNotices";
 import { useViewportHeightVar } from "@/hooks/useViewportHeight";
 import { useScreenSwipe } from "@/features/navigation/useScreenSwipe";
 import { useTabOrder } from "@/features/navigation/useTabOrder";
@@ -53,6 +54,7 @@ export function AppShell({
           className={`mx-auto w-full flex-1 px-4 ${focused ? "pb-[env(safe-area-inset-bottom)] pt-3" : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-6 lg:pb-12"} lg:px-8 ${wide ? "max-w-6xl" : "max-w-3xl"}`}
         >
           {children}
+          {!isPublic && <EntryNotices />}
         </main>
       </div>
 

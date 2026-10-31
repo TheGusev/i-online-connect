@@ -50,7 +50,7 @@ export async function verifyPhoneCode(
 }
 
 export type OAuthProvider = "yandex" | "telegram";
-export type AuthConfig = { passwordResetEnabled: boolean; providers: Record<OAuthProvider, boolean> };
+export type AuthConfig = { passwordResetEnabled: boolean; phoneLoginEnabled?: boolean; emailConfirmationEnabled?: boolean; providers: Record<OAuthProvider, boolean> };
 export const getAuthConfig = () => request<AuthConfig>("/auth/config");
 export function socialStartUrl(provider: OAuthProvider) {
   return `${API_URL.replace(/\/$/, "")}/auth/${provider}/start`;

@@ -43,7 +43,7 @@ export function ContactConfirm({
         await queryClient.invalidateQueries({ queryKey: ["settings"] });
         return;
       }
-      setDestination(result.destination ?? value);
+      setDestination("sent");
       setOpen(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Не удалось отправить код");
@@ -54,8 +54,8 @@ export function ContactConfirm({
   };
 
   const verify = async () => {
-    if (code.trim().length < 4) {
-      setError("Код состоит минимум из 4 цифр.");
+    if (!/^\d{6}$/.test(code.trim())) {
+      setError("Код состоит из 6 цифр.");
       return;
     }
     setBusy(true);
@@ -64,6 +64,7 @@ export function ContactConfirm({
       if (channel === "email") await confirmApi.verifyEmailCode(code.trim());
       else await confirmApi.verifyPhoneCode(code.trim());
       await queryClient.invalidateQueries({ queryKey: ["settings"] });
+      await queryClient.invalidateQueries({ queryKey: ["auth-identities"] });
       setOpen(false);
       setCode("");
       toast.success(channel === "email" ? "Почта подтверждена" : "Телефон подтверждён");
@@ -90,7 +91,7 @@ export function ContactConfirm({
         title={`Подтверждение ${label}`}
         description={
           destination
-            ? `Код отправлен на ${destination}. Он действует несколько минут.`
+            ? "Код отправлен на почту аккаунта. Он действует 10 минут."
             : "Введите код из сообщения."
         }
         footer={
@@ -108,8 +109,9 @@ export function ContactConfirm({
           label="Код из сообщения"
           inputMode="numeric"
           autoComplete="one-time-code"
+          type="password"
           value={code}
-          onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 8))}
+          onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
           error={error ?? undefined}
         />
       </Modal>
