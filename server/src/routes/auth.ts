@@ -13,7 +13,7 @@ import { z } from "zod";
 
 import { query, queryOne } from "../db.ts";
 import { env } from "../env.ts";
-import { badRequest, unauthorized } from "../http.ts";
+import { badRequest, unauthorized, notFound } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
 import { hashPassword, isStrongEnough, verifyPassword } from "../auth/passwords.ts";
 import {
@@ -35,7 +35,7 @@ import { claimPhone } from "../auth/phone-account.ts";
 import { consumePhoneCode } from "../auth/consume-phone-code.ts";
 import { passwordResetRoutes } from "./password-reset.ts";
 import { oauthRoutes } from "./oauth.ts";
-import { getSmsProvider, maskPhone, otpText } from "../sms/provider.ts";
+import { getSmsProvider, otpText } from "../sms/provider.ts";
 
 /** Счётчики «запрошено / подтверждено» для журнала: видно накрутку и падение доставки. */
 const smsStats = { requested: 0, sent: 0, verified: 0, failed: 0 };
@@ -135,6 +135,9 @@ export async function authRoutes(app: FastifyInstance) {
   // ── Вход по номеру телефона ──────────────────────────────────────────────
   const sms = getSmsProvider(app.log);
   const phoneBody = z.object({ phone: z.string().min(5).max(32) });
+  const phoneEnabled = async () => {
+    if (env.PHONE_LOGIN_ENABLED !== "true") throw notFound("Не найдено");
+  };
 
   async function requestSms(request: FastifyRequest, reply: FastifyReply, userId?: string) {
     const { phone: raw } = phoneBody.parse(request.body);
@@ -174,19 +177,19 @@ export async function authRoutes(app: FastifyInstance) {
       try {
         await sms.send(phone, otpText(code));
         smsStats.sent += 1;
-      } catch (error) {
+      } catch {
         smsStats.failed += 1;
-        request.log.warn({ phone: maskPhone(phone), err: (error as Error).message }, "[sms] не отправлено");
+        request.log.warn("[sms] не отправлено");
       }
     }
-    request.log.info({ phone: maskPhone(phone), stats: smsStats }, "[sms] код запрошен");
+    request.log.info({ stats: smsStats }, "[sms] код запрошен");
     // Одинаковый ответ: по нему нельзя понять, есть ли такой пользователь.
     return reply.status(204).send();
   }
 
-  app.post("/phone/request", { config: { rateLimit: { max: 30, timeWindow: "1 hour" } } }, (request, reply) => requestSms(request, reply));
-  app.post("/phone/link/request", { preHandler: requireAuth, config: { rateLimit: { max: 30, timeWindow: "1 hour" } } }, (request, reply) => requestSms(request, reply, currentUserId(request)));
-  app.post("/phone/link/verify", { preHandler: requireAuth, config: { rateLimit: { max: 30, timeWindow: "10 minutes" } } }, async request => {
+  app.post("/phone/request", { onRequest: phoneEnabled, config: { rateLimit: { max: 30, timeWindow: "1 hour" } } }, (request, reply) => requestSms(request, reply));
+  app.post("/phone/link/request", { onRequest: phoneEnabled, preHandler: requireAuth, config: { rateLimit: { max: 30, timeWindow: "1 hour" } } }, (request, reply) => requestSms(request, reply, currentUserId(request)));
+  app.post("/phone/link/verify", { onRequest: phoneEnabled, preHandler: requireAuth, config: { rateLimit: { max: 30, timeWindow: "10 minutes" } } }, async request => {
     const body = phoneBody.extend({ code: z.string().regex(/^\d{6}$/) }).parse(request.body);
     const phone = normalizePhone(body.phone);
     if (!phone) throw badRequest("Проверьте номер телефона");
@@ -198,7 +201,7 @@ export async function authRoutes(app: FastifyInstance) {
   await passwordResetRoutes(app);
   await oauthRoutes(app);
 
-  app.post("/phone/verify", { config: { rateLimit: { max: 30, timeWindow: "10 minutes" } } }, async (request, reply) => {
+  app.post("/phone/verify", { onRequest: phoneEnabled, config: { rateLimit: { max: 30, timeWindow: "10 minutes" } } }, async (request, reply) => {
     const body = phoneBody.extend({ code: z.string().regex(/^\d{6}$/, "Код — 6 цифр") }).parse(request.body);
     const phone = normalizePhone(body.phone);
     if (!phone) throw badRequest("Проверьте номер телефона");
@@ -208,7 +211,7 @@ export async function authRoutes(app: FastifyInstance) {
     const { isNew } = account;
 
     smsStats.verified += 1;
-    request.log.info({ phone: maskPhone(phone), isNew, stats: smsStats }, "[sms] код подтверждён");
+    request.log.info({ isNew, stats: smsStats }, "[sms] код подтверждён");
 
     const token = await signAccessToken(account.id);
     setRefreshCookie(reply, await issueRefreshToken(account.id, { userAgent: request.headers["user-agent"], ip: request.ip }));

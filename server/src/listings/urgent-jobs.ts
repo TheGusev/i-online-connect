@@ -2,6 +2,7 @@ import type { PoolClient } from "pg";
 import { query, transaction } from "../db.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 import { AUTO_HOLD, priceAt, STEPS, pickAutoBidWinner, reservationBan, shouldCloseExpiredLot } from "./urgent.ts";
+import { hasVerifiedContact, verifiedContactSql } from "../auth/contact-rules.ts";
 
 export interface UrgentLot { id:string; category:string; author_id:string; title:string; state:string; urgent_type:string|null; price_start_minor:number|null; price_floor_minor:number|null; created_at:Date; expires_at:Date; is_seed:boolean }
 export function lotPrice(lot:UrgentLot, now:Date = new Date()) {
@@ -30,11 +31,11 @@ export function deliverUrgent(notices:Awaited<ReturnType<typeof insertUrgentNoti
   }
 }
 export async function buyerAllowed(client:PoolClient, buyerId:string, authorId:string) {
-  const result = await client.query(`SELECT u.phone_verified, u.deleted_at, u.blocked_at,
+  const result = await client.query(`SELECT ${verifiedContactSql}, u.deleted_at, u.blocked_at,
     EXISTS(SELECT 1 FROM blocks WHERE (user_id=$1 AND blocked_id=$2) OR (user_id=$2 AND blocked_id=$1)) AS blocked
     FROM users u WHERE u.id=$1`,[buyerId,authorId]);
   const user = result.rows[0];
-  if (!user || !user.phone_verified || user.deleted_at || user.blocked_at || user.blocked || buyerId === authorId) return false;
+  if (!user || !hasVerifiedContact(user) || user.deleted_at || user.blocked_at || user.blocked || buyerId === authorId) return false;
   const shows = await client.query<{author_id:string}>(`SELECT DISTINCT l.author_id FROM listing_reservations r JOIN listings l ON l.id=r.listing_id
     WHERE r.buyer_id=$1 AND r.status='no_show' AND EXISTS(SELECT 1 FROM listing_events e WHERE e.listing_id=l.id AND e.user_id=$1 AND e.kind='no_show' AND e.created_at >= now()-interval '30 days')`,[buyerId]);
   return !reservationBan(shows.rows.map(r=>r.author_id));

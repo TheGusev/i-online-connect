@@ -37,10 +37,11 @@ import { resolveDuration } from "../listings/durations.ts";
 import { env } from "../env.ts";
 import { URGENT_TYPES, URGENT_DURATIONS, validateSell, suggestPrices, normalizeTitleKey, NEW_ACCOUNT_MAX_ACTIVE, ACTIVE_MAX, floorHintPct } from "../listings/urgent.ts";
 import { expireReservations, lotPrice, reserveLot, buyerAllowed, urgentEvent, insertUrgentNotification, deliverUrgent, type UrgentLot } from "../listings/urgent-jobs.ts";
+import { hasVerifiedContact, verifiedContactSql } from "../auth/contact-rules.ts";
 
-async function requireUrgentPhone(client:import('pg').PoolClient, userId:string) {
-  const user=(await client.query<{phone_verified:boolean}>('SELECT phone_verified FROM users WHERE id=$1',[userId])).rows[0];
-  if(!user?.phone_verified) throw new HttpError(403,'Подтвердите номер телефона для срочной сделки','PHONE_REQUIRED');
+async function requireVerifiedContact(client:import('pg').PoolClient, userId:string) {
+  const user=(await client.query(`SELECT ${verifiedContactSql} FROM users u WHERE u.id=$1`,[userId])).rows[0];
+  if(!hasVerifiedContact(user)) throw new HttpError(403,'Подтвердите способ связи для срочной сделки','CONTACT_NOT_VERIFIED');
 }
 
 const profileIncomplete = () =>
@@ -342,7 +343,7 @@ export async function listingRoutes(app: FastifyInstance) {
     const {maxPriceMinor}=z.object({maxPriceMinor:z.number().int().min(0).max(1_000_000_000)}).parse(request.body);
     return urgentMutation(id,userId,async(client,lot)=>{
       assertActiveSell(lot,userId);
-      await requireUrgentPhone(client,userId);
+      await requireVerifiedContact(client,userId);
       if (!(await buyerAllowed(client,userId,lot.author_id))) throw forbidden('Бронирование недоступно после неявок');
       if(maxPriceMinor>=lotPrice(lot).priceMinor) throw new HttpError(400,'Цена уже достигнута. Забронируйте по текущей цене','BID_ABOVE_CURRENT');
       await client.query(`INSERT INTO listing_bids(listing_id,buyer_id,max_price_minor) VALUES($1,$2,$3)
@@ -364,7 +365,7 @@ export async function listingRoutes(app: FastifyInstance) {
     const notices:Awaited<ReturnType<typeof insertUrgentNotification>>[] = [];
     const response = await urgentMutation(id,userId,async(client,lot)=>{
       assertActiveSell(lot,userId);
-      await requireUrgentPhone(client,userId);
+      await requireVerifiedContact(client,userId);
       if (!(await buyerAllowed(client,userId,lot.author_id))) throw new HttpError(403,'Бронирование недоступно: неявки у двух продавцов за 30 дней','RESERVATION_BANNED');
       const held=await client.query("SELECT 1 FROM listing_reservations WHERE listing_id=$1 AND status='active'",[id]);
       if(held.rowCount) throw new HttpError(409,'Объявление уже забронировано','ALREADY_RESERVED');
@@ -655,7 +656,7 @@ export async function listingRoutes(app: FastifyInstance) {
           if(count >= (owner?.trust_level==='new' ? NEW_ACCOUNT_MAX_ACTIVE : ACTIVE_MAX)) throw new HttpError(400,'Лимит активных срочных объявлений достигнут','URGENT_ACTIVE_LIMIT');
         }
         if(urgentType==='sell') {
-          await requireUrgentPhone(client,userId);
+          await requireVerifiedContact(client,userId);
           if(env.urgentSellCities.length && !env.urgentSellCities.includes(city.trim().toLocaleLowerCase('ru-RU'))) throw new HttpError(403,'Срочные продажи пока недоступны в этом городе','URGENT_SELL_NOT_AVAILABLE');
           const previous=await client.query<{title:string;created_at:Date;price_start_minor:number|null}>("SELECT title,created_at,price_start_minor FROM listings WHERE author_id=$1 AND urgent_type='sell' AND created_at>now()-interval '7 days' ORDER BY created_at DESC",[userId]);
           const same=previous.rows.find(r=>normalizeTitleKey(r.title)===normalizeTitleKey(draft.title));
