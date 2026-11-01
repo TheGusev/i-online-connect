@@ -76,7 +76,7 @@ try {
       assert.equal(hasVerifiedContact(row),provider !== 'none');
       const result = await call('PUT',`/api/listings/${lot.id}/bid`,{maxPriceMinor:10000},who);
       assert.equal(result.statusCode,provider === 'none' ? 403 : 200);
-      if (provider === 'none') assert.equal(result.json().code,'CONTACT_NOT_VERIFIED');
+      if (provider === 'none') assert.equal(result.json().error,'CONTACT_NOT_VERIFIED');
     }
   });
   await test('email codes reject wrong, expired, replayed and exhausted attempts; parallel guesses commit no more than five', async () => {
