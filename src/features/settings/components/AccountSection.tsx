@@ -73,9 +73,15 @@ export function AccountSection({ account }: { account: AccountSettings }) {
   return (
     <div className="space-y-4">
       <Button variant="secondary" fullWidth onClick={() => setShareOpen(true)}>
-        <QrCode aria-hidden="true" />Поделиться приложением
+        <QrCode aria-hidden="true" />
+        Поделиться приложением
       </Button>
-      <InviteQrSheet open={shareOpen} onClose={() => setShareOpen(false)} title="Поделиться приложением" url={typeof window === "undefined" ? "" : window.location.origin} />
+      <InviteQrSheet
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        title="Поделиться приложением"
+        url={typeof window === "undefined" ? "" : window.location.origin}
+      />
       <Card className="divide-y divide-border p-0">
         <ContactRow
           icon={<Mail className="size-4" aria-hidden="true" />}
@@ -83,16 +89,20 @@ export function AccountSection({ account }: { account: AccountSettings }) {
           value={account.email}
           verified={account.emailVerified}
           action={
-            account.emailVerified || !account.email ? null : <ContactConfirm channel="email" value={account.email} />
+            account.emailVerified || !account.email ? null : (
+              <ContactConfirm channel="email" value={account.email} />
+            )
           }
         />
-        {PHONE_LOGIN_ENABLED && <ContactRow
-          icon={<Phone className="size-4" aria-hidden="true" />}
-          label="Телефон"
-          value={account.phone}
-          verified={account.phoneVerified}
-          action={<PhoneLink />}
-        />}
+        {PHONE_LOGIN_ENABLED && (
+          <ContactRow
+            icon={<Phone className="size-4" aria-hidden="true" />}
+            label="Телефон"
+            value={account.phone}
+            verified={account.phoneVerified}
+            action={<PhoneLink />}
+          />
+        )}
       </Card>
 
       <LoginMethods />

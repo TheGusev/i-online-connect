@@ -69,24 +69,17 @@ function ProfileViewPage() {
             <ProfileActionBar id={data.id} name={data.name} />
           </Reveal>
 
-          <ProfilePanel
-            title="О себе"
-            defaultOpen
-            storageKey="about"
-            className="mt-5"
-          >
-            <p className="max-w-2xl text-base leading-loose text-muted-foreground">{data.bio || "Профиль не заполнен"}</p>
+          <ProfilePanel title="О себе" defaultOpen storageKey="about" className="mt-5">
+            <p className="max-w-2xl text-base leading-loose text-muted-foreground">
+              {data.bio || "Профиль не заполнен"}
+            </p>
           </ProfilePanel>
 
           <ProfilePanel title="Ищу" defaultOpen storageKey="intent">
             <IntentCard intent={data.intent} note={data.intentNote} />
           </ProfilePanel>
 
-          <ProfilePanel
-            title="Интересы"
-            hint={`${data.interests.length}`}
-            storageKey="interests"
-          >
+          <ProfilePanel title="Интересы" hint={`${data.interests.length}`} storageKey="interests">
             <ul className="flex flex-wrap gap-2">
               {data.interests.map((interest) => (
                 <li key={interest}>

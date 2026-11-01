@@ -13,7 +13,11 @@ import { ListingCard } from "@/features/nearby/components/ListingCard";
 import { useCreateListing, useListing } from "@/features/nearby/hooks";
 import { URGENT_DURATIONS, type UrgentType } from "@/features/nearby/urgent";
 import { moneyInput, sellFormError, urgentError } from "@/features/nearby/urgent-ui";
-import { emptyUrgentFields, UrgentFormFields, UrgentTypePicker } from "@/features/nearby/components/UrgentFormFields";
+import {
+  emptyUrgentFields,
+  UrgentFormFields,
+  UrgentTypePicker,
+} from "@/features/nearby/components/UrgentFormFields";
 import { CATEGORY_ORDER, priceApplies } from "@/features/nearby/labels";
 import { DatingLockSheet } from "@/features/nearby/components/DatingLockSheet";
 import {
@@ -28,7 +32,9 @@ import { compressListingPhoto } from "@/features/nearby/compress-image";
 const MAX_PHOTOS = 3;
 
 export const Route = createFileRoute("/nearby/new")({
-  validateSearch: (search: Record<string, unknown>): { category?: NeedCategory; relist?: string } => ({
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): { category?: NeedCategory; relist?: string } => ({
     ...(CATEGORY_ORDER.includes(search["category"] as NeedCategory)
       ? { category: search["category"] as NeedCategory }
       : {}),
@@ -113,18 +119,42 @@ function NewListingPage() {
     setDescription(lot.description);
     setDistrict(lot.district ?? "");
     setPrice(lot.priceMinor == null ? "" : String(lot.priceMinor / 100));
-    setUrgentFields({ ...emptyUrgentFields, start: lot.startPriceMinor == null ? "" : String(lot.startPriceMinor / 100), floor: lot.priceFloorMinor == null ? "" : String(lot.priceFloorMinor / 100), market: lot.marketPriceMinor == null ? "" : String(lot.marketPriceMinor / 100) });
+    setUrgentFields({
+      ...emptyUrgentFields,
+      start: lot.startPriceMinor == null ? "" : String(lot.startPriceMinor / 100),
+      floor: lot.priceFloorMinor == null ? "" : String(lot.priceFloorMinor / 100),
+      market: lot.marketPriceMinor == null ? "" : String(lot.marketPriceMinor / 100),
+    });
   }, [previous.data, prefilled]);
 
-  const showPrice = category === "urgent" ? urgentType === "buy" || urgentType === "help" : priceApplies(category);
-  const sellError = category === "urgent" && urgentType === "sell" ? sellFormError(moneyInput(urgentFields.start), moneyInput(urgentFields.floor), photos.length, previous.data?.isMine ? previous.data.startPriceMinor : undefined) : null;
-  const typeFieldsValid = category !== "urgent" || (
-    (urgentType !== "ride" || (urgentFields.from.trim() && urgentFields.to.trim() && urgentFields.departure && Number(urgentFields.seats) >= 1 && Number(urgentFields.seats) <= 99)) &&
-    (urgentType !== "giveaway" || urgentFields.pickup) &&
-    (urgentType !== "help" || description.trim()) &&
-    (urgentType !== "buy" || moneyInput(price) !== null)
-  );
-  const canSubmit = title.trim().length >= 3 && Boolean(typeFieldsValid) && !sellError && !create.isPending && !uploading;
+  const showPrice =
+    category === "urgent" ? urgentType === "buy" || urgentType === "help" : priceApplies(category);
+  const sellError =
+    category === "urgent" && urgentType === "sell"
+      ? sellFormError(
+          moneyInput(urgentFields.start),
+          moneyInput(urgentFields.floor),
+          photos.length,
+          previous.data?.isMine ? previous.data.startPriceMinor : undefined,
+        )
+      : null;
+  const typeFieldsValid =
+    category !== "urgent" ||
+    ((urgentType !== "ride" ||
+      (urgentFields.from.trim() &&
+        urgentFields.to.trim() &&
+        urgentFields.departure &&
+        Number(urgentFields.seats) >= 1 &&
+        Number(urgentFields.seats) <= 99)) &&
+      (urgentType !== "giveaway" || urgentFields.pickup) &&
+      (urgentType !== "help" || description.trim()) &&
+      (urgentType !== "buy" || moneyInput(price) !== null));
+  const canSubmit =
+    title.trim().length >= 3 &&
+    Boolean(typeFieldsValid) &&
+    !sellError &&
+    !create.isPending &&
+    !uploading;
 
   // Живой предпросмотр: карточка ровно в том виде, в каком её увидят в «Рядом».
   const preview = useMemo<Listing>(() => {
@@ -137,7 +167,8 @@ function NewListingPage() {
       district: district.trim() || undefined,
       title: title.trim() || "Заголовок объявления",
       description: description.trim(),
-      priceMinor: showPrice && price.trim() && Number.isFinite(rubles) ? Math.round(rubles * 100) : null,
+      priceMinor:
+        showPrice && price.trim() && Number.isFinite(rubles) ? Math.round(rubles * 100) : null,
       currency: "RUB",
       state: "active",
       expiresAt: new Date(Date.now() + minutes * 60_000).toISOString(),
@@ -152,17 +183,33 @@ function NewListingPage() {
         trustLevel: profile?.trustLevel ?? "new",
         avatarUrl: profile?.avatarUrl ?? null,
       },
-      ...(category === "urgent" ? {
-        urgentType,
-        ...(urgentType === "sell" ? {
-          startPriceMinor: moneyInput(urgentFields.start),
-          currentPriceMinor: moneyInput(urgentFields.start),
-          priceFloorMinor: moneyInput(urgentFields.floor),
-          marketPriceMinor: moneyInput(urgentFields.market),
-        } : {}),
-      } : {}),
+      ...(category === "urgent"
+        ? {
+            urgentType,
+            ...(urgentType === "sell"
+              ? {
+                  startPriceMinor: moneyInput(urgentFields.start),
+                  currentPriceMinor: moneyInput(urgentFields.start),
+                  priceFloorMinor: moneyInput(urgentFields.floor),
+                  marketPriceMinor: moneyInput(urgentFields.market),
+                }
+              : {}),
+          }
+        : {}),
     };
-  }, [me.data, category, district, title, description, price, showPrice, minutes, photos, urgentType, urgentFields]);
+  }, [
+    me.data,
+    category,
+    district,
+    title,
+    description,
+    price,
+    showPrice,
+    minutes,
+    photos,
+    urgentType,
+    urgentFields,
+  ]);
 
   const upload = async (file: File) => {
     if (photos.length >= MAX_PHOTOS) return;
@@ -188,7 +235,10 @@ function NewListingPage() {
     });
 
   const submit = () => {
-    if (sellError) { setFormError(sellError); return; }
+    if (sellError) {
+      setFormError(sellError);
+      return;
+    }
     setFormError(null);
     const rubles = Number(price.replace(",", "."));
     const priceMinor =
@@ -198,26 +248,67 @@ function NewListingPage() {
       {
         category,
         title: title.trim(),
-        description: [description.trim(), ...(category === "urgent" && urgentType === "ride" ? [`Откуда: ${urgentFields.from}`, `Куда: ${urgentFields.to}`, `Выезд: ${urgentFields.departure.replace("T", " ")}`, `Мест: ${urgentFields.seats}`] : []), ...(category === "urgent" && urgentType === "giveaway" ? [`Забрать: ${urgentFields.pickup.replace("T", " ")}`] : [])].filter(Boolean).join("\n").slice(0, 2000),
+        description: [
+          description.trim(),
+          ...(category === "urgent" && urgentType === "ride"
+            ? [
+                `Откуда: ${urgentFields.from}`,
+                `Куда: ${urgentFields.to}`,
+                `Выезд: ${urgentFields.departure.replace("T", " ")}`,
+                `Мест: ${urgentFields.seats}`,
+              ]
+            : []),
+          ...(category === "urgent" && urgentType === "giveaway"
+            ? [`Забрать: ${urgentFields.pickup.replace("T", " ")}`]
+            : []),
+        ]
+          .filter(Boolean)
+          .join("\n")
+          .slice(0, 2000),
         priceMinor,
         district: district.trim() || undefined,
         mediaIds: photos.map((item) => item.id),
         expiresInMinutes: minutes,
-        ...(category === "urgent" ? {
-          urgentType,
-          ...(urgentType === "sell" ? { priceStartMinor: moneyInput(urgentFields.start) ?? 0, priceFloorMinor: moneyInput(urgentFields.floor) ?? 0, ...(moneyInput(urgentFields.market) !== null ? { marketPriceMinor: moneyInput(urgentFields.market) ?? 0 } : {}) } : {}),
-        } : {}),
+        ...(category === "urgent"
+          ? {
+              urgentType,
+              ...(urgentType === "sell"
+                ? {
+                    priceStartMinor: moneyInput(urgentFields.start) ?? 0,
+                    priceFloorMinor: moneyInput(urgentFields.floor) ?? 0,
+                    ...(moneyInput(urgentFields.market) !== null
+                      ? { marketPriceMinor: moneyInput(urgentFields.market) ?? 0 }
+                      : {}),
+                  }
+                : {}),
+            }
+          : {}),
       },
       {
         onSuccess: (listing) => {
-          toast.success("Объявление опубликовано", category === "urgent" ? {} : {
-            description: "Людям из вашего города с похожими интересами уже ушло уведомление.",
-          });
+          toast.success(
+            "Объявление опубликовано",
+            category === "urgent"
+              ? {}
+              : {
+                  description: "Людям из вашего города с похожими интересами уже ушло уведомление.",
+                },
+          );
           void navigate({ to: "/nearby/$id", params: { id: listing.id } });
         },
         onError: (cause) => {
-          const message = category === "urgent" ? urgentError(cause) : cause instanceof Error ? cause.message : "Не удалось опубликовать";
-          if (["CONTACT_NOT_VERIFIED", "PHONE_REQUIRED"].includes((cause as { code?: string }).code ?? "")) setContactOpen(true);
+          const message =
+            category === "urgent"
+              ? urgentError(cause)
+              : cause instanceof Error
+                ? cause.message
+                : "Не удалось опубликовать";
+          if (
+            ["CONTACT_NOT_VERIFIED", "PHONE_REQUIRED"].includes(
+              (cause as { code?: string }).code ?? "",
+            )
+          )
+            setContactOpen(true);
           setFormError(message);
           toast.error(message);
         },
@@ -227,7 +318,13 @@ function NewListingPage() {
 
   return (
     <AppShell>
-      <BottomSheet open={contactOpen} onClose={() => setContactOpen(false)} title="Подтвердите способ связи"><VerifiedContactStep /></BottomSheet>
+      <BottomSheet
+        open={contactOpen}
+        onClose={() => setContactOpen(false)}
+        title="Подтвердите способ связи"
+      >
+        <VerifiedContactStep />
+      </BottomSheet>
       <PageHeader
         title="Новое объявление"
         description="Город подставим из профиля — повторно спрашивать не будем."
@@ -253,9 +350,21 @@ function NewListingPage() {
         </fieldset>
 
         {category === "urgent" && <UrgentTypePicker value={urgentType} onChange={setUrgentType} />}
-        {search.relist && <p className="text-sm text-muted-foreground">{previous.isError || (previous.data && !previous.data.isMine) ? "Прошлый лот недоступен для перезапуска" : "Перезапуск: старт не выше старта прошлого лота"}</p>}
+        {search.relist && (
+          <p className="text-sm text-muted-foreground">
+            {previous.isError || (previous.data && !previous.data.isMine)
+              ? "Прошлый лот недоступен для перезапуска"
+              : "Перезапуск: старт не выше старта прошлого лота"}
+          </p>
+        )}
         <Input
-          label={category === "urgent" && urgentType === "buy" ? "Что нужно" : category === "urgent" && urgentType === "giveaway" ? "Предмет" : "Заголовок"}
+          label={
+            category === "urgent" && urgentType === "buy"
+              ? "Что нужно"
+              : category === "urgent" && urgentType === "giveaway"
+                ? "Предмет"
+                : "Заголовок"
+          }
           value={title}
           maxLength={120}
           onChange={(event) => setTitle(event.target.value)}
@@ -280,11 +389,24 @@ function NewListingPage() {
           onChange={(event) => setDescription(event.target.value)}
         />
 
-        {category === "urgent" && <UrgentFormFields type={urgentType} fields={urgentFields} onChange={setUrgentFields} minutes={minutes} />}
+        {category === "urgent" && (
+          <UrgentFormFields
+            type={urgentType}
+            fields={urgentFields}
+            onChange={setUrgentFields}
+            minutes={minutes}
+          />
+        )}
 
         {showPrice ? (
           <Input
-            label={category === "urgent" ? urgentType === "buy" ? "Потолок цены, ₽" : "Бюджет, ₽ (необязательно)" : "Цена, ₽ (необязательно)"}
+            label={
+              category === "urgent"
+                ? urgentType === "buy"
+                  ? "Потолок цены, ₽"
+                  : "Бюджет, ₽ (необязательно)"
+                : "Цена, ₽ (необязательно)"
+            }
             value={price}
             inputMode="decimal"
             required={category === "urgent" && urgentType === "buy"}
@@ -296,19 +418,30 @@ function NewListingPage() {
         <div>
           <div className="mb-3 flex items-baseline justify-between">
             <p className="text-sm font-semibold">Фото</p>
-            <span className="text-xs text-muted-foreground">{category === "urgent" && urgentType === "sell" ? "2–3 фото" : "до 3 фото"}</span>
+            <span className="text-xs text-muted-foreground">
+              {category === "urgent" && urgentType === "sell" ? "2–3 фото" : "до 3 фото"}
+            </span>
           </div>
           <div className="grid grid-cols-3 gap-2.5">
             {Array.from({ length: MAX_PHOTOS }, (_, slot) => {
               const photo = photos[slot];
               if (photo) {
                 return (
-                  <div key={photo.id} className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-secondary">
-                    <img src={photo.url} alt={`Фото ${slot + 1}`} className="size-full object-cover" />
+                  <div
+                    key={photo.id}
+                    className="relative aspect-square overflow-hidden rounded-2xl border border-border bg-secondary"
+                  >
+                    <img
+                      src={photo.url}
+                      alt={`Фото ${slot + 1}`}
+                      className="size-full object-cover"
+                    />
                     <button
                       type="button"
                       aria-label="Убрать фото"
-                      onClick={() => setPhotos((prev) => prev.filter((item) => item.id !== photo.id))}
+                      onClick={() =>
+                        setPhotos((prev) => prev.filter((item) => item.id !== photo.id))
+                      }
                       className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-background/85 text-foreground backdrop-blur hover:text-destructive"
                     >
                       <X className="size-4" aria-hidden="true" />
@@ -331,7 +464,10 @@ function NewListingPage() {
               }
               if (slot === photos.length && uploading) {
                 return (
-                  <div key={`slot-${slot}`} className="grid aspect-square place-items-center rounded-2xl border border-primary/50 bg-secondary text-primary">
+                  <div
+                    key={`slot-${slot}`}
+                    className="grid aspect-square place-items-center rounded-2xl border border-primary/50 bg-secondary text-primary"
+                  >
                     <div className="flex flex-col items-center gap-1">
                       <Loader2 className="size-5 animate-spin" aria-hidden="true" />
                       <span className="text-[10px] font-semibold">{progress ?? 0}%</span>
@@ -362,22 +498,38 @@ function NewListingPage() {
               );
             })}
           </div>
-          {previous.data?.isMine && previous.data.photos.length > 0 && photos.length === 0 && <Button type="button" variant="secondary" className="mt-3" loading={uploading} onClick={async () => {
-            const lot = previous.data;
-            if (!lot) return;
-            setUploading(true);
-            try {
-              const copied: ListingPhoto[] = [];
-              for (const [i, url] of lot.photos.slice(0, MAX_PHOTOS).entries()) {
-                const response = await fetch(mediaUrl(url) ?? url);
-                if (!response.ok) throw new Error("Не удалось загрузить фото прошлого лота");
-                const file = new File([await response.blob()], `relist-${i}.jpg`, { type: "image/jpeg" });
-                const prepared = await compressListingPhoto(file);
-                copied.push(await listingsApi.uploadListingPhoto(prepared));
-              }
-              setPhotos(copied);
-            } catch (cause) { toast.error(urgentError(cause)); } finally { setUploading(false); }
-          }}>Загрузить фото прошлого лота</Button>}
+          {previous.data?.isMine && previous.data.photos.length > 0 && photos.length === 0 && (
+            <Button
+              type="button"
+              variant="secondary"
+              className="mt-3"
+              loading={uploading}
+              onClick={async () => {
+                const lot = previous.data;
+                if (!lot) return;
+                setUploading(true);
+                try {
+                  const copied: ListingPhoto[] = [];
+                  for (const [i, url] of lot.photos.slice(0, MAX_PHOTOS).entries()) {
+                    const response = await fetch(mediaUrl(url) ?? url);
+                    if (!response.ok) throw new Error("Не удалось загрузить фото прошлого лота");
+                    const file = new File([await response.blob()], `relist-${i}.jpg`, {
+                      type: "image/jpeg",
+                    });
+                    const prepared = await compressListingPhoto(file);
+                    copied.push(await listingsApi.uploadListingPhoto(prepared));
+                  }
+                  setPhotos(copied);
+                } catch (cause) {
+                  toast.error(urgentError(cause));
+                } finally {
+                  setUploading(false);
+                }
+              }}
+            >
+              Загрузить фото прошлого лота
+            </Button>
+          )}
         </div>
 
         <fieldset>
@@ -385,7 +537,10 @@ function NewListingPage() {
           <div className="duration-reveal" data-open={durationOpen}>
             <div className="min-h-0 overflow-hidden">
               <div className="flex flex-wrap gap-1.5">
-                {(category === "urgent" ? URGENT_DURATIONS[urgentType].options : LISTING_DURATIONS[shownCategory].options).map((option) => (
+                {(category === "urgent"
+                  ? URGENT_DURATIONS[urgentType].options
+                  : LISTING_DURATIONS[shownCategory].options
+                ).map((option) => (
                   <Chip
                     key={option}
                     size="sm"
@@ -407,10 +562,17 @@ function NewListingPage() {
           <div className="pointer-events-none" aria-hidden="true">
             <ListingCard listing={preview} />
           </div>
-          <p className="mt-2 text-xs text-muted-foreground">Так карточку увидят люди в разделе «Рядом». Проверьте фото, цену и текст перед публикацией.</p>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Так карточку увидят люди в разделе «Рядом». Проверьте фото, цену и текст перед
+            публикацией.
+          </p>
         </fieldset>
 
-        {(formError || sellError) && <p role="alert" className="text-sm text-destructive">{formError ?? sellError}</p>}
+        {(formError || sellError) && (
+          <p role="alert" className="text-sm text-destructive">
+            {formError ?? sellError}
+          </p>
+        )}
 
         <div className="flex gap-3 pt-2">
           <Button type="submit" className="flex-1" disabled={!canSubmit} loading={create.isPending}>

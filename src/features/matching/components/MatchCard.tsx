@@ -65,12 +65,15 @@ export function MatchCard({
             params={{ id: match.id }}
             className="text-xl font-bold text-primary-foreground underline-offset-4 hover:underline sm:text-2xl"
           >
-            {match.name}{visibleAge(match.age)}
+            {match.name}
+            {visibleAge(match.age)}
           </Link>
-          {match.city && <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-primary-foreground/85">
-            <MapPin className="size-3.5" aria-hidden="true" />
-            {match.city}
-          </p>}
+          {match.city && (
+            <p className="mt-0.5 inline-flex items-center gap-1.5 text-xs text-primary-foreground/85">
+              <MapPin className="size-3.5" aria-hidden="true" />
+              {match.city}
+            </p>
+          )}
         </div>
       </div>
 
