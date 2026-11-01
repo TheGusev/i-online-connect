@@ -50,21 +50,42 @@ export async function verifyPhoneCode(
 }
 
 export type OAuthProvider = "yandex" | "telegram";
-export type AuthConfig = { passwordResetEnabled: boolean; phoneLoginEnabled?: boolean; emailConfirmationEnabled?: boolean; providers: Record<OAuthProvider, boolean> };
+export type AuthConfig = {
+  passwordResetEnabled: boolean;
+  phoneLoginEnabled?: boolean;
+  emailConfirmationEnabled?: boolean;
+  providers: Record<OAuthProvider, boolean>;
+};
 export const getAuthConfig = () => request<AuthConfig>("/auth/config");
 export function socialStartUrl(provider: OAuthProvider) {
   return `${API_URL.replace(/\/$/, "")}/auth/${provider}/start`;
 }
-export const startIdentityLink = (provider: OAuthProvider) => request<{ url: string }>(`/auth/identities/${provider}/link/start`, { method: "POST" });
-export const getIdentities = () => request<{ linked: string[]; email: boolean; phone: boolean }>("/auth/identities");
-export const unlinkIdentity = (provider: OAuthProvider) => request<void>(`/auth/identities/${provider}`, { method: "DELETE" });
+export const startIdentityLink = (provider: OAuthProvider) =>
+  request<{ url: string }>(`/auth/identities/${provider}/link/start`, { method: "POST" });
+export const getIdentities = () =>
+  request<{ linked: string[]; email: boolean; phone: boolean }>("/auth/identities");
+export const unlinkIdentity = (provider: OAuthProvider) =>
+  request<void>(`/auth/identities/${provider}`, { method: "DELETE" });
 export async function completeOAuth(provider: OAuthProvider, state: string) {
-  const result = await request<{ token: string; isNew: boolean }>("/auth/oauth/result", { method: "POST", body: { provider, state } });
+  const result = await request<{ token: string; isNew: boolean }>("/auth/oauth/result", {
+    method: "POST",
+    body: { provider, state },
+  });
   setToken(result.token);
   const user = await getCurrentUser();
   return { ...result, user };
 }
-export const requestPasswordReset = (email: string) => request<void>("/auth/password/reset/request", { method: "POST", body: { email } });
-export const confirmPasswordReset = (email: string, code: string, newPassword: string) => request<void>("/auth/password/reset/confirm", { method: "POST", body: { email, code, newPassword } });
-export const requestPhoneLink = (phone: string) => request<void>("/auth/phone/link/request", { method: "POST", body: { phone } });
-export const verifyPhoneLink = (phone: string, code: string) => request<{ status: "verified" }>("/auth/phone/link/verify", { method: "POST", body: { phone, code } });
+export const requestPasswordReset = (email: string) =>
+  request<void>("/auth/password/reset/request", { method: "POST", body: { email } });
+export const confirmPasswordReset = (email: string, code: string, newPassword: string) =>
+  request<void>("/auth/password/reset/confirm", {
+    method: "POST",
+    body: { email, code, newPassword },
+  });
+export const requestPhoneLink = (phone: string) =>
+  request<void>("/auth/phone/link/request", { method: "POST", body: { phone } });
+export const verifyPhoneLink = (phone: string, code: string) =>
+  request<{ status: "verified" }>("/auth/phone/link/verify", {
+    method: "POST",
+    body: { phone, code },
+  });

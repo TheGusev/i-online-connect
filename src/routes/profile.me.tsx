@@ -207,7 +207,9 @@ function MyProfilePage() {
                   {data.completeness ? (
                     <p className="text-xs text-muted-foreground">
                       Заполнено {data.completeness.filled} из {data.completeness.total}
-                      {data.completeness.complete ? " — знакомства открыты" : ". Интересы (от 3) и фото добавляются ниже и в галерее."}
+                      {data.completeness.complete
+                        ? " — знакомства открыты"
+                        : ". Интересы (от 3) и фото добавляются ниже и в галерее."}
                     </p>
                   ) : null}
                   <TextArea
@@ -226,7 +228,9 @@ function MyProfilePage() {
                     label="Что для тебя неприемлемо (необязательно)"
                     rows={2}
                     value={draft.dealbreakersText}
-                    onChange={(event) => setDraft({ ...draft, dealbreakersText: event.target.value })}
+                    onChange={(event) =>
+                      setDraft({ ...draft, dealbreakersText: event.target.value })
+                    }
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -246,11 +250,21 @@ function MyProfilePage() {
               </Card>
             ) : (
               <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2">
-                <Button variant="secondary" className="min-w-0 gap-1.5 px-2 text-xs sm:px-5 sm:text-sm" onClick={startEdit}>
+                <Button
+                  variant="secondary"
+                  className="min-w-0 gap-1.5 px-2 text-xs sm:px-5 sm:text-sm"
+                  onClick={startEdit}
+                >
                   <Pencil aria-hidden="true" />
                   <span className="min-w-0">Редактировать профиль</span>
                 </Button>
-                <Button variant="secondary" size="icon" aria-label="Поделиться" title="Поделиться" onClick={() => setShareOpen(true)}>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  aria-label="Поделиться"
+                  title="Поделиться"
+                  onClick={() => setShareOpen(true)}
+                >
                   <Share2 aria-hidden="true" />
                 </Button>
                 <Button variant="secondary" size="icon" asChild>
@@ -270,10 +284,14 @@ function MyProfilePage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">Уведомления</p>
-                  <p className="text-xs text-muted-foreground">История, push и выбор типов событий</p>
+                  <p className="text-xs text-muted-foreground">
+                    История, push и выбор типов событий
+                  </p>
                 </div>
                 <Button variant="ghost" size="sm" asChild>
-                  <Link to="/settings" search={{ tab: "notifications" }}>Настроить</Link>
+                  <Link to="/settings" search={{ tab: "notifications" }}>
+                    Настроить
+                  </Link>
                 </Button>
               </div>
               <Button variant="secondary" fullWidth className="mt-3" asChild>
@@ -284,7 +302,9 @@ function MyProfilePage() {
 
           {!draft ? (
             <>
-              <Button asChild variant="secondary" className="mt-5"><Link to="/onboarding">Заполнить анкету</Link></Button>
+              <Button asChild variant="secondary" className="mt-5">
+                <Link to="/onboarding">Заполнить анкету</Link>
+              </Button>
               <ProfilePanel title="О себе" defaultOpen storageKey="me-about" className="mt-5">
                 <p className="max-w-2xl text-base leading-loose text-muted-foreground">
                   {data.bio || "Пока пусто — расскажи о себе через «Редактировать профиль»."}
@@ -359,7 +379,11 @@ function MyProfilePage() {
             open={shareOpen}
             onClose={() => setShareOpen(false)}
             title="Поделиться профилем"
-            url={typeof window !== "undefined" ? `${window.location.origin}/profile/${data.id}` : `/profile/${data.id}`}
+            url={
+              typeof window !== "undefined"
+                ? `${window.location.origin}/profile/${data.id}`
+                : `/profile/${data.id}`
+            }
           />
 
           <Reveal as="footer" className="mt-5">

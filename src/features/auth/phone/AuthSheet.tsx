@@ -15,7 +15,7 @@ import { ShortEntry } from "../ShortEntry";
  */
 export function useAuthGate() {
   const authed = useSessionStore((state) => state.status === "authed");
-  const user = useSessionStore(state => state.user);
+  const user = useSessionStore((state) => state.user);
   const [open, setOpen] = useState(false);
   const pending = useRef<(() => void) | null>(null);
 
@@ -33,15 +33,29 @@ export function useAuthGate() {
 
   const sheet = (
     <BottomSheet open={open} onClose={() => setOpen(false)} title="Вход">
-      {authed && needsFirstEntry(user) ? <ShortEntry /> : PHONE_LOGIN_ENABLED ? <PhoneAuthFlow
-        onDone={() => {
-          setOpen(false);
-          const action = pending.current;
-          pending.current = null;
-          // Даём сессии примениться, затем продолжаем начатое действие.
-          if (action) window.setTimeout(action, 0);
-        }}
-      /> : <div className="space-y-3"><SocialLoginButtons /><Button asChild fullWidth variant="secondary"><Link to="/auth">Войти по почте</Link></Button><Button asChild fullWidth variant="ghost"><Link to="/onboarding">Создать аккаунт</Link></Button></div>}
+      {authed && needsFirstEntry(user) ? (
+        <ShortEntry />
+      ) : PHONE_LOGIN_ENABLED ? (
+        <PhoneAuthFlow
+          onDone={() => {
+            setOpen(false);
+            const action = pending.current;
+            pending.current = null;
+            // Даём сессии примениться, затем продолжаем начатое действие.
+            if (action) window.setTimeout(action, 0);
+          }}
+        />
+      ) : (
+        <div className="space-y-3">
+          <SocialLoginButtons />
+          <Button asChild fullWidth variant="secondary">
+            <Link to="/auth">Войти по почте</Link>
+          </Button>
+          <Button asChild fullWidth variant="ghost">
+            <Link to="/onboarding">Создать аккаунт</Link>
+          </Button>
+        </div>
+      )}
     </BottomSheet>
   );
 

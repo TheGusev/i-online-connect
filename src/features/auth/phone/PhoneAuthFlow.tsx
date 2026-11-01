@@ -41,7 +41,7 @@ export function PhoneAuthFlow({
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const phone = normalizeRuPhone(digits);
-  const user = useSessionStore(state => state.user);
+  const user = useSessionStore((state) => state.user);
 
   useEffect(() => {
     if (step !== "code") return;
@@ -49,9 +49,12 @@ export function PhoneAuthFlow({
     return () => window.clearInterval(timer);
   }, [step]);
 
-  useEffect(() => () => {
-    if (photoUrl) URL.revokeObjectURL(photoUrl);
-  }, [photoUrl]);
+  useEffect(
+    () => () => {
+      if (photoUrl) URL.revokeObjectURL(photoUrl);
+    },
+    [photoUrl],
+  );
 
   const left = Math.max(0, Math.ceil((resendAt - now) / 1000));
 
@@ -70,7 +73,8 @@ export function PhoneAuthFlow({
       setStep("code");
     } catch (cause) {
       setError(messageOf(cause, "Не удалось отправить код"));
-      const match = cause instanceof ApiError && cause.status === 429 ? /(\d+)\s*с/.exec(cause.message) : null;
+      const match =
+        cause instanceof ApiError && cause.status === 429 ? /(\d+)\s*с/.exec(cause.message) : null;
       if (match && step === "code") setResendAt(Date.now() + Number(match[1]) * 1000);
     } finally {
       setBusy(false);
@@ -166,12 +170,19 @@ export function PhoneAuthFlow({
             />
           </label>
           {error ? <p className="mt-2 px-1 text-sm text-destructive">{error}</p> : null}
-          <Button className="mt-5 h-12 w-full shadow-glow" loading={busy} disabled={!phone} onClick={() => void requestCode()}>
+          <Button
+            className="mt-5 h-12 w-full shadow-glow"
+            loading={busy}
+            disabled={!phone}
+            onClick={() => void requestCode()}
+          >
             Получить код
           </Button>
           <p className="mt-6 text-center text-xs text-muted-foreground">
             Нажимая «Получить код», вы соглашаетесь с{" "}
-            <a href="/rules" className="underline underline-offset-2">условиями использования</a>
+            <a href="/rules" className="underline underline-offset-2">
+              условиями использования
+            </a>
           </p>
         </>
       ) : null}
@@ -204,7 +215,11 @@ export function PhoneAuthFlow({
                 <span
                   key={index}
                   className={`grid h-14 place-items-center rounded-xl border bg-card text-2xl font-bold ${
-                    code[index] ? "border-primary" : index === code.length ? "border-primary/60" : "border-border"
+                    code[index]
+                      ? "border-primary"
+                      : index === code.length
+                        ? "border-primary/60"
+                        : "border-border"
                   }`}
                 >
                   {code[index] ?? ""}
@@ -219,7 +234,12 @@ export function PhoneAuthFlow({
                 Отправить ещё раз через {Math.floor(left / 60)}:{String(left % 60).padStart(2, "0")}
               </p>
             ) : (
-              <button type="button" disabled={busy} onClick={() => void requestCode()} className="min-h-11 font-semibold text-primary">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void requestCode()}
+                className="min-h-11 font-semibold text-primary"
+              >
                 Отправить код ещё раз
               </button>
             )}
@@ -273,7 +293,11 @@ export function PhoneAuthFlow({
             />
           </label>
           {error ? <p className="mt-2 px-1 text-sm text-destructive">{error}</p> : null}
-          <Button className="mt-5 h-12 w-full shadow-glow" loading={busy} onClick={() => void saveName()}>
+          <Button
+            className="mt-5 h-12 w-full shadow-glow"
+            loading={busy}
+            onClick={() => void saveName()}
+          >
             Войти в чат
           </Button>
         </>

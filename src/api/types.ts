@@ -71,7 +71,11 @@ export interface Message {
   reactions?: MessageReaction[];
 }
 
-export interface MessageReaction { emoji: string; count: number; mine: boolean }
+export interface MessageReaction {
+  emoji: string;
+  count: number;
+  mine: boolean;
+}
 
 /** Цитата: минимум для плашки и пузыря ответа. */
 export interface MessageQuote {
@@ -81,7 +85,6 @@ export interface MessageQuote {
   text: string;
   deleted?: boolean;
 }
-
 
 /** Тип встречи в мини-форме «Предложить встречу». */
 export type MeetingKind = "coffee" | "walk" | "event";
@@ -459,8 +462,20 @@ export interface Listing {
   myBid?: { maxPriceMinor: number } | null;
   bidsCount?: number;
   highestBidMinor?: number | null;
-  reservation?: { active: boolean; mine: boolean; expiresAt: string | null; priceMinor: number | null; source: string | null };
-  activeReservation?: { id: string; buyerName: string; expiresAt: string; priceMinor: number; source: string } | null;
+  reservation?: {
+    active: boolean;
+    mine: boolean;
+    expiresAt: string | null;
+    priceMinor: number | null;
+    source: string | null;
+  };
+  activeReservation?: {
+    id: string;
+    buyerName: string;
+    expiresAt: string;
+    priceMinor: number;
+    source: string;
+  } | null;
   outcome?: string | null;
   finalPriceMinor?: number | null;
   closedAt?: string | null;

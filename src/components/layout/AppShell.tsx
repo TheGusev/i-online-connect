@@ -8,8 +8,6 @@ import { useTabOrder } from "@/features/navigation/useTabOrder";
 import { useTranslation } from "react-i18next";
 import { navItems } from "./nav-items";
 
-
-
 import { BottomNav } from "./BottomNav";
 import { SideNav } from "./SideNav";
 import { TopBar } from "./TopBar";
@@ -41,14 +39,23 @@ export function AppShell({
     <div className="app-viewport flex bg-background text-foreground">
       <SideNav />
       {peekItem ? (
-        <div className="swipe-peek lg:hidden" aria-hidden="true" style={{ [peek!.side === "right" ? "left" : "right"]: 0 }}>
+        <div
+          className="swipe-peek lg:hidden"
+          aria-hidden="true"
+          style={{ [peek!.side === "right" ? "left" : "right"]: 0 }}
+        >
           <div className="flex flex-col items-center gap-2">
             <peekItem.icon className="size-8 text-primary" />
-            <span className="text-xs font-bold uppercase tracking-[0.14em]">{t(peekItem.labelKey)}</span>
+            <span className="text-xs font-bold uppercase tracking-[0.14em]">
+              {t(peekItem.labelKey)}
+            </span>
           </div>
         </div>
       ) : null}
-      <div ref={surfaceRef} className={`swipe-surface relative z-10 flex min-w-0 flex-1 flex-col bg-background ${enterClass}`}>
+      <div
+        ref={surfaceRef}
+        className={`swipe-surface relative z-10 flex min-w-0 flex-1 flex-col bg-background ${enterClass}`}
+      >
         {!focused ? <TopBar /> : null}
         <main
           className={`mx-auto w-full flex-1 px-4 ${focused ? "pb-[env(safe-area-inset-bottom)] pt-3" : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-6 lg:pb-12"} lg:px-8 ${wide ? "max-w-6xl" : "max-w-3xl"}`}
@@ -58,7 +65,9 @@ export function AppShell({
         </main>
       </div>
 
-      {!focused ? <BottomNav activeOverride={optimisticTab === null ? undefined : tabOrder[optimisticTab]} /> : null}
+      {!focused ? (
+        <BottomNav activeOverride={optimisticTab === null ? undefined : tabOrder[optimisticTab]} />
+      ) : null}
     </div>
   );
 

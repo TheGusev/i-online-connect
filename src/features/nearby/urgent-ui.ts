@@ -2,18 +2,30 @@ import type { Listing } from "@/api/types";
 import { DROP_WINDOW, STEPS, priceAt, validateSell, type UrgentType } from "./urgent";
 
 export const urgentLabels: Record<UrgentType, string> = {
-  sell: "Продам срочно", buy: "Куплю срочно", help: "Нужна помощь", ride: "Попутчик", giveaway: "Отдам сегодня",
+  sell: "Продам срочно",
+  buy: "Куплю срочно",
+  help: "Нужна помощь",
+  ride: "Попутчик",
+  giveaway: "Отдам сегодня",
 };
 export function moneyInput(value: string): number | null {
   if (!value.trim()) return null;
   const number = Number(value.replace(",", "."));
-  return Number.isFinite(number) && number >= 0 && number <= 10_000_000 ? Math.round(number * 100) : null;
+  return Number.isFinite(number) && number >= 0 && number <= 10_000_000
+    ? Math.round(number * 100)
+    : null;
 }
-export function sellFormError(start: number | null, floor: number | null, photos: number, previousStart?: number | null) {
+export function sellFormError(
+  start: number | null,
+  floor: number | null,
+  photos: number,
+  previousStart?: number | null,
+) {
   if (start === null || floor === null) return "Укажите стартовую и нижнюю цены";
   const code = validateSell({ start, floor });
   if (code) return urgentError({ code });
-  if (previousStart != null && start > previousStart) return urgentError({ code: "START_ABOVE_PREVIOUS" });
+  if (previousStart != null && start > previousStart)
+    return urgentError({ code: "START_ABOVE_PREVIOUS" });
   if (photos < 2) return "Для продажи добавьте минимум 2 фото";
   return null;
 }
@@ -33,27 +45,52 @@ export function urgentError(error: unknown): string {
     ALREADY_RESERVED: "Лот уже забронирован. Обновляем данные",
     RESERVATION_BANNED: "Бронирование недоступно после неявок у двух продавцов",
   };
-  return messages[value?.code ?? ""] ?? value?.message ?? "Не удалось выполнить действие. Попробуйте ещё раз";
+  return (
+    messages[value?.code ?? ""] ??
+    value?.message ??
+    "Не удалось выполнить действие. Попробуйте ещё раз"
+  );
 }
 export function dropEnd(listing: Pick<Listing, "createdAt" | "expiresAt">) {
   const start = new Date(listing.createdAt).getTime();
-  return new Date(start + (new Date(listing.expiresAt).getTime() - start) * DROP_WINDOW).toISOString();
+  return new Date(
+    start + (new Date(listing.expiresAt).getTime() - start) * DROP_WINDOW,
+  ).toISOString();
 }
 export function priceSteps(start: number, floor: number, minutes: number) {
   const count = STEPS[minutes] ?? 1;
   return Array.from({ length: count }, (_, i) => {
-    const at = Math.ceil(minutes * 60_000 * DROP_WINDOW / count * (i + 1));
-    return { afterMinutes: Math.ceil(at / 60_000), ...priceAt({ start, floor, createdAt: 0, expiresAt: minutes * 60_000, steps: count }, at) };
+    const at = Math.ceil(((minutes * 60_000 * DROP_WINDOW) / count) * (i + 1));
+    return {
+      afterMinutes: Math.ceil(at / 60_000),
+      ...priceAt({ start, floor, createdAt: 0, expiresAt: minutes * 60_000, steps: count }, at),
+    };
   });
 }
-export function unreservedUrgent<T extends Pick<Listing, "state" | "expiresAt" | "reservation">>(items: readonly T[], now = Date.now()) {
-  return items.filter(item => item.state === "active" && new Date(item.expiresAt).getTime() > now && !item.reservation?.active)
+export function unreservedUrgent<T extends Pick<Listing, "state" | "expiresAt" | "reservation">>(
+  items: readonly T[],
+  now = Date.now(),
+) {
+  return items
+    .filter(
+      (item) =>
+        item.state === "active" &&
+        new Date(item.expiresAt).getTime() > now &&
+        !item.reservation?.active,
+    )
     .sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime());
 }
-export function urgentListings<T extends Pick<Listing, "category" | "state" | "expiresAt" | "reservation">>(items: readonly T[], now = Date.now()) {
-  return unreservedUrgent(items.filter(item => item.category === "urgent"), now);
+export function urgentListings<
+  T extends Pick<Listing, "category" | "state" | "expiresAt" | "reservation">,
+>(items: readonly T[], now = Date.now()) {
+  return unreservedUrgent(
+    items.filter((item) => item.category === "urgent"),
+    now,
+  );
 }
 export function clockLeft(at: string | null | undefined, now: number) {
   const seconds = Math.max(0, Math.ceil(((at ? new Date(at).getTime() : now) - now) / 1000));
-  return `${Math.floor(seconds / 60).toString().padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
+  return `${Math.floor(seconds / 60)
+    .toString()
+    .padStart(2, "0")}:${(seconds % 60).toString().padStart(2, "0")}`;
 }

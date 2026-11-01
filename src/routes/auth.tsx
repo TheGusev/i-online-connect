@@ -39,7 +39,12 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const { t } = useTranslation();
   const [mode, setMode] = useState<"welcome" | "phone" | "email" | "reset">("welcome");
-  const config = useQuery({ queryKey: ["auth-config"], queryFn: authApi.getAuthConfig, enabled: mode === "email", retry: false });
+  const config = useQuery({
+    queryKey: ["auth-config"],
+    queryFn: authApi.getAuthConfig,
+    enabled: mode === "email",
+    retry: false,
+  });
   const navigate = useNavigate();
   const status = useSessionStore((state) => state.status);
   const login = useLogin();
@@ -83,19 +88,32 @@ function AuthPage() {
           <h1 className="mt-6 text-4xl font-extrabold tracking-tight">Я онлайн</h1>
           <p className="mt-2 text-lg text-muted-foreground">Срочные дела — в одном чате</p>
         </div>
-        <div className="mb-3"><SocialLoginButtons /></div>
-        {PHONE_LOGIN_ENABLED && <Button className="h-12 w-full shadow-glow" onClick={() => setMode("phone")}>
-          Войти по номеру
-        </Button>}
+        <div className="mb-3">
+          <SocialLoginButtons />
+        </div>
+        {PHONE_LOGIN_ENABLED && (
+          <Button className="h-12 w-full shadow-glow" onClick={() => setMode("phone")}>
+            Войти по номеру
+          </Button>
+        )}
         <Button variant="secondary" onClick={() => setMode("email")} className="mt-3 min-h-11">
           Войти по почте
         </Button>
-        <Link to="/nearby" className="mt-8 grid min-h-11 place-items-center text-sm text-muted-foreground underline-offset-4 hover:underline">
+        <Link
+          to="/nearby"
+          className="mt-8 grid min-h-11 place-items-center text-sm text-muted-foreground underline-offset-4 hover:underline"
+        >
           Посмотреть объявления рядом
         </Link>
         <p className="mt-2 text-center text-[11px] leading-snug text-muted-foreground">
-          Продолжая, вы принимаете <Link to="/rules" className="underline">правила сообщества</Link> и{" "}
-          <Link to="/safety-center" className="underline">правила безопасности</Link>
+          Продолжая, вы принимаете{" "}
+          <Link to="/rules" className="underline">
+            правила сообщества
+          </Link>{" "}
+          и{" "}
+          <Link to="/safety-center" className="underline">
+            правила безопасности
+          </Link>
         </p>
       </main>
     );
@@ -104,8 +122,13 @@ function AuthPage() {
   if (mode === "phone" && PHONE_LOGIN_ENABLED) {
     return (
       <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pt-10 text-foreground">
-        <PhoneAuthFlow onBack={() => setMode("welcome")} onDone={() => void navigate({ to: "/chat" })} />
-        <div className="mt-4"><SocialLoginButtons /></div>
+        <PhoneAuthFlow
+          onBack={() => setMode("welcome")}
+          onDone={() => void navigate({ to: "/chat" })}
+        />
+        <div className="mt-4">
+          <SocialLoginButtons />
+        </div>
       </main>
     );
   }
@@ -114,7 +137,11 @@ function AuthPage() {
     <div className="flex min-h-dvh flex-col bg-background text-foreground">
       <header className="border-b border-border">
         <div className="mx-auto flex w-full max-w-2xl items-center px-4 py-3 lg:px-6">
-          <Button variant="ghost" size="sm" onClick={() => setMode(mode === "reset" ? "email" : "welcome")}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setMode(mode === "reset" ? "email" : "welcome")}
+          >
             <ArrowLeft aria-hidden="true" />
             Назад
           </Button>
@@ -122,37 +149,60 @@ function AuthPage() {
       </header>
 
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10">
-        <h1 className="text-3xl font-extrabold tracking-tight">{mode === "reset" ? "Восстановление пароля" : t("auth.title")}</h1>
-        {mode !== "reset" && <p className="mt-2 text-sm text-muted-foreground">{t("auth.subtitle")}</p>}
+        <h1 className="text-3xl font-extrabold tracking-tight">
+          {mode === "reset" ? "Восстановление пароля" : t("auth.title")}
+        </h1>
+        {mode !== "reset" && (
+          <p className="mt-2 text-sm text-muted-foreground">{t("auth.subtitle")}</p>
+        )}
 
         <Card className="mt-6 space-y-4 p-5">
-          {mode === "reset" ? <PasswordResetFlow initialEmail={email} onDone={() => { setPassword(""); setError(null); setMode("email"); }} /> : <>
-          <Input
-            label={t("auth.email")}
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-          />
-          <Input
-            label={t("auth.password")}
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") submit();
-            }}
-          />
-          {error && <p className="px-1 text-xs text-destructive">{error}</p>}
-          <Button className="w-full" disabled={login.isPending} onClick={submit}>
-            {login.isPending ? t("auth.loading") : t("auth.submit")}
-          </Button>
-          {config.data?.passwordResetEnabled && <Button variant="ghost" fullWidth onClick={() => setMode("reset")}>Забыли пароль?</Button>}
-          </>}
+          {mode === "reset" ? (
+            <PasswordResetFlow
+              initialEmail={email}
+              onDone={() => {
+                setPassword("");
+                setError(null);
+                setMode("email");
+              }}
+            />
+          ) : (
+            <>
+              <Input
+                label={t("auth.email")}
+                type="email"
+                autoComplete="email"
+                inputMode="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+              <Input
+                label={t("auth.password")}
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") submit();
+                }}
+              />
+              {error && <p className="px-1 text-xs text-destructive">{error}</p>}
+              <Button className="w-full" disabled={login.isPending} onClick={submit}>
+                {login.isPending ? t("auth.loading") : t("auth.submit")}
+              </Button>
+              {config.data?.passwordResetEnabled && (
+                <Button variant="ghost" fullWidth onClick={() => setMode("reset")}>
+                  Забыли пароль?
+                </Button>
+              )}
+            </>
+          )}
         </Card>
-        {mode === "email" && <div className="mt-4"><SocialLoginButtons /></div>}
+        {mode === "email" && (
+          <div className="mt-4">
+            <SocialLoginButtons />
+          </div>
+        )}
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {t("auth.noAccount")}{" "}
