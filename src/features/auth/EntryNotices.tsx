@@ -21,7 +21,7 @@ export function EntryNotices({ recovery = false }: { recovery?: boolean }) {
   if (!user || hidden || (recovery && (!methods.data || !settings.data || settings.data.account.emailVerified || methods.data.linked.some(provider => provider === "yandex" || provider === "telegram")))) return null;
   const close = () => {
     setHidden(true);
-    try { dismissNotice(localStorage, user.id, kind); localStorage.removeItem(noticeKey(user.id, "verification-pending")); } catch { /* storage unavailable */ }
+    try { dismissNotice(localStorage, user.id, kind); if (!recovery) localStorage.removeItem(noticeKey(user.id, "verification-pending")); } catch { /* storage unavailable */ }
   };
   return <Card className="my-4 flex items-start gap-3 p-4">
     <div className="min-w-0 flex-1 space-y-3">

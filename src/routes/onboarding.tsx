@@ -20,17 +20,17 @@ import { SessionLoading, SessionOffline } from "@/features/auth/session";
 export const Route = createFileRoute("/onboarding")({
   head: () => ({
     meta: [
-      { title: "Знакомство с «Я Онлайн» — профиль через диалог" },
+      { title: "Первый вход и анкета — Я Онлайн" },
       {
         name: "description",
         content:
-          "Профиль в «Я Онлайн» собирается в тёплом диалоге с AI: восемь коротких шагов вместо длинной формы регистрации.",
+          "Короткое знакомство: имя, возраст, город и фото по желанию. Полная анкета доступна отдельно для знакомств.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:title", content: "Знакомство с «Я Онлайн» — профиль через диалог" },
+      { property: "og:title", content: "Первый вход и анкета — Я Онлайн" },
       {
         property: "og:description",
-        content: "AI задаёт вопросы по одному и собирает живой профиль вместе с тобой.",
+        content: "Короткий первый вход и отдельная анкета для знакомств.",
       },
       { name: "twitter:card", content: "summary_large_image" },
     ],

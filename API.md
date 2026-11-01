@@ -39,6 +39,7 @@ Refresh-токен ставится в httpOnly-cookie `ya_refresh` (path `/api/
 
 `OnboardingDraft`: `{ name, age, intent, about, interests[], values{values,joy,dealbreakers}, city, hideExactLocation, photoName, videoName, videoSkipped }`.
 Возраст меньше 18 → `400`.
+Возраст для сохранения — целое число от 18 до 100. Полная анкета предназначена для знакомств; первый вход для всех способов использует короткий шаг и существующий PATCH профиля, затем `/chat`.
 
 ---
 
@@ -54,6 +55,7 @@ Refresh-токен ставится в httpOnly-cookie `ya_refresh` (path `/api/
 `MyProfile` = `ProfileDetail` + `privacy`, `verification`, `stats`.
 Чужой профиль не содержит координат и приватной статистики.
 Если кто-то из двоих заблокировал другого — `403`.
+При первом сохранении возраста (в базе NULL/0) PATCH дополнительно требует `name`, непустой `city`, `adultConfirmed: true`; `age` — целое 18–100. Контакты и признаки подтверждения через этот PATCH не меняются. API сохраняет совместимый `age=0` для пустого возраста, интерфейс его не отображает.
 
 ---
 
