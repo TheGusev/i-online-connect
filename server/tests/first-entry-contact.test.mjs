@@ -29,7 +29,7 @@ const ids = [];
 async function user() {
   const id = randomUUID(); ids.push(id);
   await query('INSERT INTO users(id,email) VALUES($1,$2)', [id, `${id}@test.local`]);
-  await query("INSERT INTO profiles(user_id,name,age,city) VALUES($1,'Тест',0,'')", [id]);
+  await query("INSERT INTO profiles(user_id,name,age,city) VALUES($1,'Тест',NULL,'')", [id]);
   await query('INSERT INTO privacy_settings(user_id) VALUES($1)', [id]);
   return { id, token: await signAccessToken(id) };
 }
@@ -52,7 +52,7 @@ try {
     for (const age of [17,101,'abc']) {
       const who = await user();
       assert.equal((await call('PATCH','/api/profiles/me',{name:'Тест',age,city:'Москва',adultConfirmed:true},who)).statusCode,400);
-      assert.equal((await queryOne('SELECT age FROM profiles WHERE user_id=$1',[who.id])).age,0);
+      assert.equal((await queryOne('SELECT age FROM profiles WHERE user_id=$1',[who.id])).age,null);
     }
     for (const age of [18,100]) {
       const who = await user();
