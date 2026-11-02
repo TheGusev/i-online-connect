@@ -45,6 +45,16 @@ function updateViewport() {
   }
 }
 
+/** Native pickers and Safari keyboard dismissal can settle without resize. */
+export function refreshViewportAfterPicker(): void {
+  if (typeof window === "undefined") return;
+  updateViewport();
+  requestAnimationFrame(updateViewport);
+  setTimeout(updateViewport, 100);
+  setTimeout(updateViewport, 350);
+  setTimeout(updateViewport, 700);
+}
+
 /**
  * Подписка ставится один раз за жизнь страницы и не снимается: переменные
  * должны быть верными и на экранах, которые сам хук не вызывают.
@@ -63,6 +73,12 @@ function startListening() {
   });
   window.addEventListener("focusin", updateViewport);
   window.addEventListener("focusout", updateViewport);
+  window.addEventListener("focus", refreshViewportAfterPicker);
+  window.addEventListener("pageshow", refreshViewportAfterPicker);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshViewportAfterPicker();
+  });
+  window.addEventListener("focusout", refreshViewportAfterPicker);
 }
 
 if (typeof window !== "undefined") startListening();
@@ -77,7 +93,11 @@ function subscribe(listener: () => void) {
 
 /** Высота клавиатуры в пикселях (0 — закрыта). */
 export function useKeyboardInset(): number {
-  return useSyncExternalStore(subscribe, () => viewportInset, () => 0);
+  return useSyncExternalStore(
+    subscribe,
+    () => viewportInset,
+    () => 0,
+  );
 }
 
 /** Текущее состояние клавиатуры без подписки — для обработчиков жестов. */
