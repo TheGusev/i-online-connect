@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { isNearBottom } from "@/features/chat/scroll";
+import { lockBodyScroll } from "@/lib/scroll-lock";
 import { ChatBackground } from "@/features/chat/components/ChatBackground";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, CalendarHeart, WifiOff } from "lucide-react";
@@ -329,14 +330,15 @@ function ConversationPage() {
       ...(message.kind ? { kind: message.kind } : {}),
       text: message.text,
     });
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
   }, []);
 
   /** Переход к исходному сообщению с короткой подсветкой. */
   const jumpToMessage = useCallback((messageId: string) => {
     const node = document.getElementById(`message-${messageId}`);
     if (!node) return;
-    node.scrollIntoView({ behavior: "smooth", block: "center" });
+    const scroller = scrollerRef.current;
+    if (scroller) scroller.scrollTo({ top: scroller.scrollTop + node.getBoundingClientRect().top - scroller.getBoundingClientRect().top - (scroller.clientHeight - node.clientHeight) / 2, behavior: "smooth" });
     const bubble = node.querySelector<HTMLElement>("[data-bubble]") ?? node;
     // Подсветка по форме пузыря — после того как прокрутка доедет.
     window.setTimeout(() => {
@@ -527,9 +529,7 @@ function ConversationPage() {
       </div>
 
       <div
-        className={`shrink-0 border-t border-border bg-card/95 backdrop-blur ${
-          keyboardInset > 0 ? "pb-0" : "pb-[env(safe-area-inset-bottom)] has-[textarea:focus]:pb-0"
-        }`}
+        className="shrink-0 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
       >
         <div className="mx-auto w-full max-w-3xl">
           {isEmptyThread ? (

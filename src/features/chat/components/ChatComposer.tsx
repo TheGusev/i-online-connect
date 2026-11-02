@@ -13,6 +13,7 @@ import {
 } from "@/features/chat/media";
 import { compressListingPhoto } from "@/features/nearby/compress-image";
 import { readPhotoDimensions } from "@/features/chat/photo-dimensions";
+import { refreshViewportAfterPicker } from "@/hooks/useViewportHeight";
 
 const MAX_BATCH_PHOTOS = 10;
 
@@ -249,10 +250,12 @@ export function ChatComposer({
                       multiple={Boolean(onPhotos)}
                       className="hidden"
                       onChange={(event) => {
+                        refreshViewportAfterPicker();
                         const list = Array.from(event.target.files ?? []);
                         event.target.value = "";
                         void pickFiles(list);
                       }}
+                      onCancel={refreshViewportAfterPicker}
                     />
                     <Button
                       type="button"
@@ -262,7 +265,10 @@ export function ChatComposer({
                       {...(mediaHint ? { title: mediaHint } : {})}
                       aria-busy={mediaSending}
                       disabled={disabled || mediaSending}
-                      onClick={() => fileRef.current?.click()}
+                      onClick={() => {
+                        localRef.current?.blur();
+                        fileRef.current?.click();
+                      }}
                       className="size-11 shrink-0 border border-primary/40 text-primary hover:bg-primary/10"
                     >
                       <ImagePlus aria-hidden="true" />

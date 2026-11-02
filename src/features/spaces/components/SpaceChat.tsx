@@ -14,6 +14,7 @@ import { groupMessages } from "@/features/chat/albums";
 import { useKeyboardOpen } from "@/hooks/useViewportHeight";
 import { useSessionStore } from "@/store/useSessionStore";
 import { ReactionContext, useToggleReaction } from "@/features/chat/reactions";
+import { lockBodyScroll } from "@/lib/scroll-lock";
 
 export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedia, onPhotos, onRetryPhoto, onEdit, onDelete, isHost = false, sending, voiceSending, mediaSending, error, fill = false }: {
   spaceId: string;
@@ -34,6 +35,9 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
   error?: string | null | undefined;
 }) {
   const keyboardOpen = useKeyboardOpen();
+  useEffect(() => {
+    if (fill || keyboardOpen) return lockBodyScroll();
+  }, [fill, keyboardOpen]);
   const toggleReaction = useToggleReaction({ type: "space", id: spaceId });
   const myId = useSessionStore((s) => s.user?.id);
   const [text, setText] = useState("");
@@ -61,11 +65,12 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
     setEditing(null);
     setReplyAlbum(album && album.length > 1 ? album : null);
     setReply(message);
-    inputRef.current?.focus();
+    inputRef.current?.focus({ preventScroll: true });
   };
   const jump = (messageId: string) => {
     const node = document.getElementById(`message-${messageId}`);
-    node?.scrollIntoView({ block: "center", behavior: "smooth" });
+    const scroller = scrollerRef.current;
+    if (node && scroller) scroller.scrollTo({ top: scroller.scrollTop + node.getBoundingClientRect().top - scroller.getBoundingClientRect().top - (scroller.clientHeight - node.clientHeight) / 2, behavior: "smooth" });
     const bubble = node?.querySelector("[data-bubble]");
     bubble?.classList.add("msg-flash");
     window.setTimeout(() => bubble?.classList.remove("msg-flash"), 1300);
@@ -140,7 +145,7 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
           )}
         </div>
       </div>
-      <div className={cn("shrink-0 bg-background/95 backdrop-blur", !keyboardOpen && "pb-[env(safe-area-inset-bottom)] has-[textarea:focus]:pb-0")}>
+      <div className="shrink-0 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         {error ? <p className="px-4 pt-2 text-xs text-destructive" role="alert">{error}</p> : null}
         <ChatComposer
           value={text} onChange={setText} inputRef={inputRef}
