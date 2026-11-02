@@ -6,7 +6,7 @@
  */
 import { useInfiniteQuery } from "@tanstack/react-query";
 import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight, Images, Play, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Images, Play, X, Download } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { lockBodyScroll } from "@/lib/scroll-lock";
 import { useOverlayPresence } from "@/lib/useOverlayPresence";
 import { ZoomablePhoto } from "./ZoomablePhoto";
+import { saveChatFile } from "../file-download";
 
 type Scope = "conversation" | "space";
 type Filter = "all" | "image" | "video";
@@ -393,7 +394,8 @@ function GalleryViewerReady({
           </Button>
         ) : null}
       </div>
-      {onShowInChat || extraActions ? <div className="flex flex-wrap justify-center gap-2 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2" style={{ opacity: 1 - progress }}>
+      {onShowInChat || extraActions || item.kind === "image" ? <div className="flex flex-wrap justify-center gap-2 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2" style={{ opacity: 1 - progress }}>
+        {item.kind === "image" ? <Button variant="secondary" onClick={() => void saveChatFile(item.mediaUrl, `photo-${item.id}.jpg`, true)}><Download />Сохранить</Button> : null}
         {extraActions?.(item)}
         {onShowInChat ? <Button
           type="button"

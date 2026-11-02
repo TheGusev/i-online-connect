@@ -1,4 +1,8 @@
 import { request, upload } from "../client";
+export function sendFile(id: string, file: File, tempId: string, replyId: string | undefined, onProgress: (percent: number) => void) {
+  const form = new FormData(); form.append("clientTempId", tempId); if (replyId) form.append("replyToId", replyId); form.append("file", file, file.name);
+  return upload<SpaceMessage>(`/spaces/${id}/files`, form, { onProgress, timeoutMs: 180000 });
+}
 import type {
   LiveCard,
   Space,

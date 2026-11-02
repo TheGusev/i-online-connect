@@ -25,6 +25,7 @@ import { ChatComposer } from "@/features/chat/components/ChatComposer";
 import { MediaAlbum } from "@/features/chat/components/MediaAlbum";
 import { groupMessages } from "@/features/chat/albums";
 import { usePhotoBatch, withPending } from "@/features/chat/usePhotoBatch";
+import { useFileUpload } from "@/features/chat/useFileUpload";
 import { chatApi, mediaUrl } from "@/api";
 import { MediaGallery, MediaGalleryButton } from "@/features/chat/components/MediaGallery";
 import { SafetyMenu } from "@/features/chat/components/SafetyMenu";
@@ -101,6 +102,10 @@ function ConversationPage() {
   const { data: conversation } = useConversation(id);
   const { messages, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useMessages(id);
   const cache = useMessagesCache(id);
+  const files = useFileUpload<Message>({ authorId: myId ?? "me", conversationId: id,
+    upload: (file, tempId, replyId, progress) => chatApi.sendFile(id, file, tempId, replyId, progress),
+    commit: message => { cache.upsert(message); void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] }); },
+  });
   const toggleReaction = useToggleReaction({ type: "chat", id });
   const send = useSendMessage(id);
   const sendVoice = useSendVoiceMessage(id);
@@ -351,6 +356,7 @@ function ConversationPage() {
   }, []);
 
   const retry = useCallback((message: Message) => {
+    if (message.kind === "file" && message.clientTempId) { files.retry(message.clientTempId); return; }
     if (message.clientTempId && photoBatch.retry(message.clientTempId)) return;
     if (message.kind === "voice") {
       const variables = sendVoice.variables;
@@ -365,7 +371,7 @@ function ConversationPage() {
       clientTempId: message.clientTempId ?? crypto.randomUUID(),
       retryId: message.id,
     });
-  }, [photoBatch.retry, send.isPending, send.mutate, sendVoice.isPending, sendVoice.variables, sendVoice.mutate]);
+  }, [files.retry, photoBatch.retry, send.isPending, send.mutate, sendVoice.isPending, sendVoice.variables, sendVoice.mutate]);
   const openActions = useCallback((message: Message) => { setActionsAlbum(null); setActionsFor(message); }, []);
 
   return (
@@ -472,7 +478,7 @@ function ConversationPage() {
                 </div>
               ) : null}
               <ul className="flex-1 space-y-3">
-                {groupMessages(withPending(messages ?? [], photoBatch.pending) as Message[]).map((group, index, groups) => {
+                {groupMessages([...withPending(messages ?? [], photoBatch.pending), ...files.pending] as Message[]).map((group, index, groups) => {
                   const message = group.type === "album" ? group.messages[0] : group.message;
                   if (!message) return null;
                   const prevGroup = groups[index - 1];
@@ -545,6 +551,7 @@ function ConversationPage() {
           ) : null}
 
           <ChatComposer
+            {...(canSendMedia && !editingMessage ? { onFile: (file: File) => { files.send(file, replyTo ?? undefined); setReplyTo(null); }, fileSending: files.sending } : {})}
             value={draft}
             onChange={setDraft}
             onSend={submit}

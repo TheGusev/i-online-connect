@@ -16,7 +16,10 @@ import { useSessionStore } from "@/store/useSessionStore";
 import { ReactionContext, useToggleReaction } from "@/features/chat/reactions";
 import { lockBodyScroll } from "@/lib/scroll-lock";
 
-export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedia, onPhotos, onRetryPhoto, onEdit, onDelete, isHost = false, sending, voiceSending, mediaSending, error, fill = false }: {
+export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedia, onPhotos, onRetryPhoto, onEdit, onDelete, isHost = false, sending, voiceSending, mediaSending, error, fill = false, onFile, onRetryFile, fileSending }: {
+  onFile?: (file: File, reply?: import("@/api").MessageQuote) => void;
+  onRetryFile?: (id: string) => void;
+  fileSending?: boolean;
   spaceId: string;
   fill?: boolean;
   messages: SpaceMessage[];
@@ -136,7 +139,7 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
                     <div className="min-w-0 flex-1">
                       <p className={cn("mb-1 text-xs text-muted-foreground", mine && "text-right")}>{message.authorName}</p>
                       <ul>
-                        <MessageBubble message={adapted} participantName={author ?? message.authorName} onQuoteClick={jump} onRetry={(m) => { if (m.clientTempId) onRetryPhoto?.(m.clientTempId); }} {...(canWrite ? { onActions: (m: Message) => { setActionsAlbum(null); setActions(m); }, onReply: (m: Message) => startReply(m) } : {})} />
+                        <MessageBubble message={adapted} participantName={author ?? message.authorName} onQuoteClick={jump} onRetry={(m) => { if (m.clientTempId) { if (m.kind === "file") onRetryFile?.(m.clientTempId); else onRetryPhoto?.(m.clientTempId); } }} {...(canWrite ? { onActions: (m: Message) => { setActionsAlbum(null); setActions(m); }, onReply: (m: Message) => startReply(m) } : {})} />
                       </ul>
                     </div>
                   </li>
@@ -149,6 +152,7 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
       <div className="shrink-0 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         {error ? <p className="px-4 pt-2 text-xs text-destructive" role="alert">{error}</p> : null}
         <ChatComposer
+          {...(canWrite && onFile && !editing ? { onFile: (file: File) => { onFile(file, reply ?? undefined); setReply(null); }, fileSending: fileSending ?? false } : {})}
           value={text} onChange={setText} inputRef={inputRef}
           disabled={!canWrite}
           editing={Boolean(editing)} onCancelEdit={() => { setEditing(null); setText(""); }}

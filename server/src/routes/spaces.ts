@@ -21,6 +21,7 @@ import { query, queryOne, transaction } from "../db.ts";
 import { badRequest, conflict, forbidden, notFound } from "../http.ts";
 import { assertSpaceMembership, currentUserId, requireAuth } from "../auth/middleware.ts";
 import { deleteReaction, loadReactions, putReaction, reactionBody } from "../chat/reactions.ts";
+import { documentDisposition, parseDocumentUpload, readDocument, removeDocument, saveDocument } from "../media/documents.ts";
 import { assertVerified } from "../auth/verified.ts";
 import {
   assertChatMediaSize,
@@ -49,9 +50,11 @@ const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const EDIT_LIMIT = { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } };
 
 /** Типы сообщений общего чата сообщества. */
-type SpaceMessageKind = "text" | "voice" | "image" | "video";
+type SpaceMessageKind = "text" | "voice" | "image" | "video" | "file";
 
 interface SpaceMessageRow {
+  file_name?: string | null;
+  file_size?: number | null;
   id: string;
   space_id: string;
   author_id: string;
@@ -111,7 +114,9 @@ function toSpaceMessageDto(row: SpaceMessageRow, replyTo?: ReturnType<typeof toS
     text: deleted ? "" : row.text,
     kind: row.kind,
     clientTempId: row.client_temp_id ?? undefined,
-    mediaUrl: deleted ? undefined : (row.media_url ?? undefined),
+    mediaUrl: deleted ? undefined : row.kind === "file" ? `/api/spaces/${row.space_id}/files/${row.id}` : (row.media_url ?? undefined),
+    fileName: deleted ? undefined : row.file_name ?? undefined,
+    fileSize: deleted ? undefined : row.file_size ?? undefined,
     mediaMime: deleted ? undefined : (row.media_mime ?? undefined),
     durationMs: deleted ? undefined : (row.duration_ms ?? undefined),
     createdAt: row.created_at.toISOString(),
@@ -415,12 +420,13 @@ export async function spaceRoutes(app: FastifyInstance) {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
     await assertSpaceHost(userId, id);
-    const media = await query<{ media_url: string }>(
-      "SELECT media_url FROM space_messages WHERE space_id = $1 AND media_url IS NOT NULL",
+    const media = await query<{ media_url: string; kind: string }>(
+      "SELECT media_url, kind FROM space_messages WHERE space_id = $1 AND media_url IS NOT NULL",
       [id],
     );
     await query("DELETE FROM spaces WHERE id = $1", [id]);
     for (const item of media) {
+      if (item.kind === "file") { await removeDocument(item.media_url); continue; }
       const filePath = mediaPathFromUrl(item.media_url);
       if (filePath) await unlink(filePath).catch(() => undefined);
     }
@@ -696,7 +702,7 @@ export async function spaceRoutes(app: FastifyInstance) {
 
     const rows = await query<SpaceMessageRow>(
       `SELECT m.id, m.space_id, m.author_id, p.name AS author_name, m.text, m.kind,
-               m.client_temp_id, m.media_url, m.media_mime, m.duration_ms, m.created_at,
+               m.client_temp_id, m.file_name, m.file_size, m.media_url, m.media_mime, m.duration_ms, m.created_at,
                m.edited_at, m.deleted_at, m.reply_to_id
          FROM space_messages m
          JOIN profiles p ON p.user_id = m.author_id
@@ -746,7 +752,7 @@ export async function spaceRoutes(app: FastifyInstance) {
       `WITH inserted AS (
          INSERT INTO space_messages (space_id, author_id, text, reply_to_id)
          VALUES ($1, $2, $3, $4)
-         RETURNING id, space_id, author_id, text, kind, client_temp_id, media_url, media_mime,
+         RETURNING id, space_id, author_id, text, kind, client_temp_id, file_name, file_size, media_url, media_mime,
                    duration_ms, created_at, edited_at, deleted_at, reply_to_id
        )
        SELECT inserted.*, p.name AS author_name
@@ -768,7 +774,7 @@ export async function spaceRoutes(app: FastifyInstance) {
       await assertSpaceMembership(userId, id);
       const current = await queryOne<SpaceMessageRow>(
         `SELECT m.id, m.space_id, m.author_id, p.name AS author_name, m.text, m.kind,
-                m.client_temp_id, m.media_url, m.media_mime, m.duration_ms, m.created_at,
+                m.client_temp_id, m.file_name, m.file_size, m.media_url, m.media_mime, m.duration_ms, m.created_at,
                 m.edited_at, m.deleted_at, m.reply_to_id
            FROM space_messages m JOIN profiles p ON p.user_id = m.author_id
           WHERE m.id = $1 AND m.space_id = $2`,
@@ -785,7 +791,7 @@ export async function spaceRoutes(app: FastifyInstance) {
         `WITH updated AS (
            UPDATE space_messages SET text = $1, edited_at = now()
             WHERE id = $2 AND space_id = $3 AND author_id = $4
-          RETURNING id, space_id, author_id, text, kind, client_temp_id, media_url, media_mime,
+          RETURNING id, space_id, author_id, text, kind, client_temp_id, file_name, file_size, media_url, media_mime,
                     duration_ms, created_at, edited_at, deleted_at, reply_to_id
          )
          SELECT updated.*, p.name AS author_name
@@ -807,7 +813,7 @@ export async function spaceRoutes(app: FastifyInstance) {
       await assertSpaceMembership(userId, id);
       const current = await queryOne<SpaceMessageRow & { is_host: boolean }>(
         `SELECT m.id, m.space_id, m.author_id, p.name AS author_name, m.text, m.kind,
-                m.client_temp_id, m.media_url, m.media_mime, m.duration_ms, m.created_at,
+                m.client_temp_id, m.file_name, m.file_size, m.media_url, m.media_mime, m.duration_ms, m.created_at,
                 m.edited_at, m.deleted_at, m.reply_to_id,
                 EXISTS (SELECT 1 FROM space_members sm WHERE sm.space_id = m.space_id
                          AND sm.user_id = $3 AND sm.status = 'host') AS is_host
@@ -853,6 +859,7 @@ export async function spaceRoutes(app: FastifyInstance) {
           }
         }
       }
+      if (current.kind === "file" && current.media_url) await removeDocument(current.media_url);
       return { id: messageId, deleted: true as const };
     },
   );
@@ -886,7 +893,7 @@ export async function spaceRoutes(app: FastifyInstance) {
     const replyTarget = await assertSpaceReplyTarget(id, replyToValue ? z.string().uuid().parse(replyToValue) : undefined);
     const existing = await queryOne<SpaceMessageRow>(
       `SELECT m.id, m.space_id, m.author_id, p.name AS author_name, m.text, m.kind,
-               m.client_temp_id, m.media_url, m.media_mime, m.duration_ms, m.created_at,
+               m.client_temp_id, m.file_name, m.file_size, m.media_url, m.media_mime, m.duration_ms, m.created_at,
                m.edited_at, m.deleted_at, m.reply_to_id
          FROM space_messages m JOIN profiles p ON p.user_id = m.author_id
         WHERE m.space_id = $1 AND m.author_id = $2 AND m.client_temp_id = $3`,
@@ -918,7 +925,7 @@ export async function spaceRoutes(app: FastifyInstance) {
            INSERT INTO space_messages
              (space_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms, reply_to_id)
            VALUES ($1, $2, 'Голосовое сообщение', 'voice', $3, $4, $5, $6, $7)
-            RETURNING id, space_id, author_id, text, kind, client_temp_id, media_url, media_mime,
+            RETURNING id, space_id, author_id, text, kind, client_temp_id, file_name, file_size, media_url, media_mime,
                       duration_ms, created_at, edited_at, deleted_at, reply_to_id
          )
           SELECT inserted.*, p.name AS author_name
@@ -945,6 +952,51 @@ export async function spaceRoutes(app: FastifyInstance) {
    * POST /api/spaces/:id/media — фото или видео в общий чат сообщества.
    * Доступно только участникам с подтверждённым профилем.
    */
+
+  app.post<{ Params: { id: string } }>("/:id/files", SEND_LIMIT, async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    await assertSpaceMembership(userId, id);
+    await assertVerified(userId);
+    const input = await parseDocumentUpload(request);
+    const replyTarget = await assertSpaceReplyTarget(id, input.replyToId);
+    return transaction(async (client) => {
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [id + userId + input.clientTempId]);
+      const existing = await client.query<SpaceMessageRow>(`SELECT *,(SELECT name FROM profiles WHERE user_id = author_id) AS author_name FROM space_messages WHERE space_id=$1 AND author_id=$2 AND client_temp_id=$3`, [id, userId, input.clientTempId]);
+      if (existing.rows[0]) {
+        const row = existing.rows[0];
+        if (row.deleted_at) throw badRequest("Сообщение удалено");
+        return toSpaceMessageDto(row, row.reply_to_id ? (await loadSpaceReplies([row.reply_to_id])).get(row.reply_to_id) : undefined);
+      }
+      const key = await saveDocument(input.buffer, input.ext);
+      try {
+        const inserted = await client.query<SpaceMessageRow>(`INSERT INTO space_messages(space_id,author_id,text,kind,client_temp_id,media_url,media_mime,file_name,file_size,reply_to_id)
+          VALUES($1,$2,$3,'file',$4,$5,$6,$7,$8,$9) RETURNING *, (SELECT name FROM profiles WHERE user_id = author_id) AS author_name`,
+          [id,userId,`Файл: ${input.fileName}`,input.clientTempId,key,input.mime,input.fileName,input.fileSize,replyTarget]);
+        const row = inserted.rows[0];
+        if (!row) throw badRequest("Не удалось сохранить файл");
+        return toSpaceMessageDto(row, row.reply_to_id ? (await loadSpaceReplies([row.reply_to_id])).get(row.reply_to_id) : undefined);
+      } catch(error) { await removeDocument(key); throw error; }
+    }).then(async (message) => {
+      const row = { id: message.id, text: message.text };
+      
+      return message;
+    });
+  });
+
+  app.get<{ Params: { id: string; messageId: string } }>("/:id/files/:messageId", async (request, response) => {
+    const userId = currentUserId(request);
+    const { id, messageId } = messageParams.parse(request.params);
+    await assertSpaceMembership(userId, id);
+    const row = await queryOne<SpaceMessageRow>(`SELECT *,(SELECT name FROM profiles WHERE user_id = author_id) AS author_name FROM space_messages WHERE id=$1 AND space_id=$2 AND kind::text='file' AND deleted_at IS NULL`, [messageId,id]);
+    if (!row?.media_url || !row.media_mime || !row.file_name) throw notFound("Файл не найден");
+    const download = z.object({ download: z.enum(["0","1"]).optional() }).parse(request.query ?? {}).download === "1";
+    let buffer: Buffer;
+    try { buffer = await readDocument(row.media_url); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") throw notFound("Файл не найден"); throw error; }
+    return response.header("Content-Type", row.media_mime).header("Content-Disposition", documentDisposition(row.file_name, row.media_mime, download))
+      .header("X-Content-Type-Options", "nosniff").header("Cache-Control", "private, no-store").header("Content-Security-Policy", "sandbox").send(buffer);
+  });
+
   app.post<{ Params: { id: string } }>("/:id/media", SEND_LIMIT, async (request) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
@@ -975,7 +1027,7 @@ export async function spaceRoutes(app: FastifyInstance) {
     const replyTarget = await assertSpaceReplyTarget(id, replyToValue ? z.string().uuid().parse(replyToValue) : undefined);
     const existing = await queryOne<SpaceMessageRow>(
       `SELECT m.id, m.space_id, m.author_id, p.name AS author_name, m.text, m.kind,
-               m.client_temp_id, m.media_url, m.media_mime, m.duration_ms, m.created_at,
+               m.client_temp_id, m.file_name, m.file_size, m.media_url, m.media_mime, m.duration_ms, m.created_at,
                m.edited_at, m.deleted_at, m.reply_to_id
          FROM space_messages m JOIN profiles p ON p.user_id = m.author_id
         WHERE m.space_id = $1 AND m.author_id = $2 AND m.client_temp_id = $3`,

@@ -104,6 +104,16 @@ Refresh-токен ставится в httpOnly-cookie `ya_refresh` (path `/api/
 
 ## Чат
 
+### Документы (037)
+
+`POST /chat/conversations/:id/files` и `POST /spaces/:id/files`: multipart `clientTempId` UUID, optional `replyToId`, один `file` до 25 МиБ (26214400 байт). Авторизация, участие, видео-подтверждение и блокировки — как у фото. Частота 60/минуту. Ответ обычный Message/SpaceMessage с `kind:"file"`, optional `fileName`, `fileSize`, `mediaMime`, `mediaUrl`. Повторный clientTempId не создаёт второй файл; удалённую попытку повторить нельзя. Текст превью/уведомления: `Файл: <имя>`.
+
+`GET /chat/conversations/:id/files/:messageId` и `GET /spaces/:id/files/:messageId` требуют Bearer и актуальное участие; чужим 403, удалённым 404. Содержимое не доступно через статические медиа-адреса. `?download=1` принудительно задаёт attachment; без него PDF/растровые изображения inline, остальные attachment. Заголовки: проверенный Content-Type, Content-Disposition с очищенным UTF-8 именем, nosniff, private/no-store, CSP sandbox. Исходные имена хранятся только в БД, файлы — под UUID в соседнем каталоге `${MEDIA_DIR}-documents`, вне публичного MEDIA_DIR. Каталог нужно включить в резервное копирование и дать процессу API права записи.
+
+Белый список: PDF, UTF-8 TXT/CSV, DOC/XLS/PPT (OLE), DOCX/XLSX/PPTX (проверенные OOXML ZIP), ZIP, JPEG/PNG/WebP/GIF/BMP/TIFF/ICO/AVIF/HEIC/HEIF. Проверяются расширение и содержимое, клиентский MIME не используется; SVG/HTML/скрипты/исполняемые запрещены. TXT/CSV не имеют magic bytes: проверяется корректный UTF-8 без бинарных управляющих байт и известных активных префиксов. ZIP не распаковывается; Office проверяет структуру/главную часть и отсутствие VBA. Антивируса нет, архивы/Office только скачиваются.
+
+037 добавляет enum file, имя/размер и расширяет CHECK, не создавая таблиц; повторное применение безопасно. DELETE обычного file-сообщения оставляет мягкую запись, но удаляет документ на диске и сразу закрывает выдачу обоим; прежние фото/видео/голосовые остаются как раньше. Клиентский просмотр TXT/CSV ограничен первыми 256 КиБ, PDF — окно и отдельная вкладка, прочие документы только скачиваются. iPhone использует Web Share с файлом или оригинал в новой вкладке; фото сохраняются по одному из текущего просмотра. Применить 037 до обновления API/статического клиента; отчёт CHAT-FILES.md.
+
 ### Избранное и закрепление (036)
 
 `036_conversation_preferences.sql` создаёт additive-таблицу `conversation_preferences` с уникальной парой `(user_id, conversation_id)`, `pinned_at`, `is_favorite`; оба внешних ключа используют `ON DELETE CASCADE`, таблица и индекс — `IF NOT EXISTS`.

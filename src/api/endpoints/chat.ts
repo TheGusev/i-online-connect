@@ -1,6 +1,11 @@
 import { request, upload } from "../client";
 import type { Conversation, MeetingKind, Message } from "../types";
 
+export function sendFile(id: string, file: File, tempId: string, replyId: string | undefined, onProgress: (percent: number) => void) {
+  const form = new FormData(); form.append("clientTempId", tempId); if (replyId) form.append("replyToId", replyId); form.append("file", file, file.name);
+  return upload<Message>(`/chat/conversations/${id}/files`, form, { onProgress, timeoutMs: 180000 });
+}
+
 export interface MessagesPage {
   items: Message[];
   hasMore: boolean;
