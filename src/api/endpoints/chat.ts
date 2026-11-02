@@ -12,6 +12,10 @@ export async function getConversations(): Promise<Conversation[]> {
   return request<Conversation[]>("/chat/conversations");
 }
 
+export async function setConversationPreference(id: string, kind: "pin" | "favorite", enabled: boolean) {
+  return request<{ pinned: boolean; pinnedAt: string | null; favorite: boolean }>(`/chat/conversations/${id}/${kind}`, { method: enabled ? "PUT" : "DELETE" });
+}
+
 export async function getConversation(conversationId: string): Promise<Conversation> {
   return request<Conversation>(`/chat/conversations/${conversationId}`);
 }

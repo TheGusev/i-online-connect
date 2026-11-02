@@ -22,6 +22,7 @@ import { assertConversationAccess, currentUserId, requireAuth } from "../auth/mi
 import { assertVerified } from "../auth/verified.ts";
 import { isInRoom, publishChatEvent } from "../ws/chat.ts";
 import { deleteReaction, loadReactions, putReaction, reactionBody } from "../chat/reactions.ts";
+import { setConversationPreference } from "../chat/preferences.ts";
 import { sendPushToUser } from "../push/send.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
 import {
@@ -223,6 +224,7 @@ async function notifyRecipient(
 
 const CONVERSATIONS_SELECT = `
   SELECT c.id,
+         pref.pinned_at, COALESCE(pref.is_favorite, false) AS is_favorite,
          other.id            AS participant_id,
          op.name             AS participant_name,
          op.city             AS participant_city,
@@ -249,6 +251,7 @@ const CONVERSATIONS_SELECT = `
          ) AS shared_interests
     FROM conversations c
     JOIN conversation_participants me    ON me.conversation_id = c.id AND me.user_id = $1
+    LEFT JOIN conversation_preferences pref ON pref.conversation_id = c.id AND pref.user_id = $1
     JOIN conversation_participants their ON their.conversation_id = c.id AND their.user_id <> $1
     JOIN users other    ON other.id = their.user_id
     JOIN profiles op    ON op.user_id = other.id
@@ -270,6 +273,8 @@ const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
 interface ConversationRow {
   id: string;
+  pinned_at: Date | null;
+  is_favorite: boolean;
   participant_id: string;
   participant_name: string;
   participant_city: string | null;
@@ -307,6 +312,9 @@ function toConversationDto(row: ConversationRow, userId: string) {
     lastMessageFromMe: lastFromMe,
     // Моё последнее сообщение собеседник уже прочитал — те же данные, что у двойных галочек в диалоге.
     lastMessageRead: lastFromMe && Boolean(row.last_read_by_peer),
+    pinned: Boolean(row.pinned_at),
+    pinnedAt: row.pinned_at?.toISOString() ?? null,
+    favorite: row.is_favorite,
   };
 }
 
@@ -316,11 +324,23 @@ export async function chatRoutes(app: FastifyInstance) {
   app.get("/conversations", async (request) => {
     const userId = currentUserId(request);
     const rows = await query<ConversationRow>(
-      `${CONVERSATIONS_SELECT} ORDER BY last_msg.created_at DESC NULLS LAST`,
+      `${CONVERSATIONS_SELECT} ORDER BY pref.pinned_at DESC NULLS LAST, last_msg.created_at DESC NULLS LAST, c.id`,
       [userId],
     );
     return rows.map((row) => toConversationDto(row, userId));
   });
+
+  for (const kind of ["pin", "favorite"] as const) {
+    for (const method of ["PUT", "DELETE"] as const) {
+      app.route<{ Params: { id: string } }>({
+        method, url: `/conversations/:id/${kind}`,
+        handler: async (request) => {
+          const { id } = idParam.parse(request.params);
+          return setConversationPreference(currentUserId(request), id, kind, method === "PUT");
+        },
+      });
+    }
+  }
 
   app.get<{ Params: { id: string } }>("/conversations/:id", async (request) => {
     const userId = currentUserId(request);

@@ -39,6 +39,9 @@ export interface Conversation {
   lastMessageFromMe: boolean;
   /** Моё последнее сообщение прочитано собеседником. */
   lastMessageRead?: boolean;
+  pinned?: boolean;
+  pinnedAt?: string | null;
+  favorite?: boolean;
 }
 
 export type MessageStatus = "sending" | "sent" | "read" | "failed";

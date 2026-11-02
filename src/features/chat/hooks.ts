@@ -25,6 +25,26 @@ export function useConversations() {
   return useQuery({ ...conversationsQueryOptions, refetchInterval: 15_000, refetchOnWindowFocus: true });
 }
 
+export function useConversationPreference() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, kind, enabled }: { id: string; kind: "pin" | "favorite"; enabled: boolean }) => chatApi.setConversationPreference(id, kind, enabled),
+    onMutate: async ({ id, kind, enabled }) => {
+      await queryClient.cancelQueries({ queryKey: conversationsQueryOptions.queryKey });
+      const previous = queryClient.getQueryData<Conversation[]>(conversationsQueryOptions.queryKey);
+      queryClient.setQueryData<Conversation[]>(conversationsQueryOptions.queryKey, (items) => items?.map((item) => item.id !== id ? item : { ...item, ...(kind === "pin" ? { pinned: enabled, pinnedAt: enabled ? (item.pinnedAt ?? new Date().toISOString()) : null } : { favorite: enabled }) }));
+      return { previous };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previous) queryClient.setQueryData(conversationsQueryOptions.queryKey, context.previous);
+    },
+    onSuccess: (preferences, { id }) => {
+      queryClient.setQueryData<Conversation[]>(conversationsQueryOptions.queryKey, items => items?.map(item => item.id === id ? { ...item, ...preferences } : item));
+    },
+    onSettled: () => { void queryClient.invalidateQueries({ queryKey: conversationsQueryOptions.queryKey }); },
+  });
+}
+
 export function useConversation(conversationId: string) {
   const queryClient = useQueryClient();
   return useQuery({
