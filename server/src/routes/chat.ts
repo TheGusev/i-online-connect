@@ -19,6 +19,7 @@ import { z } from "zod";
 import { query, queryOne, transaction } from "../db.ts";
 import { badRequest, forbidden, notFound } from "../http.ts";
 import { assertConversationAccess, currentUserId, requireAuth } from "../auth/middleware.ts";
+import { documentDisposition, parseDocumentUpload, readDocument, removeDocument, saveDocument } from "../media/documents.ts";
 import { assertVerified } from "../auth/verified.ts";
 import { isInRoom, publishChatEvent } from "../ws/chat.ts";
 import { deleteReaction, loadReactions, putReaction, reactionBody } from "../chat/reactions.ts";
@@ -43,9 +44,11 @@ const idParam = z.object({ id: z.string().uuid() });
 const messageParams = z.object({ id: z.string().uuid(), messageId: z.string().uuid() });
 
 /** Типы сообщений личного диалога (enum message_kind в БД). */
-type MessageKind = "text" | "meeting" | "voice" | "image" | "video";
+type MessageKind = "text" | "meeting" | "voice" | "image" | "video" | "file";
 
 interface MessageRow {
+  file_name?: string | null;
+  file_size?: number | null;
   id: string;
   conversation_id: string;
   author_id: string;
@@ -111,7 +114,9 @@ function toMessageDto(row: MessageRow, replyTo?: ReturnType<typeof toReplyDto> |
     text: deleted ? "" : row.text,
     kind: row.kind,
     clientTempId: row.client_temp_id ?? undefined,
-    mediaUrl: deleted ? undefined : (row.media_url ?? undefined),
+    mediaUrl: deleted ? undefined : row.kind === "file" ? `/api/chat/conversations/${row.conversation_id}/files/${row.id}` : (row.media_url ?? undefined),
+    fileName: deleted ? undefined : row.file_name ?? undefined,
+    fileSize: deleted ? undefined : row.file_size ?? undefined,
     mediaMime: deleted ? undefined : (row.media_mime ?? undefined),
     durationMs: deleted ? undefined : (row.duration_ms ?? undefined),
     createdAt: row.created_at.toISOString(),
@@ -405,7 +410,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const limit = q.limit ?? 50;
     const rows = await query<MessageRow>(
       `SELECT m.id, m.conversation_id, m.author_id, m.text, m.kind, m.client_temp_id,
-              m.media_url, m.media_mime, m.duration_ms, m.created_at, m.edited_at, m.deleted_at,
+              m.file_name, m.file_size, m.media_url, m.media_mime, m.duration_ms, m.created_at, m.edited_at, m.deleted_at,
               m.reply_to_id,
               (m.author_id = $2 AND their.last_read_at IS NOT NULL
                  AND m.created_at <= their.last_read_at) AS read_by_peer
@@ -582,7 +587,7 @@ export async function chatRoutes(app: FastifyInstance) {
          WHERE client_temp_id IS NOT NULL
        DO UPDATE SET text = messages.text
        RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
-                 media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                 file_name, file_size, media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
                  reply_to_id, false AS read_by_peer,
                  (xmax = 0) AS inserted`,
       [id, userId, text, clientTempId ?? randomUUID(), replyTarget],
@@ -637,7 +642,7 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const existing = await queryOne<MessageRow>(
       `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
-              media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+              file_name, file_size, media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
               reply_to_id, false AS read_by_peer
          FROM messages
         WHERE conversation_id = $1 AND author_id = $2 AND client_temp_id = $3`,
@@ -665,7 +670,7 @@ export async function chatRoutes(app: FastifyInstance) {
            (conversation_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms, reply_to_id)
          VALUES ($1, $2, 'Голосовое сообщение', 'voice', $3, $4, $5, $6, $7)
          RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
-                   media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                   file_name, file_size, media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
                    reply_to_id, false AS read_by_peer`,
         [id, userId, meta.clientTempId, playable.url, playableMime, measuredDurationMs, replyTarget],
       );
@@ -688,6 +693,55 @@ export async function chatRoutes(app: FastifyInstance) {
    * POST /conversations/:id/media — фото или видео в личный диалог.
    * Только для подтверждённых профилей: проверка на сервере, а не на фронте.
    */
+
+  app.post<{ Params: { id: string } }>("/conversations/:id/files", SEND_LIMIT, async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    await assertConversationAccess(userId, id);
+    await assertNotBlockedInConversation(userId, id);
+    await assertVerified(userId);
+    const input = await parseDocumentUpload(request);
+    const replyTarget = await assertReplyTarget(id, input.replyToId);
+    return transaction(async (client) => {
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [id + userId + input.clientTempId]);
+      const existing = await client.query<MessageRow>(`SELECT *,false AS read_by_peer FROM messages WHERE conversation_id=$1 AND author_id=$2 AND client_temp_id=$3`, [id, userId, input.clientTempId]);
+      if (existing.rows[0]) {
+        const row = existing.rows[0];
+        if (row.deleted_at) throw badRequest("Сообщение удалено");
+        return toMessageDto(row, await loadReply(row.reply_to_id));
+      }
+      const key = await saveDocument(input.buffer, input.ext);
+      try {
+        const inserted = await client.query<MessageRow>(`INSERT INTO messages(conversation_id,author_id,text,kind,client_temp_id,media_url,media_mime,file_name,file_size,reply_to_id)
+          VALUES($1,$2,$3,'file',$4,$5,$6,$7,$8,$9) RETURNING *, false AS read_by_peer`,
+          [id,userId,`Файл: ${input.fileName}`,input.clientTempId,key,input.mime,input.fileName,input.fileSize,replyTarget]);
+        const row = inserted.rows[0];
+        if (!row) throw badRequest("Не удалось сохранить файл");
+        return toMessageDto(row, await loadReply(row.reply_to_id));
+      } catch(error) { await removeDocument(key); throw error; }
+    }).then(async (message) => {
+      const row = { id: message.id, text: message.text };
+      await query("UPDATE conversations SET last_message_at = now() WHERE id = $1", [id]);
+      publishChatEvent(id, { type: "message", conversationId: id, message });
+      void notifyRecipient(id, userId, { id: row.id, text: row.text, kind: "file" });
+      return message;
+    });
+  });
+
+  app.get<{ Params: { id: string; messageId: string } }>("/conversations/:id/files/:messageId", async (request, response) => {
+    const userId = currentUserId(request);
+    const { id, messageId } = messageParams.parse(request.params);
+    await assertConversationAccess(userId, id);
+    await assertNotBlockedInConversation(userId, id);
+    const row = await queryOne<MessageRow>(`SELECT *,false AS read_by_peer FROM messages WHERE id=$1 AND conversation_id=$2 AND kind::text='file' AND deleted_at IS NULL`, [messageId,id]);
+    if (!row?.media_url || !row.media_mime || !row.file_name) throw notFound("Файл не найден");
+    const download = z.object({ download: z.enum(["0","1"]).optional() }).parse(request.query ?? {}).download === "1";
+    let buffer: Buffer;
+    try { buffer = await readDocument(row.media_url); } catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") throw notFound("Файл не найден"); throw error; }
+    return response.header("Content-Type", row.media_mime).header("Content-Disposition", documentDisposition(row.file_name, row.media_mime, download))
+      .header("X-Content-Type-Options", "nosniff").header("Cache-Control", "private, no-store").header("Content-Security-Policy", "sandbox").send(buffer);
+  });
+
   app.post<{ Params: { id: string } }>("/conversations/:id/media", SEND_LIMIT, async (request) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
@@ -723,7 +777,7 @@ export async function chatRoutes(app: FastifyInstance) {
 
     const existing = await queryOne<MessageRow>(
       `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
-              media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+              file_name, file_size, media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
               reply_to_id, false AS read_by_peer
          FROM messages
         WHERE conversation_id = $1 AND author_id = $2 AND client_temp_id = $3`,
@@ -748,7 +802,7 @@ export async function chatRoutes(app: FastifyInstance) {
            (conversation_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms, reply_to_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
-                   media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                   file_name, file_size, media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
                    reply_to_id, false AS read_by_peer`,
         [
           id,
@@ -807,7 +861,7 @@ export async function chatRoutes(app: FastifyInstance) {
 
       const current = await queryOne<MessageRow>(
         `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
-                media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                file_name, file_size, media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
                 false AS read_by_peer
            FROM messages WHERE id = $1 AND conversation_id = $2`,
         [messageId, id],
@@ -824,7 +878,7 @@ export async function chatRoutes(app: FastifyInstance) {
         `UPDATE messages SET text = $1, edited_at = now()
           WHERE id = $2 AND conversation_id = $3 AND author_id = $4
         RETURNING id, conversation_id, author_id, text, kind, client_temp_id,
-                  media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                  file_name, file_size, media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
                   reply_to_id, false AS read_by_peer`,
         [text, messageId, id, userId],
       );
@@ -847,7 +901,7 @@ export async function chatRoutes(app: FastifyInstance) {
 
       const current = await queryOne<MessageRow>(
         `SELECT id, conversation_id, author_id, text, kind, client_temp_id,
-                media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
+                file_name, file_size, media_url, media_mime, duration_ms, created_at, edited_at, deleted_at,
                 false AS read_by_peer
            FROM messages WHERE id = $1 AND conversation_id = $2`,
         [messageId, id],
@@ -863,6 +917,7 @@ export async function chatRoutes(app: FastifyInstance) {
         );
       }
 
+      if (current.kind === "file" && current.media_url) await removeDocument(current.media_url);
       publishChatEvent(id, { type: "message-deleted", conversationId: id, messageId });
       return { id: messageId, deleted: true as const };
     },
