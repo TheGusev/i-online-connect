@@ -162,7 +162,7 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
           onSend={() => { void submit().catch(() => undefined); }}
         />
       </div>
-      <MessageActions message={actions} mine={actions?.authorId === myId} canDelete={Boolean(actions && (actions.authorId === myId || isHost))} onClose={() => { setActions(null); setActionsAlbum(null); }} album={actionsAlbum} onDeleteAlbum={(list) => list.forEach((m) => onDelete(m.id))} onEdit={(message) => { setReply(null); setEditing(message); setText(message.text); inputRef.current?.focus(); }} onDelete={(message) => { onDelete(message.id); if (editing?.id === message.id) { setEditing(null); setText(""); } }} />
+      <MessageActions message={actions} mine={actions?.authorId === myId} canDelete={Boolean(actions && (actions.authorId === myId || isHost))} onClose={() => { setActions(null); setActionsAlbum(null); }} album={actionsAlbum} onDeleteAlbum={(list) => list.forEach((m) => onDelete(m.id))} onEdit={(message) => { setReply(null); setEditing(message); setText(message.text); inputRef.current?.focus({ preventScroll: true }); }} onDelete={(message) => { onDelete(message.id); if (editing?.id === message.id) { setEditing(null); setText(""); } }} />
     </div>
     </ReactionContext.Provider>
   );

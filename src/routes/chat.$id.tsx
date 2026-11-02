@@ -94,6 +94,7 @@ function sameDay(a: string, b: string) {
 }
 
 function ConversationPage() {
+  useEffect(() => lockBodyScroll(), []);
   const { id } = Route.useParams();
   const queryClient = useQueryClient();
   const myId = useSessionStore((s) => s.user?.id);
@@ -538,7 +539,7 @@ function ConversationPage() {
               loading={startersPending}
               onPick={(text) => {
                 setDraft(text);
-                inputRef.current?.focus();
+                inputRef.current?.focus({ preventScroll: true });
               }}
             />
           ) : null}
@@ -627,7 +628,7 @@ function ConversationPage() {
         onEdit={(message) => {
           setEditingMessage(message);
           setDraft(message.text);
-          inputRef.current?.focus();
+          inputRef.current?.focus({ preventScroll: true });
         }}
         onDelete={(message) => {
           if (editingMessage?.id === message.id) {
