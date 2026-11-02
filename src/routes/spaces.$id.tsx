@@ -13,6 +13,7 @@ import { JoinPanel } from "@/features/spaces/components/JoinPanel";
 import { MediaGallery, MediaGalleryButton } from "@/features/chat/components/MediaGallery";
 import { SpaceChat } from "@/features/spaces/components/SpaceChat";
 import { usePhotoBatch, withPending } from "@/features/chat/usePhotoBatch";
+import { useFileUpload } from "@/features/chat/useFileUpload";
 import { spacesApi, type SpaceMessage } from "@/api";
 import { spaceMessagesQueryKey } from "@/features/spaces/hooks";
 import { useQueryClient } from "@tanstack/react-query";
@@ -77,6 +78,10 @@ function SpaceDetailPage() {
   const sendMedia = useSendSpaceMediaMessage(id);
   const queryClient = useQueryClient();
   const me = useSessionStore((s) => s.user);
+  const files = useFileUpload<SpaceMessage>({ authorId: me?.id ?? "me", conversationId: id,
+    upload: (file, tempId, replyId, progress) => spacesApi.sendFile(id, file, tempId, replyId, progress),
+    commit: message => queryClient.setQueryData<SpaceMessage[]>(spaceMessagesQueryKey(id), items => items?.some(item => item.id === message.id) ? items : [...(items ?? []), message]),
+  });
   const photoBatch = usePhotoBatch<SpaceMessage>({
     authorId: me?.id ?? "me",
     upload: (file, clientTempId) => spacesApi.sendSpaceMediaMessage(id, file, clientTempId),
@@ -229,10 +234,12 @@ function SpaceDetailPage() {
           <SpaceChat
             spaceId={id}
             fill
-            messages={withPending(messages ?? [], photoBatch.pending).map((m) =>
+            messages={[...withPending(messages ?? [], photoBatch.pending), ...files.pending].map((m) =>
               "spaceId" in m ? m : ({ ...m, spaceId: id, authorName: myName } as SpaceMessage),
             )}
             onRetryPhoto={(clientTempId) => photoBatch.retry(clientTempId)}
+            onRetryFile={files.retry}
+            {...(canSendMedia ? { onFile: (file: File, reply?: import("@/api").MessageQuote) => files.send(file, reply), fileSending: files.sending } : {})}
             canWrite={space.isMember}
             isHost={space.isHost ?? false}
             onEdit={(messageId, text) => editMessage.mutateAsync({ messageId, text }).then(() => undefined).catch((error) => {

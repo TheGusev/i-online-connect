@@ -1,4 +1,4 @@
-import { Copy, Pencil, Plus, Trash2 } from "lucide-react";
+import { Copy, Pencil, Plus, Trash2, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -10,6 +10,8 @@ import { MORE_REACTIONS, QUICK_REACTIONS, myReaction, useReactionToggle } from "
 import { LiveEmoji } from "./LiveEmoji";
 import { useKeyboardInset } from "@/hooks/useViewportHeight";
 import { computeActionsPosition } from "@/features/chat/actions-position";
+import { saveChatFile } from "../file-download";
+import { Button } from "@/components/ds";
 
 const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 const EMOJI = QUICK_REACTIONS;
@@ -194,6 +196,9 @@ export function MessageActions({
               </button>
             ))}
           </div>
+        ) : null}
+        {(current2.kind === "file" || current2.kind === "image") && current2.mediaUrl && current2.status !== "sending" && current2.status !== "failed" ? (
+          <Button variant="ghost" size="sm" fullWidth className="justify-start" onClick={() => { if (fresh() || !current2.mediaUrl) return; void saveChatFile(current2.mediaUrl, current2.fileName ?? `photo-${current2.id}.jpg`, current2.kind === "image"); onClose(); }}><Download />{current2.kind === "image" ? "Сохранить" : "Скачать"}</Button>
         ) : null}
         {deletable && albumLive.length > 1 ? (
           <div className="mt-1 flex flex-col border-t border-border pt-1 text-xs font-medium">

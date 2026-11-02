@@ -1,4 +1,4 @@
-import { Image as ImageIcon, ImagePlus, Mic, Video, Pencil, Reply, SendHorizontal, Square, Trash2, X } from "lucide-react";
+import { Image as ImageIcon, ImagePlus, Mic, Video, Pencil, Reply, SendHorizontal, Square, Trash2, X, Paperclip } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 
@@ -14,6 +14,7 @@ import {
 import { compressListingPhoto } from "@/features/nearby/compress-image";
 import { readPhotoDimensions } from "@/features/chat/photo-dimensions";
 import { refreshViewportAfterPicker } from "@/hooks/useViewportHeight";
+import { FILE_ACCEPT, validateFileChoice } from "../file-rules";
 
 const MAX_BATCH_PHOTOS = 10;
 
@@ -43,6 +44,8 @@ export function ChatComposer({
   mediaSending = false,
   mediaHint,
   onPhotos,
+  onFile,
+  fileSending = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -69,9 +72,12 @@ export function ChatComposer({
   mediaHint?: string;
   /** Несколько фото сразу: подпись из поля уходит текстом после них. */
   onPhotos?: (photos: PreparedMedia[], caption: string) => void;
+  onFile?: (file: File) => void;
+  fileSending?: boolean;
 }) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const documentRef = useRef<HTMLInputElement | null>(null);
   useEffect(() => {
     const input = fileRef.current;
     input?.addEventListener("cancel", refreshViewportAfterPicker);
@@ -219,7 +225,7 @@ export function ChatComposer({
           "grid min-h-16 items-end gap-2 px-3 py-2.5 sm:px-4",
           // Долгое нажатие для записи не должно вызывать лупу и меню выделения iOS.
           "[-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none]",
-          leading || onMedia || voice.recording
+          leading || onMedia || onFile || voice.recording
             ? "grid-cols-[auto_minmax(0,1fr)_auto]"
             : "grid-cols-[minmax(0,1fr)_auto]",
         )}
@@ -231,7 +237,7 @@ export function ChatComposer({
           requestAnimationFrame(() => localRef.current?.focus({ preventScroll: true }));
         }}
       >
-        {leading || onMedia || voice.recording ? (
+        {leading || onMedia || onFile || voice.recording ? (
           <div className="flex shrink-0 items-center gap-1" onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}>
             {voice.recording ? (
               <Button
@@ -246,6 +252,13 @@ export function ChatComposer({
               </Button>
             ) : (
               <>
+                {onFile ? <>
+                  <input ref={documentRef} type="file" accept={FILE_ACCEPT} className="hidden" aria-label="Выбрать файл" onChange={event => {
+                    refreshViewportAfterPicker(); const file = event.target.files?.[0]; event.target.value = "";
+                    if (!file) return; const error = validateFileChoice(file); setMediaError(error); if (!error) onFile(file);
+                  }} />
+                  <Button type="button" size="icon" variant="secondary" className="size-9 border-primary/40 text-primary" aria-label="Прикрепить файл" disabled={disabled || fileSending} onClick={() => { localRef.current?.blur(); documentRef.current?.click(); }}><Paperclip /></Button>
+                </> : null}
                 {onMedia ? (
                   <>
                     <input
