@@ -35,6 +35,18 @@ try {
   assert.equal(cleanFileName('../folder/\u0000Отчёт.csv'),'Отчёт.csv');assert.equal(cleanFileName('a'.repeat(200)+'.pdf').length,120);
  });
  await test('25 MB boundary',()=>{assert.equal(MAX_FILE_BYTES,26214400);assert.equal(validateDocument(Buffer.alloc(MAX_FILE_BYTES,65),'valid.txt').fileSize,MAX_FILE_BYTES);assert.throws(()=>validateDocument(Buffer.alloc(MAX_FILE_BYTES+1),'large.txt'));});
+ await test('OOXML must contain matching main part, ZIP must be structured', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const { readFile } = await import('node:fs/promises');
+  execFileSync('python3', ['-c', `import zipfile,sys
+with zipfile.ZipFile(sys.argv[1],'w',zipfile.ZIP_DEFLATED) as z:
+ z.writestr('[Content_Types].xml','<Types><Override ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml" /></Types>')
+ z.writestr('word/document.xml','<document/>')`, path.join(root,'valid.docx')]);
+  const bytes=await readFile(path.join(root,'valid.docx'));
+  assert.equal(validateDocument(bytes,'valid.docx').mime,'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  assert.throws(()=>validateDocument(bytes,'fake.xlsx'));
+  assert.equal(validateDocument(bytes,'archive.zip').mime,'application/zip');
+ });
  for(const scope of scopes) {
   await test(`${scope.table}: authorization and size rejected before save`,async()=>{
    assert.equal((await send(scope,outsider,'a.txt',Buffer.from('hello'))).statusCode,403);

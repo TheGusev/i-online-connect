@@ -83,6 +83,11 @@ export function ChatComposer({
     input?.addEventListener("cancel", refreshViewportAfterPicker);
     return () => input?.removeEventListener("cancel", refreshViewportAfterPicker);
   }, [onMedia]);
+  useEffect(() => {
+    const input = documentRef.current;
+    input?.addEventListener("cancel", refreshViewportAfterPicker);
+    return () => input?.removeEventListener("cancel", refreshViewportAfterPicker);
+  }, [onFile]);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const setInputRef = useCallback(
     (node: HTMLTextAreaElement | null) => {
