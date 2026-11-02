@@ -371,7 +371,7 @@ function ConversationPage() {
       clientTempId: message.clientTempId ?? crypto.randomUUID(),
       retryId: message.id,
     });
-  }, [photoBatch.retry, send.isPending, send.mutate, sendVoice.isPending, sendVoice.variables, sendVoice.mutate]);
+  }, [files.retry, photoBatch.retry, send.isPending, send.mutate, sendVoice.isPending, sendVoice.variables, sendVoice.mutate]);
   const openActions = useCallback((message: Message) => { setActionsAlbum(null); setActionsFor(message); }, []);
 
   return (

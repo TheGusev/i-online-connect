@@ -13,13 +13,18 @@ export async function loadFileBlob(url: string, download = false): Promise<Blob>
 export async function saveChatFile(url: string, name: string, image = false): Promise<void> {
   try {
     const blob = await loadFileBlob(url, true);
-    const file = new File([blob], name, { type: blob.type });
+    const extension = ({ "image/png": "png", "image/webp": "webp", "image/gif": "gif", "image/jpeg": "jpg" } as Record<string, string>)[blob.type];
+    const resolvedName = image && extension ? name.replace(/\.[^.]+$/, `.${extension}`) : name;
+    const file = new File([blob], resolvedName, { type: blob.type });
     const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     const method = downloadMethod(ios, Boolean(navigator.canShare?.({ files: [file] })), "download" in document.createElement("a"));
-    if (method === "share") { await navigator.share({ files: [file] }); return; }
+    if (method === "share") {
+      try { await navigator.share({ files: [file] }); return; }
+      catch (error) { if (error instanceof DOMException && error.name === "AbortError") return; }
+    }
     const objectUrl = URL.createObjectURL(blob);
     if (method === "download") {
-      const a = document.createElement("a"); a.href = objectUrl; a.download = name; a.click();
+      const a = document.createElement("a"); a.href = objectUrl; a.download = resolvedName; a.click();
     } else {
       const a = document.createElement("a"); a.href = objectUrl; a.target = "_blank"; a.rel = "noopener"; a.click();
       if (image) toast("Удерживайте картинку и выберите «Сохранить»");
