@@ -13,7 +13,7 @@ ALTER TABLE messages ADD CONSTRAINT messages_media_payload_check CHECK (
   OR (kind::text = 'image' AND media_url IS NOT NULL AND media_mime IS NOT NULL AND duration_ms IS NULL)
   OR (kind::text = 'video' AND media_url IS NOT NULL AND media_mime IS NOT NULL AND duration_ms BETWEEN 200 AND 61000)
   OR (kind::text = 'file' AND media_url IS NOT NULL AND media_mime IS NOT NULL AND duration_ms IS NULL
-      AND length(file_name) BETWEEN 1 AND 120 AND file_size BETWEEN 1 AND 26214400)
+      AND file_name IS NOT NULL AND file_size IS NOT NULL AND length(file_name) BETWEEN 1 AND 120 AND file_size BETWEEN 1 AND 26214400)
 );
 ALTER TABLE space_messages DROP CONSTRAINT IF EXISTS space_messages_kind_check;
 ALTER TABLE space_messages ADD CONSTRAINT space_messages_kind_check CHECK (kind IN ('text','voice','image','video','file'));
@@ -25,5 +25,5 @@ ALTER TABLE space_messages ADD CONSTRAINT space_messages_media_payload_check CHE
   OR (kind = 'image' AND media_url IS NOT NULL AND media_mime IS NOT NULL AND duration_ms IS NULL)
   OR (kind = 'video' AND media_url IS NOT NULL AND media_mime IS NOT NULL AND duration_ms BETWEEN 200 AND 61000)
   OR (kind = 'file' AND media_url IS NOT NULL AND media_mime IS NOT NULL AND duration_ms IS NULL
-      AND length(file_name) BETWEEN 1 AND 120 AND file_size BETWEEN 1 AND 26214400)
+      AND file_name IS NOT NULL AND file_size IS NOT NULL AND length(file_name) BETWEEN 1 AND 120 AND file_size BETWEEN 1 AND 26214400)
 );

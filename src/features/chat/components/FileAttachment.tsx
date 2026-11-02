@@ -18,7 +18,7 @@ export function FileAttachment({ message }: { message: Message }) {
     setLoading(true); setError(""); setContent("");
     void loadFileBlob(message.mediaUrl).then(async blob => {
       if (cancelled) return;
-      if (kind === "text") { setContent(await blob.slice(0, 256 * 1024).text()); }
+      if (kind === "text") { const text = await blob.slice(0, 256 * 1024).text(); if (!cancelled) setContent(text); }
       else { objectUrl = URL.createObjectURL(blob); setContent(objectUrl); }
     }).catch(e => { if (!cancelled) setError(e instanceof Error ? e.message : "Не удалось открыть файл"); })
       .finally(() => { if (!cancelled) setLoading(false); });

@@ -420,12 +420,13 @@ export async function spaceRoutes(app: FastifyInstance) {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
     await assertSpaceHost(userId, id);
-    const media = await query<{ media_url: string }>(
-      "SELECT media_url FROM space_messages WHERE space_id = $1 AND media_url IS NOT NULL",
+    const media = await query<{ media_url: string; kind: string }>(
+      "SELECT media_url, kind FROM space_messages WHERE space_id = $1 AND media_url IS NOT NULL",
       [id],
     );
     await query("DELETE FROM spaces WHERE id = $1", [id]);
     for (const item of media) {
+      if (item.kind === "file") { await removeDocument(item.media_url); continue; }
       const filePath = mediaPathFromUrl(item.media_url);
       if (filePath) await unlink(filePath).catch(() => undefined);
     }
