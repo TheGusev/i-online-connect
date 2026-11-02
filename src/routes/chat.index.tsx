@@ -71,7 +71,7 @@ function ChatListPage() {
           ))}
         </ul>
       )}
-      <BottomSheet open={Boolean(selected)} onClose={() => setSelected(null)} title={target?.participant.name}>
+      <BottomSheet open={Boolean(selected)} onClose={() => setSelected(null)} title={target?.participant.name ?? "Диалог"}>
         <Button fullWidth variant="ghost" className="justify-start" disabled={preference.isPending} onClick={() => update("pin", !target?.pinned)}>
           {target?.pinned ? <PinOff /> : <Pin />}{target?.pinned ? "Открепить" : "Закрепить"}
         </Button>

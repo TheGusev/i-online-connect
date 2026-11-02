@@ -37,6 +37,7 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
   const keyboardOpen = useKeyboardOpen();
   useEffect(() => {
     if (fill || keyboardOpen) return lockBodyScroll();
+    return undefined;
   }, [fill, keyboardOpen]);
   const toggleReaction = useToggleReaction({ type: "space", id: spaceId });
   const myId = useSessionStore((s) => s.user?.id);

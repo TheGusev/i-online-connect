@@ -72,6 +72,11 @@ export function ChatComposer({
 }) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  useEffect(() => {
+    const input = fileRef.current;
+    input?.addEventListener("cancel", refreshViewportAfterPicker);
+    return () => input?.removeEventListener("cancel", refreshViewportAfterPicker);
+  }, [onMedia]);
   const [mediaError, setMediaError] = useState<string | null>(null);
   const setInputRef = useCallback(
     (node: HTMLTextAreaElement | null) => {
@@ -255,7 +260,6 @@ export function ChatComposer({
                         event.target.value = "";
                         void pickFiles(list);
                       }}
-                      onCancel={refreshViewportAfterPicker}
                     />
                     <Button
                       type="button"
