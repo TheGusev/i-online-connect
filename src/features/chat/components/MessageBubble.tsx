@@ -9,6 +9,7 @@ import { useSessionStore } from "@/store/useSessionStore";
 import { mediaUrl } from "@/api";
 import { VoicePlayer } from "./VoicePlayer";
 import { MediaAttachment } from "./MediaAttachment";
+import { FileAttachment } from "./FileAttachment";
 import { ReactionChips } from "./ReactionChip";
 import { useMessageGestures } from "@/features/chat/useMessageGestures";
 import { memo } from "react";
@@ -19,6 +20,7 @@ function time(iso: string) {
 
 /** Короткий текст цитаты: голос и встреча подписываются словами. */
 export function quotePreview(quote: MessageQuote) {
+  if (quote.kind === "file") return quote.text || "Файл";
   if (quote.kind === "voice") return "Голосовое сообщение";
   if (quote.kind === "image") return "Фото";
   if (quote.kind === "video") return "Видео";
@@ -55,6 +57,7 @@ export const MessageBubble = memo(function MessageBubble({
   const meeting = message.kind === "meeting";
   const voice = message.kind === "voice";
   const media = message.kind === "image" || message.kind === "video";
+  const file = message.kind === "file";
   const failed = message.status === "failed";
   const deleted = Boolean(message.deletedAt);
   const replyable =
@@ -87,7 +90,7 @@ export const MessageBubble = memo(function MessageBubble({
   const chip = reaction && !deleted ? <ReactionChips reactions={reaction} onBubble={mine} /> : null;
   const voiceInline = voice && Boolean(message.mediaUrl) && !deleted && !failed;
   // Время в строке текста, как в Telegram: только для простых текстовых сообщений.
-  const textInline = !deleted && !failed && !voice && !media && !meeting && !quote;
+  const textInline = !deleted && !failed && !voice && !media && !file && !meeting && !quote;
   // Фото и видео без розовой подложки: тонкая рамка, время поверх картинки.
   const bare = media && !deleted && Boolean(message.mediaUrl);
   // Сервер кладёт в текст служебные «Фото»/«Видео» — это не подпись.
@@ -95,7 +98,7 @@ export const MessageBubble = memo(function MessageBubble({
   const caption = rawCaption === "Фото" || rawCaption === "Видео" ? "" : rawCaption;
   // Первая ссылка в тексте — компактная карточка предпросмотра под сообщением.
   const firstLink =
-    !deleted && !failed && !voice && !media && !meeting
+    !deleted && !failed && !voice && !media && !file && !meeting
       ? (splitLinks(message.text ?? "").find((p) => p.type === "link") as { href: string } | undefined)?.href ?? null
       : null;
   const bubbleTone = mine
@@ -162,7 +165,7 @@ export const MessageBubble = memo(function MessageBubble({
                 Приглашение на встречу
               </span>
             ) : null}
-            {voice && message.mediaUrl ? (
+            {file ? <FileAttachment message={message} /> : voice && message.mediaUrl ? (
               <VoicePlayer
                 id={message.id}
                 src={mediaUrl(message.mediaUrl) ?? message.mediaUrl}
