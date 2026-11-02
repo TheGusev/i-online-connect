@@ -15,12 +15,26 @@ function timeLabel(iso: string) {
     : date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 }
 
-export function ConversationCard({ conversation, onActions }: { conversation: Conversation; onActions?: (conversation: Conversation) => void }) {
+export function ConversationCard({
+  conversation,
+  onActions,
+}: {
+  conversation: Conversation;
+  onActions?: (conversation: Conversation) => void;
+}) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const origin = useRef<{ x: number; y: number } | null>(null);
   const held = useRef(false);
-  const cancelHold = () => { if (timer.current) clearTimeout(timer.current); timer.current = null; };
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const cancelHold = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+  };
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
   const unread = conversation.unreadCount > 0;
   const preview = conversation.lastMessage || "Диалог ещё не начат";
 
@@ -32,16 +46,35 @@ export function ConversationCard({ conversation, onActions }: { conversation: Co
         cancelHold();
         held.current = false;
         origin.current = { x: event.clientX, y: event.clientY };
-        timer.current = setTimeout(() => { held.current = true; onActions(conversation); }, 400);
+        timer.current = setTimeout(() => {
+          held.current = true;
+          onActions(conversation);
+        }, 400);
       }}
       onPointerMove={(event) => {
-        if (origin.current && Math.hypot(event.clientX - origin.current.x, event.clientY - origin.current.y) > 10) cancelHold();
+        if (
+          origin.current &&
+          Math.hypot(event.clientX - origin.current.x, event.clientY - origin.current.y) > 10
+        )
+          cancelHold();
       }}
       onPointerUp={cancelHold}
       onPointerCancel={cancelHold}
       onPointerLeave={cancelHold}
-      onClick={(event) => { if (held.current) { event.preventDefault(); held.current = false; } }}
-      onContextMenu={(event) => { if (onActions) { event.preventDefault(); cancelHold(); held.current = true; onActions(conversation); } }}
+      onClick={(event) => {
+        if (held.current) {
+          event.preventDefault();
+          held.current = false;
+        }
+      }}
+      onContextMenu={(event) => {
+        if (onActions) {
+          event.preventDefault();
+          cancelHold();
+          held.current = true;
+          onActions(conversation);
+        }
+      }}
       onDragStart={(event) => event.preventDefault()}
       to="/chat/$id"
       params={{ id: conversation.id }}
@@ -59,11 +92,20 @@ export function ConversationCard({ conversation, onActions }: { conversation: Co
       />
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className={cn("truncate text-sm", unread ? "font-bold text-foreground" : "font-medium text-foreground/80")}>
+          <span
+            className={cn(
+              "truncate text-sm",
+              unread ? "font-bold text-foreground" : "font-medium text-foreground/80",
+            )}
+          >
             {conversation.participant.name}
           </span>
-          {conversation.pinned ? <Pin className="size-3 shrink-0 text-primary" aria-label="Закреплён" /> : null}
-          {conversation.favorite ? <Star className="size-3 shrink-0 text-primary" aria-label="В избранном" /> : null}
+          {conversation.pinned ? (
+            <Pin className="size-3 shrink-0 text-primary" aria-label="Закреплён" />
+          ) : null}
+          {conversation.favorite ? (
+            <Star className="size-3 shrink-0 text-primary" aria-label="В избранном" />
+          ) : null}
         </div>
         <p
           className={cn(

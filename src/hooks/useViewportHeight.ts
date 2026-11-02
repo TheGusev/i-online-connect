@@ -93,7 +93,11 @@ function subscribe(listener: () => void) {
 
 /** Высота клавиатуры в пикселях (0 — закрыта). */
 export function useKeyboardInset(): number {
-  return useSyncExternalStore(subscribe, () => viewportInset, () => 0);
+  return useSyncExternalStore(
+    subscribe,
+    () => viewportInset,
+    () => 0,
+  );
 }
 
 /** Текущее состояние клавиатуры без подписки — для обработчиков жестов. */
