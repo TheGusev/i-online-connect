@@ -32,7 +32,7 @@ export function EntryNotices({ recovery = false }: { recovery?: boolean }) {
     } catch {
       setHidden(true);
     }
-  }, [user?.id, kind, recovery]);
+  }, [user, kind, recovery]);
   if (
     !user ||
     hidden ||
