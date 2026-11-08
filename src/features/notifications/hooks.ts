@@ -121,7 +121,12 @@ export function useNotificationSocket() {
       if (disposed) return;
       const token = getToken();
       if (!token) return;
-      socket = new WebSocket(`${base}/notifications?token=${encodeURIComponent(token)}`);
+      try {
+        socket = new WebSocket(`${base}/notifications?token=${encodeURIComponent(token)}`);
+      } catch (error) {
+        console.warn("[ws] уведомления недоступны:", error);
+        return;
+      }
       socket.onopen = () => {
         attempt = 0;
         if (disposed) socket?.close();
