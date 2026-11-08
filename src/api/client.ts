@@ -73,7 +73,11 @@ export interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: RequestOptions["query"]) {
-  const url = new URL(path.replace(/^\//, ""), API_URL.endsWith("/") ? API_URL : `${API_URL}/`);
+  const base = new URL(
+    API_URL.endsWith("/") ? API_URL : `${API_URL}/`,
+    typeof window !== "undefined" ? window.location.origin : "http://localhost",
+  );
+  const url = new URL(path.replace(/^\//, ""), base);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined) url.searchParams.set(key, String(value));
