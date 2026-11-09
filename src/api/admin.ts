@@ -48,7 +48,7 @@ async function adminRequest<T>(
   path: string,
   options: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown; query?: Query } = {},
 ): Promise<T> {
-  const base = API_URL.endsWith("/") ? API_URL : `${API_URL}/`;
+  const base = new URL(API_URL.endsWith("/") ? API_URL : `${API_URL}/`, window.location.origin).toString();
   const url = new URL(`admin${path}`.replace(/^\//, ""), base);
   for (const [key, value] of Object.entries(options.query ?? {})) {
     if (value !== undefined && value !== "") url.searchParams.set(key, String(value));

@@ -140,9 +140,13 @@ function computePeaks(buffer: ArrayBuffer, bars: number): Promise<number[] | nul
 
 async function loadVoiceAudio(src: string, bars: number): Promise<VoiceAudioResult> {
   const buffer = await fetchWithRetry(src);
-  const blob = new Blob([buffer]);
+  const audioType = src.includes(".webm") ? "audio/webm" : src.includes(".ogg") ? "audio/ogg" : "audio/mp4";
+  const blob = new Blob([buffer], { type: audioType });
   const audioUrl = URL.createObjectURL(blob);
-  const peaks = await computePeaks(buffer, bars);
+  const peaks = await Promise.race([
+    computePeaks(buffer, bars),
+    new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 3000)),
+  ]);
   return { audioUrl, peaks };
 }
 
