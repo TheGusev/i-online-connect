@@ -260,7 +260,9 @@ export function ChatComposer({
                 {onFile ? <>
                   <input ref={documentRef} type="file" accept={FILE_ACCEPT} className="hidden" aria-label="Выбрать файл" onChange={event => {
                     refreshViewportAfterPicker(); const file = event.target.files?.[0]; event.target.value = "";
-                    if (!file) return; const error = validateFileChoice(file); setMediaError(error); if (!error) onFile(file);
+                    if (!file) return;
+                    if ((onMedia || onPhotos) && (file.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic|heif|avif|bmp)$/i.test(file.name))) { void pickFiles([file]); return; }
+                    const error = validateFileChoice(file); setMediaError(error); if (!error) onFile(file);
                   }} />
                   <Button type="button" size="icon" variant="secondary" className="size-9 border-primary/40 text-primary" aria-label="Прикрепить файл" disabled={disabled || fileSending} onClick={() => { localRef.current?.blur(); documentRef.current?.click(); }}><Paperclip /></Button>
                 </> : null}
