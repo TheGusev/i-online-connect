@@ -1,4 +1,4 @@
-import { Image as ImageIcon, ImagePlus, Mic, Video, Pencil, Reply, SendHorizontal, Square, Trash2, X, Paperclip } from "lucide-react";
+import { Image as ImageIcon, Mic, Video, Pencil, Reply, SendHorizontal, Square, Trash2, X, Paperclip } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 
@@ -258,47 +258,18 @@ export function ChatComposer({
             ) : (
               <>
                 {onFile ? <>
-                  <input ref={documentRef} type="file" accept={FILE_ACCEPT} className="hidden" aria-label="Выбрать файл" onChange={event => {
-                    refreshViewportAfterPicker(); const file = event.target.files?.[0]; event.target.value = "";
-                    if (!file) return;
-                    if ((onMedia || onPhotos) && (file.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|heic|heif|avif|bmp)$/i.test(file.name))) { void pickFiles([file]); return; }
+                  <input ref={documentRef} type="file" accept={`${FILE_ACCEPT},image/*,video/*,.heic,.heif,${CHAT_MEDIA_ACCEPT}`} multiple={Boolean(onPhotos)} className="hidden" aria-label="Выбрать файл" onChange={event => {
+                    refreshViewportAfterPicker(); const list = Array.from(event.target.files ?? []); event.target.value = "";
+                    const mediaExt = ["jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "avif", "bmp", "mp4", "mov", "m4v", "webm"];
+                    const isMedia = (f: File) => mediaExt.includes(f.name.split(".").pop()?.toLowerCase() ?? "") || f.type.startsWith("video/");
+                    const media = list.filter(isMedia);
+                    if (media.length > 0 && (onMedia || onPhotos)) { void pickFiles(media); return; }
+                    const file = list.find((f) => !isMedia(f)) ?? list[0]; if (!file) return;
                     const error = validateFileChoice(file); setMediaError(error); if (!error) onFile(file);
                   }} />
-                  <Button type="button" size="icon" variant="secondary" className="size-9 border-primary/40 text-primary" aria-label="Прикрепить файл" disabled={disabled || fileSending} onClick={() => { localRef.current?.blur(); documentRef.current?.click(); }}><Paperclip /></Button>
+                  <Button type="button" size="icon" variant="secondary" className="size-11 shrink-0 border border-primary/40 text-primary hover:bg-primary/10" aria-label="Прикрепить файл" disabled={disabled || fileSending || mediaSending} onClick={() => { localRef.current?.blur(); documentRef.current?.click(); }}><Paperclip /></Button>
                 </> : null}
-                {onMedia ? (
-                  <>
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept={onPhotos ? `image/*,.heic,.heif,${CHAT_MEDIA_ACCEPT}` : CHAT_MEDIA_ACCEPT}
-                      multiple={Boolean(onPhotos)}
-                      className="hidden"
-                      onChange={(event) => {
-                        refreshViewportAfterPicker();
-                        const list = Array.from(event.target.files ?? []);
-                        event.target.value = "";
-                        void pickFiles(list);
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="secondary"
-                      aria-label="Отправить фото или видео"
-                      {...(mediaHint ? { title: mediaHint } : {})}
-                      aria-busy={mediaSending}
-                      disabled={disabled || mediaSending}
-                      onClick={() => {
-                        localRef.current?.blur();
-                        fileRef.current?.click();
-                      }}
-                      className="size-11 shrink-0 border border-primary/40 text-primary hover:bg-primary/10"
-                    >
-                      <ImagePlus aria-hidden="true" />
-                    </Button>
-                  </>
-                ) : null}
+                
                 {leading}
               </>
             )}
