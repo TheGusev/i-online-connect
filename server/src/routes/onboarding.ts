@@ -26,7 +26,7 @@ const draftSchema = z.object({
       dealbreakers: z.string().max(500).default(""),
     })
     .default({ values: "", joy: "", dealbreakers: "" }),
-  city: z.string().max(120).default(""),
+  city: z.string().trim().max(120).default(""),
   hideExactLocation: z.boolean().default(true),
   // Имена файлов из шага «медиа». Сами файлы загружаются отдельным
   // запросом на /api/media (multipart) — в БД попадают только пути.

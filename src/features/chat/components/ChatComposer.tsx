@@ -1,4 +1,5 @@
 import { Image as ImageIcon, Mic, Video, Pencil, Reply, SendHorizontal, Square, Trash2, X, Paperclip } from "lucide-react";
+import { buzz, hapticTrigger } from "@/lib/haptics";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 
@@ -309,6 +310,15 @@ export function ChatComposer({
             type="submit"
             size="icon"
             aria-label="Отправить"
+            ref={hapticTrigger}
+            onClick={(e) => {
+              buzz("light");
+              // слой тика гасит штатную отправку формы, поэтому отправляем вручную
+              if ((e.target as HTMLElement).closest("[data-haptic-trigger]")) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit(e.currentTarget);
+              }
+            }}
             onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}
             disabled={disabled || preparing || (!value.trim() && staged.length === 0) || voice.recording}
             className="size-11 shrink-0"
@@ -326,6 +336,7 @@ export function ChatComposer({
                 : "Записать голосовое сообщение"
             }
             disabled={disabled || voiceSending}
+            ref={hapticTrigger}
             draggable={false}
             onContextMenu={(event) => event.preventDefault()}
             className={cn(
@@ -336,6 +347,7 @@ export function ChatComposer({
                 : "border border-primary/40 text-primary hover:bg-primary/10",
             )}
             onClick={() => {
+              buzz(voice.recording ? "success" : "medium");
               // Одно нажатие — старт записи, повторное — отправка.
               if (voice.recording) voice.stop(false);
               else void voice.start();

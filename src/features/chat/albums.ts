@@ -92,3 +92,18 @@ export function groupMessages<T extends AlbumCandidate>(input: readonly T[]): Me
 /** Стабильный ключ плитки: оптимистичная и настоящая версия одного фото совпадают. */
 export const tileKey = (message: { id: string; clientTempId?: string | undefined }) =>
   message.clientTempId ?? message.id;
+
+/** Компактная «стопка» альбома: до 5 плиток внахлёст, средняя крупнее, крайние ниже и меньше. */
+export const STACK_MAX = 5;
+export const STACK_TILE_W = 5.5;
+export const STACK_STEP = 2.4;
+
+export function stackTile(index: number, count: number) {
+  const n = Math.min(count, STACK_MAX);
+  const d = Math.abs(index - (n - 1) / 2);
+  return { scale: 1 - 0.09 * d, y: 6 * d, z: 20 - Math.round(d * 2) };
+}
+
+/** Ширина свёрнутой стопки в rem. */
+export const stackWidthRem = (count: number) =>
+  STACK_TILE_W + (Math.min(count, STACK_MAX) - 1) * STACK_STEP;

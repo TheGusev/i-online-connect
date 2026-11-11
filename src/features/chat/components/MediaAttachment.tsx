@@ -107,7 +107,7 @@ export function MediaAttachment({
         }}
         aria-label="Открыть фото"
         className={cn(
-          "chat-media-frame chat-media-glow relative block h-auto overflow-hidden rounded-2xl bg-secondary p-0 hover:bg-secondary",
+          "chat-media-frame chat-media-glow relative block h-auto max-h-64 overflow-hidden rounded-2xl bg-secondary p-0 hover:bg-secondary",
           "[-webkit-touch-callout:none]",
           className,
         )}

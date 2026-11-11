@@ -25,10 +25,10 @@ export async function presenceRoutes(app: FastifyInstance) {
       `WITH me AS (SELECT city FROM profiles WHERE user_id = $1)
        SELECT
          count(*) FILTER (
-           WHERE p.city <> '' AND p.city = (SELECT city FROM me)
+           WHERE btrim(p.city) <> '' AND lower(btrim(p.city)) = lower(btrim((SELECT city FROM me)))
          )::int AS city,
          count(*)::int AS total,
-         (SELECT NULLIF(city, '') FROM me) AS city_name
+         (SELECT NULLIF(btrim(city), '') FROM me) AS city_name
        FROM users u
        JOIN profiles p ON p.user_id = u.id
        WHERE u.last_seen_at > now() - make_interval(mins => $2)
