@@ -29,7 +29,7 @@
     "@types/nodemailer": "^8.0.1",
     "@types/web-push": "^3.6.4",
     "argon2": "^0.41.1",
-    "fastify": "^5.2.1",
+    "fastify": "5.12.8",
     "ioredis": "^5.11.1",
     "jose": "^5.9.6",
     "node-cron": "^3.0.3",
