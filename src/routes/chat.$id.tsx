@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { isNearBottom } from "@/features/chat/scroll";
 import { useReadingMode } from "@/features/chat/useReadingMode";
-import { CollapsiblePanel } from "@/features/chat/components/CollapsiblePanel";
+import { FloatingPanel } from "@/features/chat/components/FloatingPanel";
 import { ScrollToLatestButton } from "@/features/chat/components/ScrollToLatestButton";
 import { lockBodyScroll } from "@/lib/scroll-lock";
 import { ChatBackground } from "@/features/chat/components/ChatBackground";
@@ -392,8 +392,8 @@ function ConversationPage() {
 
   return (
     <ReactionContext.Provider value={toggleReaction}>
-    <div className="keyboard-viewport-fixed flex flex-col overflow-hidden overscroll-none bg-background text-foreground">
-      <CollapsiblePanel hidden={reading.headerHidden} edge="top">
+    <div ref={reading.rootRef} className="keyboard-viewport-fixed flex flex-col overflow-hidden overscroll-none bg-background text-foreground">
+      <FloatingPanel edge="top" panelRef={reading.topRef}>
       <header className="border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex min-h-[76px] w-full max-w-3xl items-center gap-3 px-3 py-2.5">
           <Link
@@ -450,12 +450,13 @@ function ConversationPage() {
           </p>
         ) : null}
       </header>
-      </CollapsiblePanel>
+      </FloatingPanel>
 
       <div className="relative isolate flex min-h-0 flex-1 flex-col">
       <ChatBackground />
       <main
         ref={scrollerRef}
+        style={{ paddingTop: "calc(var(--top-h, 0px) + 1rem)", paddingBottom: "calc(var(--bot-h, 0px) + 1rem)" }}
         onScroll={(event) => {
           const el = event.currentTarget;
           nearBottomRef.current = isNearBottom(el.scrollTop, el.clientHeight, el.scrollHeight);
@@ -554,7 +555,7 @@ function ConversationPage() {
       <ScrollToLatestButton visible={reading.arrowVisible} unseen={reading.unseen} onClick={reading.scrollToLatest} />
       </div>
 
-      <CollapsiblePanel hidden={reading.bottomHidden} edge="bottom"
+      <FloatingPanel edge="bottom" panelRef={reading.bottomRef}
         className="border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
       >
         <div className="mx-auto w-full max-w-3xl">
@@ -642,7 +643,7 @@ function ConversationPage() {
                 })}
           />
         </div>
-      </CollapsiblePanel>
+      </FloatingPanel>
 
       <MessageActions
         message={actionsFor}

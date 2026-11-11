@@ -2,7 +2,7 @@ import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-/** Компактная стрелка «к последним сообщениям»: плавно появляется, когда ушли от низа. */
+/** Компактная стрелка «к последним сообщениям»: стоит над нижней панелью и едет вместе с ней. */
 export function ScrollToLatestButton({
   visible,
   unseen,
@@ -19,8 +19,9 @@ export function ScrollToLatestButton({
       tabIndex={visible ? 0 : -1}
       aria-hidden={!visible}
       aria-label={unseen > 0 ? `Новых сообщений: ${unseen}. К последним` : "К последним сообщениям"}
+      style={{ bottom: "calc(var(--bot-vis, 0px) + 0.75rem)" }}
       className={cn(
-        "absolute bottom-3 right-3 z-10 grid size-10 place-items-center rounded-full bg-primary text-primary-foreground shadow-glow",
+        "absolute right-3 z-10 grid size-10 place-items-center rounded-full bg-primary text-primary-foreground shadow-glow",
         "transition-[opacity,transform] duration-300 ease-out active:scale-95 motion-reduce:transition-none",
         "[-webkit-tap-highlight-color:transparent]",
         visible ? "translate-y-0 scale-100 opacity-100" : "pointer-events-none translate-y-3 scale-75 opacity-0",

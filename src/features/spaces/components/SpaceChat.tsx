@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { isNearBottom } from "@/features/chat/scroll";
 import { useReadingMode } from "@/features/chat/useReadingMode";
-import { CollapsiblePanel } from "@/features/chat/components/CollapsiblePanel";
 import { ScrollToLatestButton } from "@/features/chat/components/ScrollToLatestButton";
 import { mediaUrl, type Message, type SpaceMessage } from "@/api";
 import { Avatar } from "@/components/ds";
@@ -162,7 +161,7 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
         </div>
       <ScrollToLatestButton visible={reading.arrowVisible} unseen={reading.unseen} onClick={reading.scrollToLatest} />
       </div>
-      <CollapsiblePanel hidden={fill && reading.bottomHidden} edge="bottom" className="bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <div className="shrink-0 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
         {error ? <p className="px-4 pt-2 text-xs text-destructive" role="alert">{error}</p> : null}
         <ChatComposer
           {...(canWrite && onFile && !editing ? { onFile: (file: File) => { onFile(file, reply ?? undefined); setReply(null); }, fileSending: fileSending ?? false } : {})}
@@ -179,7 +178,7 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
           placeholder={canWrite ? "Написать в общий чат" : "Чат доступен участникам сообщества"}
           onSend={() => { void submit().catch(() => undefined); }}
         />
-      </CollapsiblePanel>
+      </div>
       <MessageActions message={actions} mine={actions?.authorId === myId} canDelete={Boolean(actions && (actions.authorId === myId || isHost))} onClose={() => { setActions(null); setActionsAlbum(null); }} album={actionsAlbum} onDeleteAlbum={(list) => list.forEach((m) => onDelete(m.id))} onEdit={(message) => { setReply(null); setEditing(message); setText(message.text); inputRef.current?.focus({ preventScroll: true }); }} onDelete={(message) => { onDelete(message.id); if (editing?.id === message.id) { setEditing(null); setText(""); } }} />
     </div>
     </ReactionContext.Provider>
