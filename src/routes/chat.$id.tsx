@@ -1,5 +1,8 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { isNearBottom } from "@/features/chat/scroll";
+import { useReadingMode } from "@/features/chat/useReadingMode";
+import { CollapsiblePanel } from "@/features/chat/components/CollapsiblePanel";
+import { ScrollToLatestButton } from "@/features/chat/components/ScrollToLatestButton";
 import { lockBodyScroll } from "@/lib/scroll-lock";
 import { ChatBackground } from "@/features/chat/components/ChatBackground";
 import { useQueryClient } from "@tanstack/react-query";
@@ -248,6 +251,19 @@ function ConversationPage() {
 
   // Автопрокрутка вниз при новых сообщениях (но не при подгрузке истории вверх).
   const lastMine = messages?.[messages.length - 1]?.authorId === myId;
+  const reading = useReadingMode({
+    scrollerRef,
+    ready: initialScrollReady,
+    resetKey: id,
+    keepPanels:
+      Number(keyboardInset) > 0 ||
+      draft.trim().length > 0 ||
+      Boolean(replyTo) ||
+      Boolean(editingMessage) ||
+      socketStatus === "closed",
+    lastId,
+    lastMine,
+  });
   useEffect(() => {
     if (!initialScrollReady) return;
     if (nearBottomRef.current || lastMine) scrollToBottom(false);
@@ -377,7 +393,8 @@ function ConversationPage() {
   return (
     <ReactionContext.Provider value={toggleReaction}>
     <div className="keyboard-viewport-fixed flex flex-col overflow-hidden overscroll-none bg-background text-foreground">
-      <header className="shrink-0 border-b border-border bg-card/95 backdrop-blur">
+      <CollapsiblePanel hidden={reading.headerHidden} edge="top">
+      <header className="border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex min-h-[76px] w-full max-w-3xl items-center gap-3 px-3 py-2.5">
           <Link
             to="/chat"
@@ -433,6 +450,7 @@ function ConversationPage() {
           </p>
         ) : null}
       </header>
+      </CollapsiblePanel>
 
       <div className="relative isolate flex min-h-0 flex-1 flex-col">
       <ChatBackground />
@@ -533,10 +551,11 @@ function ConversationPage() {
           )}
         </div>
       </main>
+      <ScrollToLatestButton visible={reading.arrowVisible} unseen={reading.unseen} onClick={reading.scrollToLatest} />
       </div>
 
-      <div
-        className="shrink-0 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+      <CollapsiblePanel hidden={reading.bottomHidden} edge="bottom"
+        className="border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
       >
         <div className="mx-auto w-full max-w-3xl">
           {isEmptyThread ? (
@@ -623,7 +642,7 @@ function ConversationPage() {
                 })}
           />
         </div>
-      </div>
+      </CollapsiblePanel>
 
       <MessageActions
         message={actionsFor}
