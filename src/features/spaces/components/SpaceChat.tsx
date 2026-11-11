@@ -161,7 +161,7 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
         </div>
       <ScrollToLatestButton visible={reading.arrowVisible} unseen={reading.unseen} onClick={reading.scrollToLatest} />
       </div>
-      <div className="shrink-0 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      <div className={cn("shrink-0 bg-background/95 backdrop-blur has-[textarea:focus]:pb-0", fill || keyboardOpen ? "pb-[max(0px,calc(env(safe-area-inset-bottom)_-_14px))]" : "pb-0")}>
         {error ? <p className="px-4 pt-2 text-xs text-destructive" role="alert">{error}</p> : null}
         <ChatComposer
           {...(canWrite && onFile && !editing ? { onFile: (file: File) => { onFile(file, reply ?? undefined); setReply(null); }, fileSending: fileSending ?? false } : {})}

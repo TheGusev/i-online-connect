@@ -40,7 +40,7 @@ function paint(el: HTMLElement | null, progress: number, edge: "top" | "bottom",
     el.style.transform = `translateY(${shift}%) scale(${1 - progress * 0.4}, ${1 - progress * 0.25})`;
     el.style.opacity = String(1 - progress);
   }
-  const off = progress > 0.6;
+  const off = progress > 0.6 && !el.contains(document.activeElement);
   el.style.pointerEvents = off ? "none" : "";
   el.toggleAttribute("inert", off);
 }
@@ -74,6 +74,7 @@ export function useReadingMode({
   const keepRef = useRef(keepPanels);
   const seenLastRef = useRef<string | null>(null);
   keepRef.current = keepPanels;
+  const focusRef = useRef(false);
 
   const render = useCallback((animate: boolean) => {
     const reduce =
@@ -97,6 +98,29 @@ export function useReadingMode({
     setUnseen(0);
     render(false);
   }, [resetKey, render]);
+
+  /** Пока курсор в поле ввода (клавиатура открыта), панели не трогаем: иначе поле теряет фокус и клавиатура закрывается. */
+  useEffect(() => {
+    const editable = (node: EventTarget | null) =>
+      node instanceof HTMLElement && (node.matches("textarea, input") || node.isContentEditable);
+    const onIn = (event: FocusEvent) => {
+      if (!editable(event.target)) return;
+      focusRef.current = true;
+      upRef.current = 0;
+      render(true);
+    };
+    const onOut = () => {
+      window.setTimeout(() => {
+        focusRef.current = editable(document.activeElement);
+      }, 80);
+    };
+    document.addEventListener("focusin", onIn);
+    document.addEventListener("focusout", onOut);
+    return () => {
+      document.removeEventListener("focusin", onIn);
+      document.removeEventListener("focusout", onOut);
+    };
+  }, [render]);
 
   useEffect(() => {
     if (!keepPanels) return;
@@ -165,7 +189,7 @@ export function useReadingMode({
         }
         return;
       }
-      if (keepRef.current) return;
+      if (keepRef.current || focusRef.current) return;
       if (delta < 0) upRef.current += -delta;
       render(false);
       window.clearTimeout(settleRef.current);

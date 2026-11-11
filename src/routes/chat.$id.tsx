@@ -556,7 +556,7 @@ function ConversationPage() {
       </div>
 
       <FloatingPanel edge="bottom" panelRef={reading.bottomRef}
-        className="border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+        className="border-t border-border bg-card/95 backdrop-blur pb-[max(0px,calc(env(safe-area-inset-bottom)_-_14px))] has-[textarea:focus]:pb-0"
       >
         <div className="mx-auto w-full max-w-3xl">
           {isEmptyThread ? (
