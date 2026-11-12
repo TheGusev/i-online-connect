@@ -18,7 +18,7 @@ export const callbackUrl = (provider: OAuthProvider) => `${publicBase()}/api/aut
 export function authorizationUrl(flow: OAuthFlow) {
   const url = new URL(flow.provider === "yandex" ? "https://oauth.yandex.ru/authorize" : "https://oauth.telegram.org/auth");
   const params = { response_type: "code", client_id: credentials(flow.provider).id, redirect_uri: callbackUrl(flow.provider),
-    scope: flow.provider === "yandex" ? "login:info login:email login:default_phone" : "openid profile phone",
+    scope: flow.provider === "yandex" ? "login:info" : "openid profile phone",
     state: flow.state, code_challenge: pkceChallenge(flow.verifier), code_challenge_method: "S256", nonce: flow.nonce };
   url.search = new URLSearchParams(params).toString();
   return url.toString();
