@@ -7,6 +7,7 @@ import { presenceApi } from "@/api";
 import { Avatar, Button } from "@/components/ds";
 import { NotificationsBell } from "@/features/notifications/components/NotificationsBell";
 import { useSessionStore } from "@/store/useSessionStore";
+import { cityCode } from "@/lib/cityCode";
 
 /**
  * Верхняя панель. Гостю не показываем ни аватар, ни колокольчик:
@@ -49,7 +50,7 @@ export function TopBar() {
               <span className="size-1.5 shrink-0 rounded-full bg-success" aria-hidden="true" />
               {counters.cityName ? (
                 <>
-                  <span className="max-w-[5.5rem] truncate">{counters.cityName}</span>
+                  <span title={counters.cityName} className="max-w-[5.5rem] truncate font-semibold uppercase tracking-wider">{cityCode(counters.cityName)}</span>
                   <span key={counters.city} className="count-tick text-primary">{counters.city}</span>
                   <span aria-hidden="true">·</span>
                 </>
