@@ -114,6 +114,11 @@ export function ContactConfirm({
           onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
           error={error ?? undefined}
         />
+        {channel === "email" && (
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+            Не нашли письмо? Проверьте папку «Спам». Если письмо оказалось там, отметьте его как «Не спам».
+          </p>
+        )}
       </Modal>
     </>
   );
