@@ -56,11 +56,12 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const lastMessage = messages[messages.length - 1];
+  const [voiceRecording, setVoiceRecording] = useState(false);
   const reading = useReadingMode({
     scrollerRef,
     ready: true,
     resetKey: spaceId,
-    keepPanels: keyboardOpen || text.trim().length > 0 || Boolean(reply) || Boolean(editing),
+    keepPanels: keyboardOpen || text.trim().length > 0 || Boolean(reply) || Boolean(editing) || voiceRecording,
     lastId: lastMessage?.id,
     lastMine: lastMessage?.authorId === myId,
   });
@@ -164,6 +165,7 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
       <div className={cn("shrink-0 bg-background/95 backdrop-blur has-[textarea:focus]:pb-0", fill || keyboardOpen ? "pb-[max(0px,calc(env(safe-area-inset-bottom)_-_14px))]" : "pb-0")}>
         {error ? <p className="px-4 pt-2 text-xs text-destructive" role="alert">{error}</p> : null}
         <ChatComposer
+            onRecordingChange={setVoiceRecording}
           {...(canWrite && onFile && !editing ? { onFile: (file: File) => { onFile(file, reply ?? undefined); setReply(null); }, fileSending: fileSending ?? false } : {})}
           value={text} onChange={setText} inputRef={inputRef}
           disabled={!canWrite}

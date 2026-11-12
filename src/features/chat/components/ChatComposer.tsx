@@ -47,6 +47,7 @@ export function ChatComposer({
   onPhotos,
   onFile,
   fileSending = false,
+  onRecordingChange,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -75,6 +76,8 @@ export function ChatComposer({
   onPhotos?: (photos: PreparedMedia[], caption: string) => void;
   onFile?: (file: File) => void;
   fileSending?: boolean;
+  /** Сообщает странице, идёт ли запись голоса (панели на это время не прячутся). */
+  onRecordingChange?: (recording: boolean) => void;
 }) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -98,6 +101,12 @@ export function ChatComposer({
     [inputRef],
   );
   const voice = useVoiceRecorder((recording) => onVoice?.(recording));
+  const recordingCbRef = useRef(onRecordingChange);
+  recordingCbRef.current = onRecordingChange;
+  useEffect(() => {
+    recordingCbRef.current?.(voice.recording);
+    return () => recordingCbRef.current?.(false);
+  }, [voice.recording]);
   const [staged, setStaged] = useState<PreparedMedia[]>([]);
   const [preparing, setPreparing] = useState(false);
   const stagedRef = useRef(staged);

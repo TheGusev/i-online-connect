@@ -251,6 +251,7 @@ function ConversationPage() {
 
   // Автопрокрутка вниз при новых сообщениях (но не при подгрузке истории вверх).
   const lastMine = messages?.[messages.length - 1]?.authorId === myId;
+  const [voiceRecording, setVoiceRecording] = useState(false);
   const reading = useReadingMode({
     scrollerRef,
     ready: initialScrollReady,
@@ -260,7 +261,8 @@ function ConversationPage() {
       draft.trim().length > 0 ||
       Boolean(replyTo) ||
       Boolean(editingMessage) ||
-      socketStatus === "closed",
+      socketStatus === "closed" ||
+      voiceRecording,
     lastId,
     lastMine,
   });
@@ -571,6 +573,7 @@ function ConversationPage() {
           ) : null}
 
           <ChatComposer
+            onRecordingChange={setVoiceRecording}
             {...(canSendMedia && !editingMessage ? { onFile: (file: File) => { files.send(file, replyTo ?? undefined); setReplyTo(null); }, fileSending: files.sending } : {})}
             value={draft}
             onChange={setDraft}
