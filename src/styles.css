@@ -928,3 +928,17 @@ button:disabled [data-haptic-trigger] { display: none; }
 
 .count-tick { animation: fade-in 240ms ease-out both; }
 @media (prefers-reduced-motion: reduce) { .count-tick { animation: none; } }
+
+/* ios-callout-guard: без системного превью/меню iOS на внутренних карточках и медиа */
+a[href^="/"], a[href^="#"] {
+  --ios-callout-guard: 1;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+img, video, canvas {
+  -webkit-touch-callout: none;
+}
+img, video {
+  -webkit-user-drag: none;
+}

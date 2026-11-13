@@ -61,7 +61,7 @@ const app = Fastify({
     serializers: {
       req(request) {
         const url = String(request.url ?? "");
-        return { method: request.method, url: /\/api\/auth\/(yandex|telegram)\/callback/.test(url) ? url.split("?")[0] : url,
+        return { method: request.method, url: /\/api\/auth\/(yandex|telegram)\/callback|^\/ws\//.test(url) ? url.split("?")[0] : url,
           remoteAddress: request.ip };
       },
     },
