@@ -1,3 +1,4 @@
+import { registerPrivateMediaGuard } from "./media/private-guard.ts";
 /**
  * Точка входа API «Я Онлайн».
  *
@@ -92,6 +93,7 @@ await app.register(cors, {
 });
 
 await app.register(cookie, {});
+registerPrivateMediaGuard(app);
 
 // Загрузка фото/видео профиля и видео-селфи верификации.
 await app.register(multipart, {
