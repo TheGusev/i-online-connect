@@ -531,15 +531,25 @@ export async function spaceRoutes(app: FastifyInstance) {
     return loadSpaceDetail(id, userId);
   });
 
-  app.post<{ Params: { id: string } }>("/:id/leave", async (request) => {
+  app.post<{ Params: { id: string } }>("/:id/leave", async (request, reply) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
 
-    const isHost = await queryOne("SELECT 1 FROM space_members WHERE space_id = $1 AND user_id = $2 AND status = 'host'", [id, userId]);
-    if (isHost) throw forbidden("Организатор может только удалить пространство");
-
-    await query("DELETE FROM space_members WHERE space_id = $1 AND user_id = $2", [id, userId]);
-    return loadSpaceDetail(id, userId);
+    // Атомарно: удаляем только свою не-организаторскую запись. Приватные данные
+    // сообщества в ответе не возвращаем никому.
+    const removed = await queryOne(
+      "DELETE FROM space_members WHERE space_id = $1 AND user_id = $2 AND status <> 'host' RETURNING 1 AS ok",
+      [id, userId],
+    );
+    if (!removed) {
+      const isHost = await queryOne(
+        "SELECT 1 FROM space_members WHERE space_id = $1 AND user_id = $2 AND status = 'host'",
+        [id, userId],
+      );
+      if (isHost) throw forbidden("Организатор может только удалить пространство");
+      throw forbidden("Вы не состоите в этом пространстве");
+    }
+    return reply.status(204).send();
   });
 
   /**

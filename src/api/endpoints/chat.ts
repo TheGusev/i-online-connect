@@ -174,3 +174,26 @@ export async function setReaction(conversationId: string, messageId: string, emo
     { method: action === "put" ? "PUT" : "DELETE", body: { emoji } },
   );
 }
+
+export interface BlockedUser {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+  blockedAt: string;
+}
+
+export async function getBlockedUsers(): Promise<BlockedUser[]> {
+  return request<BlockedUser[]>("/chat/blocks");
+}
+
+export async function blockUser(userId: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/chat/users/${userId}/block`, { method: "PUT" });
+}
+
+export async function unblockUser(userId: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/chat/users/${userId}/block`, { method: "DELETE" });
+}
+
+export async function deleteConversation(id: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/chat/conversations/${id}`, { method: "DELETE" });
+}

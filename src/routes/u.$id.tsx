@@ -5,7 +5,7 @@ import { Button, SpaceCardSkeleton } from "@/components/ds";
 import { AppShell } from "@/components/layout/AppShell";
 import { ListingAuthor } from "@/features/nearby/components/ListingAuthor";
 import { ListingCard } from "@/features/nearby/components/ListingCard";
-import { useUserListings } from "@/features/nearby/hooks";
+import { useDeleteListing, useUserListings } from "@/features/nearby/hooks";
 import { useProfile } from "@/features/profile/hooks";
 
 export const Route = createFileRoute("/u/$id")({
@@ -27,6 +27,7 @@ function UserStorefront() {
   const [tab, setTab] = useState<"active" | "finished">("active");
   const profile = useProfile(id);
   const listings = useUserListings(id);
+  const remove = useDeleteListing();
   const items = (listings.data ?? []).filter((listing) =>
     tab === "active" ? listing.state === "active" : listing.state !== "active",
   );
@@ -58,7 +59,30 @@ function UserStorefront() {
         <p className="mt-8 text-center text-sm text-muted-foreground">В этой вкладке пока нет объявлений.</p>
       ) : (
         <ul className="mt-5 grid gap-3 lg:grid-cols-2">
-          {items.map((listing) => <li key={listing.id}><ListingCard listing={listing} /></li>)}
+          {items.map((listing) => (
+            <li key={listing.id}>
+              <ListingCard listing={listing} />
+              {tab === "finished" && listing.isMine ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 text-destructive"
+                  disabled={remove.isPending}
+                  onClick={async () => {
+                    if (!window.confirm("Удалить объявление из списка? Это действие нельзя отменить.")) return;
+                    try {
+                      await remove.mutateAsync(listing.id);
+                      await listings.refetch();
+                    } catch {
+                      window.alert("Не удалось удалить объявление. Попробуйте ещё раз.");
+                    }
+                  }}
+                >
+                  Удалить
+                </Button>
+              ) : null}
+            </li>
+          ))}
         </ul>
       )}
     </AppShell>

@@ -11,6 +11,23 @@ import { formatPrice } from "@/features/nearby/labels";
 
 export const notificationsQueryKey = ["notifications"] as const;
 
+const seenNotificationIds = new Set<string>();
+
+/** Закрывает системный баннер чата, когда приложение уже открыто, чтобы не дублировать плашку. */
+function closeSystemNotifications(tag: string) {
+  if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+  const close = () =>
+    void navigator.serviceWorker
+      .getRegistration()
+      .then((registration) =>
+        registration?.getNotifications({ tag }).then((list) => list.forEach((item) => item.close())),
+      )
+      .catch(() => undefined);
+  close();
+  window.setTimeout(close, 1500);
+  window.setTimeout(close, 4000);
+}
+
 export type NotificationFilter = "chats" | "meetings" | "matches";
 
 export function useNotifications(limit = 20) {
@@ -70,6 +87,12 @@ export function useNotificationSocket() {
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const handle = (incoming: AppNotification) => {
+      if (seenNotificationIds.has(incoming.id)) return;
+      seenNotificationIds.add(incoming.id);
+      if (seenNotificationIds.size > 200) {
+        const oldest = seenNotificationIds.values().next().value;
+        if (oldest) seenNotificationIds.delete(oldest);
+      }
       queryClient.setQueriesData<NotificationFeed>(
         {
           predicate: (query) =>
@@ -92,12 +115,15 @@ export function useNotificationSocket() {
         const { title, href, conversationId } = describeNotification(incoming);
         const inThatChat =
           conversationId && window.location.pathname === `/chat/${conversationId}`;
-        if (!inThatChat) {
+        const visible = document.visibilityState === "visible";
+        if (visible && conversationId) closeSystemNotifications(`chat-${conversationId}`);
+        if (!inThatChat && visible) {
           const preview =
             typeof incoming.payload?.["preview"] === "string"
               ? (incoming.payload["preview"] as string)
               : undefined;
           toast(title, {
+            id: incoming.id,
             description: preview,
             action: href
               ? {
@@ -112,6 +138,7 @@ export function useNotificationSocket() {
       } else if (incoming.kind === "space_event") {
         const { title, href } = describeNotification(incoming);
         toast(title, {
+          id: incoming.id,
           action: href ? { label: "Открыть", onClick: () => window.location.assign(href) } : undefined,
         });
       }

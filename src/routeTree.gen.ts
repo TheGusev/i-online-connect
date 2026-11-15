@@ -14,12 +14,14 @@ import { Route as SplatRouteImport } from './routes/$'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ChatRouteImport } from './routes/chat'
+import { Route as DeleteAccountRouteImport } from './routes/delete-account'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as NearbyRouteImport } from './routes/nearby'
 import { Route as NotificationsRouteImport } from './routes/notifications'
 import { Route as OauthCallbackRouteImport } from './routes/oauth-callback'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RulesRouteImport } from './routes/rules'
 import { Route as SafetyCenterRouteImport } from './routes/safety-center'
 import { Route as SettingsRouteImport } from './routes/settings'
@@ -62,6 +64,11 @@ const ChatRoute = ChatRouteImport.update({
   path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DeleteAccountRoute = DeleteAccountRouteImport.update({
+  id: '/delete-account',
+  path: '/delete-account',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DesignSystemRoute = DesignSystemRouteImport.update({
   id: '/design-system',
   path: '/design-system',
@@ -90,6 +97,11 @@ const OauthCallbackRoute = OauthCallbackRouteImport.update({
 const OnboardingRoute = OnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RulesRoute = RulesRouteImport.update({
@@ -179,12 +191,14 @@ export interface FileRoutesByFullPath {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRouteWithChildren
+  '/delete-account': typeof DeleteAccountRoute
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
   '/nearby': typeof NearbyRouteWithChildren
   '/notifications': typeof NotificationsRoute
   '/oauth-callback': typeof OauthCallbackRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/rules': typeof RulesRoute
   '/safety-center': typeof SafetyCenterRoute
   '/settings': typeof SettingsRoute
@@ -207,11 +221,13 @@ export interface FileRoutesByTo {
   '/$': typeof SplatRoute
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
   '/notifications': typeof NotificationsRoute
   '/oauth-callback': typeof OauthCallbackRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/rules': typeof RulesRoute
   '/safety-center': typeof SafetyCenterRoute
   '/settings': typeof SettingsRoute
@@ -235,12 +251,14 @@ export interface FileRoutesById {
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
   '/chat': typeof ChatRouteWithChildren
+  '/delete-account': typeof DeleteAccountRoute
   '/design-system': typeof DesignSystemRoute
   '/feed': typeof FeedRoute
   '/nearby': typeof NearbyRouteWithChildren
   '/notifications': typeof NotificationsRoute
   '/oauth-callback': typeof OauthCallbackRoute
   '/onboarding': typeof OnboardingRoute
+  '/privacy': typeof PrivacyRoute
   '/rules': typeof RulesRoute
   '/safety-center': typeof SafetyCenterRoute
   '/settings': typeof SettingsRoute
@@ -266,12 +284,14 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/chat'
+    | '/delete-account'
     | '/design-system'
     | '/feed'
     | '/nearby'
     | '/notifications'
     | '/oauth-callback'
     | '/onboarding'
+    | '/privacy'
     | '/rules'
     | '/safety-center'
     | '/settings'
@@ -294,11 +314,13 @@ export interface FileRouteTypes {
     | '/$'
     | '/about'
     | '/auth'
+    | '/delete-account'
     | '/design-system'
     | '/feed'
     | '/notifications'
     | '/oauth-callback'
     | '/onboarding'
+    | '/privacy'
     | '/rules'
     | '/safety-center'
     | '/settings'
@@ -321,12 +343,14 @@ export interface FileRouteTypes {
     | '/about'
     | '/auth'
     | '/chat'
+    | '/delete-account'
     | '/design-system'
     | '/feed'
     | '/nearby'
     | '/notifications'
     | '/oauth-callback'
     | '/onboarding'
+    | '/privacy'
     | '/rules'
     | '/safety-center'
     | '/settings'
@@ -351,12 +375,14 @@ export interface RootRouteChildren {
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
   ChatRoute: typeof ChatRouteWithChildren
+  DeleteAccountRoute: typeof DeleteAccountRoute
   DesignSystemRoute: typeof DesignSystemRoute
   FeedRoute: typeof FeedRoute
   NearbyRoute: typeof NearbyRouteWithChildren
   NotificationsRoute: typeof NotificationsRoute
   OauthCallbackRoute: typeof OauthCallbackRoute
   OnboardingRoute: typeof OnboardingRoute
+  PrivacyRoute: typeof PrivacyRoute
   RulesRoute: typeof RulesRoute
   SafetyCenterRoute: typeof SafetyCenterRoute
   SettingsRoute: typeof SettingsRoute
@@ -405,6 +431,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/delete-account': {
+      id: '/delete-account'
+      path: '/delete-account'
+      fullPath: '/delete-account'
+      preLoaderRoute: typeof DeleteAccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/design-system': {
       id: '/design-system'
       path: '/design-system'
@@ -445,6 +478,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/rules': {
@@ -608,12 +648,14 @@ const rootRouteChildren: RootRouteChildren = {
   AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
   ChatRoute: ChatRouteWithChildren,
+  DeleteAccountRoute: DeleteAccountRoute,
   DesignSystemRoute: DesignSystemRoute,
   FeedRoute: FeedRoute,
   NearbyRoute: NearbyRouteWithChildren,
   NotificationsRoute: NotificationsRoute,
   OauthCallbackRoute: OauthCallbackRoute,
   OnboardingRoute: OnboardingRoute,
+  PrivacyRoute: PrivacyRoute,
   RulesRoute: RulesRoute,
   SafetyCenterRoute: SafetyCenterRoute,
   SettingsRoute: SettingsRoute,

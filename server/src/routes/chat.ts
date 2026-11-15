@@ -246,6 +246,7 @@ const CONVERSATIONS_SELECT = `
             WHERE m.conversation_id = c.id
              AND m.author_id <> $1
              AND m.deleted_at IS NULL
+             AND (me.cleared_at IS NULL OR m.created_at > me.cleared_at)
              AND (me.last_read_at IS NULL OR m.created_at > me.last_read_at)
          )::int AS unread_count,
          ARRAY(
@@ -263,6 +264,7 @@ const CONVERSATIONS_SELECT = `
     LEFT JOIN LATERAL (
       SELECT text, created_at, author_id FROM messages
        WHERE conversation_id = c.id AND deleted_at IS NULL
+         AND (me.cleared_at IS NULL OR created_at > me.cleared_at)
        ORDER BY created_at DESC LIMIT 1
     ) last_msg ON true
    WHERE me.archived_at IS NULL
@@ -329,7 +331,7 @@ export async function chatRoutes(app: FastifyInstance) {
   app.get("/conversations", async (request) => {
     const userId = currentUserId(request);
     const rows = await query<ConversationRow>(
-      `${CONVERSATIONS_SELECT} ORDER BY pref.pinned_at DESC NULLS LAST, last_msg.created_at DESC NULLS LAST, c.id`,
+      `${CONVERSATIONS_SELECT} AND (me.cleared_at IS NULL OR last_msg.created_at IS NOT NULL) ORDER BY pref.pinned_at DESC NULLS LAST, last_msg.created_at DESC NULLS LAST, c.id`,
       [userId],
     );
     return rows.map((row) => toConversationDto(row, userId));
@@ -346,6 +348,56 @@ export async function chatRoutes(app: FastifyInstance) {
       });
     }
   }
+
+  // Очистить диалог только у меня: собеседник свою историю сохраняет.
+  app.delete<{ Params: { id: string } }>("/conversations/:id", async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    await assertConversationAccess(userId, id);
+    await query(
+      "UPDATE conversation_participants SET cleared_at = now(), last_read_at = now() WHERE conversation_id = $1 AND user_id = $2",
+      [id, userId],
+    );
+    await query("DELETE FROM conversation_preferences WHERE conversation_id = $1 AND user_id = $2", [id, userId]);
+    return { ok: true as const };
+  });
+
+  app.get("/blocks", async (request) => {
+    const userId = currentUserId(request);
+    const rows = await query<{ id: string; name: string; avatar_url: string | null; created_at: Date }>(
+      `SELECT b.blocked_id AS id, p.name,
+              (SELECT url FROM profile_media WHERE user_id = b.blocked_id AND kind = 'photo'
+                ORDER BY is_primary DESC, position LIMIT 1) AS avatar_url,
+              b.created_at
+         FROM blocks b JOIN profiles p ON p.user_id = b.blocked_id
+        WHERE b.user_id = $1
+        ORDER BY b.created_at DESC LIMIT 200`,
+      [userId],
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      avatarUrl: row.avatar_url,
+      blockedAt: row.created_at.toISOString(),
+    }));
+  });
+
+  app.put<{ Params: { id: string } }>("/users/:id/block", async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    if (id === userId) throw badRequest("Нельзя заблокировать себя");
+    const target = await queryOne<{ id: string }>("SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL", [id]);
+    if (!target) throw notFound("Пользователь не найден");
+    await query("INSERT INTO blocks (user_id, blocked_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", [userId, id]);
+    return { ok: true as const };
+  });
+
+  app.delete<{ Params: { id: string } }>("/users/:id/block", async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    await query("DELETE FROM blocks WHERE user_id = $1 AND blocked_id = $2", [userId, id]);
+    return { ok: true as const };
+  });
 
   app.get<{ Params: { id: string } }>("/conversations/:id", async (request) => {
     const userId = currentUserId(request);
@@ -419,6 +471,8 @@ export async function chatRoutes(app: FastifyInstance) {
            ON their.conversation_id = m.conversation_id AND their.user_id <> $2
         WHERE m.conversation_id = $1
           AND m.deleted_at IS NULL
+          AND m.created_at > COALESCE((SELECT cp.cleared_at FROM conversation_participants cp
+                                        WHERE cp.conversation_id = m.conversation_id AND cp.user_id = $2), '-infinity'::timestamptz)
           AND ($3::timestamptz IS NULL OR m.created_at < $3::timestamptz)
         ORDER BY m.created_at DESC, m.id DESC
         LIMIT $4`,

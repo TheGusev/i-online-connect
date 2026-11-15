@@ -3,6 +3,7 @@ import { MapPin, MessageCircle } from "lucide-react";
 
 import type { Listing } from "@/api";
 import { Card, MediaImage } from "@/components/ds";
+import { cn } from "@/lib/utils";
 import { ListingAuthor } from "./ListingAuthor";
 import { ListingCountdown } from "./ListingCountdown";
 import { UrgentPrice } from "./UrgentDeal";
@@ -17,9 +18,11 @@ export function ListingCard({ listing }: { listing: Listing }) {
   const photo = listing.photos[0];
   const place = [listing.city, listing.district].filter(Boolean).join(", ");
   const timed = listing.state === "active" || listing.state === "expired";
+  const highlighted =
+    listing.state === "active" && (listing.category === "urgent" || Boolean(listing.urgentType));
 
   return (
-    <Card variant="space" className="listing-press overflow-hidden p-0">
+    <Card variant="space" className={cn("listing-press overflow-hidden p-0", highlighted && "urgent-tile")}>
       <Link
         to="/nearby"
         search={{ listing: listing.id }}

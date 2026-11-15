@@ -942,3 +942,67 @@ img, video, canvas {
 img, video {
   -webkit-user-drag: none;
 }
+
+/* Фирменная подсветка срочных плиток */
+@property --urgent-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.urgent-tile {
+  position: relative;
+  animation: urgent-pulse 3.2s ease-in-out infinite;
+}
+.urgent-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  pointer-events: none;
+  background: conic-gradient(from var(--urgent-angle), transparent 0 55%, #ff4fa3 75%, #ffd1e8 85%, #ff4fa3 92%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: urgent-orbit 3.2s linear infinite;
+}
+@keyframes urgent-orbit {
+  to { --urgent-angle: 360deg; }
+}
+@keyframes urgent-pulse {
+  0%, 100% { box-shadow: 0 0 12px rgb(255 79 163 / 0.16); }
+  50% { box-shadow: 0 0 22px rgb(255 79 163 / 0.34); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .urgent-tile, .urgent-tile::before { animation: none; }
+}
+
+/* Без случайного выделения при долгом нажатии (iOS/Android) */
+html,
+body {
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+img,
+a,
+button {
+  -webkit-touch-callout: none;
+  -webkit-user-drag: none;
+}
+input,
+textarea,
+[contenteditable=""],
+[contenteditable="true"],
+.allow-select,
+.allow-select *,
+.select-text,
+.select-text * {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}

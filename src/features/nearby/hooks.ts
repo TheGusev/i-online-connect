@@ -83,6 +83,16 @@ export function useCloseListing(id: string) {
   });
 }
 
+export function useDeleteListing() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => listingsApi.deleteListing(id),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["listings"] });
+    },
+  });
+}
+
 export function useRespondToListing(id: string) {
   const queryClient = useQueryClient();
   return useMutation({

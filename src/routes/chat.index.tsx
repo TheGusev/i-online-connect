@@ -7,6 +7,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { BottomSheet, Button, Chip, ListItemSkeleton } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { ConversationCard } from "@/features/chat/components/ConversationCard";
+import { BlockedUsersSheet, ConversationDangerActions } from "@/features/chat/components/ChatSafetyActions";
 import { useConversations, useConversationPreference } from "@/features/chat/hooks";
 import {
   DEFAULT_CONVERSATION_TAB,
@@ -39,6 +40,7 @@ function ChatListPage() {
   const [tab, setTab] = useState<ConversationTab>(DEFAULT_CONVERSATION_TAB);
   const [selected, setSelected] = useState<Conversation | null>(null);
   const preference = useConversationPreference();
+  const [blockedOpen, setBlockedOpen] = useState(false);
   const items = filterConversations(conversations ?? [], tab);
   const target = conversations?.find((item) => item.id === selected?.id) ?? selected;
   const update = (kind: "pin" | "favorite", enabled: boolean) => {
@@ -61,6 +63,9 @@ function ChatListPage() {
             {label}
           </Chip>
         ))}
+        <Chip selected={false} onClick={() => setBlockedOpen(true)} size="sm">
+          Заблокированные
+        </Chip>
       </div>
       {preference.error ? (
         <p role="alert" className="mb-3 text-sm text-destructive">
@@ -115,7 +120,9 @@ function ChatListPage() {
           {target?.favorite ? <StarOff /> : <Star />}
           {target?.favorite ? "Убрать из избранного" : "В избранное"}
         </Button>
+        {target ? <ConversationDangerActions conversation={target} onDone={() => setSelected(null)} /> : null}
       </BottomSheet>
+      <BlockedUsersSheet open={blockedOpen} onClose={() => setBlockedOpen(false)} />
     </AppShell>
   );
 }

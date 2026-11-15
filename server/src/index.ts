@@ -22,6 +22,7 @@ import path from "node:path";
 
 import { runSeedRefresh } from "./seed/refresh.ts";
 import { runUrgentJobs } from "./listings/urgent-jobs.ts";
+import { runAccountPurge } from "./jobs/purge-deleted-accounts.ts";
 
 
 import { rateLimitSubject } from "./auth/tokens.ts";
@@ -216,6 +217,13 @@ void (async () => {
 })();
 
 
+
+// Окончательное удаление аккаунтов после окна восстановления: каждую ночь в 03:30
+// и один раз через 90 секунд после старта (чтобы результат было видно в логе).
+cron.schedule("30 3 * * *", () => {
+  void runAccountPurge(app.log);
+});
+setTimeout(() => { void runAccountPurge(app.log); }, 90_000).unref();
 
 // Корректное завершение: PM2 присылает SIGINT/SIGTERM при reload.
 const urgentTimer = setInterval(() => { void runUrgentJobs(); }, 15000);

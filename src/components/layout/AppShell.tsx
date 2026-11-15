@@ -58,7 +58,7 @@ export function AppShell({
       >
         {!focused ? <TopBar /> : null}
         <main
-          className={`mx-auto w-full flex-1 px-4 ${focused ? "pb-[env(safe-area-inset-bottom)] pt-3" : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] pt-6 lg:pb-12"} lg:px-8 ${wide ? "max-w-6xl" : "max-w-3xl"}`}
+          className={`mx-auto w-full flex-1 px-4 ${focused ? "pb-[env(safe-area-inset-bottom)] pt-3" : "pb-[calc(5.0625rem+env(safe-area-inset-bottom))] pt-6 lg:pb-12"} lg:px-8 ${wide ? "max-w-6xl" : "max-w-3xl"}`}
         >
           {children}
           {!isPublic && <EntryNotices />}
