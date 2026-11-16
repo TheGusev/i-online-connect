@@ -1,0 +1,21 @@
+name: Chat search tests
+on:
+  push:
+    branches: [feature/personal-chat-invites]
+  pull_request:
+    paths:
+      - 'src/features/chat/chat-search.ts'
+      - 'src/routes/chat.index.tsx'
+      - 'server/scripts/chat-search.test.mjs'
+      - '.github/workflows/chat-search-tests.yml'
+permissions:
+  contents: read
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --experimental-strip-types --test server/scripts/chat-search.test.mjs

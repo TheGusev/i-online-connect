@@ -4,11 +4,12 @@ import { useState } from "react";
 import type { Conversation } from "@/api";
 
 import { AppShell } from "@/components/layout/AppShell";
-import { BottomSheet, Button, Chip, ListItemSkeleton } from "@/components/ds";
+import { BottomSheet, Button, Chip, Input, ListItemSkeleton } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
 import { ConversationCard } from "@/features/chat/components/ConversationCard";
 import { BlockedUsersSheet, ConversationDangerActions } from "@/features/chat/components/ChatSafetyActions";
 import { useConversations, useConversationPreference } from "@/features/chat/hooks";
+import { searchConversations } from "@/features/chat/chat-search";
 import {
   DEFAULT_CONVERSATION_TAB,
   filterConversations,
@@ -38,10 +39,11 @@ export const Route = createFileRoute("/chat/")({
 function ChatListPage() {
   const { data: conversations, isPending } = useConversations();
   const [tab, setTab] = useState<ConversationTab>(DEFAULT_CONVERSATION_TAB);
+  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Conversation | null>(null);
   const preference = useConversationPreference();
   const [blockedOpen, setBlockedOpen] = useState(false);
-  const items = filterConversations(conversations ?? [], tab);
+  const items = searchConversations(filterConversations(conversations ?? [], tab), search);
   const target = conversations?.find((item) => item.id === selected?.id) ?? selected;
   const update = (kind: "pin" | "favorite", enabled: boolean) => {
     if (!target || preference.isPending) return;
@@ -51,6 +53,19 @@ function ChatListPage() {
 
   return (
     <AppShell>
+      <div className="mb-4" data-no-swipe>
+        <Input
+          label="Поиск по моим чатам"
+          placeholder="Имя собеседника"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        {search ? (
+          <Button variant="ghost" onClick={() => setSearch("")}>
+            Очистить поиск
+          </Button>
+        ) : null}
+      </div>
       <div data-no-swipe className="mb-4 flex flex-wrap gap-2" aria-label="Выбор чатов">
         {(
           [
@@ -79,12 +94,14 @@ function ChatListPage() {
           <ListItemSkeleton />
         </div>
       ) : items.length === 0 ? (
-        <p className="py-8 text-center text-sm text-muted-foreground">
-          {tab === "favorite"
-            ? "Здесь будут важные чаты"
-            : tab === "awaiting"
-              ? "Нет неотвеченных чатов"
-              : "Пока пусто. Новые диалоги появятся здесь после первого сообщения."}
+        <p className="py-8 text-center text-sm text-muted-foreground" role="status">
+          {search.trim()
+            ? "В выбранной вкладке чатов с таким именем нет. Измените запрос или выберите «Все»."
+            : tab === "favorite"
+              ? "Здесь будут важные чаты"
+              : tab === "awaiting"
+                ? "Нет неотвеченных чатов"
+                : "Пока пусто. Новые диалоги появятся здесь после первого сообщения."}
         </p>
       ) : (
         <ul className="space-y-2.5">
