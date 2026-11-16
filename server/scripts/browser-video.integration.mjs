@@ -247,6 +247,9 @@ try {
   const first = await session(owner);
   await first.page.goto(origin + "/chat");
   await first.page.getByRole("button", {
+    name: "Новый чат", exact: true
+  }).click();
+  await first.page.getByRole("button", {
     name: "Пригласить в чат", exact: true
   }).click();
   await first.page.getByRole("button", {
