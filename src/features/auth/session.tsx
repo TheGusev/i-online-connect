@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { Navigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { PersonalInviteBridge } from "@/features/chat/PersonalInviteBridge";
 
 import {
   ApiError,
@@ -106,7 +107,7 @@ export function SessionRestore() {
     };
   }, [clearSession, queryClient, restore]);
 
-  return null;
+  return <PersonalInviteBridge />;
 }
 
 export function useSession() {
