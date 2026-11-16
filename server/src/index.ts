@@ -20,6 +20,8 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
 import { runSeedRefresh } from "./seed/refresh.ts";
+import { runRegionalDemo } from "./seed/regional-job.ts";
+import { geoRoutes } from "./routes/geo.ts";
 import { runUrgentJobs } from "./listings/urgent-jobs.ts";
 
 
@@ -113,7 +115,7 @@ await app.register(rateLimit, {
   keyGenerator: (request) => rateLimitSubject(request.headers.authorization, request.ip),
   errorResponseBuilder: () => ({
     statusCode: 429,
-    error: "Too Many Requests",
+    error: "Too ManyRequests",
     message: "Слишком много запросов подряд. Немного подождите и попробуйте снова.",
   }),
 });
@@ -153,6 +155,7 @@ app.get("/api/health", async (_request, reply) => {
 
 await app.register(authRoutes, { prefix: "/api/auth" });
 await app.register(profileRoutes, { prefix: "/api/profiles" });
+await app.register(geoRoutes, { prefix: "/api/geo" });
 await app.register(matchingRoutes, { prefix: "/api/matching" });
 await app.register(chatRoutes, { prefix: "/api/chat" });
 await app.register(spaceRoutes, { prefix: "/api/spaces" });
@@ -197,6 +200,13 @@ await app.register(liveSocketRoutes, { prefix: "/ws" });
 cron.schedule("0 4 * * *", () => {
   void runSeedRefresh(app.log);
 });
+
+// Только регионы подтверждённых городов реальных пользователей.
+const regionalTask = cron.schedule("*/5 * * * *", () => {
+  void runRegionalDemo(app.log);
+});
+void runRegionalDemo(app.log);
+app.addHook("onClose", async () => { regionalTask.stop(); });
 
 // Дополнительно: одно обновление при старте, если демо-контент не освежался
 // больше суток. Так после деплоя лента сразу выглядит живой, не дожидаясь 04:00.
