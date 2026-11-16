@@ -3,7 +3,7 @@ name: Release regression
 on:
   pull_request:
   push:
-    branches: [prod, 'integration/**', 'fix/chat-video-media-20261116']
+    branches: [prod, 'integration/**', 'fix/chat-video-media-20261116', 'fix/chat-compact-notes-20261117']
   workflow_dispatch:
 
 permissions:
@@ -80,7 +80,7 @@ jobs:
       - name: Migrate isolated template database
         run: |
           npm run migrate --prefix server
-          test "$(psql -d ci_schema -Atc 'SELECT count(*) FROM schema_migrations')" = 43
+          test "$(psql -d ci_schema -Atc 'SELECT count(*) FROM schema_migrations')" = 44
 
       - name: Video normalization and private poster API
         shell: bash
@@ -93,6 +93,16 @@ jobs:
           DATABASE_URL=postgresql://audit:audit_ci_only@127.0.0.1:5432/video_api_ci \
             node --experimental-strip-types --test server/scripts/chat-video-api.integration.test.mjs \
             2>&1 | tee .test-artifacts/video/api.tap
+
+      - name: Private note chats API and authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .test-artifacts/notes
+          createdb --template=ci_schema notes_api_ci
+          DATABASE_URL=postgresql://audit:audit_ci_only@127.0.0.1:5432/notes_api_ci \
+            node --experimental-strip-types --test server/scripts/notes-api.integration.test.mjs \
+            2>&1 | tee .test-artifacts/notes/api.tap
 
       - name: Existing server tests in separate databases
         shell: bash
@@ -185,4 +195,5 @@ jobs:
         with:
           name: release-regression-results
           path: .test-artifacts/
+          include-hidden-files: true
           if-no-files-found: warn

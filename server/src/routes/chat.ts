@@ -13,6 +13,7 @@ import { detectChatMediaType, normalizeChatVideo, removeChatVideoFiles } from ".
  * переписку, подставив id в URL.
  */
 import type { FastifyInstance } from "fastify";
+import { noteConversationRoutes } from "./chat-notes.ts";
 import { unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -229,10 +230,10 @@ async function notifyRecipient(
 }
 
 const CONVERSATIONS_SELECT = `
-  SELECT c.id,
+  SELECT c.id, c.notes_owner_id, c.created_at AS conversation_created_at,
          pref.pinned_at, COALESCE(pref.is_favorite, false) AS is_favorite,
          other.id            AS participant_id,
-         op.name             AS participant_name,
+         COALESCE(c.notes_title, op.name) AS participant_name,
          op.city             AS participant_city,
          op.trust_level      AS participant_trust,
          other.last_seen_at  AS participant_last_seen,
@@ -259,8 +260,8 @@ const CONVERSATIONS_SELECT = `
     FROM conversations c
     JOIN conversation_participants me    ON me.conversation_id = c.id AND me.user_id = $1
     LEFT JOIN conversation_preferences pref ON pref.conversation_id = c.id AND pref.user_id = $1
-    JOIN conversation_participants their ON their.conversation_id = c.id AND their.user_id <> $1
-    JOIN users other    ON other.id = their.user_id
+    LEFT JOIN conversation_participants their ON their.conversation_id = c.id AND their.user_id <> $1
+    JOIN users other    ON other.id = COALESCE(their.user_id, c.notes_owner_id)
     JOIN profiles op    ON op.user_id = other.id
     LEFT JOIN LATERAL (
       SELECT text, created_at, author_id FROM messages
@@ -269,6 +270,7 @@ const CONVERSATIONS_SELECT = `
        ORDER BY created_at DESC LIMIT 1
     ) last_msg ON true
    WHERE me.archived_at IS NULL
+     AND (c.notes_owner_id IS NULL OR c.notes_owner_id = $1)
      AND other.deleted_at IS NULL
      AND NOT EXISTS (
            SELECT 1 FROM blocks b
@@ -281,6 +283,8 @@ const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
 interface ConversationRow {
   id: string;
+  notes_owner_id: string | null;
+  conversation_created_at: Date;
   pinned_at: Date | null;
   is_favorite: boolean;
   participant_id: string;
@@ -298,25 +302,27 @@ interface ConversationRow {
 }
 
 function toConversationDto(row: ConversationRow, userId: string) {
+  const isNotes = row.notes_owner_id !== null;
   const lastFromMe = row.last_author_id === userId;
   return {
     id: row.id,
+    kind: isNotes ? "notes" as const : "direct" as const,
     participant: {
       id: row.participant_id,
       name: row.participant_name,
       city: row.participant_city ?? undefined,
       trustLevel: row.participant_trust,
-      avatarUrl: row.avatar_url ?? undefined,
-      online: row.participant_last_seen
+      avatarUrl: isNotes ? undefined : row.avatar_url ?? undefined,
+      online: !isNotes && row.participant_last_seen
         ? Date.now() - row.participant_last_seen.getTime() < ONLINE_WINDOW_MS
         : false,
     },
     lastMessage: row.last_message ?? "",
-    lastMessageAt: (row.last_message_at ?? new Date()).toISOString(),
+    lastMessageAt: (row.last_message_at ?? row.conversation_created_at).toISOString(),
     unreadCount: row.unread_count,
     // «Ждёт ответа»: последнее слово за собеседником.
     awaitingReply: Boolean(row.last_message_at) && !lastFromMe,
-    sharedInterests: row.shared_interests ?? [],
+    sharedInterests: isNotes ? [] : row.shared_interests ?? [],
     lastMessageFromMe: lastFromMe,
     // Моё последнее сообщение собеседник уже прочитал — те же данные, что у двойных галочек в диалоге.
     lastMessageRead: lastFromMe && Boolean(row.last_read_by_peer),
@@ -328,6 +334,7 @@ function toConversationDto(row: ConversationRow, userId: string) {
 
 export async function chatRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
+  await noteConversationRoutes(app);
 
   app.get("/conversations", async (request) => {
     const userId = currentUserId(request);

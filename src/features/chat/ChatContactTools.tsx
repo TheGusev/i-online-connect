@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { Plus, StickyNote, UserRoundSearch, UserPlus } from 'lucide-react';
+import { NoteChatForm } from './NoteChatControls';
 import { useLocation, useNavigate } from '@tanstack/react-router';
 import { useQuery } from '@tanstack/react-query';
 import { QRCodeSVG } from 'qrcode.react';
@@ -13,7 +15,7 @@ export function ChatContactTools() {
   const navigate = useNavigate();
   const status = useSessionStore(s => s.status);
   const userId = useSessionStore(s => s.user?.id);
-  const [sheet, setSheet] = useState<'people' | 'invite' | null>(null);
+  const [sheet, setSheet] = useState<'actions' | 'people' | 'invite' | 'notes' | null>(null);
   const [q, setQ] = useState('');
   const [debounced, setDebounced] = useState('');
   const [invite, setInvite] = useState<PersonalInvite | null>(null);
@@ -45,11 +47,42 @@ export function ChatContactTools() {
     } catch (cause) { if (!(cause instanceof DOMException && cause.name === 'AbortError')) setError(message(cause)); }
   };
   return <>
-    <style>{`body:has([data-contacts-tools]) main{padding-bottom:calc(9.5rem + env(safe-area-inset-bottom))}`}</style>
-    <div data-contacts-tools data-no-swipe className="fixed bottom-[calc(5.5rem+env(safe-area-inset-bottom))] right-4 z-40 flex gap-2 rounded-2xl border border-border bg-background p-2 shadow-lg lg:bottom-6 lg:right-6">
-      <Button size="sm" onClick={() => { setError(''); setNotice(''); setSheet('people'); }}>Найти людей</Button>
-      <Button size="sm" variant="secondary" onClick={() => { setError(''); setNotice(''); setSheet('invite'); }}>Пригласить в чат</Button>
-    </div>
+    <button
+      type="button"
+      data-no-swipe
+      aria-label="Новый чат"
+      title="Новый чат"
+      aria-haspopup="dialog"
+      aria-expanded={sheet !== null}
+      onClick={() => { setError(''); setNotice(''); setSheet('actions'); }}
+      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <Plus className="size-5" aria-hidden="true" />
+    </button>
+    <BottomSheet open={sheet === 'actions'} onClose={() => setSheet(null)} title="Новый чат">
+      <div className="space-y-2" data-no-swipe>
+        <Button fullWidth variant="ghost" className="justify-start"
+          onClick={() => { setError(''); setNotice(''); setSheet('notes'); }}>
+          <StickyNote className="size-5" aria-hidden="true" />
+          Создать чат для заметок
+        </Button>
+        <Button fullWidth variant="ghost" className="justify-start"
+          onClick={() => { setError(''); setNotice(''); setSheet('people'); }}>
+          <UserRoundSearch className="size-5" aria-hidden="true" />
+          Найти людей
+        </Button>
+        <Button fullWidth variant="ghost" className="justify-start"
+          onClick={() => { setError(''); setNotice(''); setSheet('invite'); }}>
+          <UserPlus className="size-5" aria-hidden="true" />
+          Пригласить в чат
+        </Button>
+      </div>
+    </BottomSheet>
+    <BottomSheet open={sheet === 'notes'} onClose={() => setSheet(null)} title="Новый чат для заметок">
+      {sheet === 'notes'
+        ? <NoteChatForm key={userId} onDone={() => setSheet(null)} />
+        : null}
+    </BottomSheet>
     <BottomSheet open={sheet === 'people'} onClose={() => setSheet(null)} title="Найти людей">
       <div className="space-y-4" data-no-swipe>
         <Input label="Имя пользователя" hint="Введите минимум 2 символа" value={q} maxLength={80} onChange={event => setQ(event.target.value)} />

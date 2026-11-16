@@ -27,6 +27,7 @@ export interface ConversationParticipant extends Pick<User, "id" | "name" | "onl
 
 export interface Conversation {
   id: string;
+  kind?: "direct" | "notes";
   participant: ConversationParticipant;
   lastMessage: string;
   lastMessageAt: string;

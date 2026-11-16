@@ -20,7 +20,10 @@ export function ConversationDangerActions({
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["chat"] });
 
   const remove = async () => {
-    if (!window.confirm(`Удалить чат с ${name}? История исчезнет только у вас, у собеседника она сохранится.`)) return;
+    const confirmation = conversation.kind === "notes"
+      ? `Убрать чат «${name}» из списка? Записи будут скрыты.`
+      : `Удалить чат с ${name}? История исчезнет только у вас, у собеседника она сохранится.`;
+    if (!window.confirm(confirmation)) return;
     setBusy("delete");
     try {
       await chatEndpoints.deleteConversation(conversation.id);
@@ -53,12 +56,14 @@ export function ConversationDangerActions({
     <>
       <Button fullWidth variant="ghost" className="justify-start" disabled={busy !== null} onClick={remove}>
         <Trash2 aria-hidden="true" />
-        Удалить чат
+        {conversation.kind === "notes" ? "Убрать чат заметок" : "Удалить чат"}
       </Button>
+      {conversation.kind !== "notes" ? (
       <Button fullWidth variant="ghost" className="justify-start text-destructive" disabled={busy !== null} onClick={block}>
         <Ban aria-hidden="true" />
         Заблокировать
       </Button>
+      ) : null}
     </>
   );
 }

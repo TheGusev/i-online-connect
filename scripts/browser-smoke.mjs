@@ -61,16 +61,34 @@ try {
   for (const mode of [
     "list", "existing-thread", "people", "invite",
     "invite-accept", "invite-cancel", "invite-resume", "invite-account-mismatch",
-    "city-select", "city-retry"
+    "city-select", "city-retry",
+    "compact-320", "compact-390", "compact-desktop",
+    "notes-create", "notes-rename"
   ]) {
     const context = await browser.newContext({
       serviceWorkers: "block",
-      viewport: { width: 390, height: 844 }
+      viewport: { width: mode === "compact-320" ? 320 : mode === "compact-desktop" ? 1280 : 390, height: 844 }
     });
     const errors = [];
     const unknown = new Set();
     const missing = new Set();
     const requests = [];
+    const noteId = "77777777-7777-4777-8777-777777777777";
+    let noteCreated = mode === "notes-rename";
+    let noteTitle = "Аудит заметок";
+    const noteMessages = [];
+    const noteConversation = () => ({
+      ...conversation,
+      id: noteId,
+      kind: "notes",
+      participant: {
+        id: me, name: noteTitle, online: false, trustLevel: "new"
+      },
+      lastMessage: noteMessages.at(-1)?.text ?? "",
+      lastMessageFromMe: noteMessages.length > 0,
+      unreadCount: 0,
+      awaitingReply: false,
+    });
     let cityConfirmed = false;
     let citySaveAttempts = 0;
     let expectedSaveErrors = 0;
@@ -174,9 +192,49 @@ try {
             }
             return json({ conversationId: cid, created: false });
           }
-          return json([conversation]);
+          return json([conversation, ...(noteCreated ? [noteConversation()] : [])]);
         }
 
+        if (p === "/api/chat/blocks") return json([]);
+        if (p === "/api/chat/notes" && req.method() === "POST") {
+          const body = req.postDataJSON();
+          if (!body?.title?.trim() || !body?.clientTempId) {
+            throw new Error("Invalid notes creation request");
+          }
+          noteCreated = true;
+          noteTitle = body.title;
+          return json({ conversationId: noteId });
+        }
+        if (p === `/api/chat/notes/${noteId}` && req.method() === "PATCH") {
+          noteTitle = req.postDataJSON().title;
+          return json({ conversationId: noteId, title: noteTitle });
+        }
+        if (p === `/api/chat/conversations/${noteId}`) {
+          return json(noteConversation());
+        }
+        if (p === `/api/chat/conversations/${noteId}/messages`) {
+          if (req.method() === "POST") {
+            const body = req.postDataJSON();
+            let item = noteMessages.find(x => x.clientTempId === body.clientTempId);
+            if (!item) {
+              item = {
+                id: "88888888-8888-4888-8888-888888888888",
+                conversationId: noteId,
+                authorId: me,
+                text: body.text,
+                clientTempId: body.clientTempId,
+                createdAt: new Date().toISOString(),
+                kind: "text", status: "sent", reactions: []
+              };
+              noteMessages.push(item);
+            }
+            return json(item);
+          }
+          return json({ items: noteMessages, hasMore: false, nextBefore: null });
+        }
+        if (p === `/api/contacts/conversations/${noteId}/origin`) {
+          return json({ origin: null });
+        }
         if (p === "/api/contacts/search") {
           const q = (url.searchParams.get("q") || "").toLowerCase();
           return json({
@@ -395,7 +453,10 @@ try {
       }
 
       if (mode === "list") {
-        const search = page.getByLabel("Поиск по моим чатам");
+        await page.getByRole("button", {
+          name: "Поиск по чатам", exact: true
+        }).click();
+        const search = page.getByLabel("Поиск по чатам", { exact: true });
         await search.fill("AUDIT PEER");
         await page.getByText("Audit Peer", { exact: true })
           .first().waitFor({ state: "visible", timeout: 5000 });
@@ -412,7 +473,7 @@ try {
         console.log("PASS search: unmatched name hides conversation");
 
         await page.getByRole("button", {
-          name: "Очистить поиск", exact: true
+          name: "Закрыть поиск", exact: true
         }).click();
         await page.getByText("Audit Peer", { exact: true })
           .first().waitFor({ state: "visible", timeout: 5000 });
@@ -426,6 +487,9 @@ try {
       }
 
       if (mode === "people") {
+        await page.getByRole("button", {
+          name: "Новый чат", exact: true
+        }).click();
         await page.getByRole("button", {
           name: "Найти людей", exact: true
         }).click();
@@ -478,6 +542,9 @@ try {
 
       if (mode === "invite") {
         await page.getByRole("button", {
+          name: "Новый чат", exact: true
+        }).click();
+        await page.getByRole("button", {
           name: "Пригласить в чат", exact: true
         }).click();
         await page.getByRole("button", {
@@ -513,6 +580,160 @@ try {
           throw new Error("Revoke API was not called");
         }
         console.log("PASS invite: revoke removes invitation from UI");
+      }
+
+      if (mode.startsWith("compact-")) {
+        const searchToggle = page.getByRole("button", {
+          name: "Поиск по чатам", exact: true
+        });
+        await searchToggle.waitFor({ state: "visible" });
+        if (await searchToggle.getAttribute("aria-expanded") !== "false") {
+          throw new Error("Search toggle is expanded initially");
+        }
+        if (await page.getByRole("textbox", {
+          name: "Поиск по чатам", exact: true
+        }).count()) {
+          throw new Error("Search textbox is visible initially");
+        }
+        if (await page.locator("#chat-list-search").isVisible()) {
+          throw new Error("Search container is visible initially");
+        }
+        if (await page.locator("[data-contacts-tools]").count()) {
+          throw new Error("Old floating toolbar remains");
+        }
+        const labels = [
+          "Все", "Избранное", "Неотвеченные", "Заблокированные",
+          "Поиск по чатам", "Новый чат"
+        ];
+        const boxes = [];
+        for (const label of labels) {
+          const button = page.getByRole("button", { name: label, exact: true });
+          await button.waitFor({ state: "visible" });
+          const box = await button.boundingBox();
+          if (!box || box.x < -1 ||
+              box.x + box.width > page.viewportSize().width + 1) {
+            throw new Error("Toolbar button outside viewport: " + label);
+          }
+          boxes.push(box);
+        }
+        if (Math.max(...boxes.map(x => x.y)) -
+            Math.min(...boxes.map(x => x.y)) > 3) {
+          throw new Error("Toolbar wraps to multiple rows");
+        }
+        for (let i = 1; i < boxes.length; i++) {
+          if (boxes[i].x < boxes[i-1].x + boxes[i-1].width - 1) {
+            throw new Error("Toolbar buttons overlap");
+          }
+        }
+        if (await page.evaluate(() =>
+          document.documentElement.scrollWidth > innerWidth + 1
+        )) throw new Error("Horizontal page overflow");
+
+        await page.getByRole("button", {
+          name: "Избранное", exact: true
+        }).click();
+        await page.getByText("Здесь будут важные чаты", {
+          exact: true
+        }).waitFor({ state: "visible" });
+        await page.waitForFunction(() =>
+          document.querySelector('button[aria-label="Избранное"]')
+            ?.getAttribute("aria-pressed") === "true"
+        );
+
+        await page.getByRole("button", {
+          name: "Неотвеченные", exact: true
+        }).click();
+        await page.getByText("Нет неотвеченных чатов", {
+          exact: true
+        }).waitFor({ state: "visible" });
+
+        await page.getByRole("button", {
+          name: "Все", exact: true
+        }).click();
+        await page.getByText("Audit Peer", {
+          exact: true
+        }).waitFor({ state: "visible" });
+
+        await page.screenshot({
+          path: path.join(out, mode + "-toolbar.png"), fullPage: true
+        });
+        await page.getByRole("button", {
+          name: "Заблокированные", exact: true
+        }).click();
+        await page.getByText("Вы никого не блокировали", {
+          exact: true
+        }).waitFor({ state: "visible" });
+        console.log("PASS compact: one row, no overlap, filters and blocks work");
+      }
+
+      if (mode === "notes-create") {
+        await page.getByRole("button", {
+          name: "Новый чат", exact: true
+        }).click();
+        await page.getByRole("button", {
+          name: "Создать чат для заметок", exact: true
+        }).click();
+        const title = page.getByLabel("Название чата", { exact: true });
+        await title.fill("Аудит заметок");
+        await page.getByRole("button", {
+          name: "Создать чат", exact: true
+        }).click();
+        await page.waitForURL(origin + "/chat/" + noteId);
+        await page.getByText("Только для вас", {
+          exact: true
+        }).waitFor({ state: "visible" });
+        if (noteMessages.length !== 0) {
+          throw new Error("Note chat was created with a fake message");
+        }
+        if (await page.getByRole("button", {
+          name: "Предложить встречу", exact: true
+        }).count()) throw new Error("Meeting action shown in notes");
+
+        await page.getByRole("textbox", {
+          name: "Сообщение", exact: true
+        }).fill("ЗАМЕТКА_БРАУЗЕР_СОХРАНЕНА");
+        await page.getByRole("button", {
+          name: "Отправить", exact: true
+        }).click();
+        await page.waitForFunction(() =>
+          document.querySelector("textarea")?.value === ""
+        );
+        await page.waitForTimeout(300);
+        if (noteMessages.length !== 1) {
+          throw new Error("Expected exactly one saved note");
+        }
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await page.getByText("ЗАМЕТКА_БРАУЗЕР_СОХРАНЕНА", {
+          exact: true
+        }).waitFor({ state: "visible" });
+        console.log("PASS notes: create empty, save text, reload restores text");
+      }
+
+      if (mode === "notes-rename") {
+        await page.getByRole("link").filter({
+          hasText: "Аудит заметок"
+        }).click();
+        await page.waitForURL(origin + "/chat/" + noteId);
+        await page.getByRole("button", {
+          name: "Переименовать заметки", exact: true
+        }).click();
+        await page.getByLabel("Название чата", {
+          exact: true
+        }).fill("Рабочие записи");
+        await page.getByRole("button", {
+          name: "Сохранить название", exact: true
+        }).click();
+        await page.getByText("Рабочие записи", {
+          exact: true
+        }).first().waitFor({ state: "visible" });
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await page.getByText("Рабочие записи", {
+          exact: true
+        }).waitFor({ state: "visible" });
+        if (noteTitle !== "Рабочие записи") {
+          throw new Error("Rename did not reach API");
+        }
+        console.log("PASS notes: rename survives reload");
       }
 
       const acceptCalls = () => requests.filter(r =>

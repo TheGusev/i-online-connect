@@ -237,6 +237,9 @@ try {
   const first = await session(owner);
   await first.page.goto(origin + "/chat");
   await first.page.getByRole("button", {
+    name: "Новый чат", exact: true
+  }).click();
+  await first.page.getByRole("button", {
     name: "Пригласить в чат", exact: true
   }).click();
   await first.page.getByRole("button", {
@@ -307,6 +310,92 @@ try {
   );
   assert.equal(communities.rows[0].n, 14);
   stage = "PASS browser city selection persisted; 14 regional demos created"; console.log("PASS browser city selection persisted; 14 regional demos created");
+
+  stage = "create private notes through real browser and API";
+  await first.page.goto(origin + "/chat");
+  await first.page.getByRole("button", {
+    name: "Новый чат", exact: true
+  }).click();
+  await first.page.getByRole("button", {
+    name: "Создать чат для заметок", exact: true
+  }).click();
+  await first.page.getByLabel("Название чата", {
+    exact: true
+  }).fill("Сквозные заметки");
+  await first.page.getByRole("button", {
+    name: "Создать чат", exact: true
+  }).click();
+  await first.page.waitForURL(/\/chat\/[0-9a-f-]{36}$/, {
+    timeout: 15000
+  });
+  const notesId = new URL(first.page.url()).pathname.split("/").pop();
+  assert.notEqual(notesId, conversationId);
+  await first.page.getByText("Только для вас", {
+    exact: true
+  }).waitFor({ state: "visible" });
+
+  const noteRow = await pool.query(
+    `SELECT notes_owner_id, notes_title,
+       (SELECT count(*)::int FROM messages
+         WHERE conversation_id=c.id) AS messages,
+       (SELECT count(*)::int FROM conversation_participants
+         WHERE conversation_id=c.id) AS participants
+     FROM conversations c WHERE id=$1`,
+    [notesId]
+  );
+  assert.equal(noteRow.rows[0].notes_owner_id, owner);
+  assert.equal(noteRow.rows[0].notes_title, "Сквозные заметки");
+  assert.equal(noteRow.rows[0].messages, 0);
+  assert.equal(noteRow.rows[0].participants, 1);
+
+  const noteText = "REAL_PRIVATE_NOTE_" + randomUUID();
+  await first.page.getByRole("textbox", {
+    name: "Сообщение", exact: true
+  }).fill(noteText);
+  const noteResponse = first.page.waitForResponse(response =>
+    new URL(response.url()).pathname ===
+      "/api/chat/conversations/" + notesId + "/messages" &&
+    response.request().method() === "POST"
+  );
+  await first.page.getByRole("button", {
+    name: "Отправить", exact: true
+  }).click();
+  assert.equal((await noteResponse).status(), 200);
+  await first.page.reload({ waitUntil: "domcontentloaded" });
+  await first.page.getByText(noteText, {
+    exact: true
+  }).waitFor({ state: "visible", timeout: 15000 });
+
+  await first.page.getByRole("button", {
+    name: "Переименовать заметки", exact: true
+  }).click();
+  await first.page.getByLabel("Название чата", {
+    exact: true
+  }).fill("Проверенные заметки");
+  await first.page.getByRole("button", {
+    name: "Сохранить название", exact: true
+  }).click();
+  await first.page.getByText("Проверенные заметки", {
+    exact: true
+  }).first().waitFor({ state: "visible", timeout: 15000 });
+
+  const renamed = await pool.query(
+    "SELECT notes_title FROM conversations WHERE id=$1", [notesId]
+  );
+  assert.equal(renamed.rows[0].notes_title, "Проверенные заметки");
+
+  const otherAccountList = await second.page.evaluate(async () => {
+    const response = await fetch("/api/chat/conversations", {
+      headers: {
+        Authorization: "Bearer " + localStorage.getItem("ya-online.token")
+      }
+    });
+    return { status: response.status, items: await response.json() };
+  });
+  assert.equal(otherAccountList.status, 200);
+  assert.equal(otherAccountList.items.some(item => item.id === notesId), false);
+  stage = "PASS real browser notes create, persist, rename and stay private";
+  console.log(stage);
 
   await first.page.screenshot({ path: path.join(out, "owner-chat.png") });
   await second.page.screenshot({ path: path.join(out, "recipient-city.png") });
