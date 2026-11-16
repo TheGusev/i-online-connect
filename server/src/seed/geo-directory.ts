@@ -5,6 +5,17 @@ import { cityKey } from './regional-policy.ts';
 const SOURCE = 'https://download.geonames.org/export/dump/RU.zip';
 const MAX_ZIP = 64 * 1024 * 1024;
 const MAX_TEXT = 256 * 1024 * 1024;
+const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
+  let crc = n;
+  for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ ((crc & 1) ? 0xedb88320 : 0);
+  return crc >>> 0;
+});
+
+function crc32(data: Buffer): number {
+  let crc = 0xffffffff;
+  for (const byte of data) crc = (crc >>> 8) ^ CRC_TABLE[(crc ^ byte) & 0xff]!;
+  return (crc ^ 0xffffffff) >>> 0;
+}
 
 function extractCountry(zip: Buffer): string {
   let end = zip.length - 22;
@@ -31,6 +42,7 @@ function extractCountry(zip: Buffer): string {
       const packed = zip.subarray(start, start + size);
       const raw = method === 0 ? packed : method === 8 ? inflateRawSync(packed, { maxOutputLength: MAX_TEXT }) : null;
       if (!raw || raw.length !== rawSize) throw new Error('Unsupported or corrupt ZIP member');
+      if (crc32(raw) !== zip.readUInt32LE(offset + 16)) throw new Error('ZIP checksum mismatch');
       return raw.toString('utf8');
     }
     offset += 46 + nameSize + extraSize + commentSize;
@@ -111,6 +123,7 @@ export async function syncGeoDirectory(): Promise<void> {
       const place = group[0]!;
       records.push({ id: place.id, city: place.city, normalized_name: place.key, region_id: regions.get(place.admin)! });
     }
+    if (records.length === 0) throw new Error('No usable regional records in GeoNames directory');
     await client.query(
       `INSERT INTO geo_places(id, city, normalized_name, region_id, source)
        SELECT x.id, x.city, x.normalized_name, x.region_id, $2
