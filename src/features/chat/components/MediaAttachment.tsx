@@ -1,3 +1,5 @@
+import { API_URL } from "@/api/client";
+import { videoPosterUrl } from "../video-poster";
 /**
  * Фото и видео внутри пузыря сообщения.
  *
@@ -39,15 +41,18 @@ export function MediaAttachment({
 }) {
   const [lightbox, setLightbox] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [playing, setPlaying] = useState(false);
   const badge = overlay ? (
-    <span className="pointer-events-none absolute inset-x-1.5 bottom-1.5 flex flex-wrap items-center justify-between gap-1">
+    <span className={cn(
+      "pointer-events-none absolute inset-x-1.5 z-10 flex flex-wrap items-center justify-between gap-1",
+      kind === "video" && playing ? "bottom-12" : "bottom-1.5",
+    )}>
       {overlayStart ?? <span />}
       <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-background/60 px-1.5 py-0.5 text-[11px] font-medium text-foreground backdrop-blur-sm">
         {overlay}
       </span>
     </span>
   ) : null;
-  const [playing, setPlaying] = useState(false);
   // blob:-предпросмотр отдаём как есть, серверный путь разворачиваем в абсолютный.
   const url = src.startsWith("blob:") ? src : (mediaUrl(src) ?? src);
   const dimensions = getPhotoDimensions(message?.id) ?? getPhotoDimensions(src);
@@ -56,19 +61,20 @@ export function MediaAttachment({
     return (
       <div
         className={cn(
-          "chat-media-frame chat-media-glow relative overflow-hidden rounded-2xl bg-secondary",
+          "chat-media-frame chat-media-glow relative aspect-[4/3] overflow-hidden rounded-2xl bg-secondary",
           className,
         )}
       >
         <video
           src={url}
+          poster={videoPosterUrl(src, API_URL)}
           controls={playing}
           playsInline
           preload="metadata"
-          className="max-h-72 w-full max-w-full object-contain"
+          className="size-full object-contain"
           onPlay={() => setPlaying(true)}
         />
-        {!playing ? badge : null}
+        {badge}
         {!playing ? (
           <button
             type="button"

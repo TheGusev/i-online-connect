@@ -1,3 +1,4 @@
+import { detectChatMediaType, normalizeChatVideo, removeChatVideoFiles } from "../media/chat-video.ts";
 /**
  * GET  /api/chat/conversations
  * GET  /api/chat/conversations/:id
@@ -819,9 +820,9 @@ export async function chatRoutes(app: FastifyInstance) {
     }
     if (!buffer || buffer.length < 512) throw badRequest("Файл пустой — выберите другой");
     // Content-Type от клиента не проверяем: тип определяется по содержимому файла.
-    const type = detectMediaType(buffer);
+    const type = detectChatMediaType(buffer);
     if (!type || type.kind === "audio") {
-      throw badRequest("Поддерживаем фото JPEG/PNG/WebP и видео MP4/WebM");
+      throw badRequest("Поддерживаем фото JPEG/PNG/WebP и видео MP4/MOV/WebM/MKV/AVI/3GP");
     }
     assertChatMediaSize(type, buffer.length);
 
@@ -840,15 +841,26 @@ export async function chatRoutes(app: FastifyInstance) {
     if (existing) return toMessageDto(existing, await loadReply(existing.reply_to_id));
 
     const saved = await saveChatMediaFile(userId, buffer, type);
+    const originalPath = saved.filePath;
+    let generatedPoster: string | undefined;
     try {
       let durationMs: number | null = null;
       if (type.kind === "video") {
-        const measured = await mediaDurationMs(saved.filePath).catch(() => 0);
-        if (measured < 200) throw badRequest("Не удалось прочитать видео — попробуйте другой файл");
-        if (measured > MAX_CHAT_VIDEO_MS + 1000) {
-          throw badRequest("Видео длиннее 60 секунд — обрежьте его и отправьте снова");
+        let normalized;
+        try {
+          normalized = await normalizeChatVideo(saved.filePath);
+        } catch (error) {
+          const busy = error instanceof Error && /processor busy/i.test(error.message);
+          throw badRequest(busy
+            ? "Обработка видео занята — повторите отправку через несколько секунд"
+            : "Не удалось обработать видео: проверьте формат, размер и длительность до 60 секунд");
         }
-        durationMs = Math.min(measured, MAX_CHAT_VIDEO_MS + 1000);
+        saved.filePath = normalized.filePath;
+        saved.url = normalized.url;
+        generatedPoster = normalized.posterPath;
+        type.mime = normalized.mime;
+        durationMs = normalized.durationMs;
+        await unlink(originalPath).catch(() => undefined);
       }
       const kind = type.kind === "photo" ? "image" : "video";
       const row = await queryOne<MessageRow>(
@@ -878,6 +890,12 @@ export async function chatRoutes(app: FastifyInstance) {
       return message;
     } catch (error) {
       await unlink(saved.filePath).catch(() => undefined);
+      if (originalPath !== saved.filePath) {
+        await unlink(originalPath).catch(() => undefined);
+      }
+      if (generatedPoster) {
+        await unlink(generatedPoster).catch(() => undefined);
+      }
       throw error;
     }
   });
@@ -972,6 +990,9 @@ export async function chatRoutes(app: FastifyInstance) {
       }
 
       if (current.kind === "file" && current.media_url) await removeDocument(current.media_url);
+      if (current.kind === "video" && current.media_url) {
+        await removeChatVideoFiles(current.media_url);
+      }
       publishChatEvent(id, { type: "message-deleted", conversationId: id, messageId });
       return { id: messageId, deleted: true as const };
     },

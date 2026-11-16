@@ -24,9 +24,20 @@ export async function saveChatFile(url: string, name: string, image = false): Pr
         "image/webp": "webp",
         "image/gif": "gif",
         "image/jpeg": "jpg",
+        "video/mp4": "mp4",
+        "video/webm": "webm",
+        "video/quicktime": "mov",
+        "video/x-matroska": "mkv",
+        "video/3gpp": "3gp",
+        "video/x-msvideo": "avi",
       } as Record<string, string>
-    )[blob.type];
-    const resolvedName = image && extension ? name.replace(/\.[^.]+$/, `.${extension}`) : name;
+    )[blob.type.split(";")[0]!.trim().toLowerCase()];
+    const video = blob.type.toLowerCase().startsWith("video/");
+    const resolvedName = (image || video) && extension
+      ? /\.[^.]+$/.test(name)
+        ? name.replace(/\.[^.]+$/, `.${extension}`)
+        : `${name}.${extension}`
+      : name;
     const file = new File([blob], resolvedName, { type: blob.type });
     const ios =
       /iPad|iPhone|iPod/.test(navigator.userAgent) ||

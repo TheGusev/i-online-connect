@@ -1,3 +1,4 @@
+import { chatMediaKind } from "../media-kind";
 import { Image as ImageIcon, Mic, Video, Pencil, Reply, SendHorizontal, Square, Trash2, X, Paperclip } from "lucide-react";
 import { buzz, hapticTrigger } from "@/lib/haptics";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -117,8 +118,8 @@ export function ChatComposer({
   const pickFiles = async (list: File[]) => {
     if (list.length === 0) return;
     setMediaError(null);
-    const videos = list.filter((file) => file.type.startsWith("video/"));
-    const images = list.filter((file) => !file.type.startsWith("video/"));
+    const videos = list.filter((file) => chatMediaKind(file) === "video");
+    const images = list.filter((file) => chatMediaKind(file) !== "video");
     if (!onPhotos || (images.length === 0 && videos.length === 1)) {
       if (images.length === 0 && videos.length === 1) return pickMedia(videos[0]);
       return pickMedia(list[0]);
@@ -270,8 +271,7 @@ export function ChatComposer({
                 {onFile ? <>
                   <input ref={documentRef} type="file" accept={`${FILE_ACCEPT},image/*,video/*,.heic,.heif,${CHAT_MEDIA_ACCEPT}`} multiple={Boolean(onPhotos)} className="hidden" aria-label="Выбрать файл" onChange={event => {
                     refreshViewportAfterPicker(); const list = Array.from(event.target.files ?? []); event.target.value = "";
-                    const mediaExt = ["jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "avif", "bmp", "mp4", "mov", "m4v", "webm"];
-                    const isMedia = (f: File) => mediaExt.includes(f.name.split(".").pop()?.toLowerCase() ?? "") || f.type.startsWith("video/");
+                    const isMedia = (f: File) => chatMediaKind(f) !== null;
                     const media = list.filter(isMedia);
                     if (media.length > 0 && (onMedia || onPhotos)) { void pickFiles(media); return; }
                     const file = list.find((f) => !isMedia(f)) ?? list[0]; if (!file) return;

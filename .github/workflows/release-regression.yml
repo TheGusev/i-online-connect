@@ -3,7 +3,7 @@ name: Release regression
 on:
   pull_request:
   push:
-    branches: [prod, 'integration/**']
+    branches: [prod, 'integration/**', 'fix/chat-video-media-20261116']
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   regression:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     services:
       postgres:
@@ -82,6 +82,18 @@ jobs:
           npm run migrate --prefix server
           test "$(psql -d ci_schema -Atc 'SELECT count(*) FROM schema_migrations')" = 43
 
+      - name: Video normalization and private poster API
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .test-artifacts/video
+          node --experimental-strip-types --test server/scripts/chat-video.integration.test.mjs \
+            2>&1 | tee .test-artifacts/video/normalization.tap
+          createdb --template=ci_schema video_api_ci
+          DATABASE_URL=postgresql://audit:audit_ci_only@127.0.0.1:5432/video_api_ci \
+            node --experimental-strip-types --test server/scripts/chat-video-api.integration.test.mjs \
+            2>&1 | tee .test-artifacts/video/api.tap
+
       - name: Existing server tests in separate databases
         shell: bash
         run: |
@@ -149,6 +161,24 @@ jobs:
           ADMIN_LOG_FILE="$RUNNER_TEMP/real-api/admin.log" \
           timeout --kill-after=10s 180s \
           node --experimental-strip-types server/scripts/browser-real-api.integration.mjs
+
+      - name: Video browser upload, reactions, recipient and gallery
+        shell: bash
+        run: |
+          set -euo pipefail
+          createdb --template=ci_schema browser_e2e_video_ci
+          work="$RUNNER_TEMP/video-browser"
+          mkdir -p "$work/media" "$work/verification" .test-artifacts/video-browser
+          export DATABASE_URL=postgresql://audit:audit_ci_only@127.0.0.1:5432/browser_e2e_video_ci
+          export APP_ROOT="$GITHUB_WORKSPACE" BROWSER_TOOLS="$GITHUB_WORKSPACE"
+          export ARTIFACT_DIR="$GITHUB_WORKSPACE/.test-artifacts/video-browser"
+          export MEDIA_DIR="$work/media" VERIFICATION_DIR="$work/verification"
+          export MEDIA_BASE_URL=/api/media-file PUBLIC_BASE_URL=https://xn--41a.site
+          export ABUSE_LOG_FILE="$work/abuse.log" ADMIN_LOG_FILE="$work/admin.log"
+          export TMPDIR="$(mktemp -d /tmp/ya-pw-XXXXXXXX)"
+          timeout --kill-after=15s 300s \
+            node --experimental-strip-types server/scripts/browser-video.integration.mjs \
+            2>&1 | tee .test-artifacts/video-browser/run.log
 
       - uses: actions/upload-artifact@v4
         if: always()

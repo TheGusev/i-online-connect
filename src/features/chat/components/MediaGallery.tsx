@@ -1,3 +1,5 @@
+import { API_URL } from "@/api/client";
+import { videoPosterUrl } from "../video-poster";
 /**
  * Галерея всех фото и видео диалога или сообщества.
  *
@@ -180,7 +182,7 @@ export function MediaGallery({
                 >
                   {item.kind === "video" ? (
                     <>
-                      <video src={`${url}#t=0.1`} preload="metadata" muted playsInline className="size-full object-cover" />
+                      <video src={`${url}#t=0.1`} poster={videoPosterUrl(item.mediaUrl, API_URL)} preload="metadata" muted playsInline className="size-full object-cover" />
                       <span className="absolute inset-0 grid place-items-center">
                         <span className="grid size-8 place-items-center rounded-full bg-primary/90 text-primary-foreground shadow-glow">
                           <Play className="size-4" aria-hidden="true" />
@@ -364,9 +366,9 @@ function GalleryViewerReady({
               <div key={slide.id} className="grid h-full min-w-0 flex-[0_0_100%] place-items-center p-3">
                 {!near ? null : slide.kind === "video" ? (
                   i === index ? (
-                    <video src={src} controls playsInline autoPlay className="max-h-full max-w-full rounded-2xl" />
+                    <video src={src} poster={videoPosterUrl(slide.mediaUrl, API_URL)} controls playsInline autoPlay className="max-h-full max-w-full rounded-2xl" />
                   ) : (
-                    <video src={src} preload="metadata" playsInline muted className="max-h-full max-w-full rounded-2xl" />
+                    <video src={src} poster={videoPosterUrl(slide.mediaUrl, API_URL)} preload="metadata" playsInline muted className="max-h-full max-w-full rounded-2xl" />
                   )
                 ) : (
                   <div className="size-full overflow-hidden rounded-2xl" data-no-gesture>
@@ -394,8 +396,8 @@ function GalleryViewerReady({
           </Button>
         ) : null}
       </div>
-      {onShowInChat || extraActions || item.kind === "image" ? <div className="flex flex-wrap justify-center gap-2 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2" style={{ opacity: 1 - progress }}>
-        {item.kind === "image" ? <Button variant="secondary" onClick={() => void saveChatFile(item.mediaUrl, `photo-${item.id}.jpg`, true)}><Download />Сохранить</Button> : null}
+      {onShowInChat || extraActions || item.kind === "image" || item.kind === "video" ? <div className="flex flex-wrap justify-center gap-2 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2" style={{ opacity: 1 - progress }}>
+        {item.kind === "image" || item.kind === "video" ? <Button variant="secondary" onClick={() => void saveChatFile(item.mediaUrl, item.kind === "video" ? `video-${item.id}.mp4` : `photo-${item.id}.jpg`, item.kind === "image")}><Download />Сохранить</Button> : null}
         {extraActions?.(item)}
         {onShowInChat ? <Button
           type="button"

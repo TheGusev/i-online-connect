@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import { env } from "../env.ts";
 import { queryOne } from "../db.ts";
@@ -16,6 +18,11 @@ function privateFile(raw: string): string | null {
   let decoded: string;
   try { decoded = decodeURIComponent(pathname); }
   catch { return "!invalid"; }
+
+  if (decoded.startsWith("/api/chat-video-poster/")) {
+    const match = /^\/api\/chat-video-poster\/([0-9a-f-]{36})\/([0-9a-f-]{36})\.jpg$/i.exec(decoded);
+    return match ? `chat/${match[1]}/${match[2]}.mp4` : "!invalid";
+  }
 
   const prefix = prefixes.find(p => decoded.startsWith(p));
   if (!prefix) return null;
@@ -108,6 +115,34 @@ export function registerPrivateMediaGuard(app: FastifyInstance): void {
       return reply.code(403).send({ message: "Нет доступа" });
     }
   });
+
+  // onRequest above authorizes this JPEG against its parent MP4 message.
+  app.get<{ Params: { userId: string; name: string } }>(
+    "/api/chat-video-poster/:userId/:name",
+    async (request, reply) => {
+      const { userId, name } = request.params;
+      if (!/^[0-9a-f-]{36}$/i.test(userId) ||
+          !/^[0-9a-f-]{36}\.jpg$/i.test(name)) {
+        return reply.code(404).send({ message: "Не найдено" });
+      }
+      try {
+        const buffer = await readFile(
+          path.join(env.MEDIA_DIR, "chat", userId, name),
+        );
+        return reply
+          .header("Content-Type", "image/jpeg")
+          .header("Cache-Control", "private, no-store")
+          .header("Vary", "Cookie, Authorization")
+          .header("X-Content-Type-Options", "nosniff")
+          .send(buffer);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+          return reply.code(404).send({ message: "Превью отсутствует" });
+        }
+        throw error;
+      }
+    },
+  );
 
   app.addHook("onSend", async (request, reply, payload) => {
     const pathname = new URL(request.url, "http://local").pathname;
