@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { CityConfirmation } from "@/features/geo/CityConfirmation";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Compass } from "lucide-react";
@@ -41,7 +42,7 @@ function SpacesPage() {
   const { data: spaces, isPending, isError } = useSpaces();
   const createSpace = useCreateSpace();
   const navigate = useNavigate();
-  const userInterests = useSessionStore((state) => state.user?.interests ?? []);
+  const userInterests = useSessionStore((state) => state.user?.interests) ?? [];
 
   const list = (spaces ?? []).filter((space) => {
     if (tab === "mine") return space.isMember;
@@ -69,6 +70,7 @@ function SpacesPage() {
 
   return (
     <AppShell wide>
+      <CityConfirmation />
       <header className="mb-6">
         <WaveHeading as="h1" className="mt-3 text-3xl font-bold tracking-tight">
           Рабочие круги и сообщества по делу

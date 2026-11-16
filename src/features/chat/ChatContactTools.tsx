@@ -52,7 +52,7 @@ export function ChatContactTools() {
     </div>
     <BottomSheet open={sheet === 'people'} onClose={() => setSheet(null)} title="Найти людей">
       <div className="space-y-4" data-no-swipe>
-        <Input label="Имя пользователя" placeholder="Введите минимум 2 символа" value={q} maxLength={80} onChange={event => setQ(event.target.value)} />
+        <Input label="Имя пользователя" hint="Введите минимум 2 символа" value={q} maxLength={80} onChange={event => setQ(event.target.value)} />
         <p className="text-xs text-muted-foreground">Поиск по всем городам. Скрытые и заблокированные аккаунты не показываются.</p>
         {q.trim().length >= 2 && (q.trim() !== debounced || people.isFetching) ? <p role="status">Ищем…</p> : null}
         {people.isError ? <p role="alert" className="text-sm text-destructive">{message(people.error)}</p> : null}

@@ -45,3 +45,6 @@ android/capacitor-cordova-android-plugins/
 server/.env
 server/.env.*
 !server/.env.example
+
+# Local test output; never release generated screenshots or fixtures.
+.test-artifacts/

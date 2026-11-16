@@ -1,0 +1,60 @@
+name: GeoNames import - PostgreSQL integration
+on:
+  push:
+    branches: [feature/regional-demo-content]
+  pull_request:
+    paths:
+      - 'server/src/seed/**'
+      - 'server/migrations/**'
+      - 'server/scripts/geo-import.integration.test.mjs'
+      - '.github/workflows/geo-import-integration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: geo_ci
+          POSTGRES_PASSWORD: geo_ci_ephemeral_only
+          POSTGRES_DB: geo_import_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U geo_ci -d geo_import_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://geo_ci:geo_ci_ephemeral_only@127.0.0.1:5432/geo_import_ci
+      JWT_ACCESS_SECRET: ci-only-access-key-not-for-production-000000
+      JWT_REFRESH_SECRET: ci-only-refresh-key-not-for-production-00000
+      GEO_LIVE_TEST: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install server dependencies
+        working-directory: server
+        run: npm ci
+      - name: Apply repository migrations to disposable PostgreSQL
+        working-directory: server
+        run: npm run migrate
+      - name: Run actual importer against PostgreSQL
+        working-directory: server
+        run: |
+          set -o pipefail
+          node --experimental-strip-types --test scripts/geo-import.integration.test.mjs | tee geo-import-results.tap
+      - name: Preserve test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: geo-import-postgres-results
+          path: server/geo-import-results.tap
+          if-no-files-found: warn

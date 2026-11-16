@@ -18,7 +18,7 @@ test('PKCE S256 matches RFC 7636 concrete vector and both authorization requests
     assert.equal(url.searchParams.get('code_challenge'),pkceChallenge(flow.verifier));
     assert.equal(url.searchParams.get('state'),flow.state);
     assert.equal(url.searchParams.get('nonce'),flow.nonce);
-    assert.equal(url.searchParams.get('scope'),provider==='yandex'?'login:info login:email login:default_phone':'openid profile phone');
+    assert.equal(url.searchParams.get('scope'),provider==='yandex'?'login:info':'openid profile phone');
   }
 });
 test('signed 10-minute state cookie rejects tampering, wrong state/provider and expiry',()=>{

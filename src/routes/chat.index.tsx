@@ -56,7 +56,7 @@ function ChatListPage() {
       <div className="mb-4" data-no-swipe>
         <Input
           label="Поиск по моим чатам"
-          placeholder="Имя собеседника"
+          hint="Имя собеседника"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />

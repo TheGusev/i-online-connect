@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from '@tanstack/react-router';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useNavigate, useRouter } from '@tanstack/react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { BottomSheet, Button } from '@/components/ds';
@@ -22,6 +22,7 @@ function loadPending(): Pending | null {
 
 export function PersonalInviteBridge() {
   const navigate = useNavigate();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const status = useSessionStore(s => s.status);
   const user = useSessionStore(s => s.user);
@@ -31,18 +32,51 @@ export function PersonalInviteBridge() {
   const [error, setError] = useState('');
   const [retry, setRetry] = useState(0);
   const attempted = useRef('');
-  useEffect(() => {
-    setPending(loadPending());
-    const capture = () => {
-      const token = new URLSearchParams(window.location.hash.slice(1)).get('chatInvite');
-      if (!token || !TOKEN.test(token)) return;
-      setCandidate(token); setError('');
-      window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+  useLayoutEffect(() => {
+    const readHash = () => {
+      const value = new URLSearchParams(window.location.hash.slice(1)).get('chatInvite');
+      return value && TOKEN.test(value) ? value : null;
     };
-    capture();
+
+    // Preserve the initial token even if the landing page redirects to /chat.
+    // Do not mutate router-owned history during shell hydration.
+    let queuedToken = readHash();
+    let ready = false;
+
+    const capture = () => {
+      const token = readHash() ?? queuedToken;
+      if (!token) return;
+      if (!ready) {
+        queuedToken = token;
+        return;
+      }
+
+      queuedToken = null;
+      setCandidate(token);
+      setError('');
+
+      if (readHash() === token) {
+        window.history.replaceState(
+          window.history.state, '',
+          window.location.pathname + window.location.search,
+        );
+      }
+    };
+
+    const unsubscribe = router.subscribe('onRendered', () => {
+      if (!ready) {
+        ready = true;
+        setPending(loadPending());
+      }
+      capture();
+    });
+
     window.addEventListener('hashchange', capture);
-    return () => window.removeEventListener('hashchange', capture);
-  }, []);
+    return () => {
+      unsubscribe();
+      window.removeEventListener('hashchange', capture);
+    };
+  }, [router]);
   const token = candidate ?? pending?.token ?? '';
   const preview = useQuery({
     queryKey: ['contacts', 'invite-preview', token],

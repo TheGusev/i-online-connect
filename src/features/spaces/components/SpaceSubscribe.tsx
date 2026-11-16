@@ -8,9 +8,11 @@ import { Button } from "@/components/ds";
 /** Подписка прямо на карточке: тапы не открывают пространство. */
 export function SpaceSubscribe({ space }: { space: Space }) {
   const queryClient = useQueryClient();
-  const mutation = useMutation({
-    mutationFn: (join: boolean) =>
-      join ? spacesApi.joinSpace(space.id) : spacesApi.leaveSpace(space.id),
+  const mutation = useMutation<void, Error, boolean, { previous: Space[] | undefined }>({
+    mutationFn: async (join: boolean): Promise<void> => {
+      if (join) await spacesApi.joinSpace(space.id);
+      else await spacesApi.leaveSpace(space.id);
+    },
     onMutate: async (join) => {
       await queryClient.cancelQueries({ queryKey: ["spaces"], exact: true });
       const previous = queryClient.getQueryData<Space[]>(["spaces"]);

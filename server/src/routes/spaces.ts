@@ -11,6 +11,7 @@
  * Групповой чат читают и пишут только участники (assertSpaceMembership).
  */
 import type { FastifyInstance } from "fastify";
+import { cityKey, selectRegionalCommunities } from "../seed/regional-policy.ts";
 import { getLiveSessionId, isLiveActive, publishLiveClip } from "../ws/live.ts";
 import { resolveLiveClipRetry, toLiveClipDto, type LiveClipRow } from "../live/clips.ts";
 import { randomUUID } from "node:crypto";
@@ -154,7 +155,7 @@ const coverUrlSchema = z
 
 const SPACE_SELECT = `
    SELECT s.id, s.created_at, s.title, s.description, s.topic, s.cover_url, s.category, s.format, s.cadence,
-          s.city, s.verified_community, s.join_policy, s.join_question, s.is_seed, s.is_private,
+          s.city, s.verified_community, s.join_policy, s.join_question, s.is_seed, s.is_private, s.region_id,
          hp.name AS host_name,
          (SELECT count(*) FROM space_members sm
            WHERE sm.space_id = s.id AND sm.status IN ('member', 'host'))::int AS members_count,
@@ -172,6 +173,7 @@ const SPACE_SELECT = `
 `;
 
 interface SpaceRow {
+  region_id: string | null;
   id: string;
   created_at: Date;
   title: string;
@@ -303,18 +305,80 @@ export async function spaceRoutes(app: FastifyInstance) {
 
   app.get("/", async (request) => {
     const userId = currentUserId(request);
-    // Демо-сообщества показываем последними и скрываем, когда реальных
-    // сообществ набралось достаточно.
+
+    // Authorization first; regional discovery never expands private access.
     const rows = await query<SpaceRow>(
       `${SPACE_SELECT}
-        WHERE (s.is_private = false OR mine.status IN ('member', 'host') OR invite.status = 'pending')
-          AND (s.is_seed = false
-           OR (SELECT count(*) FROM spaces rs WHERE rs.is_seed = false) < 10)
-        ORDER BY s.is_seed ASC, members_count DESC`,
+        WHERE (s.is_private = false OR mine.status IN ('member', 'host')
+          OR invite.status = 'pending')
+        ORDER BY s.is_seed ASC, members_count DESC, s.id`,
       [userId],
     );
+
+    const geography = await queryOne<{
+      profile_city: string; place_city: string | null; region_id: string | null;
+    }>(
+      `SELECT p.city AS profile_city, g.city AS place_city, g.region_id
+         FROM profiles p
+         LEFT JOIN geo_places g ON g.id = p.geo_place_id
+        WHERE p.user_id = $1`,
+      [userId],
+    );
+    const regionId = geography?.region_id && geography.place_city &&
+      cityKey(geography.profile_city) === cityKey(geography.place_city)
+      ? geography.region_id : null;
+
+    const retained = (row: SpaceRow) =>
+      row.my_status === "host" || row.my_status === "member" ||
+      row.invite_status === "pending";
+
+    let visible: SpaceRow[];
+    if (regionId) {
+      // Legacy communities may lack region_id. Resolve only unambiguous cities.
+      const keys = [...new Set(
+        rows.filter(row => !row.region_id).map(row => cityKey(row.city)).filter(Boolean)
+      )];
+      const places = keys.length ? await query<{
+        normalized_name: string; region_id: string;
+      }>(
+        "SELECT normalized_name, region_id FROM geo_places WHERE normalized_name = ANY($1::text[])",
+        [keys],
+      ) : [];
+      const regionsByCity = new Map<string, Set<string>>();
+      for (const place of places) {
+        const set = regionsByCity.get(place.normalized_name) ?? new Set<string>();
+        set.add(place.region_id);
+        regionsByCity.set(place.normalized_name, set);
+      }
+      const candidates = rows.map(row => {
+        const matches = regionsByCity.get(cityKey(row.city));
+        const inferred = matches?.size === 1 ? [...matches][0] : undefined;
+        return {
+          ...row,
+          regionId: row.region_id ?? inferred ?? "",
+          isSeed: row.is_seed,
+          isPrivate: row.is_private,
+          accessible: true,
+          joined: row.my_status === "host" || row.my_status === "member",
+        };
+      });
+      const selected = new Set(
+        selectRegionalCommunities(candidates, regionId).map(row => row.id),
+      );
+      visible = rows.filter(row => selected.has(row.id) || retained(row));
+    } else {
+      // Compatibility until the user confirms a city: no unrelated regional demos.
+      const totals = await queryOne<{ n: number }>(
+        "SELECT count(*)::int AS n FROM spaces WHERE is_seed = false",
+      );
+      visible = rows.filter(row =>
+        retained(row) ||
+        (!row.region_id && (!row.is_seed || (totals?.n ?? 0) < 10)),
+      );
+    }
+
     const list = [];
-    for (const row of rows) {
+    for (const row of visible) {
       const events = await loadEvents(row.id, userId);
       list.push({ ...toSpaceDto(row), nextEvent: events[0] });
     }

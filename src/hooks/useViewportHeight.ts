@@ -81,7 +81,8 @@ function startListening() {
   window.addEventListener("focusout", refreshViewportAfterPicker);
 }
 
-if (typeof window !== "undefined") startListening();
+// Initialization is owned by subscribe(), after React commits.
+// Do not mutate document.documentElement while importing this module.
 
 function subscribe(listener: () => void) {
   listeners.add(listener);

@@ -21,6 +21,8 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
 import { runSeedRefresh } from "./seed/refresh.ts";
+import { runRegionalDemo } from "./seed/regional-job.ts";
+import { geoRoutes } from "./routes/geo.ts";
 import { runUrgentJobs } from "./listings/urgent-jobs.ts";
 import { runAccountPurge } from "./jobs/purge-deleted-accounts.ts";
 
@@ -157,6 +159,7 @@ app.get("/api/health", async (_request, reply) => {
 
 await app.register(authRoutes, { prefix: "/api/auth" });
 await app.register(profileRoutes, { prefix: "/api/profiles" });
+await app.register(geoRoutes, { prefix: "/api/geo" });
 await app.register(matchingRoutes, { prefix: "/api/matching" });
 await app.register(chatRoutes, { prefix: "/api/chat" });
 await app.register(contactsRoutes, { prefix: "/api/contacts" });
@@ -202,6 +205,15 @@ await app.register(liveSocketRoutes, { prefix: "/ws" });
 cron.schedule("0 4 * * *", () => {
   void runSeedRefresh(app.log);
 });
+
+
+if (env.REGIONAL_DEMO_ENABLED === "true") {
+  const regionalTask = cron.schedule("*/5 * * * *", () => {
+    void runRegionalDemo(app.log);
+  });
+  void runRegionalDemo(app.log);
+  app.addHook("onClose", async () => { regionalTask.stop(); });
+}
 
 // Дополнительно: одно обновление при старте, если демо-контент не освежался
 // больше суток. Так после деплоя лента сразу выглядит живой, не дожидаясь 04:00.
