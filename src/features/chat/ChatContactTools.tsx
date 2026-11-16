@@ -55,7 +55,7 @@ export function ChatContactTools() {
       aria-haspopup="dialog"
       aria-expanded={sheet !== null}
       onClick={() => { setError(''); setNotice(''); setSheet('actions'); }}
-      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-transparent text-muted-foreground transition-colors hover:text-primary aria-expanded:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Plus className="size-5" aria-hidden="true" />
     </button>

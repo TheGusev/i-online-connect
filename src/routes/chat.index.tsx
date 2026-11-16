@@ -72,8 +72,8 @@ function ChatListPage() {
               onClick={() => setTab(value)}
               className={`inline-flex size-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                 tab === value
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted"
+                  ? "bg-transparent text-primary"
+                  : "bg-transparent text-muted-foreground hover:text-primary"
               }`}
             >
               <Icon className="size-5" aria-hidden="true" />
@@ -86,7 +86,7 @@ function ChatListPage() {
             aria-haspopup="dialog"
             aria-expanded={blockedOpen}
             onClick={() => setBlockedOpen(true)}
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-transparent text-muted-foreground transition-colors hover:text-primary aria-expanded:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Ban className="size-5" aria-hidden="true" />
           </button>
@@ -102,7 +102,7 @@ function ChatListPage() {
               setSearchOpen(!searchOpen);
               if (searchOpen) setSearch("");
             }}
-            className="inline-flex size-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="inline-flex size-11 items-center justify-center rounded-full bg-transparent text-muted-foreground transition-colors hover:text-primary aria-expanded:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {searchOpen
               ? <X className="size-5" aria-hidden="true" />
