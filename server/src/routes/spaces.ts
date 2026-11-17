@@ -44,6 +44,7 @@ import {
 } from "../media/store.ts";
 import { sendPushToUsers } from "../push/send.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
+import { notifySpaceUsers } from "../spaces/notify.ts";
 
 const idParam = z.object({ id: z.string().uuid() });
 const messageParams = z.object({ id: z.string().uuid(), messageId: z.string().uuid() });
@@ -301,6 +302,57 @@ async function loadSpaceDetail(spaceId: string, userId: string) {
   };
 }
 
+async function notifySpaceJoin(spaceId: string, userId: string, status: "member" | "pending") {
+  try {
+    const info = await queryOne<{ title: string; host_id: string; name: string }>(
+      `SELECT s.title, s.host_id, p.name
+         FROM spaces s, profiles p
+        WHERE s.id = $1 AND p.user_id = $2`,
+      [spaceId, userId],
+    );
+    if (!info || info.host_id === userId) return;
+    const joined = status === "member";
+    await notifySpaceUsers(
+      [info.host_id],
+      joined ? "space_member_joined" : "space_join_request",
+      { spaceId, spaceTitle: info.title, memberName: info.name, memberId: userId },
+      {
+        title: joined ? `Новый участник в «${info.title}»` : `Заявка в «${info.title}»`,
+        body: info.name,
+        url: `/spaces/${spaceId}`,
+        tag: `space-join-${spaceId}-${userId}`,
+      },
+    );
+  } catch (error) {
+    console.error("[spaces] уведомление о вступлении", error);
+  }
+}
+
+async function notifySpaceInvite(spaceId: string, inviterId: string, inviteeId: string) {
+  try {
+    const info = await queryOne<{ title: string; name: string }>(
+      `SELECT s.title, p.name
+         FROM spaces s, profiles p
+        WHERE s.id = $1 AND p.user_id = $2`,
+      [spaceId, inviterId],
+    );
+    if (!info) return;
+    await notifySpaceUsers(
+      [inviteeId],
+      "space_invite",
+      { spaceId, spaceTitle: info.title, fromName: info.name },
+      {
+        title: `Приглашение в «${info.title}»`,
+        body: `${info.name} зовёт вас в сообщество`,
+        url: `/spaces/${spaceId}`,
+        tag: `space-invite-${spaceId}-${inviteeId}`,
+      },
+    );
+  } catch (error) {
+    console.error("[spaces] уведомление о приглашении", error);
+  }
+}
+
 export async function spaceRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
@@ -543,6 +595,7 @@ export async function spaceRoutes(app: FastifyInstance) {
          SET inviter_id = EXCLUDED.inviter_id, status = 'pending', created_at = now(), responded_at = NULL`,
       [id, userId, inviteeId],
     );
+    void notifySpaceInvite(id, userId, inviteeId);
     return { invited: true };
   });
 
@@ -584,6 +637,7 @@ export async function spaceRoutes(app: FastifyInstance) {
           [id, userId],
         );
       });
+      void notifySpaceJoin(id, userId, "member");
       return loadSpaceDetail(id, userId);
     }
     if (space.join_policy === "question" && !answer?.trim()) {
@@ -596,6 +650,8 @@ export async function spaceRoutes(app: FastifyInstance) {
        ON CONFLICT (space_id, user_id) DO UPDATE SET join_answer = EXCLUDED.join_answer`,
       [id, userId, space.join_policy === "open" ? "member" : "pending", answer ?? null],
     );
+
+    void notifySpaceJoin(id, userId, space.join_policy === "open" ? "member" : "pending");
 
     return loadSpaceDetail(id, userId);
   });

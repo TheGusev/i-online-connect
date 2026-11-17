@@ -1,7 +1,7 @@
 import { RESUME_EVENT } from "@/api";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { toast } from "sonner";
+import { gtaToast as toast } from "./gtaToast";
 
 import { getToken, notificationsApi } from "@/api";
 import type { AppNotification, NotificationFeed } from "@/api";
@@ -125,6 +125,10 @@ export function useNotificationSocket() {
           toast(title, {
             id: incoming.id,
             description: preview,
+              avatarUrl:
+                typeof incoming.payload?.["fromAvatarUrl"] === "string"
+                  ? (incoming.payload["fromAvatarUrl"] as string)
+                  : null,
             action: href
               ? {
                   label: "Открыть",
@@ -135,14 +139,22 @@ export function useNotificationSocket() {
               : undefined,
           });
         }
-      } else if (incoming.kind === "space_event") {
-        const { title, href } = describeNotification(incoming);
+      } else if (document.visibilityState === "visible") {
+        const { title, href, description } = describeNotification(incoming);
         toast(title, {
           id: incoming.id,
+          description,
           action: href ? { label: "Открыть", onClick: () => window.location.assign(href) } : undefined,
         });
       }
     };
+
+    const sendVisibility = () => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "visibility", visible: document.visibilityState === "visible" }));
+      }
+    };
+    const heartbeat = window.setInterval(sendVisibility, 8000);
 
     const connect = () => {
       if (disposed) return;
@@ -157,6 +169,7 @@ export function useNotificationSocket() {
       socket.onopen = () => {
         attempt = 0;
         if (disposed) socket?.close();
+        sendVisibility();
       };
       socket.onmessage = (event) => {
         try {
@@ -193,9 +206,14 @@ export function useNotificationSocket() {
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("online", onVisible);
     window.addEventListener(RESUME_EVENT, onVisible);
+    document.addEventListener("visibilitychange", sendVisibility);
+    window.addEventListener("pagehide", sendVisibility);
 
     return () => {
       disposed = true;
+      window.clearInterval(heartbeat);
+      document.removeEventListener("visibilitychange", sendVisibility);
+      window.removeEventListener("pagehide", sendVisibility);
       document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("online", onVisible);
       window.removeEventListener(RESUME_EVENT, onVisible);
@@ -270,7 +288,16 @@ export function describeNotification(notification: AppNotification): {
       profileId ? `/profile/${profileId}` : conversationId ? `/chat/${conversationId}` : null,
     );
   }
-  if (notification.kind === "space_message_deleted") {
+  if (notification.kind === "space_member_joined") {
+      return result(`${str("memberName") ?? "Новый участник"} вступил(а) в «${str("spaceTitle") ?? "сообщество"}»`, null, spaceId ? `/spaces/${spaceId}` : null);
+    }
+    if (notification.kind === "space_join_request") {
+      return result(`Заявка в «${str("spaceTitle") ?? "сообщество"}» от ${str("memberName") ?? "участника"}`, null, spaceId ? `/spaces/${spaceId}` : null);
+    }
+    if (notification.kind === "space_invite") {
+      return result(`${str("fromName") ?? "Организатор"} приглашает вас в сообщество «${str("spaceTitle") ?? "сообщество"}»`, null, spaceId ? `/spaces/${spaceId}` : null);
+    }
+    if (notification.kind === "space_message_deleted") {
     return result(
       "Сообщение удалено администратором сообщества",
       str("spaceTitle") ? `Сообщество «${str("spaceTitle")}»` : null,

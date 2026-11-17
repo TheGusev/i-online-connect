@@ -139,15 +139,15 @@ function SpaceDetailPage() {
   );
 
   return (
-    <AppShell wide focused>
+    <AppShell wide focused bleed>
       <SpaceLive spaceId={id} demoInitial={demo === "live"} members={liveMembers}>
         {(room, demoLive, toggleDemo, setLiveOpen) => (
       <div
         className={isMobile
-          ? "keyboard-viewport-fixed z-10 flex flex-col bg-background px-4 pt-[calc(env(safe-area-inset-top)+0.5rem)]"
-          : "mx-auto flex h-[calc(var(--vvh,100dvh)-1.5rem)] w-full max-w-3xl flex-col"}
+          ? "keyboard-viewport-fixed z-10 flex flex-col bg-background pt-[calc(env(safe-area-inset-top)+0.5rem)]"
+          : "flex h-[calc(var(--vvh,100dvh)-1.5rem)] w-full flex-col"}
       >
-        <header className="flex shrink-0 items-center gap-2 border-b border-border pb-2">
+        <header className="flex shrink-0 items-center gap-2 border-b border-border px-4 pb-2 lg:px-6">
           <Button asChild size="icon" variant="ghost" className="size-10 text-primary">
             <Link to="/spaces" aria-label="Назад к сообществам"><ArrowLeft className="size-6" aria-hidden="true" /></Link>
           </Button>
@@ -214,16 +214,16 @@ function SpaceDetailPage() {
         }} /> : null}
         <MediaGallery scope="space" id={id} open={galleryOpen} onClose={() => setGalleryOpen(false)} />
 
-        <LiveBanner room={room} onEnter={() => setLiveOpen(true)} />
+        <div className="px-4 lg:px-6"><LiveBanner room={room} onEnter={() => setLiveOpen(true)} /></div>
 
         {!space.isMember && !space.isHost && !space.invited ? (
-          <div className="mt-2 shrink-0">
+          <div className="mt-2 shrink-0 px-4 lg:px-6">
             <JoinPanel space={space} pending={join.isPending || leave.isPending} onJoin={(answer) => join.mutate(answer, { onError: (error) => toast.error(messageOf(error, "Не удалось вступить")) })} onLeave={() => leave.mutate()} />
           </div>
         ) : null}
 
         {space.invited && !space.isMember ? (
-          <div className="mt-2 flex shrink-0 items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 p-2.5">
+          <div className="mx-4 mt-2 flex shrink-0 items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 p-2.5 lg:mx-6">
             <p className="min-w-0 flex-1 text-sm">Вас приглашают присоединиться.</p>
             <Button size="sm" loading={join.isPending} onClick={() => join.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось вступить")) })}>Вступить</Button>
             <Button size="sm" variant="ghost" loading={declineInvite.isPending} onClick={() => declineInvite.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось отклонить приглашение")) })}>Отклонить</Button>
