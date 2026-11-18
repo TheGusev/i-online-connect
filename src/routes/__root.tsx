@@ -18,6 +18,7 @@ import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import { UpdateBanner } from "@/components/UpdateBanner";
+import { InstallPrompt } from "@/components/InstallPrompt";
 import { SessionRestore } from "@/features/auth/session";
 import { ensureServiceWorker } from "@/features/notifications/usePushSubscription";
 import { useViewportHeightVar } from "@/hooks/useViewportHeight";
@@ -346,6 +347,7 @@ function RootComponent() {
       <Toaster position="top-center" />
       {/* Мягкое обновление: баннер вместо принудительного reload. */}
       <UpdateBanner />
+      <InstallPrompt />
     </QueryClientProvider>
   );
 }
