@@ -19,6 +19,7 @@ import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { UpdateBanner } from "@/components/UpdateBanner";
 import { InstallPrompt } from "@/components/InstallPrompt";
+import { MetrikaPrivacy } from "@/components/MetrikaPrivacy";
 import { SessionRestore } from "@/features/auth/session";
 import { ensureServiceWorker } from "@/features/notifications/usePushSubscription";
 import { useViewportHeightVar } from "@/hooks/useViewportHeight";
@@ -338,6 +339,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <YandexMetrikaTracker />
+      <MetrikaPrivacy />
       {/* Восстанавливаем сессию по токену до отрисовки приватных экранов. */}
       <SessionRestore />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
