@@ -124,6 +124,8 @@ export function useNotificationSocket() {
               : undefined;
           toast(title, {
             id: incoming.id,
+            actorActivity: incoming.payload["actorActivity"],
+            kind: incoming.kind,
             description: preview,
               avatarUrl:
                 typeof incoming.payload?.["fromAvatarUrl"] === "string"
@@ -143,6 +145,8 @@ export function useNotificationSocket() {
         const { title, href, description } = describeNotification(incoming);
         toast(title, {
           id: incoming.id,
+          actorActivity: incoming.payload["actorActivity"],
+          kind: incoming.kind,
           description,
           action: href ? { label: "Открыть", onClick: () => window.location.assign(href) } : undefined,
         });

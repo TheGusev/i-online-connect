@@ -1,3 +1,4 @@
+import { recordCommunityNotificationActivity } from "../notifications/community-activity.ts";
 /**
  * Доска сообщества: постоянные карточки (фото, ссылка, заметка, вопрос).
  *
@@ -16,7 +17,7 @@ import cron from 'node-cron';
 import { unlink } from 'node:fs/promises';
 import { z } from 'zod';
 
-import { query, queryOne } from '../db.ts';
+import { query, queryOne, transaction } from '../db.ts';
 import { badRequest, forbidden, notFound } from '../http.ts';
 import { assertSpaceMembership, currentUserId, requireAuth } from '../auth/middleware.ts';
 import { assertVerified } from '../auth/verified.ts';
@@ -96,8 +97,367 @@ async function purgeExpiredPosts(log: FastifyBaseLogger): Promise<void> {
   }
 }
 
+
+/** Обсуждения принадлежат материалу; общий чат здесь не используется. */
+function registerPostDiscussions(app: FastifyInstance): void {
+  const commentInput = z.object({
+    text: z.string().trim().min(1).max(2000),
+    clientTempId: z.string().uuid(),
+    parentId: z.string().uuid().optional(),
+  });
+  const reactionInput = z.object({
+    reaction: z.enum(['like', 'thanks', 'idea', 'question']).nullable(),
+  });
+
+  async function access(request: Parameters<typeof currentUserId>[0], params: unknown) {
+    const userId = currentUserId(request);
+    const { id, postId } = postParams.parse(params);
+    await assertSpaceMembership(userId, id);
+    return { userId, id, postId };
+  }
+
+  const materialSql = `
+    SELECT p.id, p.comments_closed, p.author_id, s.host_id
+    FROM space_posts p JOIN spaces s ON s.id = p.space_id
+    WHERE p.id = $1 AND p.space_id = $2
+  `;
+
+  const commentSql = `
+    SELECT c.id, c.post_id AS "postId", c.author_id AS "authorId",
+           COALESCE(pr.name, 'Участник') AS "authorName",
+           c.parent_id AS "parentId",
+           CASE WHEN c.deleted_at IS NULL THEN c.text ELSE '' END AS text,
+           c.created_at AS "createdAt", c.updated_at AS "updatedAt",
+           c.deleted_at AS "deletedAt", c.client_temp_id AS "clientTempId"
+    FROM space_post_comments c
+    LEFT JOIN profiles pr ON pr.user_id = c.author_id
+  `;
+
+  type Material = {
+    id: string;
+    comments_closed: boolean;
+    author_id: string;
+    host_id: string;
+  };
+
+  app.get<{ Params: { id: string; postId: string } }>(
+    '/:id/board/:postId/discussion',
+    async (request, reply) => {
+      const { userId, id, postId } = await access(request, request.params);
+      reply.header('Cache-Control', 'private, no-store');
+      const material = await queryOne<Material>(materialSql, [postId, id]);
+      if (!material) throw notFound('Материал не найден');
+
+      const { before } = z.object({
+        before: z.string().uuid().optional(),
+      }).parse(request.query ?? {});
+
+      if (before) {
+        const cursor = await queryOne(
+          'SELECT id FROM space_post_comments WHERE id = $1 AND post_id = $2',
+          [before, postId],
+        );
+        if (!cursor) throw badRequest('Неверная страница комментариев');
+      }
+
+      const rows = await query(
+        commentSql + `
+          WHERE c.post_id = $1
+            AND ($2::uuid IS NULL OR
+              (c.created_at, c.id) < (
+                SELECT created_at, id FROM space_post_comments
+                WHERE id = $2 AND post_id = $1
+              ))
+          ORDER BY c.created_at DESC, c.id DESC
+          LIMIT 51
+        `,
+        [postId, before ?? null],
+      );
+
+      const page = rows.slice(0, 50);
+      const reactions = await query(
+        `SELECT reaction, count(*)::int AS count,
+                bool_or(user_id = $2) AS mine
+         FROM space_post_reactions WHERE post_id = $1
+         GROUP BY reaction ORDER BY reaction`,
+        [postId, userId],
+      );
+
+      return {
+        items: [...page].reverse(),
+        hasMore: rows.length > 50,
+        nextBefore: rows.length > 50 ? page[page.length - 1]?.id : null,
+        commentsClosed: material.comments_closed,
+        canComment: !material.comments_closed &&
+          material.author_id === material.host_id,
+        canModerate: material.host_id === userId,
+        reactions,
+      };
+    },
+  );
+
+  app.post<{ Params: { id: string; postId: string } }>(
+    '/:id/board/:postId/comments',
+    POST_LIMIT,
+    async (request, reply) => {
+      const { userId, id, postId } = await access(request, request.params);
+      const body = commentInput.parse(request.body ?? {});
+      reply.header('Cache-Control', 'private, no-store');
+
+      return transaction(async (client) => {
+        const material = (await client.query<Material>(
+          materialSql + ' FOR UPDATE OF p', [postId, id],
+        )).rows[0];
+        if (!material) throw notFound('Материал не найден');
+
+        const existing = (await client.query(
+          commentSql + `
+            WHERE c.post_id = $1 AND c.author_id = $2
+              AND c.client_temp_id = $3
+          `,
+          [postId, userId, body.clientTempId],
+        )).rows[0];
+        if (existing) return existing;
+
+        if (material.author_id !== material.host_id) {
+          throw forbidden('Обсуждать можно материалы создателя сообщества');
+        }
+        if (material.comments_closed) {
+          throw forbidden('Создатель закрыл комментарии');
+        }
+
+        if (body.parentId) {
+          const parent = (await client.query(
+            `SELECT id FROM space_post_comments
+             WHERE id = $1 AND post_id = $2 AND deleted_at IS NULL`,
+            [body.parentId, postId],
+          )).rows[0];
+          if (!parent) throw badRequest('Комментарий для ответа не найден');
+        }
+
+        const inserted = (await client.query<{ id: string }>(
+          `INSERT INTO space_post_comments
+             (post_id, author_id, parent_id, text, client_temp_id)
+           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          [postId, userId, body.parentId ?? null, body.text, body.clientTempId],
+        )).rows[0];
+        if (!inserted) throw badRequest('Не удалось сохранить комментарий');
+
+        const result = (await client.query(
+          commentSql + ' WHERE c.id = $1', [inserted.id],
+        )).rows[0];
+        reply.code(201);
+        return result;
+      }).then(async (result) => {
+        if (result) {
+          await recordCommunityNotificationActivity(
+            userId,
+            "space_comment",
+            result.id,
+          );
+        }
+        return result;
+      });
+    },
+  );
+
+
+  const commentParams = postParams.extend({
+    commentId: z.string().uuid(),
+  });
+
+  async function changeBoardComment(
+    request: Parameters<typeof currentUserId>[0],
+    params: unknown,
+    input: unknown,
+    remove: boolean,
+  ) {
+    const parsed = commentParams.parse(params);
+    const { userId, id, postId } = await access(request, parsed);
+    const body = remove
+      ? null
+      : z.object({
+          text: z.string().trim().min(1).max(2000),
+        }).parse(input ?? {});
+
+    return transaction(async (client) => {
+      const material = (
+        await client.query<Material>(
+          materialSql + ' FOR UPDATE OF p',
+          [postId, id],
+        )
+      ).rows[0];
+
+      if (!material) {
+        throw notFound('Материал не найден');
+      }
+
+      const comment = (
+        await client.query<{
+          author_id: string | null;
+          deleted_at: Date | null;
+        }>(
+          `SELECT author_id, deleted_at
+           FROM space_post_comments
+           WHERE id = $1 AND post_id = $2
+           FOR UPDATE`,
+          [parsed.commentId, postId],
+        )
+      ).rows[0];
+
+      if (!comment) {
+        throw notFound('Комментарий не найден');
+      }
+
+      const isAuthor = comment.author_id === userId;
+      const isCreator = material.host_id === userId;
+
+      if (remove) {
+        if (!isAuthor && !isCreator) {
+          throw forbidden('Нельзя удалить чужой комментарий');
+        }
+
+        if (!comment.deleted_at) {
+          await client.query(
+            `UPDATE space_post_comments
+             SET text = '[удалено]',
+                 deleted_at = now(),
+                 updated_at = now()
+             WHERE id = $1 AND post_id = $2`,
+            [parsed.commentId, postId],
+          );
+        }
+      } else {
+        if (!isAuthor) {
+          throw forbidden('Редактировать можно только свой комментарий');
+        }
+        if (comment.deleted_at) {
+          throw badRequest('Комментарий уже удалён');
+        }
+        if (material.comments_closed) {
+          throw forbidden('Создатель закрыл комментарии');
+        }
+        if (!body) {
+          throw badRequest('Текст комментария не задан');
+        }
+
+        await client.query(
+          `UPDATE space_post_comments
+           SET text = $3, updated_at = now()
+           WHERE id = $1 AND post_id = $2`,
+          [parsed.commentId, postId, body.text],
+        );
+      }
+
+      const result = (
+        await client.query(
+          commentSql + ' WHERE c.id = $1 AND c.post_id = $2',
+          [parsed.commentId, postId],
+        )
+      ).rows[0];
+
+      if (!result) {
+        throw notFound('Комментарий не найден');
+      }
+      return result;
+    });
+  }
+
+  app.patch<{
+    Params: { id: string; postId: string; commentId: string };
+  }>(
+    '/:id/board/:postId/comments/:commentId',
+    POST_LIMIT,
+    async (request, reply) => {
+      reply.header('Cache-Control', 'private, no-store');
+      return changeBoardComment(
+        request,
+        request.params,
+        request.body,
+        false,
+      );
+    },
+  );
+
+  app.delete<{
+    Params: { id: string; postId: string; commentId: string };
+  }>(
+    '/:id/board/:postId/comments/:commentId',
+    POST_LIMIT,
+    async (request, reply) => {
+      reply.header('Cache-Control', 'private, no-store');
+      return changeBoardComment(
+        request,
+        request.params,
+        undefined,
+        true,
+      );
+    },
+  );
+
+  app.put<{ Params: { id: string; postId: string } }>(
+    '/:id/board/:postId/reaction',
+    POST_LIMIT,
+    async (request, reply) => {
+      const { userId, id, postId } = await access(request, request.params);
+      const { reaction } = reactionInput.parse(request.body ?? {});
+      reply.header('Cache-Control', 'private, no-store');
+
+      await transaction(async (client) => {
+        const material = (await client.query<Material>(
+          materialSql + ' FOR UPDATE OF p', [postId, id],
+        )).rows[0];
+        if (!material) throw notFound('Материал не найден');
+        if (reaction === null) {
+          await client.query(
+            'DELETE FROM space_post_reactions WHERE post_id = $1 AND user_id = $2',
+            [postId, userId],
+          );
+        } else {
+          await client.query(
+            `INSERT INTO space_post_reactions(post_id, user_id, reaction)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (post_id, user_id)
+             DO UPDATE SET reaction = EXCLUDED.reaction, created_at = now()`,
+            [postId, userId, reaction],
+          );
+        }
+      });
+      return { ok: true };
+    },
+  );
+
+  app.patch<{ Params: { id: string; postId: string } }>(
+    '/:id/board/:postId/discussion',
+    POST_LIMIT,
+    async (request, reply) => {
+      const { userId, id, postId } = await access(request, request.params);
+      const { closed } = z.object({
+        closed: z.boolean(),
+      }).parse(request.body ?? {});
+      reply.header('Cache-Control', 'private, no-store');
+
+      await transaction(async (client) => {
+        const material = (await client.query<Material>(
+          materialSql + ' FOR UPDATE OF p', [postId, id],
+        )).rows[0];
+        if (!material) throw notFound('Материал не найден');
+        if (material.host_id !== userId) {
+          throw forbidden('Закрывать обсуждение может только создатель');
+        }
+        await client.query(
+          'UPDATE space_posts SET comments_closed = $2 WHERE id = $1',
+          [postId, closed],
+        );
+      });
+      return { commentsClosed: closed };
+    },
+  );
+}
+
 export async function spaceBoardRoutes(app: FastifyInstance) {
   app.addHook('preHandler', requireAuth);
+  registerPostDiscussions(app);
 
   // Очистка просроченных карточек: каждую ночь и один раз после старта.
   const purge = () => {
@@ -161,6 +521,11 @@ export async function spaceBoardRoutes(app: FastifyInstance) {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
     await assertSpaceMembership(userId, id);
+    const creator = await queryOne<{ id: string }>(
+      'SELECT id FROM spaces WHERE id = $1 AND host_id = $2',
+      [id, userId],
+    );
+    if (!creator) throw forbidden('Публиковать материалы может только создатель сообщества');
 
     let clientTempId: string;
     let valid: ValidCard;
@@ -226,6 +591,7 @@ export async function spaceBoardRoutes(app: FastifyInstance) {
       inserted = true;
       const created = await loadPost(id, row.id);
       if (!created) throw notFound('Карточка не найдена');
+      await recordCommunityNotificationActivity(userId, "space_post", row.id);
       reply.code(201);
       return toBoardPostDto(created);
     } catch (error) {

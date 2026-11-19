@@ -1,3 +1,4 @@
+import { captureNotificationActorActivity } from "../notifications/activity-integration.ts";
 import { query, queryOne } from "../db.ts";
 import { sendPushToUsers } from "../push/send.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
@@ -19,6 +20,21 @@ export async function notifySpaceUsers(
   payload: Record<string, unknown>,
   push?: SpacePush | undefined,
 ): Promise<void> {
+  const actorValue =
+    kind === "space_member_joined" || kind === "space_join_request"
+      ? payload["memberId"]
+      : kind === "space_invite"
+        ? payload["fromId"]
+        : null;
+
+  const actorActivity = await captureNotificationActorActivity(
+    typeof actorValue === "string" ? actorValue : null,
+  );
+
+  if (actorActivity) {
+    payload = { ...payload, actorActivity };
+  }
+
   const delivered: string[] = [];
   for (const userId of userIds) {
     const row = await queryOne<{ id: string; created_at: Date }>(

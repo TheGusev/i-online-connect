@@ -1058,3 +1058,205 @@ textarea,
 @media (prefers-reduced-motion: reduce) {
   .gta-toast[data-leaving="true"], .gta-toast[data-leaving="true"] .gta-toast__stars span { animation: none; }
 }
+
+
+/* ya-notification-design-v2 */
+
+/* Оболочка Sonner прозрачна только у фирменных баннеров. */
+[data-sonner-toast].ya-gta-toast-shell {
+  box-sizing: border-box;
+  width: min(88vw, 21rem) !important;
+  max-width: calc(100vw - 2rem);
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 1rem;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+[data-sonner-toast].ya-gta-toast-shell > .gta-toast {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* Всплывающий фирменный баннер показываем без задней стопки. */
+[data-sonner-toast].ya-gta-toast-shell[data-front="false"] {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+/* Общий дизайн для списка колокольчика и истории. */
+.gta-toast.urgent-tile.gta-notification-card {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  width: 100%;
+  max-width: none;
+  column-gap: .65rem;
+  row-gap: .25rem;
+  padding: .75rem;
+  border: 1px solid color-mix(in oklab, var(--primary) 35%, transparent);
+  animation: none;
+  transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.gta-notification-card::after {
+  display: none;
+}
+
+.gta-notification-card::before {
+  animation: none;
+}
+
+.gta-notification-card > .gta-toast__avatar {
+  grid-column: 1;
+  grid-row: 1 / 3;
+  align-self: center;
+  animation: none;
+}
+
+.gta-notification-card > .gta-toast__body {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.gta-notification-card .gta-toast__kicker {
+  animation: none;
+}
+
+.gta-notification-card .gta-toast__head {
+  align-items: flex-start;
+}
+
+.gta-notification-card .gta-toast__stars {
+  flex-shrink: 0;
+  padding-top: .1rem;
+}
+
+.gta-notification-card .gta-toast__stars span {
+  opacity: 1;
+  animation: none;
+}
+
+.gta-notification-card__meta {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: .25rem .5rem;
+  min-width: 0;
+  font-size: .65rem;
+  line-height: 1.3;
+  color: var(--muted-foreground);
+}
+
+.gta-notification-card__unread {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  color: var(--primary);
+}
+
+.gta-toast.urgent-tile.gta-notification-card--unread {
+  border-color: color-mix(in oklab, var(--primary) 70%, transparent);
+}
+
+.gta-toast.urgent-tile.gta-notification-card:hover,
+.gta-toast.urgent-tile.gta-notification-card:focus-visible {
+  border-color: var(--primary);
+  box-shadow: var(--shadow-glow);
+}
+
+.gta-toast.urgent-tile.gta-notification-card--compact {
+  padding: .6rem;
+}
+
+.gta-notification-card--compact .gta-toast__kicker {
+  font-size: .72rem;
+}
+
+.gta-notification-card--compact .gta-toast__title {
+  font-size: .8rem;
+}
+
+
+/* ya-direct-notifications-navigation */
+@keyframes ya-notifications-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ya-notifications-page-enter {
+  animation: ya-notifications-page-in .28s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ya-notifications-page-enter {
+    animation: none;
+  }
+}
+
+
+/* ya-activity-banner-v1 */
+.gta-toast__head {
+  min-width: 0;
+}
+
+.gta-toast__kicker {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gta-toast__stars {
+  flex: 0 0 auto;
+  align-items: center;
+  gap: .1rem;
+}
+
+.gta-toast__stars span {
+  display: inline-grid;
+  flex: 0 0 .62rem;
+  width: .62rem;
+  place-items: center;
+  line-height: 1;
+}
+
+.gta-toast__stars .gta-toast__star--empty {
+  color: color-mix(in oklab, var(--muted-foreground) 65%, transparent);
+  text-shadow: none;
+  opacity: 1;
+  transform: none;
+  animation: none;
+}
+
+.gta-toast__body[data-kind="new_message"] .gta-toast__desc {
+  border-inline-start: 2px solid color-mix(in oklab, var(--primary) 55%, transparent);
+  padding-inline-start: .4rem;
+  font-style: italic;
+}
+
+.gta-toast__body[data-kind="match"] .gta-toast__kicker {
+  background-image: linear-gradient(100deg, #ffb6d9, #ff76b9, #ffd1e8);
+}
+
+.gta-toast__body[data-kind^="space_"] .gta-toast__kicker {
+  text-decoration-line: underline;
+  text-decoration-color: color-mix(in oklab, var(--primary) 45%, transparent);
+  text-underline-offset: .15em;
+}
+
+.gta-toast__body[data-kind^="urgent_"] .gta-toast__title {
+  color: var(--accent);
+}

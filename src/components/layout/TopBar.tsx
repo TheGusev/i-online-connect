@@ -1,3 +1,4 @@
+import { WinterWordmark } from "./WinterWordmark";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -38,7 +39,7 @@ export function TopBar() {
       <div className="mx-auto flex h-16 w-full max-w-3xl items-center justify-between gap-3 px-4 lg:max-w-5xl lg:px-8">
         <div className="flex min-w-0 items-center gap-2">
           <Link to="/" className="text-base font-bold tracking-tight lg:hidden">
-            {t("app.name")}
+            <WinterWordmark text={t("app.name")} />
           </Link>
           <span className="hidden text-sm text-muted-foreground lg:block">{t("app.tagline")}</span>
 

@@ -1,10 +1,16 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { useSessionStore } from '@/store/useSessionStore';
 
 import { boardApi } from './api';
-import type { BoardAddInput, BoardListResponse, BoardPost } from './types';
+import type {
+  BoardAddInput,
+  BoardCommentInput,
+  BoardListResponse,
+  BoardPost,
+  BoardReaction,
+} from './types';
 
 export const boardKey = (spaceId: string) => ['space-board', spaceId] as const;
 export const NEWS_KEY = ['spaces', 'news'] as const;
@@ -109,5 +115,119 @@ export function useSpacesNews() {
     refetchOnWindowFocus: true,
     staleTime: 30_000,
     select: (data) => data.ids,
+  });
+}
+
+
+export const discussionKey = (
+  spaceId: string,
+  postId: string | null,
+) => ['space-board-discussion', spaceId, postId] as const;
+
+/** Страницы идут от новых к старым; внутри страницы — по времени вперёд. */
+export function usePostDiscussion(
+  spaceId: string,
+  postId: string | null,
+) {
+  return useInfiniteQuery({
+    queryKey: discussionKey(spaceId, postId),
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam, signal }) => {
+      if (!postId) {
+        throw new Error('Материал не выбран');
+      }
+      return boardApi.discussion(
+        spaceId,
+        postId,
+        pageParam ?? undefined,
+        signal,
+      );
+    },
+    getNextPageParam: (page) =>
+      page.hasMore && page.nextBefore
+        ? page.nextBefore
+        : undefined,
+    enabled: Boolean(spaceId && postId),
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+    staleTime: 5_000,
+    retry: false,
+  });
+}
+
+export function useAddComment(spaceId: string, postId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: BoardCommentInput) =>
+      boardApi.addComment(spaceId, postId, body),
+    retry: false,
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: discussionKey(spaceId, postId),
+      }),
+  });
+}
+
+export function useSetPostReaction(
+  spaceId: string,
+  postId: string,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (reaction: BoardReaction | null) =>
+      boardApi.setReaction(spaceId, postId, reaction),
+    retry: false,
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: discussionKey(spaceId, postId),
+      }),
+  });
+}
+
+export function useSetCommentsClosed(
+  spaceId: string,
+  postId: string,
+) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (closed: boolean) =>
+      boardApi.setCommentsClosed(spaceId, postId, closed),
+    retry: false,
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: discussionKey(spaceId, postId),
+      }),
+  });
+}
+
+
+export function useEditComment(spaceId: string, postId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { commentId: string; text: string }) =>
+      boardApi.editComment(
+        spaceId,
+        postId,
+        input.commentId,
+        input.text,
+      ),
+    retry: false,
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: discussionKey(spaceId, postId),
+      }),
+  });
+}
+
+export function useDeleteComment(spaceId: string, postId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (commentId: string) =>
+      boardApi.deleteComment(spaceId, postId, commentId),
+    retry: false,
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: discussionKey(spaceId, postId),
+      }),
   });
 }

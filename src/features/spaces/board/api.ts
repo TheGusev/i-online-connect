@@ -1,10 +1,80 @@
 import { request, upload } from '@/api/client';
 
-import type { BoardListResponse, BoardPost } from './types';
+import type {
+  BoardComment,
+  BoardCommentInput,
+  BoardDiscussionResponse,
+  BoardListResponse,
+  BoardPost,
+  BoardReaction,
+} from './types';
 
 const base = (spaceId: string) => `/spaces/${encodeURIComponent(spaceId)}/board`;
 
+const postBase = (spaceId: string, postId: string) =>
+  `${base(spaceId)}/${encodeURIComponent(postId)}`;
+
 export const boardApi = {
+  discussion: (
+    spaceId: string,
+    postId: string,
+    before?: string,
+    signal?: AbortSignal,
+  ) => {
+    const suffix = before
+      ? `?before=${encodeURIComponent(before)}`
+      : '';
+    return request<BoardDiscussionResponse>(
+      `${postBase(spaceId, postId)}/discussion${suffix}`,
+      signal ? { signal } : {},
+    );
+  },
+  addComment: (
+    spaceId: string,
+    postId: string,
+    body: BoardCommentInput,
+  ) =>
+    request<BoardComment>(
+      `${postBase(spaceId, postId)}/comments`,
+      { method: 'POST', body },
+    ),
+  editComment: (
+    spaceId: string,
+    postId: string,
+    commentId: string,
+    text: string,
+  ) =>
+    request<BoardComment>(
+      `${postBase(spaceId, postId)}/comments/${encodeURIComponent(commentId)}`,
+      { method: 'PATCH', body: { text } },
+    ),
+  deleteComment: (
+    spaceId: string,
+    postId: string,
+    commentId: string,
+  ) =>
+    request<BoardComment>(
+      `${postBase(spaceId, postId)}/comments/${encodeURIComponent(commentId)}`,
+      { method: 'DELETE' },
+    ),
+  setReaction: (
+    spaceId: string,
+    postId: string,
+    reaction: BoardReaction | null,
+  ) =>
+    request<{ ok: true }>(
+      `${postBase(spaceId, postId)}/reaction`,
+      { method: 'PUT', body: { reaction } },
+    ),
+  setCommentsClosed: (
+    spaceId: string,
+    postId: string,
+    closed: boolean,
+  ) =>
+    request<{ commentsClosed: boolean }>(
+      `${postBase(spaceId, postId)}/discussion`,
+      { method: 'PATCH', body: { closed } },
+    ),
   list: (spaceId: string, signal?: AbortSignal) =>
     request<BoardListResponse>(base(spaceId), signal ? { signal } : {}),
   addJson: (spaceId: string, body: Record<string, unknown>) =>

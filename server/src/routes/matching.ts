@@ -1,3 +1,4 @@
+import { captureNotificationActorActivity } from "../notifications/activity-integration.ts";
 /**
  * GET  /api/matching/daily                    — дневная подборка (DailyFeed)
  * GET  /api/matching/candidates               — кандидаты (совместимо со старым экраном)
@@ -259,10 +260,14 @@ export async function matchingRoutes(app: FastifyInstance) {
         for (const person of people) {
           if (person.is_seed) continue;
           const other = people.find((p) => p.user_id !== person.user_id);
+          const actorActivity = await captureNotificationActorActivity(
+            other?.user_id,
+          );
           const payload = {
             conversationId: result.conversationId,
             withId: other?.user_id,
             withName: other?.name ?? "Совпадение",
+            ...(actorActivity ? { actorActivity } : {}),
           };
           const rows = await query<{ id: string; created_at: Date }>(
             `INSERT INTO notifications (user_id, kind, payload)

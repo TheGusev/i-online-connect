@@ -4,3 +4,9 @@ dist
 .env.*
 !.env.example
 *.log
+
+# Local deployment staging and rollback builds
+/.activity-next-*/
+/.activity-previous-*/
+/.dist-before-resume-*/
+/.dist-community-*/

@@ -1,48 +1,18 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { Avatar } from "@/components/ds";
+import {
+  NotificationBannerContent,
+  toParts,
+} from "./components/NotificationBannerContent";
 
 interface GtaToastOptions {
+  actorActivity?: unknown;
+  kind?: string | undefined;
   id?: string | number | undefined;
   description?: string | null | undefined;
   avatarUrl?: string | null | undefined;
   action?: { label: string; onClick: () => void } | undefined;
-}
-
-interface Parts {
-  kicker: string;
-  headline: string;
-  detail: string | null;
-  stars: number;
-}
-
-/** Разбираем готовый заголовок на тип, имя и текст — без повторов в баннере. */
-function toParts(title: string, description: string | null | undefined): Parts {
-  const message = /^Новое сообщение от (.+)$/.exec(title);
-  if (message) {
-    return { kicker: "Новое сообщение", headline: message[1] ?? title, detail: description ?? null, stars: 1 };
-  }
-  const match = /^Совпадение! Вы понравились друг другу с (.+)$/.exec(title);
-  if (match) {
-    return { kicker: "Совпадение!", headline: match[1] ?? title, detail: description ?? "Откройте профиль и начните разговор", stars: 3 };
-  }
-  const joined = /^(.+) вступил\(а\) в «(.+)»$/.exec(title);
-  if (joined) {
-    return { kicker: "Новый участник", headline: joined[1] ?? title, detail: `в «${joined[2] ?? ""}»`, stars: 2 };
-  }
-  const request = /^Заявка в «(.+)» от (.+)$/.exec(title);
-  if (request) {
-    return { kicker: "Заявка в сообщество", headline: request[2] ?? title, detail: `«${request[1] ?? ""}»`, stars: 2 };
-  }
-  const invite = /^(.+) приглашает вас в сообщество «(.+)»$/.exec(title);
-  if (invite) {
-    return { kicker: "Приглашение", headline: invite[1] ?? title, detail: `в «${invite[2] ?? ""}»`, stars: 2 };
-  }
-  if (/сообществ|встреч|эфир/i.test(title)) {
-    return { kicker: "В сообществе", headline: title, detail: description ?? null, stars: 2 };
-  }
-  return { kicker: "Задание выполнено", headline: title, detail: description ?? null, stars: 1 };
 }
 
 function GtaBanner({
@@ -50,11 +20,15 @@ function GtaBanner({
   parts,
   avatarUrl,
   onOpen,
+  actorActivity,
+  kind,
 }: {
   toastId: string | number;
-  parts: Parts;
+  parts: ReturnType<typeof toParts>;
   avatarUrl: string | null;
   onOpen: (() => void) | undefined;
+  actorActivity: unknown;
+  kind: string | undefined;
 }) {
   const [leaving, setLeaving] = useState(false);
 
@@ -78,23 +52,12 @@ function GtaBanner({
         window.setTimeout(() => toast.dismiss(toastId), 380);
       }}
     >
-      <span className="gta-toast__avatar avatar-ring avatar-ring-sm">
-        <Avatar name={parts.headline} src={avatarUrl} size="sm" />
-      </span>
-      <span className="gta-toast__body">
-        <span className="gta-toast__head">
-          <span className="gta-toast__kicker">{parts.kicker}</span>
-          <span className="gta-toast__stars" aria-hidden="true">
-            {Array.from({ length: parts.stars }, (_, index) => (
-              <span key={index} style={{ animationDelay: `${280 + index * 140}ms` }}>
-                ★
-              </span>
-            ))}
-          </span>
-        </span>
-        <span className="gta-toast__title">{parts.headline}</span>
-        {parts.detail ? <span className="gta-toast__desc">{parts.detail}</span> : null}
-      </span>
+      <NotificationBannerContent
+        parts={parts}
+        avatarUrl={avatarUrl}
+        actorActivity={actorActivity}
+        kind={kind}
+      />
     </button>
   );
 }
@@ -123,8 +86,15 @@ export function gtaToast(title: string, options: GtaToastOptions = {}) {
         parts={parts}
         avatarUrl={options.avatarUrl ?? null}
         onOpen={options.action?.onClick}
+        actorActivity={options.actorActivity}
+        kind={options.kind}
       />
     ),
-    { id, duration: 6000 },
+    {
+      id,
+      duration: 6000,
+      unstyled: true,
+      className: "ya-gta-toast-shell",
+    },
   );
 }

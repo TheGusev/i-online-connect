@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ds';
+import { ChatBackground } from '@/features/chat/components/ChatBackground';
 import { formatEventDate } from '@/features/spaces/labels';
 import { LiveIcon } from '@/features/spaces/live/LiveIcon';
 import { useSessionStore } from '@/store/useSessionStore';
@@ -100,7 +101,8 @@ export function SpaceBoard({
   };
 
   return (
-    <section className='flex min-h-0 flex-1 flex-col'>
+    <section className='relative isolate flex min-h-0 flex-1 flex-col'>
+      <ChatBackground />
       {shelf.length > 0 ? (
         <div className='shrink-0 px-4 pt-2 lg:px-6'>
           <p className='text-[11px] font-semibold uppercase tracking-wide text-muted-foreground'>Раньше · {shelf.length}</p>
@@ -150,7 +152,7 @@ export function SpaceBoard({
             <div>
               <p className='text-sm font-semibold text-foreground'>Здесь чисто</p>
               <p className='mt-1 max-w-xs text-xs text-muted-foreground'>
-                Положите на стол фото, ссылку, заметку или вопрос: участники увидят это первыми.
+                {isHost ? 'Добавьте материал: фото, ссылку, заметку или вопрос.' : 'Здесь появятся материалы создателя сообщества.'}
               </p>
             </div>
           </div>
@@ -165,35 +167,43 @@ export function SpaceBoard({
         )}
       </div>
 
-      <footer className='flex shrink-0 items-end justify-between gap-3 px-6 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2'>
-        <div className='flex w-16 flex-col items-center gap-1'>
-          <Button size='icon' variant='secondary' aria-label='Эфир' onClick={onOpenLive}>
-            <LiveIcon active={liveActive} className='size-5' />
-          </Button>
-          <span className='text-[11px] text-muted-foreground'>Эфир</span>
-        </div>
-        <div className='flex flex-col items-center gap-1'>
+      <footer className='flex shrink-0 items-center justify-between gap-2 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-2 lg:px-6'>
+        <Button
+          variant='secondary'
+          aria-label='Эфир'
+          onClick={onOpenLive}
+          className='h-12 shrink-0 gap-2 rounded-full px-4'
+        >
+          <LiveIcon active={liveActive} className='size-5' />
+          <span>Эфир</span>
+        </Button>
+
+        {isHost ? (
           <button
             type='button'
-            aria-label='Положить на стол'
-            disabled={!isMember}
+            aria-label='Добавить материал'
             onClick={() => setAdding(true)}
-            className='grid size-20 place-items-center rounded-full bg-primary text-primary-foreground shadow-glow active:scale-95 disabled:opacity-50'
+            className='inline-flex h-12 min-w-0 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-transform active:scale-95'
           >
-            <Plus className='size-8' aria-hidden='true' />
+            <Plus className='size-5 shrink-0' aria-hidden='true' />
+            <span>Материал</span>
           </button>
-          <span className='text-[11px] text-muted-foreground'>Положить на стол</span>
-        </div>
-        <div className='flex w-16 flex-col items-center gap-1'>
-          <Button size='icon' variant='secondary' aria-label='Обсуждение' onClick={onOpenDiscussion}>
-            <MessageCircle aria-hidden='true' />
-          </Button>
-          <span className='text-[11px] text-muted-foreground'>Обсуждение</span>
-        </div>
+        ) : null}
+
+        <Button
+          variant='secondary'
+          aria-label='Архив обсуждения'
+          onClick={onOpenDiscussion}
+          className='h-12 min-w-0 gap-2 rounded-full px-3'
+        >
+          <MessageCircle className='size-5 shrink-0' aria-hidden='true' />
+          <span className='text-xs'>Архив</span>
+        </Button>
       </footer>
 
-      <AddPostSheet open={adding} onClose={() => setAdding(false)} canPhoto={canPhoto} onSubmit={submit} />
+      {isHost ? <AddPostSheet open={adding} onClose={() => setAdding(false)} canPhoto={canPhoto} onSubmit={submit} /> : null}
       <PostDetailSheet
+        spaceId={spaceId}
         post={openPost}
         now={now}
         myId={myId}

@@ -18,12 +18,13 @@ import { useSessionStore } from "@/store/useSessionStore";
 import { ReactionContext, useToggleReaction } from "@/features/chat/reactions";
 import { lockBodyScroll } from "@/lib/scroll-lock";
 
-export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedia, onPhotos, onRetryPhoto, onEdit, onDelete, isHost = false, sending, voiceSending, mediaSending, error, fill = false, onFile, onRetryFile, fileSending }: {
+export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedia, onPhotos, onRetryPhoto, onEdit, onDelete, isHost = false, sending, voiceSending, mediaSending, error, fill = false, readOnly = false, onFile, onRetryFile, fileSending }: {
   onFile?: (file: File, reply?: import("@/api").MessageQuote) => void;
   onRetryFile?: (id: string) => void;
   fileSending?: boolean;
   spaceId: string;
   fill?: boolean;
+  readOnly?: boolean;
   messages: SpaceMessage[];
   canWrite: boolean;
   isHost?: boolean;
@@ -109,7 +110,7 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
     }
   };
   return (
-    <ReactionContext.Provider value={toggleReaction}>
+    <ReactionContext.Provider value={readOnly ? () => undefined : toggleReaction}>
     <div className={cn("overflow-hidden overscroll-none bg-background", fill ? "flex min-h-0 flex-1 flex-col" : "border-y border-border", !fill && keyboardOpen && "keyboard-viewport-fixed z-50 flex flex-col rounded-none border-0")}>
       <div className={cn("relative isolate flex flex-col", fill || keyboardOpen ? "min-h-0 flex-1" : "")}>
         <ChatBackground />
@@ -164,7 +165,7 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
       </div>
       <div className={cn("shrink-0 bg-background/95 backdrop-blur has-[textarea:focus]:pb-0", fill || keyboardOpen ? "pb-[max(0px,calc(env(safe-area-inset-bottom)_-_14px))]" : "pb-0")}>
         {error ? <p className="px-4 pt-2 text-xs text-destructive" role="alert">{error}</p> : null}
-        <ChatComposer
+        {!readOnly ? <ChatComposer
             onRecordingChange={setVoiceRecording}
           {...(canWrite && onFile && !editing ? { onFile: (file: File) => { onFile(file, reply ?? undefined); setReply(null); }, fileSending: fileSending ?? false } : {})}
           value={text} onChange={setText} inputRef={inputRef}
@@ -179,7 +180,12 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
           {...(mediaSending !== undefined ? { mediaSending } : {})}
           placeholder={canWrite ? "Написать в общий чат" : "Чат доступен участникам сообщества"}
           onSend={() => { void submit().catch(() => undefined); }}
-        />
+        /> : (
+          <p className="px-4 py-3 text-center text-xs text-muted-foreground">
+            Архив доступен только для чтения.
+            Новые обсуждения — в комментариях к материалам.
+          </p>
+        )}
       </div>
       <MessageActions message={actions} mine={actions?.authorId === myId} canDelete={Boolean(actions && (actions.authorId === myId || isHost))} onClose={() => { setActions(null); setActionsAlbum(null); }} album={actionsAlbum} onDeleteAlbum={(list) => list.forEach((m) => onDelete(m.id))} onEdit={(message) => { setReply(null); setEditing(message); setText(message.text); inputRef.current?.focus({ preventScroll: true }); }} onDelete={(message) => { onDelete(message.id); if (editing?.id === message.id) { setEditing(null); setText(""); } }} />
     </div>

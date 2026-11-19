@@ -21,7 +21,6 @@ import { useSessionStore } from "@/store/useSessionStore";
 import { SpaceInviteDialog } from "@/features/spaces/components/SpaceInviteDialog";
 import { InviteQrSheet } from "@/components/InviteQrSheet";
 import { SpaceMenu } from "@/features/spaces/components/SpaceMenu";
-import { LiveIcon } from "@/features/spaces/live/LiveIcon";
 import { LiveBanner } from "@/features/spaces/live/LiveBanner";
 import { LiveRoomScreen } from "@/features/spaces/live/LiveRoomScreen";
 import { useLiveRoom, type LiveRoom, type LiveSeedMember } from "@/features/spaces/live/useLiveRoom";
@@ -172,9 +171,6 @@ function SpaceDetailPage() {
               {room.online !== null ? `${room.online} в сети` : room.active ? `${room.participants.length} в сети` : `${space.membersCount} участников`} · {space.city}
             </p>
           </div>
-          <Button size="icon" variant="ghost" aria-label="Эфир" onClick={() => setLiveOpen(true)} className="relative size-10 text-primary">
-            <LiveIcon active={room.active} className="size-5" />
-          </Button>
           {space.isMember ? <MediaGalleryButton onClick={() => setGalleryOpen(true)} className="size-10" /> : null}
           <SpaceMenu
             space={space}
@@ -248,12 +244,13 @@ function SpaceDetailPage() {
             <Button size='sm' variant='ghost' onClick={() => setDiscussionOpen(false)}>
               <ArrowLeft aria-hidden='true' /> К доске
             </Button>
-            <span className='text-sm font-semibold text-foreground'>Обсуждение</span>
+            <span className='text-sm font-semibold text-foreground'>Архив обсуждения</span>
           </div>
         )}
 
         <section className={discussionOpen ? 'mt-1 flex min-h-0 flex-1 flex-col' : 'hidden'}>
           <SpaceChat
+            readOnly
             spaceId={id}
             fill
             messages={[...withPending(messages ?? [], photoBatch.pending), ...files.pending].map((m) =>
@@ -262,7 +259,7 @@ function SpaceDetailPage() {
             onRetryPhoto={(clientTempId) => photoBatch.retry(clientTempId)}
             onRetryFile={files.retry}
             {...(canSendMedia ? { onFile: (file: File, reply?: import("@/api").MessageQuote) => files.send(file, reply), fileSending: files.sending } : {})}
-            canWrite={space.isMember}
+            canWrite={false}
             isHost={space.isHost ?? false}
             onEdit={(messageId, text) => editMessage.mutateAsync({ messageId, text }).then(() => undefined).catch((error) => {
               toast.error(messageOf(error, "Не удалось изменить сообщение"));

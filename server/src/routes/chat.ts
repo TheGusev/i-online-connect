@@ -1,3 +1,4 @@
+import { captureNotificationActorActivity } from "../notifications/activity-integration.ts";
 import { detectChatMediaType, normalizeChatVideo, removeChatVideoFiles } from "../media/chat-video.ts";
 /**
  * GET  /api/chat/conversations
@@ -159,6 +160,11 @@ async function notifyRecipient(
   message: { id: string; text: string; kind: MessageKind },
 ) {
   try {
+    const actorActivity = await captureNotificationActorActivity(
+      senderId,
+      { conversationId, messageId: message.id },
+    );
+
     const recipient = await queryOne<{ user_id: string; is_seed: boolean; sender_name: string; sender_avatar: string | null }>(
       `SELECT cp.user_id, p.is_seed,
               (SELECT name FROM profiles WHERE user_id = $2) AS sender_name,
@@ -194,6 +200,7 @@ async function notifyRecipient(
       fromName: recipient.sender_name,
       fromAvatarUrl: recipient.sender_avatar,
       preview,
+      ...(actorActivity ? { actorActivity } : {}),
     };
     const rows = await query<{ id: string; created_at: Date }>(
       `INSERT INTO notifications (user_id, kind, payload)
