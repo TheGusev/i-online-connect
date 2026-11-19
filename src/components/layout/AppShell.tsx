@@ -22,11 +22,13 @@ export function AppShell({
   wide = false,
   public: isPublic = false,
   focused = false,
+  bleed = false,
 }: {
   children: ReactNode;
   wide?: boolean;
   public?: boolean;
   focused?: boolean;
+  bleed?: boolean;
 }) {
   // Держит --app-height/--keyboard-inset актуальными на каждом экране.
   useViewportHeightVar();
@@ -58,7 +60,7 @@ export function AppShell({
       >
         {!focused ? <TopBar /> : null}
         <main
-          className={`mx-auto w-full flex-1 px-4 ${focused ? "pb-[env(safe-area-inset-bottom)] pt-3" : "pb-[calc(5.0625rem+env(safe-area-inset-bottom))] pt-6 lg:pb-12"} lg:px-8 ${wide ? "max-w-6xl" : "max-w-3xl"}`}
+          className={`mx-auto w-full flex-1 ${bleed ? "px-0" : "px-4"} ${focused ? "pb-[env(safe-area-inset-bottom)] pt-3" : "pb-[calc(5.0625rem+env(safe-area-inset-bottom))] pt-6 lg:pb-12"} ${bleed ? "max-w-none lg:px-0" : `lg:px-8 ${wide ? "max-w-6xl" : "max-w-3xl"}`}`}
         >
           {children}
           {!isPublic && <EntryNotices />}

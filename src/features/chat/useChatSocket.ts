@@ -15,6 +15,8 @@ export interface ChatSocketEvent {
   /** Для события удаления сообщения. */
   messageId?: string;
   authorId?: string;
+  /** Для type="typing": печатает текст или записывает голосовое. */
+  mode?: "text" | "voice";
 }
 
 interface UseChatSocketOptions {
@@ -54,6 +56,7 @@ export function resolveWsUrl(): string {
 export function useChatSocket({ conversationId, onEvent, url }: UseChatSocketOptions) {
   const [status, setStatus] = useState<ChatSocketStatus>("connecting");
   const [typing, setTyping] = useState(false);
+  const [peerVoice, setPeerVoice] = useState(false);
   const handlerRef = useRef(onEvent);
   handlerRef.current = onEvent;
   const socketRef = useRef<WebSocket | null>(null);
@@ -75,10 +78,14 @@ export function useChatSocket({ conversationId, onEvent, url }: UseChatSocketOpt
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let typingTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const bumpTyping = () => {
+    const bumpTyping = (mode?: "text" | "voice") => {
       setTyping(true);
+      setPeerVoice(mode === "voice");
       if (typingTimer) clearTimeout(typingTimer);
-      typingTimer = setTimeout(() => setTyping(false), TYPING_TTL_MS);
+      typingTimer = setTimeout(() => {
+        setTyping(false);
+        setPeerVoice(false);
+      }, TYPING_TTL_MS);
     };
 
     const connect = () => {
@@ -97,8 +104,11 @@ export function useChatSocket({ conversationId, onEvent, url }: UseChatSocketOpt
       socket.onmessage = (event) => {
         try {
           const payload = JSON.parse(event.data as string) as ChatSocketEvent;
-          if (payload.type === "typing") bumpTyping();
-          if (payload.type === "message") setTyping(false);
+          if (payload.type === "typing") bumpTyping(payload.mode);
+          if (payload.type === "message") {
+            setTyping(false);
+            setPeerVoice(false);
+          }
           handlerRef.current?.(payload);
         } catch {
           // Неразобранные кадры игнорируем: интерфейс не должен ломаться.
@@ -142,18 +152,19 @@ export function useChatSocket({ conversationId, onEvent, url }: UseChatSocketOpt
       socketRef.current?.close();
       socketRef.current = null;
       setTyping(false);
+      setPeerVoice(false);
     };
   }, [conversationId, url]);
 
   /** Сообщить собеседнику, что мы печатаем (не чаще раза в 2 секунды). */
-  const sendTyping = useCallback(() => {
+  const sendTyping = useCallback((mode: "text" | "voice" = "text") => {
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
     const now = Date.now();
     if (now - lastTypingSentRef.current < TYPING_THROTTLE_MS) return;
     lastTypingSentRef.current = now;
-    socket.send(JSON.stringify({ type: "typing" }));
+    socket.send(JSON.stringify({ type: "typing", mode }));
   }, []);
 
-  return { status, typing, sendTyping };
+  return { status, typing, peerVoice, sendTyping };
 }

@@ -9,7 +9,6 @@ import {
   type NotificationFilter,
   useMarkNotificationsRead,
   useNotificationHistory,
-  useNotificationSocket,
 } from "@/features/notifications/hooks";
 
 export const Route = createFileRoute("/notifications")({
@@ -39,7 +38,6 @@ function NotificationsPage() {
   const navigate = Route.useNavigate();
   const history = useNotificationHistory(type);
   const markRead = useMarkNotificationsRead();
-  useNotificationSocket();
   const unread = history.items.filter((item) => !item.readAt).length;
 
   return (

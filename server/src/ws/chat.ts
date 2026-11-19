@@ -26,6 +26,8 @@ export interface ChatSocketEvent {
   message?: unknown;
   messageId?: string;
   authorId?: string;
+  /** Для type="typing": текст или голосовое. */
+  mode?: "text" | "voice";
   /** Для type="reaction": счётчики без mine и текущие реакции автора события. */
   reactions?: { emoji: string; count: number }[];
   actorEmojis?: string[];
@@ -102,9 +104,14 @@ export async function chatSocketRoutes(app: FastifyInstance) {
         // Через сокет принимаем только «печатает…». Сообщения идут по HTTP,
         // чтобы запись в БД и валидация были в одном месте.
         try {
-          const parsed = JSON.parse(raw.toString()) as { type?: string };
+          const parsed = JSON.parse(raw.toString()) as { type?: string; mode?: string };
           if (parsed.type === "typing") {
-            const payload = JSON.stringify({ type: "typing", conversationId, authorId: userId });
+            const payload = JSON.stringify({
+              type: "typing",
+              mode: parsed.mode === "voice" ? "voice" : "text",
+              conversationId,
+              authorId: userId,
+            });
             for (const peer of room.keys()) {
               if (peer !== socket && peer.readyState === 1) peer.send(payload);
             }

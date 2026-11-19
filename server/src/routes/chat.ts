@@ -159,9 +159,11 @@ async function notifyRecipient(
   message: { id: string; text: string; kind: MessageKind },
 ) {
   try {
-    const recipient = await queryOne<{ user_id: string; is_seed: boolean; sender_name: string }>(
+    const recipient = await queryOne<{ user_id: string; is_seed: boolean; sender_name: string; sender_avatar: string | null }>(
       `SELECT cp.user_id, p.is_seed,
-              (SELECT name FROM profiles WHERE user_id = $2) AS sender_name
+              (SELECT name FROM profiles WHERE user_id = $2) AS sender_name,
+              (SELECT url FROM profile_media WHERE user_id = $2 AND kind = 'photo'
+                ORDER BY is_primary DESC, position LIMIT 1) AS sender_avatar
          FROM conversation_participants cp
          JOIN profiles p ON p.user_id = cp.user_id
         WHERE cp.conversation_id = $1 AND cp.user_id <> $2
@@ -190,6 +192,7 @@ async function notifyRecipient(
       messageId: message.id,
       fromId: senderId,
       fromName: recipient.sender_name,
+      fromAvatarUrl: recipient.sender_avatar,
       preview,
     };
     const rows = await query<{ id: string; created_at: Date }>(

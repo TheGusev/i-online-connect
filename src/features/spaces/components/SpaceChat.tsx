@@ -113,7 +113,7 @@ export function SpaceChat({ spaceId, messages, canWrite, onSend, onVoice, onMedi
     <div className={cn("overflow-hidden overscroll-none bg-background", fill ? "flex min-h-0 flex-1 flex-col" : "border-y border-border", !fill && keyboardOpen && "keyboard-viewport-fixed z-50 flex flex-col rounded-none border-0")}>
       <div className={cn("relative isolate flex flex-col", fill || keyboardOpen ? "min-h-0 flex-1" : "")}>
         <ChatBackground />
-        <div ref={scrollerRef} onScroll={(event) => { const el = event.currentTarget; nearBottomRef.current = isNearBottom(el.scrollTop, el.clientHeight, el.scrollHeight); }} className={cn("relative overflow-y-auto overscroll-contain px-1 py-4", fill || keyboardOpen ? "min-h-0 flex-1" : "min-h-28 max-h-[clamp(7rem,calc(100dvh-34rem),24rem)]")}>
+        <div ref={scrollerRef} onScroll={(event) => { const el = event.currentTarget; nearBottomRef.current = isNearBottom(el.scrollTop, el.clientHeight, el.scrollHeight); }} className={cn("relative overflow-y-auto overscroll-contain px-3 py-4 lg:px-6", fill || keyboardOpen ? "min-h-0 flex-1" : "min-h-28 max-h-[clamp(7rem,calc(100dvh-34rem),24rem)]")}>
           {messages.length === 0 ? <p className="text-sm text-muted-foreground">В чате пока тихо. Можно поздороваться и спросить, как обычно проходят встречи.</p> : (
             <ul className="space-y-3">
               {groupMessages(messages).map((group) => {

@@ -19,6 +19,21 @@ import { verifyAccessToken } from "../auth/tokens.ts";
 
 const userSockets = new Map<string, Set<WebSocket>>();
 
+/** Клиент шлёт «приложение видно» раз в ~8 с; без свежего сигнала считаем, что оно не на экране. */
+const FOREGROUND_TTL_MS = 20_000;
+const foregroundAt = new WeakMap<WebSocket, number>();
+
+/** Открыто ли приложение на экране прямо сейчас: тогда системный push не нужен. */
+export function isUserInForeground(userId: string): boolean {
+  const sockets = userSockets.get(userId);
+  if (!sockets) return false;
+  const now = Date.now();
+  for (const socket of sockets) {
+    if (socket.readyState === 1 && now - (foregroundAt.get(socket) ?? 0) < FOREGROUND_TTL_MS) return true;
+  }
+  return false;
+}
+
 export interface NotificationEvent {
   type: "notification";
   notification: unknown;
@@ -61,6 +76,15 @@ export async function notificationSocketRoutes(app: FastifyInstance) {
       const sockets = userSockets.get(userId) ?? new Set<WebSocket>();
       sockets.add(socket);
       userSockets.set(userId, sockets);
+
+      socket.on("message", (raw: Buffer) => {
+        try {
+          const parsed = JSON.parse(raw.toString()) as { type?: string; visible?: boolean };
+          if (parsed.type === "visibility") foregroundAt.set(socket, parsed.visible ? Date.now() : 0);
+        } catch {
+          /* мусорные кадры игнорируем */
+        }
+      });
 
       socket.on("close", () => {
         sockets.delete(socket);

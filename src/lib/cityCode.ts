@@ -20,3 +20,18 @@ export function cityCode(name: string | null | undefined): string {
   if (!name) return "";
   return CODES[norm(name)] ?? name.trim();
 }
+
+export const normCity = norm;
+
+const CITY_NAMES = [
+  "Новосибирск", "Москва", "Санкт-Петербург", "Красноярск", "Екатеринбург",
+  "Казань", "Нижний Новгород", "Самара", "Омск", "Челябинск", "Ростов-на-Дону",
+  "Уфа", "Пермь", "Волгоград", "Краснодар", "Воронеж", "Томск", "Иркутск",
+  "Владивосток", "Хабаровск", "Сочи", "Калининград", "Барнаул", "Кемерово",
+  "Новокузнецк", "Тюмень", "Саратов", "Якутск", "Мурманск", "Архангельск",
+];
+
+export const CITY_OPTIONS: { name: string; code: string }[] = CITY_NAMES.map((name) => ({
+  name,
+  code: cityCode(name),
+}));

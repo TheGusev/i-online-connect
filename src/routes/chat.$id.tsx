@@ -1,3 +1,4 @@
+import { ActivityBadge, VoicePing } from "@/features/chat/components/ActivityBadge";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { isNearBottom } from "@/features/chat/scroll";
 import { useReadingMode } from "@/features/chat/useReadingMode";
@@ -204,6 +205,7 @@ function ConversationPage() {
 
   const {
     typing,
+    peerVoice,
     status: socketStatus,
     sendTyping,
   } = useChatSocket({
@@ -272,7 +274,7 @@ function ConversationPage() {
     if (!initialScrollReady) return;
     if (nearBottomRef.current || lastMine) scrollToBottom(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialScrollReady, lastId, typing, scrollToBottom]);
+  }, [initialScrollReady, lastId, scrollToBottom]);
 
   // Клавиатура сократила видимую область — держим последнее сообщение в кадре.
   // Прокручиваем один раз и только если до изменения пользователь был у низа.
@@ -560,13 +562,9 @@ function ConversationPage() {
                     </Fragment>
                   );
                 })}
-                {typing ? (
-                  <li className="flex justify-start">
-                    <span className="rounded-3xl rounded-bl-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-                      печатает…
-                    </span>
+                <li className="flex h-9 items-center justify-start">
+                    <ActivityBadge mode={voiceRecording ? "voice" : typing ? (peerVoice ? "peer-voice" : "typing") : null} />
                   </li>
-                ) : null}
               </ul>
             </>
           )}
@@ -590,7 +588,8 @@ function ConversationPage() {
             />
           ) : null}
 
-          <ChatComposer
+          <VoicePing active={voiceRecording} send={sendTyping} />
+            <ChatComposer
             onRecordingChange={setVoiceRecording}
             {...(canSendMedia && !editingMessage ? { onFile: (file: File) => { files.send(file, replyTo ?? undefined); setReplyTo(null); }, fileSending: files.sending } : {})}
             value={draft}
