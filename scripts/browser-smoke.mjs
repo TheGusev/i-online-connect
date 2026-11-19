@@ -352,6 +352,10 @@ try {
         await page.goto(origin + "/spaces", {
           waitUntil: "domcontentloaded", timeout: 30000
         });
+        await page.locator('button[aria-haspopup="listbox"]').click();
+        await page.getByRole("button", {
+          name: "Другой город…", exact: true
+        }).click();
         await page.getByRole("button", {
           name: "Выбрать город", exact: true
         }).waitFor({ state: "visible", timeout: 15000 });
