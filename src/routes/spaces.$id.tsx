@@ -45,6 +45,7 @@ import {
   useUpdateSpaceCover,
 } from "@/features/spaces/hooks";
 import { useVerificationStatus } from "@/features/trust/hooks";
+import { SpaceBoard } from "@/features/spaces/board/SpaceBoard";
 
 export const Route = createFileRoute("/spaces/$id")({
   validateSearch: z.object({ eventId: z.string().uuid().optional(), demo: z.string().optional() }),
@@ -112,6 +113,7 @@ function SpaceDetailPage() {
   const [inviteQuery, setInviteQuery] = useState("");
   const candidates = useInviteCandidates(id, inviteQuery, inviteOpen);
   const invite = useInviteToSpace(id);
+  const [discussionOpen, setDiscussionOpen] = useState(false);
 
   if (isPending) return <AppShell><ProfileCardSkeleton /></AppShell>;
 
@@ -230,7 +232,27 @@ function SpaceDetailPage() {
           </div>
         ) : null}
 
-        <section className="mt-1 flex min-h-0 flex-1 flex-col">
+        {!discussionOpen ? (
+          <SpaceBoard
+            spaceId={id}
+            isMember={space.isMember}
+            isHost={space.isHost ?? false}
+            canPhoto={canSendMedia}
+            events={sortedEvents}
+            liveActive={room.active}
+            onOpenLive={() => setLiveOpen(true)}
+            onOpenDiscussion={() => setDiscussionOpen(true)}
+          />
+        ) : (
+          <div className='flex shrink-0 items-center gap-2 px-4 pt-1 lg:px-6'>
+            <Button size='sm' variant='ghost' onClick={() => setDiscussionOpen(false)}>
+              <ArrowLeft aria-hidden='true' /> К доске
+            </Button>
+            <span className='text-sm font-semibold text-foreground'>Обсуждение</span>
+          </div>
+        )}
+
+        <section className={discussionOpen ? 'mt-1 flex min-h-0 flex-1 flex-col' : 'hidden'}>
           <SpaceChat
             spaceId={id}
             fill

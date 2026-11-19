@@ -80,6 +80,12 @@ async function allowed(userId: string, urls: string[]): Promise<boolean> {
           AND s.ended_at IS NULL
           AND sm.user_id = $1 AND sm.status IN ('member','host')
       )
+    OR EXISTS (
+        SELECT 1 FROM space_posts sp
+        JOIN space_members sm ON sm.space_id = sp.space_id
+        WHERE sp.media_url = ANY($2::text[])
+          AND sm.user_id = $1 AND sm.status IN ('member', 'host')
+      )
     ) AS allowed`, [userId, urls]);
   return row?.allowed === true;
 }

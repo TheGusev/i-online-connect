@@ -14,6 +14,7 @@ import {
 import { useMinutesUntil } from "@/features/nearby/components/ListingCountdown";
 import { cn } from "@/lib/utils";
 import { SpaceSubscribe } from "./SpaceSubscribe";
+import { SpaceNewsStar } from "@/features/spaces/board/SpaceNewsStar";
 
 /** Таймер до ближайшей встречи: в днях, а за сутки — ЧЧ:ММ.
  *  Встреча идёт или её нет — ничего не показываем. */
@@ -45,6 +46,7 @@ export function SpaceCard({ space }: { space: Space }) {
       className="group block h-full min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lift focus-visible:ring-2 focus-visible:ring-community focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
+        {space.isMember ? <SpaceNewsStar spaceId={space.id} /> : null}
         <MediaImage
           src={space.coverUrl}
           alt={space.title}
