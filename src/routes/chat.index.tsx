@@ -7,7 +7,6 @@ import { AppShell } from "@/components/layout/AppShell";
 import { BottomSheet, Button, Input, ListItemSkeleton } from "@/components/ds";
 import { ChatContactTools } from "@/features/chat/ChatContactTools";
 import { RenameNoteChatButton } from "@/features/chat/NoteChatControls";
-import { Reveal } from "@/components/landing/Reveal";
 import { ConversationCard } from "@/features/chat/components/ConversationCard";
 import { BlockedUsersSheet, ConversationDangerActions } from "@/features/chat/components/ChatSafetyActions";
 import { useConversations, useConversationPreference } from "@/features/chat/hooks";
@@ -150,10 +149,10 @@ function ChatListPage() {
         </p>
       ) : (
         <ul className="space-y-2.5">
-          {items.map((conversation, index) => (
-            <Reveal as="li" key={conversation.id} delay={index * 60}>
+          {items.map((conversation) => (
+            <li key={conversation.id}>
               <ConversationCard conversation={conversation} onActions={setSelected} />
-            </Reveal>
+            </li>
           ))}
         </ul>
       )}
