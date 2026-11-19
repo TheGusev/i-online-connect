@@ -288,6 +288,10 @@ try {
   stage = "PASS other account reads persisted message after opening chat"; console.log("PASS other account reads persisted message after opening chat");
 
   await second.page.goto(origin + "/spaces");
+  await second.page.locator('button[aria-haspopup="listbox"]').click();
+  await second.page.getByRole("button", {
+    name: "Другой город…", exact: true
+  }).click();
   await second.page.getByRole("button", {
     name: "Выбрать город", exact: true
   }).click();
