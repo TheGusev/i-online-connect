@@ -149,9 +149,13 @@ function ChatListPage() {
         </p>
       ) : (
         <ul className="space-y-2.5">
-          {items.map((conversation) => (
+          {items.map((conversation, index) => (
             <li key={conversation.id}>
-              <ConversationCard conversation={conversation} onActions={setSelected} />
+              <ConversationCard
+                conversation={conversation}
+                onActions={setSelected}
+                avatarLoading={index < 10 ? "eager" : "lazy"}
+              />
             </li>
           ))}
         </ul>

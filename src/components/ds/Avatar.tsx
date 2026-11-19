@@ -27,6 +27,7 @@ const badgeMap = {
 export interface AvatarProps {
   name: string;
   src?: string | null;
+  loading?: "eager" | "lazy";
   size?: keyof typeof sizeMap;
   verified?: boolean;
   online?: boolean;
@@ -77,6 +78,7 @@ export function Avatar({
   name,
   src,
   size = "md",
+  loading = "lazy",
   verified = false,
   online = false,
   trust,
@@ -101,7 +103,7 @@ export function Avatar({
           src={resolved}
           alt={name}
           className="size-full object-cover"
-          loading="lazy"
+          loading={loading}
           onError={() => setFailed(true)}
         />
       ) : (

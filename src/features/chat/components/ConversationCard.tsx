@@ -18,8 +18,10 @@ function timeLabel(iso: string) {
 export function ConversationCard({
   conversation,
   onActions,
+  avatarLoading = "lazy",
 }: {
   conversation: Conversation;
+  avatarLoading?: "eager" | "lazy";
   onActions?: (conversation: Conversation) => void;
 }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,6 +93,7 @@ export function ConversationCard({
       <Avatar
         name={conversation.participant.name}
         src={conversation.participant.avatarUrl ?? null}
+        loading={avatarLoading}
         size={unread ? "md" : "sm"}
         online={conversation.participant.online}
         trust={getTrustLevel(conversation.participant)}
