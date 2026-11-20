@@ -17,3 +17,7 @@ export function createSessionScope(dependencies: {
   refresh(): Promise<ScopedRefreshResult>;
   onInvalid(): void;
 }): SessionScope;
+export function subscribeSessionChanges(
+  getToken: () => string | null,
+  listener: () => void,
+): () => void;

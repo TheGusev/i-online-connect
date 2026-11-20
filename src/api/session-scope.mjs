@@ -1,12 +1,31 @@
+const subscriptions = new WeakMap();
+
+/** Subscribe using the original getToken function returned by createSessionScope. */
+export function subscribeSessionChanges(getToken, listener) {
+  const subscribe = subscriptions.get(getToken);
+  if (!subscribe) throw new TypeError('Unknown session token reader');
+  return subscribe(listener);
+}
+
 export function createSessionScope({ readToken, writeToken, refresh, onInvalid }) {
   let revision = 0;
   let observed;
   let inFlight = null;
+  const listeners = new Set();
+  function notify() {
+    for (const listener of [...listeners]) {
+      try { listener(); }
+      catch { console.error('[session] lifecycle listener failed'); }
+    }
+  }
   function getToken() {
     const token = readToken();
-    if (observed !== undefined && token !== observed) revision += 1;
-    observed = token;
-    return token;
+    if (observed !== undefined && token !== observed) {
+      revision += 1;
+      observed = token;
+      notify();
+    } else observed = token;
+    return observed;
   }
   function capture() {
     const token = getToken();
@@ -31,7 +50,8 @@ export function createSessionScope({ readToken, writeToken, refresh, onInvalid }
   function setToken(token) {
     getToken();
     revision += 1;
-    write(token);
+    try { write(token); }
+    finally { notify(); }
   }
   function refreshAccessToken() {
     const start = capture();
@@ -55,5 +75,9 @@ export function createSessionScope({ readToken, writeToken, refresh, onInvalid }
     inFlight = flight;
     return flight.promise;
   }
+  subscriptions.set(getToken, listener => {
+    listeners.add(listener);
+    return () => { listeners.delete(listener); };
+  });
   return { getToken, setToken, capture, isCurrent, assertCurrent, refreshAccessToken };
 }
