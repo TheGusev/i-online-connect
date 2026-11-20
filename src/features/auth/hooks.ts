@@ -16,6 +16,6 @@ export function useLogout() {
   const clearSession = useSessionStore((state) => state.clearSession);
   return useMutation({
     mutationFn: () => authApi.logout(),
-    onSuccess: () => clearSession(),
+    onSettled: () => clearSession(),
   });
 }
