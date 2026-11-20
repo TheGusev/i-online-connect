@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { QueryClient } from "@tanstack/react-query";
 import { cleanupLogoutState } from "./logout-cleanup.mjs";
 
-test("local session is cleared before waiting for requests", async () => {
+test("local session and cache are cleared before waiting for requests", async () => {
   const events: string[] = [];
   let finish: () => void = () => {};
   const pending = new Promise<void>((resolve) => { finish = resolve; });
@@ -12,13 +12,13 @@ test("local session is cleared before waiting for requests", async () => {
     cancelQueries: () => { events.push("cancel"); return pending; },
     clearCache: () => { events.push("clear"); },
   });
-  assert.deepEqual(events, ["guest", "cancel"]);
+  assert.deepEqual(events, ["guest", "cancel", "clear"]);
   finish();
   await cleanup;
   assert.deepEqual(events, ["guest", "cancel", "clear"]);
 });
 
-test("cache is cleared after successful cancellation", async () => {
+test("cache is cleared on successful cancellation", async () => {
   let user: string | null = "account-a";
   const cache = new Map([["chat", "private-a"], ["settings", "settings-a"]]);
   await cleanupLogoutState({
@@ -98,7 +98,7 @@ test("late query result does not refill cache after logout cancellation", async 
     finish("private-a");
     await request;
     await Promise.resolve();
-    assert.equal(client.getQueryData(["chat", "conversations"]), undefined);
     assert.equal(client.getQueryCache().getAll().length, 0);
+    assert.equal(client.getQueryData(["chat", "conversations"]), undefined);
   } finally { finish("private-a"); client.clear(); }
 });

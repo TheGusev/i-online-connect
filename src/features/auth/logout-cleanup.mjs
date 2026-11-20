@@ -1,8 +1,15 @@
-export async function cleanupLogoutState({ clearSession, cancelQueries, clearCache }) {
+export async function cleanupLogoutState({ clearSession, cancelQueries, clearCache, isCurrent = () => true }) {
+  if (!isCurrent()) return;
   clearSession();
+  let cancellation;
+  try { cancellation = cancelQueries(); }
+  catch (cause) {
+    if (isCurrent()) clearCache();
+    throw cause;
+  }
   try {
-    await cancelQueries();
+    if (isCurrent()) clearCache();
   } finally {
-    clearCache();
+    await cancellation;
   }
 }
