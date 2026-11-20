@@ -1,0 +1,114 @@
+TAP version 13
+# ISOLATED_DATABASE_CONFIRMED
+# Subtest: history and gallery against isolated PostgreSQL/Fastify
+    # Subtest: all source migrations applied in the test database
+    ok 1 - all source migrations applied in the test database
+      ---
+      duration_ms: 3.089759
+      type: 'test'
+      ...
+    # Subtest: history: 0 rows with identical timestamp
+    ok 2 - history: 0 rows with identical timestamp
+      ---
+      duration_ms: 33.205401
+      type: 'test'
+      ...
+    # Subtest: history: 1 rows with identical timestamp
+    ok 3 - history: 1 rows with identical timestamp
+      ---
+      duration_ms: 12.722931
+      type: 'test'
+      ...
+    # Subtest: history: 49 rows with identical timestamp
+    ok 4 - history: 49 rows with identical timestamp
+      ---
+      duration_ms: 14.205721
+      type: 'test'
+      ...
+    # Subtest: history: 50 rows with identical timestamp
+    ok 5 - history: 50 rows with identical timestamp
+      ---
+      duration_ms: 10.86188
+      type: 'test'
+      ...
+    # Subtest: history: 51 rows with identical timestamp
+    ok 6 - history: 51 rows with identical timestamp
+      ---
+      duration_ms: 19.496491
+      type: 'test'
+      ...
+    # Subtest: history: 120 rows with identical timestamp
+    ok 7 - history: 120 rows with identical timestamp
+      ---
+      duration_ms: 27.328195
+      type: 'test'
+      ...
+    # Subtest: history: PostgreSQL microseconds are preserved across pages
+    ok 8 - history: PostgreSQL microseconds are preserved across pages
+      ---
+      duration_ms: 28.622881
+      type: 'test'
+      ...
+    # Subtest: gallery: identical timestamp and image/video filters
+    ok 9 - gallery: identical timestamp and image/video filters
+      ---
+      duration_ms: 44.114825
+      type: 'test'
+      ...
+    # Subtest: gallery: PostgreSQL microseconds are preserved
+    ok 10 - gallery: PostgreSQL microseconds are preserved
+      ---
+      duration_ms: 23.620973
+      type: 'test'
+      ...
+    # Subtest: soft-deleted records stay out of history and gallery
+    ok 11 - soft-deleted records stay out of history and gallery
+      ---
+      duration_ms: 18.60887
+      type: 'test'
+      ...
+    # Subtest: deleting the cursor boundary does not lose older messages
+    ok 12 - deleting the cursor boundary does not lose older messages
+      ---
+      duration_ms: 24.99983
+      type: 'test'
+      ...
+    # Subtest: newer insert between requests does not disturb older pages
+    ok 13 - newer insert between requests does not disturb older pages
+      ---
+      duration_ms: 25.43362
+      type: 'test'
+      ...
+    # Subtest: cleared_at changes only the clearing user's history
+    ok 14 - cleared_at changes only the clearing user's history
+      ---
+      duration_ms: 41.679039
+      type: 'test'
+      ...
+    # Subtest: legacy ISO cursor remains accepted
+    ok 15 - legacy ISO cursor remains accepted
+      ---
+      duration_ms: 10.488602
+      type: 'test'
+      ...
+    # Subtest: history and gallery reject guests, outsiders and invalid cursors
+    ok 16 - history and gallery reject guests, outsiders and invalid cursors
+      ---
+      duration_ms: 16.948947
+      type: 'test'
+      ...
+    1..16
+ok 1 - history and gallery against isolated PostgreSQL/Fastify
+  ---
+  duration_ms: 385.024007
+  type: 'test'
+  ...
+1..1
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 916.823303
