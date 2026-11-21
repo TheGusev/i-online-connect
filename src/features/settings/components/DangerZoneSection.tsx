@@ -34,7 +34,7 @@ export function DangerZoneSection({ onPause }: { onPause: () => void }) {
           setRestoreDays(receipt.restoreDays);
           setStage("done");
           toast.success("Аккаунт отправлен на удаление", {
-            description: `Восстановить его можно в течение ${receipt.restoreDays} дней.`,
+            description: `Срок до окончательного удаления: ${receipt.restoreDays} дней.`,
           });
         },
         onError: () =>
@@ -118,7 +118,7 @@ export function DangerZoneSection({ onPause }: { onPause: () => void }) {
         open={stage === "confirm"}
         onClose={() => setStage("closed")}
         title="Точно удалить аккаунт?"
-        description="Профиль сразу исчезнет из приложения. В течение 30 дней его ещё можно восстановить, потом данные удаляются навсегда."
+        description="Профиль будет скрыт, а активные сессии завершены. После установленного срока восстановления данные подлежат окончательному удалению. Если хочешь только скрыть профиль, выбери паузу."
         footer={
           <>
             <Button variant="ghost" onClick={() => setStage("survey")}>
@@ -144,12 +144,12 @@ export function DangerZoneSection({ onPause }: { onPause: () => void }) {
       <Modal
         open={stage === "done"}
         onClose={() => setStage("closed")}
-        title="Аккаунт удалён"
-        description={`Мы сохранили возможность восстановления на ${restoreDays} дней — просто войди снова с тем же email.`}
+        title="Аккаунт отправлен на удаление"
+        description={`Срок до окончательного удаления: ${restoreDays} дней. Для восстановления обратись в поддержку.`}
         footer={<Button onClick={() => setStage("closed")}>Понятно</Button>}
       >
         <p className="text-sm text-muted-foreground">
-          Спасибо, что был(а) с нами. Если захочешь вернуться — будем рады.
+          Спасибо, что был(а) с нами.
         </p>
       </Modal>
     </div>
