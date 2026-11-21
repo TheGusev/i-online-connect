@@ -14,7 +14,7 @@ export interface SessionScope {
 export function createSessionScope(dependencies: {
   readToken(): string | null;
   writeToken(token: string | null): void;
-  refresh(): Promise<ScopedRefreshResult>;
+  refresh(signal: AbortSignal): Promise<ScopedRefreshResult>;
   onInvalid(): void;
 }): SessionScope;
 export function subscribeSessionChanges(

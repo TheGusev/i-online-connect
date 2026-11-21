@@ -72,9 +72,12 @@ export type RefreshResult =
   | { kind: "invalid" }
   | { kind: "temporary" }
   | { kind: "stale" };
-async function doRefresh(): Promise<RefreshResult> {
+async function doRefresh(signal: AbortSignal): Promise<RefreshResult> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
+  const abort = () => controller.abort();
+  signal.addEventListener("abort", abort, { once: true });
+  if (signal.aborted) abort();
+  const timer = setTimeout(abort, REFRESH_TIMEOUT_MS);
   try {
     const response = await fetch(buildUrl("/auth/refresh"), { method: "POST", credentials: "include", headers: { Accept: "application/json" }, signal: controller.signal });
     if (response.status === 401 || response.status === 403) return { kind: "invalid" };
@@ -82,9 +85,13 @@ async function doRefresh(): Promise<RefreshResult> {
     const data = (await response.json()) as { token?: string };
     return data?.token ? { kind: "ok", token: data.token } : { kind: "temporary" };
   } catch (error) {
+    if (signal.aborted) return { kind: "stale" };
     console.error("[api] refresh не удался:", error);
     return { kind: "temporary" };
-  } finally { clearTimeout(timer); }
+  } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", abort);
+  }
 }
 function tokenSecondsLeft(token: string): number | null {
   try {

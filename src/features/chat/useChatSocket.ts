@@ -47,6 +47,14 @@ export function useChatSocket({ conversationId, onEvent, url }: UseChatSocketOpt
   const socketRef = useRef<WebSocket | null>(null);
   const leaseRef = useRef<SocketLease | null>(null);
   const lastTypingSentRef = useRef(0);
+  const revision = getSessionRevision();
+  const actionOwnerRef = useRef<{ revision: number; conversationId: string | null; url: string | undefined; accountId: string | null; authed: boolean } | null>(null);
+  const previousOwner = actionOwnerRef.current;
+  if (!previousOwner || previousOwner.revision !== revision || previousOwner.conversationId !== conversationId ||
+      previousOwner.url !== url || previousOwner.accountId !== accountId || previousOwner.authed !== authed) {
+    actionOwnerRef.current = { revision, conversationId, url, accountId, authed };
+  }
+  const actionOwner = actionOwnerRef.current;
 
   useEffect(() => {
     if (!conversationId || !accountId || !authed || typeof window === "undefined") {
@@ -135,9 +143,10 @@ export function useChatSocket({ conversationId, onEvent, url }: UseChatSocketOpt
     window.addEventListener(RESUME_EVENT, onVisible);
     connect();
     return lease.dispose;
-  }, [conversationId, url, accountId, authed]);
+  }, [conversationId, url, accountId, authed, actionOwner]);
 
   const sendTyping = useCallback((mode: "text" | "voice" = "text") => {
+    if (!isSessionCurrent(revision) || actionOwnerRef.current !== actionOwner) return;
     if (!leaseRef.current?.isActive()) return;
     const socket = socketRef.current;
     if (!socket || socket.readyState !== WebSocket.OPEN) return;
@@ -145,6 +154,6 @@ export function useChatSocket({ conversationId, onEvent, url }: UseChatSocketOpt
     if (now - lastTypingSentRef.current < TYPING_THROTTLE_MS) return;
     lastTypingSentRef.current = now;
     socket.send(JSON.stringify({ type: "typing", mode }));
-  }, []);
+  }, [revision, actionOwner]);
   return { status, typing, peerVoice, sendTyping };
 }

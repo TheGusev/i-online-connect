@@ -23,6 +23,7 @@ export function createSessionScope({ readToken, writeToken, refresh, onInvalid }
     if (observed !== undefined && token !== observed) {
       revision += 1;
       observed = token;
+      inFlight?.controller.abort();
       notify();
     } else observed = token;
     return observed;
@@ -51,16 +52,16 @@ export function createSessionScope({ readToken, writeToken, refresh, onInvalid }
     getToken();
     revision += 1;
     try { write(token); }
-    finally { notify(); }
+    finally { inFlight?.controller.abort(); notify(); }
   }
   function refreshAccessToken() {
     const start = capture();
     if (!start.token) return Promise.resolve({ kind: 'stale' });
     if (inFlight?.revision === start.revision) return inFlight.promise;
-    const flight = { revision: start.revision, promise: null };
+    const flight = { revision: start.revision, promise: null, controller: new AbortController() };
     flight.promise = Promise.resolve().then(() => {
       if (!isCurrent(start.revision)) return { kind: 'stale' };
-      return refresh();
+      return refresh(flight.controller.signal);
     }).then(result => {
       if (!isCurrent(start.revision)) return { kind: 'stale' };
       if (result.kind === 'ok') write(result.token);
