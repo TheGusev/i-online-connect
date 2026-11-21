@@ -30,9 +30,10 @@ const app = serverRequire("fastify")({ logger: false });
 registerErrorHandler(app);
 const A = randomUUID(), B = randomUUID(), conversationId = randomUUID(), spaceId = randomUUID();
 const password = "Audit-" + randomUUID() + "-Password9";
-const events = [], browserErrors = [];
+const events = [], browserErrors = [], blockedRequests = [], requestFailures = [];
 let browser, context, holdRefresh;
 const clean = text => String(text).replace(/token=[^&\s"'<>]+/gi,"token=[redacted]").replace(/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,"[redacted-jwt]");
+const requestAddress = request => { const u=new URL(request.url());return {method:request.method(),address:u.origin+u.pathname}; };
 const deferred = () => { let resolve; const promise = new Promise(r=>{resolve=r;}); return { promise, resolve }; };
 async function until(fn, label) {
   for (let i=0;i<200;i++) { if(await fn())return;await new Promise(r=>setTimeout(r,25)); }
@@ -45,10 +46,10 @@ import {QueryClient,QueryClientProvider} from '@tanstack/react-query';
 import {Toaster} from 'sonner';
 import {useLogin,useLogout} from '@/features/auth/hooks';
 import {useSessionStore} from '@/store/useSessionStore';
-import {useChatSocket} from '@/features/chat/useChatSocket';
+import {useChatSocket,resolveWsUrl} from '@/features/chat/useChatSocket';
 import {useNotificationSocket,useNotifications} from '@/features/notifications/hooks';
 import {useLiveRoom} from '@/features/spaces/live/useLiveRoom';
-import {getToken,refreshAccessToken} from '@/api/client';
+import {getToken,refreshAccessToken,API_URL,WS_URL} from '@/api/client';
 const fixtures=FIXTURES;
 const queryClient=new QueryClient({defaultOptions:{queries:{retry:false},mutations:{retry:false}}});
 function Audit(){
@@ -60,6 +61,7 @@ function Audit(){
   const live=useLiveRoom(fixtures.spaceId,{demo:false,members:[]});
   useEffect(()=>{
     window.audit={
+      config:{api:API_URL,ws:WS_URL,wsBase:resolveWsUrl()},
       login:async(email,password)=>{await login.mutateAsync({email,password});},
       logout:async()=>{try{await logout.mutateAsync();return 'ok';}catch{return 'failed';}},
       refresh:async()=>{const r=await refreshAccessToken();return r.kind;},
@@ -114,9 +116,13 @@ try {
   fs.writeFileSync(path.join(harnessRoot,"index.html"),'<!doctype html><html><body><div id="root"></div><script type="module" src="/entry.mjs"></script></body></html>');
   fs.writeFileSync(path.join(harnessRoot,"entry.mjs"),harness);
   const {build}=await fromRoot("vite"),react=(await fromRoot("@vitejs/plugin-react")).default;
-  await build({root:harnessRoot,configFile:false,envDir:false,logLevel:"warn",plugins:[react()],
+  await build({root:harnessRoot,configFile:false,envDir:false,envPrefix:[],logLevel:"warn",plugins:[react()],
     resolve:{alias:{"@":path.join(root,"src")}},
-    define:{"import.meta.env":JSON.stringify({VITE_API_URL:"/api",VITE_WS_URL:"",VITE_APP_NAME:"Session audit",MODE:"production",PROD:true,DEV:false,BASE_URL:"/"})},
+    define:{
+      "import.meta.env.VITE_API_URL":JSON.stringify("/api"),
+      "import.meta.env.VITE_WS_URL":JSON.stringify(""),
+      "import.meta.env":JSON.stringify({VITE_API_URL:"/api",VITE_WS_URL:"",VITE_APP_NAME:"Session audit",MODE:"production",PROD:true,DEV:false,BASE_URL:"/"})
+    },
     build:{outDir:dist,emptyOutDir:true,rollupOptions:{input:path.join(harnessRoot,"index.html")}}});
   const mime={".html":"text/html",".js":"application/javascript",".css":"text/css",".json":"application/json",".svg":"image/svg+xml"};
   app.get("/*",async(request,reply)=>{
@@ -133,7 +139,10 @@ try {
   assert.ok(executable,"Chromium is required");
   browser=await chromium.launch({executablePath:executable,headless:true});
   context=await browser.newContext({serviceWorkers:"block",viewport:{width:390,height:844}});
-  await context.route("**/*",route=>new URL(route.request().url()).origin===origin?route.continue():route.abort());
+  await context.route("**/*",route=>{
+    if(new URL(route.request().url()).origin===origin)return route.continue();
+    blockedRequests.push(requestAddress(route.request()));return route.abort();
+  });
   await context.addInitScript(()=>{
     const Native=window.WebSocket;window.socketAudit=[];
     window.WebSocket=class extends Native{
@@ -150,8 +159,13 @@ try {
   const page=await context.newPage();
   page.on("pageerror",e=>browserErrors.push(clean(e.message)));
   page.on("console",m=>{if(m.type()==="error")browserErrors.push(clean(m.text()));});
+  page.on("requestfailed",r=>requestFailures.push({...requestAddress(r),error:clean(r.failure()?.errorText||"request failed")}));
   await page.goto(origin);
   await page.waitForFunction(()=>!!window.audit);
+  const config=await page.evaluate(()=>window.audit.config);
+  assert.equal(config.api==="/api",true,"Harness API must be relative /api, not inherited from CI");
+  assert.equal(config.ws==="",true,"Harness WS must use same-origin fallback");
+  assert.equal(new URL(config.wsBase).host===new URL(origin).host,true,"Harness WS must remain on loopback server");
   async function login(id){await page.evaluate(({email,password})=>window.audit.login(email,password),{email:`${id}@session.example.invalid`,password});await page.waitForFunction(id=>window.audit.state().userId===id,id);}
   async function ready(id){
     await page.waitForFunction(()=>window.audit.state().chat.status==='open'&&window.audit.state().live.online!==null&&['/ws/notifications','/ws/chat/','/ws/live/'].every(p=>window.socketAudit.some(r=>r.path.startsWith(p)&&r.opened&&!r.closed)));
@@ -159,19 +173,22 @@ try {
   }
   const pass=name=>events.push({name,status:"PASS"});
   await test("real React hooks, cookies, API and native WebSocket session regression",{timeout:90000},async t=>{
+    let authenticatedA=false,refreshedA=false,authenticatedB=false;
     await t.test("A login establishes three real authenticated channels and httpOnly refresh cookie",async()=>{
       await login(A);await ready(A);
       assert.ok((await context.cookies()).some(c=>c.name==='ya_refresh'&&c.httpOnly));
       chatWS.publishChatEvent(conversationId,{type:"typing",conversationId,authorId:B});
       await page.waitForFunction(()=>window.audit.state().chat.typing===true);
-      pass("A native WebSocket and httpOnly cookie");
+      authenticatedA=true;pass("A native WebSocket and httpOnly cookie");
     });
+    assert.ok(authenticatedA,"A setup failed; dependent scenarios were not executed");
     await t.test("normal refresh preserves all three native connections",async()=>{
       const before=await page.evaluate(()=>window.socketAudit.length);
       assert.equal(await page.evaluate(()=>window.audit.refresh()),"ok");
       await ready(A);assert.equal(await page.evaluate(()=>window.socketAudit.length),before);
-      pass("normal refresh does not replace transport");
+      refreshedA=true;pass("normal refresh does not replace transport");
     });
+    assert.ok(refreshedA,"A refresh prerequisite failed; cross-session scenarios were not executed");
     await page.evaluate(()=>window.audit.keepOld());
     await t.test("late refresh A cannot overwrite B cookies after logout/login without reload",async()=>{
       holdRefresh={...deferred(),seen:false};
@@ -182,7 +199,7 @@ try {
         await until(()=>!chatWS.isInRoom(conversationId,A)&&!notificationWS.isUserOnline(A),"Old A transport remained registered");
         await page.waitForFunction(()=>window.socketAudit.every(r=>r.closed));
         await page.waitForFunction(()=>{const s=window.audit.state();return s.userId===null&&!s.hasToken&&s.live.cards.length===0&&s.live.clips.length===0;});
-        await login(B);await ready(B);
+        await login(B);await ready(B);authenticatedB=true;
         const cookie=(await context.cookies()).find(c=>c.name==='ya_refresh');assert.ok(cookie?.httpOnly);
         holdRefresh.resolve();
         assert.equal(await page.evaluate(()=>window.pendingRefresh),"stale");
@@ -191,6 +208,7 @@ try {
         pass("A stale refresh cannot replace B cookie");
       }finally{holdRefresh?.resolve();holdRefresh=undefined;}
     });
+    assert.ok(authenticatedB,"B setup failed; B action and event scenarios were not executed");
     await t.test("saved A actions cannot send through B channels or restore drafts",async()=>{
       await ready(B);
       const unchanged=await page.evaluate(()=>{
@@ -212,7 +230,9 @@ try {
   });
 } finally {
   holdRefresh?.resolve();
-  fs.writeFileSync(path.join(out,"result.json"),JSON.stringify({events,browserErrors,scope:"Real React/hooks/API/cookies/native WebSocket in a dedicated harness; not full production screens, PWA or device acceptance"},null,2));
+  const diagnostics={events,browserErrors,blockedRequests,requestFailures,scope:"Real React/hooks/API/cookies/native WebSocket in a dedicated harness; not full production screens, PWA or device acceptance"};
+  fs.writeFileSync(path.join(out,"result.json"),JSON.stringify(diagnostics,null,2));
+  console.log("SESSION_BROWSER_DIAGNOSTICS "+JSON.stringify(diagnostics));
   if(context)await context.close();if(browser)await browser.close();
   try{if(app.websocketServer)for(const s of app.websocketServer.clients)s.terminate();await app.close();}finally{await pool.end();}
   // Keep only diagnostics, not generated harness assets, in uploaded artefacts.
