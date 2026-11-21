@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import type { Session, User } from "@/api";
+import { getToken } from "@/api/client";
 
 /**
  * loading — токен есть, профиль ещё запрашивается;
@@ -24,7 +25,10 @@ export const useSessionStore = create<SessionState>((set) => ({
   user: null,
   token: null,
   status: "loading",
-  setSession: (session) => set({ user: session.user, token: session.token, status: "authed" }),
+  setSession: (session) => {
+    if (getToken() !== session.token) return;
+    set({ user: session.user, token: session.token, status: "authed" });
+  },
   setUser: (user) => set({ user, status: "authed" }),
   setStatus: (status) => set({ status }),
   clearSession: () => set({ user: null, token: null, status: "guest" }),

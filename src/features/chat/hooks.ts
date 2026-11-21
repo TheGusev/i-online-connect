@@ -10,6 +10,13 @@ import { useCallback, useMemo } from "react";
 import { chatApi } from "@/api";
 import type { Conversation, MeetingKind, Message, MessageQuote } from "@/api";
 import { rememberPhotoDimensions } from "./photo-dimensions";
+import {
+  upsertMessagePages,
+  removeMessagePages,
+  captureMessagePosition,
+  restoreMessagePages,
+  type MessagePosition,
+} from "./message-pages.mjs";
 import type { VoiceRecording } from "@/features/chat/useVoiceRecorder";
 import type { PreparedMedia } from "@/features/chat/media";
 import type { MessagesPage } from "@/api/endpoints/chat";
@@ -81,48 +88,47 @@ export function useMessages(conversationId: string | null) {
   return { ...query, messages };
 }
 
-/** Точечные правки кэша сообщений без перезапроса истории. */
+/** Точечные правки всех загруженных страниц без перезапроса истории. */
 export function useMessagesCache(conversationId: string) {
   const queryClient = useQueryClient();
   const key = useMemo(() => messagesQueryKey(conversationId), [conversationId]);
 
-  const mutate = useCallback(
-    (fn: (items: Message[]) => Message[]) => {
+  const upsert = useCallback(
+    (message: Message, replaceId?: string) => {
       queryClient.setQueryData<MessagesData>(key, (previous) => {
-        if (!previous) {
-          return {
-            pageParams: [null],
-            pages: [{ items: fn([]), hasMore: false, nextBefore: null }],
-          };
-        }
-        const [first, ...rest] = previous.pages;
-        if (!first) return previous;
-        return { ...previous, pages: [{ ...first, items: fn(first.items) }, ...rest] };
+        const current: MessagesData = previous && previous.pages.length > 0 ? previous : {
+          pageParams: [null],
+          pages: [{ items: [], hasMore: false, nextBefore: null }],
+        };
+        return {
+          ...current,
+          pages: upsertMessagePages<Message, MessagesPage>(current.pages, message, replaceId),
+        };
       });
     },
     [queryClient, key],
   );
 
-  const upsert = useCallback(
-    (message: Message, replaceId?: string) =>
-      mutate((items) => {
-        const idx = items.findIndex(
-          (m) =>
-            m.id === message.id ||
-            (replaceId && m.id === replaceId) ||
-            (message.clientTempId && m.clientTempId === message.clientTempId),
-        );
-        if (idx === -1) return [...items.filter((m) => m.id !== message.id), message];
-        const next = items.slice();
-        next[idx] = { ...next[idx], ...message };
-        return next.filter((item, itemIndex) => itemIndex === idx || item.id !== message.id);
-      }),
-    [mutate],
+  const remove = useCallback(
+    (id: string): MessagePosition | null => {
+      const previous = queryClient.getQueryData<MessagesData>(key);
+      const position = previous ? captureMessagePosition<Message>(previous.pages, id) : null;
+      queryClient.setQueryData<MessagesData>(key, (current) => current
+        ? { ...current, pages: removeMessagePages<Message, MessagesPage>(current.pages, id) }
+        : current);
+      return position;
+    },
+    [queryClient, key],
   );
 
-  const remove = useCallback(
-    (id: string) => mutate((items) => items.filter((m) => m.id !== id)),
-    [mutate],
+  const restore = useCallback(
+    (message: Message, position: MessagePosition | null | undefined) => {
+      // Не создаём заново кеш, уже очищенный при выходе или смене экрана.
+      queryClient.setQueryData<MessagesData>(key, (previous) => previous
+        ? { ...previous, pages: restoreMessagePages<Message, MessagesPage>(previous.pages, message, position) }
+        : previous);
+    },
+    [queryClient, key],
   );
 
   /** Собеседник прочитал: все мои «отправлено» становятся «прочитано». */
@@ -146,7 +152,7 @@ export function useMessagesCache(conversationId: string) {
     [queryClient, key],
   );
 
-  return useMemo(() => ({ upsert, remove, markMineRead }), [upsert, remove, markMineRead]);
+  return useMemo(() => ({ upsert, remove, restore, markMineRead }), [upsert, remove, restore, markMineRead]);
 }
 
 /** Подсказки первой фразы нужны только для пустого диалога. */
@@ -367,7 +373,7 @@ export function useEditMessage(conversationId: string) {
   });
 }
 
-/** Удаление своего сообщения: пузырь исчезает сразу, при ошибке возвращается. */
+/** Удаление своего сообщения: пузырь исчезает сразу, при ошибке возвращается на место. */
 export function useDeleteMessage(conversationId: string) {
   const queryClient = useQueryClient();
   const cache = useMessagesCache(conversationId);
@@ -375,15 +381,19 @@ export function useDeleteMessage(conversationId: string) {
   return useMutation({
     mutationFn: ({ messageId }: { messageId: string; previous: Message }) =>
       chatApi.deleteMessage(conversationId, messageId),
-    onMutate: ({ messageId }) => {
-      cache.remove(messageId);
+    onMutate: async ({ messageId }) => {
+      await queryClient.cancelQueries({ queryKey: messagesQueryKey(conversationId), exact: true });
+      return { position: cache.remove(messageId) };
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
       void queryClient.invalidateQueries({ queryKey: ["gallery", "conversation", conversationId] });
     },
-    onError: (_error, vars) => {
-      cache.upsert(vars.previous);
+    onError: (_error, vars, context) => {
+      cache.restore(vars.previous, context?.position);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: messagesQueryKey(conversationId), exact: true });
     },
   });
 }
