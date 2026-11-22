@@ -143,6 +143,11 @@ try {
 
       const p = url.pathname;
       if (p.startsWith("/api/")) {
+        // Existing non-stories scenarios have an explicitly empty stories feed.
+        if ((p === "/api/stories/" || p === "/api/stories") &&
+            req.method() === "GET") {
+          return json({ items: [], nextCursor: null, unseenCount: 0 });
+        }
         if (p === "/api/spaces" || p === "/api/spaces/") return json([]);
 
         if (p === "/api/geo/me" && req.method() === "GET") {
