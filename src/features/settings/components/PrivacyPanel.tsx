@@ -2,6 +2,7 @@ import { PauseCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import type { PrivacySettings } from "@/api";
+import { getSessionRevision, isSessionCurrent } from "@/api/client";
 import { Button, Card } from "@/components/ds";
 import { useMyProfile, useUpdateMyProfile } from "@/features/profile/hooks";
 import { PrivacySection } from "@/features/profile/components/PrivacySection";
@@ -22,17 +23,26 @@ export function PrivacyPanel() {
   };
 
   const togglePause = () => {
+    if (updateProfile.isPending) return;
+    const revision = getSessionRevision();
     const nextVisible = !privacy.visibleInFeed;
-    patchPrivacy({ visibleInFeed: nextVisible });
-    if (nextVisible) {
-      toast.success("Профиль снова в подборках", {
-        description: "Тебя опять видят в дневных совпадениях.",
-      });
-    } else {
-      toast("Твой профиль временно скрыт из ленты", {
-        description: "Аккаунт и переписки на месте — вернуть видимость можно в один клик.",
-      });
-    }
+    updateProfile.mutate(
+      { privacy: { ...privacy, visibleInFeed: nextVisible } },
+      {
+        onSuccess: (saved) => {
+          if (!isSessionCurrent(revision)) return;
+          if (saved.privacy.visibleInFeed) {
+            toast.success("Профиль снова в подборках", {
+              description: "Тебя опять видят в дневных совпадениях.",
+            });
+          } else {
+            toast("Твой профиль временно скрыт из ленты", {
+              description: "Аккаунт и переписки на месте — вернуть видимость можно в один клик.",
+            });
+          }
+        },
+      },
+    );
   };
 
   return (
@@ -55,7 +65,7 @@ export function PrivacyPanel() {
               onClick={togglePause}
               disabled={updateProfile.isPending}
             >
-              {privacy.visibleInFeed ? "Поставить профиль на паузу" : "Вернуться в ленту"}
+              {updateProfile.isPending ? "Сохраняем…" : privacy.visibleInFeed ? "Поставить профиль на паузу" : "Вернуться в ленту"}
             </Button>
           </div>
         </div>

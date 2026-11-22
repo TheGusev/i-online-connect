@@ -8,7 +8,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 
-import { query, queryOne } from "../db.ts";
+import { query, queryOne, transaction } from "../db.ts";
 import { env } from "../env.ts";
 import { badRequest, notFound, unauthorized } from "../http.ts";
 import { currentUserId, requireAuth } from "../auth/middleware.ts";
@@ -197,18 +197,24 @@ export async function settingsRoutes(app: FastifyInstance) {
 
     const restoreUntil = new Date(Date.now() + env.ACCOUNT_RESTORE_DAYS * 24 * 60 * 60 * 1000);
 
-    // Мягкое удаление: данные ещё можно вернуть, но профиль сразу исчезает
-    // из подборок и поиска. Полная очистка — задачей по расписанию.
-    await query("UPDATE users SET deleted_at = now(), updated_at = now() WHERE id = $1", [userId]);
-    await query("UPDATE privacy_settings SET visible_in_feed = false WHERE user_id = $1", [userId]);
-    await revokeAllForUser(userId);
+    // Все изменения фиксируются вместе; любой сбой откатывает удаление целиком.
+    return transaction(async (client) => {
+      const updated = await client.query<{ id: string }>(
+        "UPDATE users SET deleted_at = now(), updated_at = now() WHERE id = $1 AND deleted_at IS NULL RETURNING id",
+        [userId],
+      );
+      if (!updated.rows[0]) throw notFound("Аккаунт не найден");
+      await client.query("UPDATE privacy_settings SET visible_in_feed = false WHERE user_id = $1", [userId]);
+      await revokeAllForUser(userId, client);
 
-    const row = await queryOne<{ id: string }>(
-      `INSERT INTO deletion_requests (user_id, reason, comment, restore_until)
-       VALUES ($1, $2, $3, $4) RETURNING id`,
-      [userId, body.reason ?? null, body.comment ?? null, restoreUntil],
-    );
-
-    return { id: row?.id ?? userId, restoreDays: env.ACCOUNT_RESTORE_DAYS };
+      const result = await client.query<{ id: string }>(
+        `INSERT INTO deletion_requests (user_id, reason, comment, restore_until)
+         VALUES ($1, $2, $3, $4) RETURNING id`,
+        [userId, body.reason ?? null, body.comment ?? null, restoreUntil],
+      );
+      const row = result.rows[0];
+      if (!row) throw new Error("Deletion request was not created");
+      return { id: row.id, restoreDays: env.ACCOUNT_RESTORE_DAYS };
+    });
   });
 }

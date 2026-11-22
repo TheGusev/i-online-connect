@@ -1,5 +1,6 @@
 import { captureNotificationActorActivity } from "../notifications/activity-integration.ts";
 import { detectChatMediaType, normalizeChatVideo, removeChatVideoFiles } from "../media/chat-video.ts";
+import { decodeHistoryCursor, encodeHistoryCursor } from "../chat/history-cursor.ts";
 /**
  * GET  /api/chat/conversations
  * GET  /api/chat/conversations/:id
@@ -440,21 +441,28 @@ export async function chatRoutes(app: FastifyInstance) {
     const { id } = idParam.parse(request.params);
     const q = z.object({
       kind: z.enum(["image", "video"]).optional(),
-      before: z.string().datetime({ offset: true }).optional(),
+      before: z.string().max(512).optional(),
       limit: z.coerce.number().int().min(1).max(100).optional(),
     }).parse(request.query ?? {});
     await assertConversationAccess(userId, id);
+    let cursor: ReturnType<typeof decodeHistoryCursor>;
+    try { cursor = decodeHistoryCursor(q.before); }
+    catch { throw badRequest("Некорректный курсор истории"); }
     const limit = q.limit ?? 60;
-    const rows = await query<{ id: string; kind: string; media_url: string; duration_ms: number | null; created_at: Date; author_id: string; author_name: string | null }>(
-      `SELECT m.id, m.kind::text AS kind, m.media_url, m.duration_ms, m.created_at, m.author_id, p.name AS author_name
+    const rows = await query<{ id: string; kind: string; media_url: string; duration_ms: number | null; created_at: Date; cursor_created_at: string; author_id: string; author_name: string | null }>(
+      `SELECT m.id, m.kind::text AS kind, m.media_url, m.duration_ms, m.created_at,
+                to_char(m.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
+                m.author_id, p.name AS author_name
          FROM messages m LEFT JOIN profiles p ON p.user_id = m.author_id
         WHERE m.conversation_id = $1 AND m.kind::text IN ('image', 'video')
           AND m.deleted_at IS NULL AND m.media_url IS NOT NULL
           AND ($2::text IS NULL OR m.kind::text = $2::text)
-          AND ($3::timestamptz IS NULL OR m.created_at < $3::timestamptz)
+          AND ($3::timestamptz IS NULL
+               OR ($5::uuid IS NULL AND m.created_at < $3::timestamptz)
+               OR ($5::uuid IS NOT NULL AND (m.created_at, m.id) < ($3::timestamptz, $5::uuid)))
         ORDER BY m.created_at DESC, m.id DESC
         LIMIT $4`,
-      [id, q.kind ?? null, q.before ?? null, limit + 1],
+      [id, q.kind ?? null, cursor.at, limit + 1, cursor.id],
     );
     const page = rows.slice(0, limit);
     return {
@@ -462,7 +470,7 @@ export async function chatRoutes(app: FastifyInstance) {
         id: r.id, kind: r.kind, mediaUrl: r.media_url, durationMs: r.duration_ms ?? undefined,
         createdAt: r.created_at.toISOString(), authorId: r.author_id, authorName: r.author_name ?? "Участник",
       })),
-      nextCursor: rows.length > limit ? page[page.length - 1]!.created_at.toISOString() : null,
+      nextCursor: rows.length > limit ? encodeHistoryCursor(page[page.length - 1]!.cursor_created_at, page[page.length - 1]!.id) : null,
     };
   });
 
@@ -471,17 +479,21 @@ export async function chatRoutes(app: FastifyInstance) {
     const { id } = idParam.parse(request.params);
     const q = z
       .object({
-        before: z.string().datetime({ offset: true }).optional(),
+        before: z.string().max(512).optional(),
         limit: z.coerce.number().int().min(1).max(200).optional(),
       })
       .parse(request.query ?? {});
     await assertConversationAccess(userId, id);
 
+    let cursor: ReturnType<typeof decodeHistoryCursor>;
+    try { cursor = decodeHistoryCursor(q.before); }
+    catch { throw badRequest("Некорректный курсор истории"); }
     const limit = q.limit ?? 50;
-    const rows = await query<MessageRow>(
+    const rows = await query<MessageRow & { cursor_created_at: string }>(
       `SELECT m.id, m.conversation_id, m.author_id, m.text, m.kind, m.client_temp_id,
               m.file_name, m.file_size, m.media_url, m.media_mime, m.duration_ms, m.created_at, m.edited_at, m.deleted_at,
               m.reply_to_id,
+              to_char(m.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
               (m.author_id = $2 AND their.last_read_at IS NOT NULL
                  AND m.created_at <= their.last_read_at) AS read_by_peer
          FROM messages m
@@ -491,10 +503,12 @@ export async function chatRoutes(app: FastifyInstance) {
           AND m.deleted_at IS NULL
           AND m.created_at > COALESCE((SELECT cp.cleared_at FROM conversation_participants cp
                                         WHERE cp.conversation_id = m.conversation_id AND cp.user_id = $2), '-infinity'::timestamptz)
-          AND ($3::timestamptz IS NULL OR m.created_at < $3::timestamptz)
+          AND ($3::timestamptz IS NULL
+               OR ($5::uuid IS NULL AND m.created_at < $3::timestamptz)
+               OR ($5::uuid IS NOT NULL AND (m.created_at, m.id) < ($3::timestamptz, $5::uuid)))
         ORDER BY m.created_at DESC, m.id DESC
         LIMIT $4`,
-      [id, userId, q.before ?? null, limit + 1],
+      [id, userId, cursor.at, limit + 1, cursor.id],
     );
 
     const hasMore = rows.length > limit;
@@ -509,7 +523,7 @@ export async function chatRoutes(app: FastifyInstance) {
         reactions: reactions.get(row.id) ?? [],
       })),
       hasMore,
-      nextBefore: hasMore && page[0] ? page[0].created_at.toISOString() : null,
+      nextBefore: hasMore && page[0] ? encodeHistoryCursor(page[0].cursor_created_at, page[0].id) : null,
     };
   });
 

@@ -8,6 +8,9 @@ import {
   type PasswordChange,
   type SettingsBundle,
 } from "@/api";
+import { getSessionRevision, isSessionCurrent, setToken } from "@/api/client";
+import { useSessionStore } from "@/store/useSessionStore";
+import { cleanupLogoutState } from "@/features/auth/logout-cleanup.mjs";
 
 const settingsKey = ["settings"] as const;
 
@@ -46,7 +49,26 @@ export function useChangePassword() {
 }
 
 export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+  const clearSession = useSessionStore(state => state.clearSession);
   return useMutation({
-    mutationFn: (payload: DeleteAccountRequest) => settingsApi.deleteAccount(payload),
+    mutationFn: async (payload: DeleteAccountRequest) => {
+      const revision = getSessionRevision();
+      const receipt = await settingsApi.deleteAccount(payload);
+      if (!isSessionCurrent(revision)) return receipt;
+      setToken(null);
+      const clearedRevision = getSessionRevision();
+      try {
+        await cleanupLogoutState({
+          clearSession,
+          cancelQueries: () => queryClient.cancelQueries(),
+          clearCache: () => queryClient.clear(),
+          isCurrent: () => isSessionCurrent(clearedRevision),
+        });
+      } catch {
+        console.warn("[account] очистка после подтверждённого удаления завершилась с ошибкой");
+      }
+      return receipt;
+    },
   });
 }

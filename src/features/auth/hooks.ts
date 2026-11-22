@@ -1,7 +1,9 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { authApi } from "@/api";
+import { getSessionRevision, isSessionCurrent } from "@/api/client";
 import { useSessionStore } from "@/store/useSessionStore";
+import { cleanupLogoutState } from "./logout-cleanup.mjs";
 
 export function useLogin() {
   const setSession = useSessionStore((state) => state.setSession);
@@ -13,9 +15,21 @@ export function useLogin() {
 }
 
 export function useLogout() {
+  const queryClient = useQueryClient();
   const clearSession = useSessionStore((state) => state.clearSession);
   return useMutation({
-    mutationFn: () => authApi.logout(),
-    onSuccess: () => clearSession(),
+    mutationFn: async () => {
+      const pending = authApi.logout();
+      const revision = getSessionRevision();
+      await Promise.all([
+        pending,
+        cleanupLogoutState({
+          clearSession,
+          cancelQueries: () => queryClient.cancelQueries(),
+          clearCache: () => queryClient.clear(),
+          isCurrent: () => isSessionCurrent(revision),
+        }),
+      ]);
+    },
   });
 }
