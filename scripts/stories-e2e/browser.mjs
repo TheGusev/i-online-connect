@@ -478,15 +478,37 @@ try {
         await waitForTest(() => viewer.locator("img").evaluateAll(images =>
           images.some(image => image.complete && image.naturalWidth > 0)),
           "Real protected photo did not load");
-        const bar = dialog.locator("span.h-1 > span").first();
+        const bar = dialog.locator('[data-story-progress="active"]');
+        const samples = await bar.evaluate(element => new Promise(resolve => {
+          const values = [];
+          const start = performance.now();
+          const sample = time => {
+            values.push(Number(element.dataset.progressValue ?? 0));
+            if (time - start < 450) requestAnimationFrame(sample);
+            else resolve(values);
+          };
+          requestAnimationFrame(sample);
+        }));
+        ensure(samples.length >= 3, "Not enough animation samples");
+        ensure(samples.every((value, index) =>
+          Number.isFinite(value) && (index === 0 || value >= samples[index - 1])),
+          "Story progress moved backwards");
+        const advancing = samples.slice(1)
+          .filter((value, index) => value > samples[index]).length;
+        ensure(advancing >= (samples.length - 1) / 2,
+          "Story progress is still visibly stepped");
+        ensure(await dialog.getByText("Свайп вверх — закрыть", { exact: true }).count() === 0,
+          "Redundant bottom instruction is still visible");
         const area = await viewer.boundingBox();
         ensure(!!area, "No story interaction area");
+        ensure(area.height >= box.height * 0.85,
+          "Story does not occupy the viewer canvas");
         await page.mouse.move(area.x + area.width * 0.7, area.y + area.height * 0.5);
         await page.mouse.down();
         await page.waitForTimeout(100);
-        const before = parseFloat(await bar.evaluate(element => element.style.width));
+        const before = Number(await bar.getAttribute("data-progress-value"));
         await page.waitForTimeout(1100);
-        const after = parseFloat(await bar.evaluate(element => element.style.width));
+        const after = Number(await bar.getAttribute("data-progress-value"));
         ensure(Math.abs(after - before) <= 3, "Holding story did not pause progress");
         await page.mouse.up();
         await waitForTest(() => globalThis.__STORIES_BROWSER_VIEWCOUNT__(),
