@@ -7,6 +7,7 @@ import type { TrustLevel } from "@/api";
 import { presenceApi } from "@/api";
 import { Avatar, Button } from "@/components/ds";
 import { NotificationsBell } from "@/features/notifications/components/NotificationsBell";
+import { StoriesPreview } from "@/features/stories/StoriesPreview";
 import { useSessionStore } from "@/store/useSessionStore";
 import { cityCode } from "@/lib/cityCode";
 
@@ -63,8 +64,9 @@ export function TopBar() {
         </div>
 
         {isAuthed ? (
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-3">
             <NotificationsBell />
+            <StoriesPreview key={user.id} />
             <Link
               to="/profile/me"
               aria-label={t("nav.profile")}
