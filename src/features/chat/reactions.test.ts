@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { MORE_REACTIONS, QUICK_REACTIONS, REACTIONS_PER_USER, applyMyReaction, mergeRemoteReactions } from "./reactions";
+import { MORE_REACTIONS, QUICK_REACTIONS, REACTIONS_PER_USER, applyMyReaction, mergeRemoteReactions } from "./reaction-state";
 
 test("ставит мою реакцию", () => {
     assert.deepEqual(applyMyReaction([], "👍", "put"), [{ emoji: "👍", count: 1, mine: true }]);

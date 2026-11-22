@@ -1,3 +1,4 @@
+import { chatMediaKind, CHAT_VIDEO_EXTENSIONS } from "./media-kind";
 /**
  * Подготовка фото и видео к отправке в чат.
  *
@@ -16,7 +17,7 @@ export const MAX_CHAT_VIDEO_SECONDS = 60;
 const MAX_IMAGE_SIDE = 1600;
 
 /** Что можно выбрать в системном диалоге выбора файла. */
-export const CHAT_MEDIA_ACCEPT = [...CHAT_IMAGE_MIME, ...CHAT_VIDEO_MIME].join(",");
+export const CHAT_MEDIA_ACCEPT = [...CHAT_IMAGE_MIME, ...CHAT_VIDEO_MIME, ...CHAT_VIDEO_EXTENSIONS.map((ext) => `.${ext}`)].join(",");
 
 export type ChatMediaKind = "image" | "video";
 
@@ -34,21 +35,33 @@ function mb(bytes: number) {
   return Math.round(bytes / (1024 * 1024));
 }
 
-async function videoDurationMs(file: File): Promise<number> {
+async function videoDurationMs(file: File): Promise<number | undefined> {
   const url = URL.createObjectURL(file);
+  const video = document.createElement("video");
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    return await new Promise<number>((resolve, reject) => {
-      const video = document.createElement("video");
+    return await new Promise<number | undefined>((resolve) => {
+      const finish = (value?: number) => {
+        clearTimeout(timer);
+        video.onloadedmetadata = null;
+        video.onerror = null;
+        resolve(value);
+      };
+      timer = setTimeout(() => finish(), 5000);
       video.preload = "metadata";
       video.muted = true;
-      video.onloadedmetadata = () => {
-        const seconds = Number.isFinite(video.duration) ? video.duration : 0;
-        resolve(Math.round(seconds * 1000));
-      };
-      video.onerror = () => reject(new Error("Не удалось прочитать видео — попробуйте другой файл"));
+      video.onloadedmetadata = () => finish(
+        Number.isFinite(video.duration) && video.duration > 0
+          ? Math.round(video.duration * 1000) : undefined);
+      video.onerror = () => finish();
       video.src = url;
     });
   } finally {
+    clearTimeout(timer);
+    video.onloadedmetadata = null;
+    video.onerror = null;
+    video.removeAttribute("src");
+    video.load();
     URL.revokeObjectURL(url);
   }
 }
@@ -90,9 +103,9 @@ async function shrinkImage(file: File): Promise<File> {
 
 export async function prepareChatMedia(input: File): Promise<PreparedMedia> {
   const isImage = (CHAT_IMAGE_MIME as readonly string[]).includes(input.type);
-  const isVideo = (CHAT_VIDEO_MIME as readonly string[]).includes(input.type);
+  const isVideo = chatMediaKind(input) === "video";
   if (!isImage && !isVideo) {
-    throw new Error("Можно отправить фото JPEG, PNG, WebP или видео MP4, WebM");
+    throw new Error("Выберите фото JPEG, PNG, WebP или видео поддерживаемого сервером формата");
   }
 
   if (isImage) {
@@ -107,13 +120,13 @@ export async function prepareChatMedia(input: File): Promise<PreparedMedia> {
     throw new Error(`Видео весит ${mb(input.size)} МБ — нужно до 45 МБ`);
   }
   const durationMs = await videoDurationMs(input);
-  if (durationMs > (MAX_CHAT_VIDEO_SECONDS + 1) * 1000) {
+  if (durationMs !== undefined && durationMs > (MAX_CHAT_VIDEO_SECONDS + 1) * 1000) {
     throw new Error("Видео длиннее минуты — обрежьте его и отправьте снова");
   }
   return {
     file: input,
     kind: "video",
     previewUrl: URL.createObjectURL(input),
-    durationMs,
+    ...(durationMs !== undefined ? { durationMs } : {}),
   };
 }

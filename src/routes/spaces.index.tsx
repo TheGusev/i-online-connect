@@ -1,9 +1,13 @@
 import { toast } from "sonner";
+import { CityConfirmation } from "@/features/geo/CityConfirmation";
+import { CityPill } from "@/features/geo/CityPill";
+import { useCurrentCity } from "@/features/geo/useCurrentCity";
+import { normCity } from "@/lib/cityCode";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { Compass } from "lucide-react";
 
-import type { SpaceDraft } from "@/api";
+import type { Space, SpaceDraft } from "@/api";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button, SpaceCardSkeleton } from "@/components/ds";
 import { Reveal } from "@/components/landing/Reveal";
@@ -41,19 +45,28 @@ function SpacesPage() {
   const { data: spaces, isPending, isError } = useSpaces();
   const createSpace = useCreateSpace();
   const navigate = useNavigate();
-  const userInterests = useSessionStore((state) => state.user?.interests ?? []);
+  const userInterests = useSessionStore((state) => state.user?.interests) ?? [];
+    const [otherCity, setOtherCity] = useState(false);
+    const { city: currentCity } = useCurrentCity();
 
   const list = (spaces ?? []).filter((space) => {
     if (tab === "mine") return space.isMember;
     return true;
   });
 
-  const sorted =
+  const ordered =
     tab === "nearby"
       ? [...list].sort((a, b) => a.distanceKm - b.distanceKm)
       : tab === "interests"
         ? sortSpacesByInterests(list, userInterests)
         : list;
+
+    // Сообщества выбранного города — первыми, остальной порядок вкладки сохраняется.
+    const cityRank = (space: Space) =>
+      currentCity && normCity(space.city) === normCity(currentCity) ? 0 : 1;
+    const sorted = currentCity
+      ? [...ordered].sort((a, b) => cityRank(a) - cityRank(b))
+      : ordered;
 
   const handleCreate = (draft: SpaceDraft) => {
     createSpace.mutate(draft, {
@@ -70,6 +83,7 @@ function SpacesPage() {
   return (
     <AppShell wide>
       <header className="mb-6">
+          <CityPill onOther={() => setOtherCity(true)} />
         <WaveHeading as="h1" className="mt-3 text-3xl font-bold tracking-tight">
           Рабочие круги и сообщества по делу
         </WaveHeading>
@@ -77,6 +91,12 @@ function SpacesPage() {
           Люди собираются вокруг дела: профессиональные круги, совместные задачи, встречи и эфиры.
         </p>
       </header>
+
+      {otherCity ? (
+        <div className="mb-5">
+          <CityConfirmation />
+        </div>
+      ) : null}
 
       <div className="mb-6">
         <SpacesTabs
@@ -100,7 +120,9 @@ function SpacesPage() {
         <>
           {tab === "nearby" ? (
             <p className="mb-4 text-xs text-muted-foreground">
-              Сначала — сообщества, которые собираются ближе всего к вам.
+              {currentCity
+                ? `Сначала — сообщества города ${currentCity}, затем ближайшие к вам.`
+                : "Сначала — сообщества, которые собираются ближе всего к вам."}
             </p>
           ) : null}
 

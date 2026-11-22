@@ -1,8 +1,11 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { Ban, Flag, ShieldCheck, Info } from "lucide-react";
 import { useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+
+import * as chatEndpoints from "@/api/endpoints/chat";
 
 import { Button, Modal } from "@/components/ds";
 import { useOverlayPresence } from "@/lib/useOverlayPresence";
@@ -22,6 +25,28 @@ export function SafetyMenu({
   const [infoOpen, setInfoOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const params = useParams({ strict: false }) as { id?: string };
+  const blockParticipant = async () => {
+    try {
+      let target = participantId;
+      if ((!target || target === "unknown") && params.id) {
+        target = (await chatEndpoints.getConversation(params.id)).participant.id;
+      }
+      if (!target || target === "unknown") {
+        toast.error("Не удалось определить собеседника");
+        return;
+      }
+      if (!window.confirm(`Заблокировать ${participantName}? Диалог скроется, сообщения приходить не будут. Разблокировать можно в списке чатов, кнопка «Заблокированные».`)) return;
+      await chatEndpoints.blockUser(target);
+      toast.success(`${participantName} заблокирован`);
+      void queryClient.invalidateQueries({ queryKey: ["chat"] });
+      void navigate({ to: "/chat" });
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "Не удалось заблокировать");
+    }
+  };
   const [pos, setPos] = useState({ top: 0, right: 0 });
 
   return (
@@ -64,9 +89,7 @@ export function SafetyMenu({
               type="button"
               onClick={() => {
                 setMenuOpen(false);
-                toast.success(`${participantName} заблокирован`, {
-                  description: "Диалог скрыт из списка, новые сообщения приходить не будут.",
-                });
+                void blockParticipant();
               }}
               className="flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm transition-colors hover:bg-secondary"
             >

@@ -69,3 +69,6 @@ self.addEventListener("notificationclick", (event) => {
     })(),
   );
 });
+
+// Нужен Chrome для установки; ничего не кеширует.
+self.addEventListener("fetch", () => {});

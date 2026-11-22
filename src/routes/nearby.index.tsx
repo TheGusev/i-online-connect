@@ -85,15 +85,15 @@ function NearbyPage() {
 
   return (
     <AppShell wide public>
-      <header className="mb-6">
+      <header className="mb-4 sm:mb-6">
         <p className="inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-ink">
           <MapPin className="size-3.5" aria-hidden="true" />
           РЯДОМ
         </p>
-        <WaveHeading as="h1" className="mt-3 text-3xl font-bold">
+        <WaveHeading as="h1" className="mt-2.5 text-2xl font-bold sm:mt-3 sm:text-3xl">
           Быстрые решения рядом с домом
         </WaveHeading>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-2 max-w-2xl text-[13px] leading-snug text-muted-foreground sm:text-sm sm:leading-relaxed">
           Продать или отдать вещь, найти мастера, компанию на вечер, попутчика или просто попросить
           помощи по-соседски. Люди те же, что и в знакомствах, — с тем же уровнем доверия.
         </p>
@@ -101,7 +101,7 @@ function NearbyPage() {
 
       {(
         <>
-          <div className="mb-6 space-y-4">
+          <div className="mb-3 space-y-3 sm:mb-6 sm:space-y-4">
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
                 <Input
                   label="Город"

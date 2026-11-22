@@ -1,9 +1,14 @@
+import { ActivityBadge, VoicePing } from "@/features/chat/components/ActivityBadge";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { isNearBottom } from "@/features/chat/scroll";
+import { useReadingMode } from "@/features/chat/useReadingMode";
+import { FloatingPanel } from "@/features/chat/components/FloatingPanel";
+import { ScrollToLatestButton } from "@/features/chat/components/ScrollToLatestButton";
 import { lockBodyScroll } from "@/lib/scroll-lock";
 import { ChatBackground } from "@/features/chat/components/ChatBackground";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarHeart, WifiOff } from "lucide-react";
+import { ArrowLeft, CalendarHeart, StickyNote, WifiOff } from "lucide-react";
+import { RenameNoteChatButton } from "@/features/chat/NoteChatControls";
 import {
   Fragment,
   useCallback,
@@ -100,6 +105,7 @@ function ConversationPage() {
   const queryClient = useQueryClient();
   const myId = useSessionStore((s) => s.user?.id);
   const { data: conversation } = useConversation(id);
+  const isNotes = conversation?.kind === "notes";
   const { messages, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useMessages(id);
   const cache = useMessagesCache(id);
   const files = useFileUpload<Message>({ authorId: myId ?? "me", conversationId: id,
@@ -148,7 +154,7 @@ function ConversationPage() {
   );
   const { data: starters, isPending: startersPending } = useMessageStarters(
     id,
-    Boolean(messages) && isEmptyThread,
+    Boolean(conversation) && !isNotes && Boolean(messages) && isEmptyThread,
   );
 
   // Входящие события: новое сообщение сразу в ленту, «прочитано» — на мои пузыри.
@@ -199,6 +205,7 @@ function ConversationPage() {
 
   const {
     typing,
+    peerVoice,
     status: socketStatus,
     sendTyping,
   } = useChatSocket({
@@ -248,11 +255,26 @@ function ConversationPage() {
 
   // Автопрокрутка вниз при новых сообщениях (но не при подгрузке истории вверх).
   const lastMine = messages?.[messages.length - 1]?.authorId === myId;
+  const [voiceRecording, setVoiceRecording] = useState(false);
+  const reading = useReadingMode({
+    scrollerRef,
+    ready: initialScrollReady,
+    resetKey: id,
+    keepPanels:
+      Number(keyboardInset) > 0 ||
+      draft.trim().length > 0 ||
+      Boolean(replyTo) ||
+      Boolean(editingMessage) ||
+      socketStatus === "closed" ||
+      voiceRecording,
+    lastId,
+    lastMine,
+  });
   useEffect(() => {
     if (!initialScrollReady) return;
     if (nearBottomRef.current || lastMine) scrollToBottom(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialScrollReady, lastId, typing, scrollToBottom]);
+  }, [initialScrollReady, lastId, scrollToBottom]);
 
   // Клавиатура сократила видимую область — держим последнее сообщение в кадре.
   // Прокручиваем один раз и только если до изменения пользователь был у низа.
@@ -376,8 +398,9 @@ function ConversationPage() {
 
   return (
     <ReactionContext.Provider value={toggleReaction}>
-    <div className="keyboard-viewport-fixed flex flex-col overflow-hidden overscroll-none bg-background text-foreground">
-      <header className="shrink-0 border-b border-border bg-card/95 backdrop-blur">
+    <div ref={reading.rootRef} className="keyboard-viewport-fixed flex flex-col overflow-hidden overscroll-none bg-background text-foreground">
+      <FloatingPanel edge="top" panelRef={reading.topRef}>
+      <header className="border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex min-h-[76px] w-full max-w-3xl items-center gap-3 px-3 py-2.5">
           <Link
             to="/chat"
@@ -387,7 +410,17 @@ function ConversationPage() {
             <ArrowLeft className="size-5" aria-hidden="true" />
           </Link>
 
-          {participant ? (
+          {isNotes ? (
+            <div className="flex min-w-0 flex-1 items-center gap-2.5">
+              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+                <StickyNote className="size-5" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{participant?.name ?? "Заметки"}</p>
+                <p className="text-xs text-muted-foreground">Только для вас</p>
+              </div>
+            </div>
+          ) : participant ? (
             <Link
               to="/profile/$id"
               params={{ id: participant.id }}
@@ -420,10 +453,14 @@ function ConversationPage() {
           )}
 
           <MediaGalleryButton onClick={() => setGalleryOpen(true)} className="size-10" />
-          <SafetyMenu
-            participantName={participant?.name ?? "Собеседник"}
-            participantId={participant?.id ?? "unknown"}
-          />
+          {isNotes && conversation ? (
+            <RenameNoteChatButton key={conversation.id} conversation={conversation} />
+          ) : (
+            <SafetyMenu
+              participantName={participant?.name ?? "Собеседник"}
+              participantId={participant?.id ?? "unknown"}
+            />
+          )}
           <MediaGallery scope="conversation" id={id} open={galleryOpen} onClose={() => setGalleryOpen(false)} />
         </div>
         {socketStatus === "closed" ? (
@@ -433,11 +470,13 @@ function ConversationPage() {
           </p>
         ) : null}
       </header>
+      </FloatingPanel>
 
       <div className="relative isolate flex min-h-0 flex-1 flex-col">
       <ChatBackground />
       <main
         ref={scrollerRef}
+        style={{ paddingTop: "calc(var(--top-h, 0px) + 1rem)", paddingBottom: "calc(var(--bot-h, 0px) + 1rem)" }}
         onScroll={(event) => {
           const el = event.currentTarget;
           nearBottomRef.current = isNearBottom(el.scrollTop, el.clientHeight, el.scrollHeight);
@@ -458,7 +497,9 @@ function ConversationPage() {
           ) : isEmptyThread ? (
             <div className="m-auto max-w-sm text-center">
               <p className="text-sm text-muted-foreground">
-                Диалог ещё не начат. Напишите первое сообщение — или начните с подсказки ниже.
+                {isNotes
+                  ? "Сохраните первую запись. Этот чат виден только вам."
+                  : "Диалог ещё не начат. Напишите первое сообщение — или начните с подсказки ниже."}
               </p>
             </div>
           ) : (
@@ -521,25 +562,22 @@ function ConversationPage() {
                     </Fragment>
                   );
                 })}
-                {typing ? (
-                  <li className="flex justify-start">
-                    <span className="rounded-3xl rounded-bl-lg border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-                      печатает…
-                    </span>
+                <li className="flex h-9 items-center justify-start">
+                    <ActivityBadge mode={voiceRecording ? "voice" : typing ? (peerVoice ? "peer-voice" : "typing") : null} />
                   </li>
-                ) : null}
               </ul>
             </>
           )}
         </div>
       </main>
+      <ScrollToLatestButton visible={reading.arrowVisible} unseen={reading.unseen} onClick={reading.scrollToLatest} />
       </div>
 
-      <div
-        className="shrink-0 border-t border-border bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur"
+      <FloatingPanel edge="bottom" panelRef={reading.bottomRef}
+        className="border-t border-border bg-card/95 backdrop-blur pb-[max(0px,calc(env(safe-area-inset-bottom)_-_14px))] has-[textarea:focus]:pb-0"
       >
         <div className="mx-auto w-full max-w-3xl">
-          {isEmptyThread ? (
+          {isEmptyThread && !isNotes ? (
             <StarterChips
               starters={starters ?? []}
               loading={startersPending}
@@ -550,7 +588,9 @@ function ConversationPage() {
             />
           ) : null}
 
-          <ChatComposer
+          <VoicePing active={voiceRecording} send={sendTyping} />
+            <ChatComposer
+            onRecordingChange={setVoiceRecording}
             {...(canSendMedia && !editingMessage ? { onFile: (file: File) => { files.send(file, replyTo ?? undefined); setReplyTo(null); }, fileSending: files.sending } : {})}
             value={draft}
             onChange={setDraft}
@@ -606,7 +646,7 @@ function ConversationPage() {
               });
               setReplyTo(null);
             }}
-            {...(chatStarted
+            {...(chatStarted || isNotes
               ? {}
               : {
                   leading: (
@@ -623,7 +663,7 @@ function ConversationPage() {
                 })}
           />
         </div>
-      </div>
+      </FloatingPanel>
 
       <MessageActions
         message={actionsFor}

@@ -22,6 +22,31 @@ function useNow() {
 export function UrgentPrice({ listing, compact = false }: { listing: Listing; compact?: boolean }) {
   const now = useNow();
   const stop = dropEnd(listing);
+  if (compact) {
+    const price = formatPrice(listing.currentPriceMinor ?? listing.priceMinor, listing.currency);
+    const discount = listing.discountFromStartPct ?? 0;
+    const parts = [
+      listing.nextDropAt
+        ? `↓ через ${now === null ? "—:—" : clockLeft(listing.nextDropAt, now)}`
+        : "цена не снижается",
+      listing.floorHintPct != null ? `не ниже ${listing.floorHintPct}%` : null,
+      listing.watchersCount ? `следят ${listing.watchersCount}` : null,
+    ].filter(Boolean);
+    return (
+      <div className="space-y-0.5">
+        <p className="flex items-baseline gap-2 leading-none">
+          <span className="text-lg font-black text-primary">{price}</span>
+          {discount > 0 ? <span className="text-[11px] font-bold text-primary">−{discount}%</span> : null}
+        </p>
+        <p className="text-[11px] leading-tight text-muted-foreground">{parts.join(" · ")}</p>
+        {listing.reservation?.active ? (
+          <p className="text-[11px] font-semibold text-primary">
+            {listing.reservation.mine ? "Ваша бронь" : "Забронировано"}
+          </p>
+        ) : null}
+      </div>
+    );
+  }
   return (
     <div className={compact ? "space-y-1 text-[11px]" : "space-y-2 text-sm"}>
       <p

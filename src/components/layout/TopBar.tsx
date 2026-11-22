@@ -1,3 +1,4 @@
+import { WinterWordmark } from "./WinterWordmark";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -6,7 +7,9 @@ import type { TrustLevel } from "@/api";
 import { presenceApi } from "@/api";
 import { Avatar, Button } from "@/components/ds";
 import { NotificationsBell } from "@/features/notifications/components/NotificationsBell";
+import { StoriesButton } from "@/features/stories/StoriesButton";
 import { useSessionStore } from "@/store/useSessionStore";
+import { cityCode } from "@/lib/cityCode";
 
 /**
  * Верхняя панель. Гостю не показываем ни аватар, ни колокольчик:
@@ -37,22 +40,33 @@ export function TopBar() {
       <div className="mx-auto flex h-16 w-full max-w-3xl items-center justify-between gap-3 px-4 lg:max-w-5xl lg:px-8">
         <div className="flex min-w-0 items-center gap-2">
           <Link to="/" className="text-base font-bold tracking-tight lg:hidden">
-            {t("app.name")}
+            <WinterWordmark text={t("app.name")} />
           </Link>
           <span className="hidden text-sm text-muted-foreground lg:block">{t("app.tagline")}</span>
 
-          {isAuthed && counters && (counters.cityName ? counters.city : counters.total) > 0 && (
-            <span className="flex items-center gap-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground">
-              <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-              <span className="text-primary">{counters.cityName ? counters.city : counters.total}</span>
-              в сети
+          {isAuthed && counters && counters.total > 0 && (
+            <span
+              className="flex min-w-0 items-center gap-1.5 text-[11px] font-semibold tabular-nums text-muted-foreground"
+              aria-label={`В сети: ${counters.total}${counters.cityName ? `, в городе ${counters.cityName}: ${counters.city}` : ""}`}
+            >
+              <span className="size-1.5 shrink-0 rounded-full bg-success" aria-hidden="true" />
+              {counters.cityName ? (
+                <>
+                  <span title={counters.cityName} className="max-w-[5.5rem] truncate font-semibold uppercase tracking-wider">{cityCode(counters.cityName)}</span>
+                  <span key={counters.city} className="count-tick text-primary">{counters.city}</span>
+                  <span aria-hidden="true">·</span>
+                </>
+              ) : null}
+              <span>всего</span>
+              <span key={counters.total} className="count-tick text-primary">{counters.total}</span>
             </span>
           )}
         </div>
 
         {isAuthed ? (
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-3">
             <NotificationsBell />
+            <StoriesButton key={user.id} ownerId={user.id} />
             <Link
               to="/profile/me"
               aria-label={t("nav.profile")}

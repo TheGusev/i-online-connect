@@ -9,6 +9,7 @@ const schema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("production"),
   PORT: z.coerce.number().int().positive().default(4000),
   HOST: z.string().default("127.0.0.1"),
+  REGIONAL_DEMO_ENABLED: z.enum(["true", "false"]).default("false"),
 
   DATABASE_URL: z.string().min(1, "DATABASE_URL обязателен"),
   PG_POOL_MAX: z.coerce.number().int().positive().default(10),

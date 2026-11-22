@@ -7,6 +7,7 @@ import { indexFromX, moveItem, TAB_ORDER_HINT_KEY } from "@/features/navigation/
 import { useTabOrder } from "@/features/navigation/useTabOrder";
 import { useKeyboardOpen } from "@/hooks/useViewportHeight";
 import { useSessionStore } from "@/store/useSessionStore";
+import { buzz, hapticTrigger } from "@/lib/haptics";
 
 import { navItems } from "./nav-items";
 import { NavBadge } from "./NavBadge";
@@ -155,6 +156,9 @@ export function BottomNav({ activeOverride }: { activeOverride?: string | undefi
               to={to}
               {...(params ? { params } : {})}
               draggable={false}
+              onClick={(event) => {
+                if (!event.defaultPrevented) buzz("selection");
+              }}
               onClickCapture={(event) => {
                 if (dragIndex !== null || suppressClick.current) event.preventDefault();
               }}
@@ -169,6 +173,7 @@ export function BottomNav({ activeOverride }: { activeOverride?: string | undefi
                 {to === "/chat" ? <NavBadge count={unreadChats} /> : null}
               </span>
               <span className="w-full truncate text-center">{t(labelKey)}</span>
+              <span ref={hapticTrigger} aria-hidden="true" className="absolute inset-0" />
             </Link>
           </li>
         ))}

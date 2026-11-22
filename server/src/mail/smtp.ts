@@ -11,6 +11,17 @@ import { env } from "../env.ts";
 
 let transporter: Transporter | null = null;
 
+/** Экранирует пользовательский текст для HTML письма. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+
 function getTransporter(): Transporter | null {
   if (!env.SMTP_HOST) return null;
   if (transporter) return transporter;
@@ -19,6 +30,11 @@ function getTransporter(): Transporter | null {
     port: env.SMTP_PORT,
     // 465 — неявный TLS, 587 — STARTTLS.
     secure: env.SMTP_PORT === 465,
+    // Для 587 требуем STARTTLS; на 465 TLS включён сразу.
+    requireTLS: env.SMTP_PORT === 587,
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
     ...(env.SMTP_USER
       ? { auth: { user: env.SMTP_USER, pass: env.SMTP_PASSWORD } }
       : {}),
@@ -58,7 +74,7 @@ export function confirmationEmail(code: string, name: string): Omit<MailMessage,
     text: `${greeting}\n\nКод для подтверждения почты в «Я Онлайн»: ${code}\nКод действует 10 минут.\n\nЕсли вы не запрашивали код — просто удалите это письмо.`,
     html:
       `<div style="font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#2b2b2b">` +
-      `<p>${greeting}</p>` +
+      `<p>${escapeHtml(greeting)}</p>` +
       `<p>Код для подтверждения почты в «Я Онлайн»:</p>` +
       `<p style="font-size:30px;font-weight:700;letter-spacing:4px;color:#FF6B5B">${code}</p>` +
       `<p style="color:#6b6b6b">Код действует 10 минут. Если вы не запрашивали код — просто удалите это письмо.</p>` +

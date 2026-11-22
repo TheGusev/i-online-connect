@@ -7,6 +7,7 @@ import type { Message } from "@/api";
 import { cn } from "@/lib/utils";
 import { useOverlayPresence } from "@/lib/useOverlayPresence";
 import { MORE_REACTIONS, QUICK_REACTIONS, myReaction, useReactionToggle } from "@/features/chat/reactions";
+import { buzz, hapticTrigger } from "@/lib/haptics";
 import { LiveEmoji } from "./LiveEmoji";
 import { useKeyboardInset } from "@/hooks/useViewportHeight";
 import { computeActionsPosition } from "@/features/chat/actions-position";
@@ -144,7 +145,7 @@ export function MessageActions({
     onClose();
   };
   const fresh = () => Date.now() - openedAt.current < 400;
-  const react = (emoji: string) => { if (fresh()) return; if (target && toggleReaction) toggleReaction(target, emoji); onClose(); };
+  const react = (emoji: string) => { if (fresh()) return; buzz("selection"); if (target && toggleReaction) toggleReaction(target, emoji); onClose(); };
 
   return createPortal(
     <div
@@ -172,7 +173,7 @@ export function MessageActions({
                 aria-label={`Реакция ${emoji}`}
                 aria-pressed={current === emoji}
                 className={cn("grid size-10 place-items-center rounded-full text-xl transition-transform active:scale-90", current === emoji && "bg-primary/20 ring-1 ring-primary")}
-                onClick={() => react(emoji)}
+                ref={hapticTrigger} onClick={() => react(emoji)}
               >
                 <LiveEmoji symbol={emoji} seed={emoji} />
               </button>
@@ -191,14 +192,14 @@ export function MessageActions({
         {more ? (
           <div className="mt-1 grid max-h-[220px] grid-cols-8 gap-0.5 overflow-y-auto border-t border-border pt-1">
             {MORE_EMOJI.map((emoji, index) => (
-              <button key={emoji} type="button" className="grid aspect-square place-items-center rounded-lg text-xl active:scale-90" onClick={() => react(emoji)}>
+              <button key={emoji} type="button" className="grid aspect-square place-items-center rounded-lg text-xl active:scale-90" ref={hapticTrigger} onClick={() => react(emoji)}>
                 <LiveEmoji symbol={emoji} seed={index} />
               </button>
             ))}
           </div>
         ) : null}
-        {(current2.kind === "file" || current2.kind === "image") && current2.mediaUrl && current2.status !== "sending" && current2.status !== "failed" ? (
-          <Button variant="ghost" size="sm" fullWidth className="justify-start" onClick={() => { if (fresh() || !current2.mediaUrl) return; void saveChatFile(current2.mediaUrl, current2.fileName ?? `photo-${current2.id}.jpg`, current2.kind === "image"); onClose(); }}><Download />{current2.kind === "image" ? "Сохранить" : "Скачать"}</Button>
+        {!current2.deletedAt && (current2.kind === "file" || current2.kind === "image" || current2.kind === "video") && current2.mediaUrl && current2.status !== "sending" && current2.status !== "failed" ? (
+          <Button variant="ghost" size="sm" fullWidth className="justify-start" onClick={() => { if (fresh() || !current2.mediaUrl) return; void saveChatFile(current2.mediaUrl, current2.fileName ?? (current2.kind === "video" ? `video-${current2.id}.mp4` : `photo-${current2.id}.jpg`), current2.kind === "image"); onClose(); }}><Download />{current2.kind === "file" ? "Скачать" : "Сохранить"}</Button>
         ) : null}
         {deletable && albumLive.length > 1 ? (
           <div className="mt-1 flex flex-col border-t border-border pt-1 text-xs font-medium">

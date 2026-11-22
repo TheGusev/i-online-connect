@@ -1,3 +1,8 @@
+import "@fontsource/manrope/400.css";
+import "@fontsource/manrope/500.css";
+import "@fontsource/manrope/600.css";
+import "@fontsource/manrope/700.css";
+import "@fontsource/manrope/800.css";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -13,6 +18,8 @@ import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import { UpdateBanner } from "@/components/UpdateBanner";
+import { InstallPrompt } from "@/components/InstallPrompt";
+import { MetrikaPrivacy } from "@/components/MetrikaPrivacy";
 import { SessionRestore } from "@/features/auth/session";
 import { ensureServiceWorker } from "@/features/notifications/usePushSubscription";
 import { useViewportHeightVar } from "@/hooks/useViewportHeight";
@@ -152,12 +159,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "apple-touch-icon",
         href: "/ya-online-apple-v2-180.png",
         sizes: "180x180",
-      },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap",
       },
     ],
   }),
@@ -338,6 +339,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <YandexMetrikaTracker />
+      <MetrikaPrivacy />
       {/* Восстанавливаем сессию по токену до отрисовки приватных экранов. */}
       <SessionRestore />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
@@ -347,6 +349,7 @@ function RootComponent() {
       <Toaster position="top-center" />
       {/* Мягкое обновление: баннер вместо принудительного reload. */}
       <UpdateBanner />
+      <InstallPrompt />
     </QueryClientProvider>
   );
 }

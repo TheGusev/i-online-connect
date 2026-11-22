@@ -1,3 +1,4 @@
+import { buzz, hapticTrigger } from "@/lib/haptics";
 import { cn } from "@/lib/utils";
 
 export interface ToggleProps {
@@ -17,7 +18,11 @@ export function Toggle({ checked, onChange, label, disabled, className }: Toggle
       aria-checked={checked}
       aria-label={label}
       disabled={disabled}
-      onClick={() => onChange(!checked)}
+      ref={hapticTrigger}
+      onClick={() => {
+        buzz("selection");
+        onChange(!checked);
+      }}
       className={cn(
         "relative h-11 w-14 shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50",
         className,

@@ -551,7 +551,7 @@ export async function listingRoutes(app: FastifyInstance) {
     const userId = currentUserId(request);
     await expireReservations();
     const rows = await query<ListingRow>(
-      `${LISTING_SELECT} WHERE l.author_id = $1 ORDER BY l.created_at DESC LIMIT 100`,
+      `${LISTING_SELECT} WHERE l.author_id = $1 AND l.author_hidden_at IS NULL ORDER BY l.created_at DESC LIMIT 100`,
       [userId],
     );
     return rows.map((row) => toListingDto(row, userId));
@@ -564,6 +564,7 @@ export async function listingRoutes(app: FastifyInstance) {
     const rows = await query<ListingRow>(
       `${LISTING_SELECT}
         WHERE l.author_id = $2
+          AND l.author_hidden_at IS NULL
           AND NOT EXISTS (
             SELECT 1 FROM blocks b
              WHERE (b.user_id = $1 AND b.blocked_id = l.author_id)
@@ -580,7 +581,7 @@ export async function listingRoutes(app: FastifyInstance) {
     const userId = request.userId ?? null;
     const { id } = idParam.parse(request.params);
     await expireReservations(undefined,id);
-    const row = await queryOne<ListingRow>(`${LISTING_SELECT} WHERE l.id = $2`, [userId, id]);
+    const row = await queryOne<ListingRow>(`${LISTING_SELECT} WHERE l.id = $2 AND l.author_hidden_at IS NULL`, [userId, id]);
     if (!row) throw notFound("Объявление не найдено");
     if(userId && row.category==='urgent') await transaction(async client=>{
       await client.query('SELECT id FROM listings WHERE id=$1 FOR UPDATE',[id]);
@@ -752,6 +753,26 @@ export async function listingRoutes(app: FastifyInstance) {
       await client.query("UPDATE listing_reservations SET status='cancelled' WHERE listing_id=$1 AND status='active'",[id]);
       await client.query("UPDATE listing_bids SET status='cancelled' WHERE listing_id=$1 AND status='active'",[id]);
     });
+    return { ok: true as const };
+  });
+
+  // ── Удаление из кабинета (мягкое скрытие) ───────────────────────────────
+  app.delete<{ Params: { id: string } }>("/:id", async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    await assertOwnListing(id, userId);
+    const row = await queryOne<{ state: string }>(
+      "SELECT CASE WHEN state = 'active' AND expires_at <= now() THEN 'expired'::listing_state ELSE state END AS state FROM listings WHERE id = $1",
+      [id],
+    );
+    if (!row) throw notFound("Объявление не найдено");
+    if (row.state === "active") {
+      throw new HttpError(409, "Сначала завершите объявление", "LISTING_STILL_ACTIVE");
+    }
+    await query(
+      "UPDATE listings SET author_hidden_at = COALESCE(author_hidden_at, now()), updated_at = now() WHERE id = $1 AND author_id = $2",
+      [id, userId],
+    );
     return { ok: true as const };
   });
 

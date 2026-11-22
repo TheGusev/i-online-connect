@@ -1,4 +1,6 @@
-import { Image as ImageIcon, ImagePlus, Mic, Video, Pencil, Reply, SendHorizontal, Square, Trash2, X, Paperclip } from "lucide-react";
+import { chatMediaKind } from "../media-kind";
+import { Image as ImageIcon, Mic, Video, Pencil, Reply, SendHorizontal, Square, Trash2, X, Paperclip } from "lucide-react";
+import { buzz, hapticTrigger } from "@/lib/haptics";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 
@@ -46,6 +48,7 @@ export function ChatComposer({
   onPhotos,
   onFile,
   fileSending = false,
+  onRecordingChange,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -74,6 +77,8 @@ export function ChatComposer({
   onPhotos?: (photos: PreparedMedia[], caption: string) => void;
   onFile?: (file: File) => void;
   fileSending?: boolean;
+  /** Сообщает странице, идёт ли запись голоса (панели на это время не прячутся). */
+  onRecordingChange?: (recording: boolean) => void;
 }) {
   const localRef = useRef<HTMLTextAreaElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
@@ -97,6 +102,12 @@ export function ChatComposer({
     [inputRef],
   );
   const voice = useVoiceRecorder((recording) => onVoice?.(recording));
+  const recordingCbRef = useRef(onRecordingChange);
+  recordingCbRef.current = onRecordingChange;
+  useEffect(() => {
+    recordingCbRef.current?.(voice.recording);
+    return () => recordingCbRef.current?.(false);
+  }, [voice.recording]);
   const [staged, setStaged] = useState<PreparedMedia[]>([]);
   const [preparing, setPreparing] = useState(false);
   const stagedRef = useRef(staged);
@@ -107,8 +118,8 @@ export function ChatComposer({
   const pickFiles = async (list: File[]) => {
     if (list.length === 0) return;
     setMediaError(null);
-    const videos = list.filter((file) => file.type.startsWith("video/"));
-    const images = list.filter((file) => !file.type.startsWith("video/"));
+    const videos = list.filter((file) => chatMediaKind(file) === "video");
+    const images = list.filter((file) => chatMediaKind(file) !== "video");
     if (!onPhotos || (images.length === 0 && videos.length === 1)) {
       if (images.length === 0 && videos.length === 1) return pickMedia(videos[0]);
       return pickMedia(list[0]);
@@ -258,45 +269,17 @@ export function ChatComposer({
             ) : (
               <>
                 {onFile ? <>
-                  <input ref={documentRef} type="file" accept={FILE_ACCEPT} className="hidden" aria-label="Выбрать файл" onChange={event => {
-                    refreshViewportAfterPicker(); const file = event.target.files?.[0]; event.target.value = "";
-                    if (!file) return; const error = validateFileChoice(file); setMediaError(error); if (!error) onFile(file);
+                  <input ref={documentRef} type="file" accept={`${FILE_ACCEPT},image/*,video/*,.heic,.heif,${CHAT_MEDIA_ACCEPT}`} multiple={Boolean(onPhotos)} className="hidden" aria-label="Выбрать файл" onChange={event => {
+                    refreshViewportAfterPicker(); const list = Array.from(event.target.files ?? []); event.target.value = "";
+                    const isMedia = (f: File) => chatMediaKind(f) !== null;
+                    const media = list.filter(isMedia);
+                    if (media.length > 0 && (onMedia || onPhotos)) { void pickFiles(media); return; }
+                    const file = list.find((f) => !isMedia(f)) ?? list[0]; if (!file) return;
+                    const error = validateFileChoice(file); setMediaError(error); if (!error) onFile(file);
                   }} />
-                  <Button type="button" size="icon" variant="secondary" className="size-9 border-primary/40 text-primary" aria-label="Прикрепить файл" disabled={disabled || fileSending} onClick={() => { localRef.current?.blur(); documentRef.current?.click(); }}><Paperclip /></Button>
+                  <Button type="button" size="icon" variant="secondary" className="size-11 shrink-0 border border-primary/40 text-primary hover:bg-primary/10" aria-label="Прикрепить файл" disabled={disabled || fileSending || mediaSending} onClick={() => { localRef.current?.blur(); documentRef.current?.click(); }}><Paperclip /></Button>
                 </> : null}
-                {onMedia ? (
-                  <>
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept={onPhotos ? `image/*,.heic,.heif,${CHAT_MEDIA_ACCEPT}` : CHAT_MEDIA_ACCEPT}
-                      multiple={Boolean(onPhotos)}
-                      className="hidden"
-                      onChange={(event) => {
-                        refreshViewportAfterPicker();
-                        const list = Array.from(event.target.files ?? []);
-                        event.target.value = "";
-                        void pickFiles(list);
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="secondary"
-                      aria-label="Отправить фото или видео"
-                      {...(mediaHint ? { title: mediaHint } : {})}
-                      aria-busy={mediaSending}
-                      disabled={disabled || mediaSending}
-                      onClick={() => {
-                        localRef.current?.blur();
-                        fileRef.current?.click();
-                      }}
-                      className="size-11 shrink-0 border border-primary/40 text-primary hover:bg-primary/10"
-                    >
-                      <ImagePlus aria-hidden="true" />
-                    </Button>
-                  </>
-                ) : null}
+                
                 {leading}
               </>
             )}
@@ -336,6 +319,15 @@ export function ChatComposer({
             type="submit"
             size="icon"
             aria-label="Отправить"
+            ref={hapticTrigger}
+            onClick={(e) => {
+              buzz("light");
+              // слой тика гасит штатную отправку формы, поэтому отправляем вручную
+              if ((e.target as HTMLElement).closest("[data-haptic-trigger]")) {
+                e.preventDefault();
+                e.currentTarget.form?.requestSubmit(e.currentTarget);
+              }
+            }}
             onPointerDown={(e) => e.preventDefault()} onMouseDown={(e) => e.preventDefault()}
             disabled={disabled || preparing || (!value.trim() && staged.length === 0) || voice.recording}
             className="size-11 shrink-0"
@@ -353,6 +345,7 @@ export function ChatComposer({
                 : "Записать голосовое сообщение"
             }
             disabled={disabled || voiceSending}
+            ref={hapticTrigger}
             draggable={false}
             onContextMenu={(event) => event.preventDefault()}
             className={cn(
@@ -363,6 +356,7 @@ export function ChatComposer({
                 : "border border-primary/40 text-primary hover:bg-primary/10",
             )}
             onClick={() => {
+              buzz(voice.recording ? "success" : "medium");
               // Одно нажатие — старт записи, повторное — отправка.
               if (voice.recording) voice.stop(false);
               else void voice.start();

@@ -31,6 +31,9 @@ export function PasswordResetFlow({ initialEmail, onDone }: { initialEmail: stri
     {sent && <>
       <p className="text-sm text-muted-foreground">Если адрес подтверждён в аккаунте, на него придёт код. Код действует 15 минут.</p>
       <Input label="Код из письма" inputMode="numeric" autoComplete="one-time-code" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} />
+      <p className="text-sm leading-relaxed text-muted-foreground">
+        Не нашли письмо? Проверьте папку «Спам». Если письмо оказалось там, отметьте его как «Не спам».
+      </p>
       <Input label="Новый пароль" type="password" autoComplete="new-password" value={password} onChange={e => setPassword(e.target.value)} />
       <Input label="Повторите пароль" type="password" autoComplete="new-password" value={repeat} onChange={e => setRepeat(e.target.value)} />
     </>}

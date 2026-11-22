@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Я Онлайн</string>
+    <string name="title_activity_main">Я Онлайн</string>
+    <string name="package_name">site.yaonline.app</string>
+    <string name="custom_url_scheme">site.yaonline.app</string>
+</resources>

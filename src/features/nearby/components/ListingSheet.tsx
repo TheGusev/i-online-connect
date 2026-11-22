@@ -24,6 +24,7 @@ import { ListingAuthor } from "./ListingAuthor";
 import { MediaViewer } from "@/features/profile/components/MediaViewer";
 import { ListingCountdown } from "./ListingCountdown";
 import { UrgentDeal, UrgentPrice } from "./UrgentDeal";
+import { OwnerActions } from "./OwnerActions";
 
 const LEAVE_MS = 260;
 
@@ -371,6 +372,10 @@ export function ListingSheet({ listingId, onClose }: { listingId?: string; onClo
                 </div>
               ) : null}
             </div>
+
+            {listing && listing.isMine && !listing.isSeed ? (
+              <OwnerActions listing={listing} onClose={requestClose} />
+            ) : null}
 
             {listing && listing.urgentType !== "sell" && !listing.isMine && !listing.isSeed ? (
               <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-border bg-card px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">

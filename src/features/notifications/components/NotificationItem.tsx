@@ -5,6 +5,10 @@ import type { AppNotification } from "@/api";
 import { cn } from "@/lib/utils";
 
 import { describeNotification } from "../hooks";
+import {
+  NotificationBannerContent,
+  toParts,
+} from "./NotificationBannerContent";
 import { useListing } from "@/features/nearby/hooks";
 import { formatPrice } from "@/features/nearby/labels";
 
@@ -32,37 +36,43 @@ export function NotificationItem({
   const displayTitle = item.kind === "urgent_final_call" && lot.data?.currentPriceMinor != null
     ? `Скоро конец: цена сейчас ${formatPrice(lot.data.currentPriceMinor)}` : title;
   const Icon = kindIcons[item.kind as keyof typeof kindIcons] ?? Bell;
+  const parts = toParts(displayTitle, description);
   const content = (
     <>
-      <span
-        className={cn(
-          "mt-0.5 grid shrink-0 place-items-center rounded-full bg-secondary text-primary",
-          compact ? "size-8" : "size-10",
-        )}
-      >
-        <Icon className={compact ? "size-4" : "size-5"} aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold leading-snug text-foreground">{displayTitle}</span>
-        {description ? (
-          <span className="mt-0.5 block truncate text-xs text-foreground/80">{description}</span>
-        ) : null}
-        <span className="mt-1 block text-xs text-muted-foreground">
+      <NotificationBannerContent
+        parts={parts}
+        avatarUrl={null}
+        actorActivity={item.payload["actorActivity"]}
+        kind={item.kind}
+        visual={
+          <span className="grid size-8 place-items-center rounded-full bg-secondary text-primary">
+            <Icon className="size-4" aria-hidden="true" />
+          </span>
+        }
+      />
+      <span className="gta-notification-card__meta">
+        <time dateTime={item.createdAt}>
           {new Date(item.createdAt).toLocaleString("ru-RU", {
             day: "numeric",
             month: "short",
             hour: "2-digit",
             minute: "2-digit",
           })}
-        </span>
+        </time>
+        {!item.readAt ? (
+          <span className="gta-notification-card__unread">
+            <span className="size-1.5 rounded-full bg-primary" aria-hidden="true" />
+            Новое
+          </span>
+        ) : null}
       </span>
-      {!item.readAt ? <span className="mt-2 size-2 shrink-0 rounded-full bg-primary shadow-glow" /> : null}
     </>
   );
+
   const className = cn(
-    "flex w-full items-start gap-3 rounded-2xl text-left transition-colors hover:bg-secondary",
-    compact ? "px-3 py-2" : "px-4 py-3",
-    !item.readAt && "bg-primary-soft/45",
+    "gta-toast urgent-tile gta-notification-card",
+    compact && "gta-notification-card--compact",
+    !item.readAt && "gta-notification-card--unread",
   );
 
   if (conversationId && href?.startsWith("/chat/")) {

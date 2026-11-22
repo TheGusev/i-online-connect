@@ -63,6 +63,10 @@ export async function closeListing(id: string): Promise<{ ok: true }> {
   return request<{ ok: true }>(`/listings/${id}/close`, { method: "POST" });
 }
 
+export async function deleteListing(id: string): Promise<{ ok: true }> {
+  return request<{ ok: true }>(`/listings/${id}`, { method: "DELETE" });
+}
+
 export function watchListing(id: string, watch: boolean) {
   return request<{ ok: true }>(`/listings/${id}/watch`, { method: watch ? "POST" : "DELETE" });
 }

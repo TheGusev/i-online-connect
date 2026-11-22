@@ -21,7 +21,6 @@ import { useSessionStore } from "@/store/useSessionStore";
 import { SpaceInviteDialog } from "@/features/spaces/components/SpaceInviteDialog";
 import { InviteQrSheet } from "@/components/InviteQrSheet";
 import { SpaceMenu } from "@/features/spaces/components/SpaceMenu";
-import { LiveIcon } from "@/features/spaces/live/LiveIcon";
 import { LiveBanner } from "@/features/spaces/live/LiveBanner";
 import { LiveRoomScreen } from "@/features/spaces/live/LiveRoomScreen";
 import { useLiveRoom, type LiveRoom, type LiveSeedMember } from "@/features/spaces/live/useLiveRoom";
@@ -45,6 +44,7 @@ import {
   useUpdateSpaceCover,
 } from "@/features/spaces/hooks";
 import { useVerificationStatus } from "@/features/trust/hooks";
+import { SpaceBoard } from "@/features/spaces/board/SpaceBoard";
 
 export const Route = createFileRoute("/spaces/$id")({
   validateSearch: z.object({ eventId: z.string().uuid().optional(), demo: z.string().optional() }),
@@ -112,6 +112,7 @@ function SpaceDetailPage() {
   const [inviteQuery, setInviteQuery] = useState("");
   const candidates = useInviteCandidates(id, inviteQuery, inviteOpen);
   const invite = useInviteToSpace(id);
+  const [discussionOpen, setDiscussionOpen] = useState(false);
 
   if (isPending) return <AppShell><ProfileCardSkeleton /></AppShell>;
 
@@ -139,15 +140,15 @@ function SpaceDetailPage() {
   );
 
   return (
-    <AppShell wide focused>
+    <AppShell wide focused bleed>
       <SpaceLive spaceId={id} demoInitial={demo === "live"} members={liveMembers}>
         {(room, demoLive, toggleDemo, setLiveOpen) => (
       <div
         className={isMobile
-          ? "keyboard-viewport-fixed z-10 flex flex-col bg-background px-4 pt-[calc(env(safe-area-inset-top)+0.5rem)]"
-          : "mx-auto flex h-[calc(var(--vvh,100dvh)-1.5rem)] w-full max-w-3xl flex-col"}
+          ? "keyboard-viewport-fixed z-10 flex flex-col bg-background pt-[calc(env(safe-area-inset-top)+0.5rem)]"
+          : "flex h-[calc(var(--vvh,100dvh)-1.5rem)] w-full flex-col"}
       >
-        <header className="flex shrink-0 items-center gap-2 border-b border-border pb-2">
+        <header className="flex shrink-0 items-center gap-2 border-b border-border px-4 pb-2 lg:px-6">
           <Button asChild size="icon" variant="ghost" className="size-10 text-primary">
             <Link to="/spaces" aria-label="Назад к сообществам"><ArrowLeft className="size-6" aria-hidden="true" /></Link>
           </Button>
@@ -170,9 +171,6 @@ function SpaceDetailPage() {
               {room.online !== null ? `${room.online} в сети` : room.active ? `${room.participants.length} в сети` : `${space.membersCount} участников`} · {space.city}
             </p>
           </div>
-          <Button size="icon" variant="ghost" aria-label="Эфир" onClick={() => setLiveOpen(true)} className="relative size-10 text-primary">
-            <LiveIcon active={room.active} className="size-5" />
-          </Button>
           {space.isMember ? <MediaGalleryButton onClick={() => setGalleryOpen(true)} className="size-10" /> : null}
           <SpaceMenu
             space={space}
@@ -214,24 +212,45 @@ function SpaceDetailPage() {
         }} /> : null}
         <MediaGallery scope="space" id={id} open={galleryOpen} onClose={() => setGalleryOpen(false)} />
 
-        <LiveBanner room={room} onEnter={() => setLiveOpen(true)} />
+        <div className="px-4 lg:px-6"><LiveBanner room={room} onEnter={() => setLiveOpen(true)} /></div>
 
         {!space.isMember && !space.isHost && !space.invited ? (
-          <div className="mt-2 shrink-0">
+          <div className="mt-2 shrink-0 px-4 lg:px-6">
             <JoinPanel space={space} pending={join.isPending || leave.isPending} onJoin={(answer) => join.mutate(answer, { onError: (error) => toast.error(messageOf(error, "Не удалось вступить")) })} onLeave={() => leave.mutate()} />
           </div>
         ) : null}
 
         {space.invited && !space.isMember ? (
-          <div className="mt-2 flex shrink-0 items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 p-2.5">
+          <div className="mx-4 mt-2 flex shrink-0 items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 p-2.5 lg:mx-6">
             <p className="min-w-0 flex-1 text-sm">Вас приглашают присоединиться.</p>
             <Button size="sm" loading={join.isPending} onClick={() => join.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось вступить")) })}>Вступить</Button>
             <Button size="sm" variant="ghost" loading={declineInvite.isPending} onClick={() => declineInvite.mutate(undefined, { onError: (error) => toast.error(messageOf(error, "Не удалось отклонить приглашение")) })}>Отклонить</Button>
           </div>
         ) : null}
 
-        <section className="mt-1 flex min-h-0 flex-1 flex-col">
+        {!discussionOpen ? (
+          <SpaceBoard
+            spaceId={id}
+            isMember={space.isMember}
+            isHost={space.isHost ?? false}
+            canPhoto={canSendMedia}
+            events={sortedEvents}
+            liveActive={room.active}
+            onOpenLive={() => setLiveOpen(true)}
+            onOpenDiscussion={() => setDiscussionOpen(true)}
+          />
+        ) : (
+          <div className='flex shrink-0 items-center gap-2 px-4 pt-1 lg:px-6'>
+            <Button size='sm' variant='ghost' onClick={() => setDiscussionOpen(false)}>
+              <ArrowLeft aria-hidden='true' /> К доске
+            </Button>
+            <span className='text-sm font-semibold text-foreground'>Архив обсуждения</span>
+          </div>
+        )}
+
+        <section className={discussionOpen ? 'mt-1 flex min-h-0 flex-1 flex-col' : 'hidden'}>
           <SpaceChat
+            readOnly
             spaceId={id}
             fill
             messages={[...withPending(messages ?? [], photoBatch.pending), ...files.pending].map((m) =>
@@ -240,7 +259,7 @@ function SpaceDetailPage() {
             onRetryPhoto={(clientTempId) => photoBatch.retry(clientTempId)}
             onRetryFile={files.retry}
             {...(canSendMedia ? { onFile: (file: File, reply?: import("@/api").MessageQuote) => files.send(file, reply), fileSending: files.sending } : {})}
-            canWrite={space.isMember}
+            canWrite={false}
             isHost={space.isHost ?? false}
             onEdit={(messageId, text) => editMessage.mutateAsync({ messageId, text }).then(() => undefined).catch((error) => {
               toast.error(messageOf(error, "Не удалось изменить сообщение"));

@@ -1,3 +1,6 @@
+import { recordCommunityNotificationActivity } from "../notifications/community-activity.ts";
+import { captureNotificationActorActivity } from "../notifications/activity-integration.ts";
+import { detectChatMediaType, normalizeChatVideo, removeChatVideoFiles } from "../media/chat-video.ts";
 /**
  * GET  /api/spaces                              — список сообществ
  * POST /api/spaces                              — создать сообщество
@@ -11,6 +14,7 @@
  * Групповой чат читают и пишут только участники (assertSpaceMembership).
  */
 import type { FastifyInstance } from "fastify";
+import { cityKey, selectRegionalCommunities } from "../seed/regional-policy.ts";
 import { getLiveSessionId, isLiveActive, publishLiveClip } from "../ws/live.ts";
 import { resolveLiveClipRetry, toLiveClipDto, type LiveClipRow } from "../live/clips.ts";
 import { randomUUID } from "node:crypto";
@@ -42,6 +46,7 @@ import {
 } from "../media/store.ts";
 import { sendPushToUsers } from "../push/send.ts";
 import { publishUserEvent } from "../ws/notifications.ts";
+import { notifySpaceUsers } from "../spaces/notify.ts";
 
 const idParam = z.object({ id: z.string().uuid() });
 const messageParams = z.object({ id: z.string().uuid(), messageId: z.string().uuid() });
@@ -154,7 +159,7 @@ const coverUrlSchema = z
 
 const SPACE_SELECT = `
    SELECT s.id, s.created_at, s.title, s.description, s.topic, s.cover_url, s.category, s.format, s.cadence,
-          s.city, s.verified_community, s.join_policy, s.join_question, s.is_seed, s.is_private,
+          s.city, s.verified_community, s.join_policy, s.join_question, s.is_seed, s.is_private, s.region_id,
          hp.name AS host_name,
          (SELECT count(*) FROM space_members sm
            WHERE sm.space_id = s.id AND sm.status IN ('member', 'host'))::int AS members_count,
@@ -172,6 +177,7 @@ const SPACE_SELECT = `
 `;
 
 interface SpaceRow {
+  region_id: string | null;
   id: string;
   created_at: Date;
   title: string;
@@ -298,23 +304,153 @@ async function loadSpaceDetail(spaceId: string, userId: string) {
   };
 }
 
+async function notifySpaceJoin(spaceId: string, userId: string, status: "member" | "pending") {
+  try {
+    const info = await queryOne<{ title: string; host_id: string; name: string }>(
+      `SELECT s.title, s.host_id, p.name
+         FROM spaces s, profiles p
+        WHERE s.id = $1 AND p.user_id = $2`,
+      [spaceId, userId],
+    );
+    if (!info || info.host_id === userId) return;
+    const joined = status === "member";
+    await notifySpaceUsers(
+      [info.host_id],
+      joined ? "space_member_joined" : "space_join_request",
+      { spaceId, spaceTitle: info.title, memberName: info.name, memberId: userId },
+      {
+        title: joined ? `Новый участник в «${info.title}»` : `Заявка в «${info.title}»`,
+        body: info.name,
+        url: `/spaces/${spaceId}`,
+        tag: `space-join-${spaceId}-${userId}`,
+      },
+    );
+  } catch (error) {
+    console.error("[spaces] уведомление о вступлении", error);
+  }
+}
+
+async function notifySpaceInvite(spaceId: string, inviterId: string, inviteeId: string) {
+  try {
+    const info = await queryOne<{ title: string; name: string }>(
+      `SELECT s.title, p.name
+         FROM spaces s, profiles p
+        WHERE s.id = $1 AND p.user_id = $2`,
+      [spaceId, inviterId],
+    );
+    if (!info) return;
+    await notifySpaceUsers(
+      [inviteeId],
+      "space_invite",
+      { spaceId, spaceTitle: info.title, fromName: info.name, fromId: inviterId },
+      {
+        title: `Приглашение в «${info.title}»`,
+        body: `${info.name} зовёт вас в сообщество`,
+        url: `/spaces/${spaceId}`,
+        tag: `space-invite-${spaceId}-${inviteeId}`,
+      },
+    );
+  } catch (error) {
+    console.error("[spaces] уведомление о приглашении", error);
+  }
+}
+
 export async function spaceRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
 
+  // Архив: чтение истории остаётся, основные изменения запрещены.
+  // Голосовой маршрут проверяется отдельно: он обслуживает также эфир.
+  app.addHook("preHandler", async (request) => {
+    if (!["POST", "PUT", "PATCH", "DELETE"].includes(request.method)) {
+      return;
+    }
+    const route = request.routeOptions.url;
+    if (typeof route !== "string") return;
+    if (!/(?:^|\/):id\/(?:messages|files|media)(?:\/|$)/.test(route)) {
+      return;
+    }
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    await assertSpaceMembership(userId, id);
+    throw forbidden("Архив общего обсуждения доступен только для чтения");
+  });
+
   app.get("/", async (request) => {
     const userId = currentUserId(request);
-    // Демо-сообщества показываем последними и скрываем, когда реальных
-    // сообществ набралось достаточно.
+
+    // Authorization first; regional discovery never expands private access.
     const rows = await query<SpaceRow>(
       `${SPACE_SELECT}
-        WHERE (s.is_private = false OR mine.status IN ('member', 'host') OR invite.status = 'pending')
-          AND (s.is_seed = false
-           OR (SELECT count(*) FROM spaces rs WHERE rs.is_seed = false) < 10)
-        ORDER BY s.is_seed ASC, members_count DESC`,
+        WHERE (s.is_private = false OR mine.status IN ('member', 'host')
+          OR invite.status = 'pending')
+        ORDER BY s.is_seed ASC, members_count DESC, s.id`,
       [userId],
     );
+
+    const geography = await queryOne<{
+      profile_city: string; place_city: string | null; region_id: string | null;
+    }>(
+      `SELECT p.city AS profile_city, g.city AS place_city, g.region_id
+         FROM profiles p
+         LEFT JOIN geo_places g ON g.id = p.geo_place_id
+        WHERE p.user_id = $1`,
+      [userId],
+    );
+    const regionId = geography?.region_id && geography.place_city &&
+      cityKey(geography.profile_city) === cityKey(geography.place_city)
+      ? geography.region_id : null;
+
+    const retained = (row: SpaceRow) =>
+      row.my_status === "host" || row.my_status === "member" ||
+      row.invite_status === "pending";
+
+    let visible: SpaceRow[];
+    if (regionId) {
+      // Legacy communities may lack region_id. Resolve only unambiguous cities.
+      const keys = [...new Set(
+        rows.filter(row => !row.region_id).map(row => cityKey(row.city)).filter(Boolean)
+      )];
+      const places = keys.length ? await query<{
+        normalized_name: string; region_id: string;
+      }>(
+        "SELECT normalized_name, region_id FROM geo_places WHERE normalized_name = ANY($1::text[])",
+        [keys],
+      ) : [];
+      const regionsByCity = new Map<string, Set<string>>();
+      for (const place of places) {
+        const set = regionsByCity.get(place.normalized_name) ?? new Set<string>();
+        set.add(place.region_id);
+        regionsByCity.set(place.normalized_name, set);
+      }
+      const candidates = rows.map(row => {
+        const matches = regionsByCity.get(cityKey(row.city));
+        const inferred = matches?.size === 1 ? [...matches][0] : undefined;
+        return {
+          ...row,
+          regionId: row.region_id ?? inferred ?? "",
+          isSeed: row.is_seed,
+          isPrivate: row.is_private,
+          accessible: true,
+          joined: row.my_status === "host" || row.my_status === "member",
+        };
+      });
+      const selected = new Set(
+        selectRegionalCommunities(candidates, regionId).map(row => row.id),
+      );
+      visible = rows.filter(row => selected.has(row.id) || retained(row));
+    } else {
+      // Compatibility until the user confirms a city: no unrelated regional demos.
+      const totals = await queryOne<{ n: number }>(
+        "SELECT count(*)::int AS n FROM spaces WHERE is_seed = false",
+      );
+      visible = rows.filter(row =>
+        retained(row) ||
+        (!row.region_id && (!row.is_seed || (totals?.n ?? 0) < 10)),
+      );
+    }
+
     const list = [];
-    for (const row of rows) {
+    for (const row of visible) {
       const events = await loadEvents(row.id, userId);
       list.push({ ...toSpaceDto(row), nextEvent: events[0] });
     }
@@ -427,6 +563,10 @@ export async function spaceRoutes(app: FastifyInstance) {
     await query("DELETE FROM spaces WHERE id = $1", [id]);
     for (const item of media) {
       if (item.kind === "file") { await removeDocument(item.media_url); continue; }
+      if (item.kind === "video") {
+        await removeChatVideoFiles(item.media_url);
+        continue;
+      }
       const filePath = mediaPathFromUrl(item.media_url);
       if (filePath) await unlink(filePath).catch(() => undefined);
     }
@@ -474,6 +614,7 @@ export async function spaceRoutes(app: FastifyInstance) {
          SET inviter_id = EXCLUDED.inviter_id, status = 'pending', created_at = now(), responded_at = NULL`,
       [id, userId, inviteeId],
     );
+    void notifySpaceInvite(id, userId, inviteeId);
     return { invited: true };
   });
 
@@ -515,6 +656,7 @@ export async function spaceRoutes(app: FastifyInstance) {
           [id, userId],
         );
       });
+      void notifySpaceJoin(id, userId, "member");
       return loadSpaceDetail(id, userId);
     }
     if (space.join_policy === "question" && !answer?.trim()) {
@@ -528,18 +670,30 @@ export async function spaceRoutes(app: FastifyInstance) {
       [id, userId, space.join_policy === "open" ? "member" : "pending", answer ?? null],
     );
 
+    void notifySpaceJoin(id, userId, space.join_policy === "open" ? "member" : "pending");
+
     return loadSpaceDetail(id, userId);
   });
 
-  app.post<{ Params: { id: string } }>("/:id/leave", async (request) => {
+  app.post<{ Params: { id: string } }>("/:id/leave", async (request, reply) => {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
 
-    const isHost = await queryOne("SELECT 1 FROM space_members WHERE space_id = $1 AND user_id = $2 AND status = 'host'", [id, userId]);
-    if (isHost) throw forbidden("Организатор может только удалить пространство");
-
-    await query("DELETE FROM space_members WHERE space_id = $1 AND user_id = $2", [id, userId]);
-    return loadSpaceDetail(id, userId);
+    // Атомарно: удаляем только свою не-организаторскую запись. Приватные данные
+    // сообщества в ответе не возвращаем никому.
+    const removed = await queryOne(
+      "DELETE FROM space_members WHERE space_id = $1 AND user_id = $2 AND status <> 'host' RETURNING 1 AS ok",
+      [id, userId],
+    );
+    if (!removed) {
+      const isHost = await queryOne(
+        "SELECT 1 FROM space_members WHERE space_id = $1 AND user_id = $2 AND status = 'host'",
+        [id, userId],
+      );
+      if (isHost) throw forbidden("Организатор может только удалить пространство");
+      throw forbidden("Вы не состоите в этом пространстве");
+    }
+    return reply.status(204).send();
   });
 
   /**
@@ -594,12 +748,15 @@ export async function spaceRoutes(app: FastifyInstance) {
         const space = await queryOne<{ title: string }>("SELECT title FROM spaces WHERE id = $1", [
           id,
         ]);
+        const actorActivity = await captureNotificationActorActivity(userId);
         const payload = {
           spaceId: id,
           eventId: createdEvent.id,
           spaceTitle: space?.title ?? "Пространство",
           title: draft.title,
           place: draft.place,
+          fromId: userId,
+          ...(actorActivity ? { actorActivity } : {}),
         };
         for (const member of members) {
           const notification = await queryOne<{ id: string; created_at: Date }>(
@@ -761,6 +918,7 @@ export async function spaceRoutes(app: FastifyInstance) {
     );
     if (!row) throw notFound("Сообщество не найдено");
     const replies = await loadSpaceReplies(replyTarget ? [replyTarget] : []);
+    await recordCommunityNotificationActivity(userId, "space_message", row.id);
     return toSpaceMessageDto(row, replyTarget ? replies.get(replyTarget) : undefined);
   });
 
@@ -836,7 +994,13 @@ export async function spaceRoutes(app: FastifyInstance) {
         if (current.author_id !== userId) {
           try {
             const space = await queryOne<{ title: string }>("SELECT title FROM spaces WHERE id = $1", [id]);
-            const payload = { spaceId: id, spaceTitle: space?.title ?? "Сообщество" };
+            const actorActivity = await captureNotificationActorActivity(userId);
+            const payload = {
+              spaceId: id,
+              spaceTitle: space?.title ?? "Сообщество",
+              fromId: userId,
+              ...(actorActivity ? { actorActivity } : {}),
+            };
             const notification = await queryOne<{ id: string; created_at: Date }>(
               `INSERT INTO notifications (user_id, kind, payload)
                VALUES ($1, 'space_message_deleted', $2::jsonb) RETURNING id, created_at`,
@@ -860,6 +1024,9 @@ export async function spaceRoutes(app: FastifyInstance) {
         }
       }
       if (current.kind === "file" && current.media_url) await removeDocument(current.media_url);
+      if (current.kind === "video" && current.media_url) {
+        await removeChatVideoFiles(current.media_url);
+      }
       return { id: messageId, deleted: true as const };
     },
   );
@@ -881,6 +1048,9 @@ export async function spaceRoutes(app: FastifyInstance) {
       else if (part.fieldname === "durationMs") durationValue = String(part.value);
       else if (part.fieldname === "live") live = String(part.value) === "1";
     }
+    if (!live) {
+      throw forbidden("Архив общего обсуждения доступен только для чтения");
+    }
     if (!z.string().uuid().safeParse(clientTempId).success) throw badRequest("Некорректный идентификатор голосового");
     const durationMs = Number(durationValue);
     if (!Number.isInteger(durationMs) || durationMs < 400 || durationMs > 180_000) {
@@ -889,63 +1059,7 @@ export async function spaceRoutes(app: FastifyInstance) {
     if (!buffer || buffer.length < 512) throw badRequest("Запись пустая");
     const audioType = detectAudioType(buffer);
     if (!audioType) throw badRequest("Поддерживаются голосовые WebM/Opus и MP4/AAC");
-    if (live) return saveLiveClip(id, userId, clientTempId, buffer, audioType);
-    const replyTarget = await assertSpaceReplyTarget(id, replyToValue ? z.string().uuid().parse(replyToValue) : undefined);
-    const existing = await queryOne<SpaceMessageRow>(
-      `SELECT m.id, m.space_id, m.author_id, p.name AS author_name, m.text, m.kind,
-               m.client_temp_id, m.file_name, m.file_size, m.media_url, m.media_mime, m.duration_ms, m.created_at,
-               m.edited_at, m.deleted_at, m.reply_to_id
-         FROM space_messages m JOIN profiles p ON p.user_id = m.author_id
-        WHERE m.space_id = $1 AND m.author_id = $2 AND m.client_temp_id = $3`,
-      [id, userId, clientTempId],
-    );
-    if (existing) {
-      const replies = await loadSpaceReplies(existing.reply_to_id ? [existing.reply_to_id] : []);
-      return toSpaceMessageDto(existing, existing.reply_to_id ? replies.get(existing.reply_to_id) : undefined);
-    }
-
-    const saved = await saveVoiceFile(userId, buffer, audioType);
-    let playable = saved;
-    let playableMime: "audio/webm" | "audio/mp4" = audioType.mime;
-    try {
-      const measured = await audioDurationMs(saved.filePath).catch(() => 0);
-      if (measured < 400) throw badRequest("Запись не содержит воспроизводимого звука");
-      if (measured > 180_500) throw badRequest("Голосовое может длиться не больше 3 минут");
-      // Уже MP4/AAC — не перекодируем повторно.
-      const converted = audioType.mime === "audio/mp4"
-        ? null
-        : await transcodeVoiceToAac(saved.filePath, userId).catch(() => null);
-      if (converted) {
-        playable = converted;
-        playableMime = "audio/mp4";
-        await unlink(saved.filePath).catch(() => undefined);
-      }
-      const row = await queryOne<SpaceMessageRow>(
-         `WITH inserted AS (
-           INSERT INTO space_messages
-             (space_id, author_id, text, kind, client_temp_id, media_url, media_mime, duration_ms, reply_to_id)
-           VALUES ($1, $2, 'Голосовое сообщение', 'voice', $3, $4, $5, $6, $7)
-            RETURNING id, space_id, author_id, text, kind, client_temp_id, file_name, file_size, media_url, media_mime,
-                      duration_ms, created_at, edited_at, deleted_at, reply_to_id
-         )
-          SELECT inserted.*, p.name AS author_name
-           FROM inserted JOIN profiles p ON p.user_id = inserted.author_id`,
-        [id, userId, clientTempId || randomUUID(), playable.url, playableMime, measured, replyTarget],
-      );
-      if (!row) throw badRequest("Не удалось сохранить голосовое");
-      if (live && isLiveActive(id)) {
-        publishLiveClip(id, {
-          id: row.id, userId, audioUrl: playable.url, mime: playableMime,
-          durationMs: measured, createdAt: row.created_at.toISOString(), clientTempId,
-        });
-      }
-      const replies = await loadSpaceReplies(replyTarget ? [replyTarget] : []);
-      return toSpaceMessageDto(row, replyTarget ? replies.get(replyTarget) : undefined);
-    } catch (error) {
-      await unlink(saved.filePath).catch(() => undefined);
-      if (playable.filePath !== saved.filePath) await unlink(playable.filePath).catch(() => undefined);
-      throw error;
-    }
+    return saveLiveClip(id, userId, clientTempId, buffer, audioType);
   });
 
   /**
@@ -978,8 +1092,11 @@ export async function spaceRoutes(app: FastifyInstance) {
         return toSpaceMessageDto(row, row.reply_to_id ? (await loadSpaceReplies([row.reply_to_id])).get(row.reply_to_id) : undefined);
       } catch(error) { await removeDocument(key); throw error; }
     }).then(async (message) => {
-      const row = { id: message.id, text: message.text };
-      
+      await recordCommunityNotificationActivity(
+        userId,
+        "space_message",
+        message.id,
+      );
       return message;
     });
   });
@@ -1018,9 +1135,9 @@ export async function spaceRoutes(app: FastifyInstance) {
       throw badRequest("Вложение отклонено: поле clientTempId должно быть UUID");
     }
     if (!buffer || buffer.length < 512) throw badRequest("Файл пустой — выберите другой");
-    const type = detectMediaType(buffer);
+    const type = detectChatMediaType(buffer);
     if (!type || type.kind === "audio") {
-      throw badRequest("Поддерживаем фото JPEG/PNG/WebP и видео MP4/WebM");
+      throw badRequest("Поддерживаем фото JPEG/PNG/WebP и видео MP4/MOV/WebM/MKV/AVI/3GP");
     }
     assertChatMediaSize(type, buffer.length);
 
@@ -1039,15 +1156,26 @@ export async function spaceRoutes(app: FastifyInstance) {
     }
 
     const saved = await saveChatMediaFile(userId, buffer, type);
+    const originalPath = saved.filePath;
+    let generatedPoster: string | undefined;
     try {
       let durationMs: number | null = null;
       if (type.kind === "video") {
-        const measured = await mediaDurationMs(saved.filePath).catch(() => 0);
-        if (measured < 200) throw badRequest("Не удалось прочитать видео — попробуйте другой файл");
-        if (measured > MAX_CHAT_VIDEO_MS + 1000) {
-          throw badRequest("Видео длиннее 60 секунд — обрежьте его и отправьте снова");
+        let normalized;
+        try {
+          normalized = await normalizeChatVideo(saved.filePath);
+        } catch (error) {
+          const busy = error instanceof Error && /processor busy/i.test(error.message);
+          throw badRequest(busy
+            ? "Обработка видео занята — повторите отправку через несколько секунд"
+            : "Не удалось обработать видео: проверьте формат, размер и длительность до 60 секунд");
         }
-        durationMs = Math.min(measured, MAX_CHAT_VIDEO_MS + 1000);
+        saved.filePath = normalized.filePath;
+        saved.url = normalized.url;
+        generatedPoster = normalized.posterPath;
+        type.mime = normalized.mime;
+        durationMs = normalized.durationMs;
+        await unlink(originalPath).catch(() => undefined);
       }
       const kind = type.kind === "photo" ? "image" : "video";
       const row = await queryOne<SpaceMessageRow>(
@@ -1074,9 +1202,16 @@ export async function spaceRoutes(app: FastifyInstance) {
       );
       if (!row) throw badRequest("Не удалось сохранить вложение");
       const replies = await loadSpaceReplies(replyTarget ? [replyTarget] : []);
+      await recordCommunityNotificationActivity(userId, "space_message", row.id);
       return toSpaceMessageDto(row, replyTarget ? replies.get(replyTarget) : undefined);
     } catch (error) {
       await unlink(saved.filePath).catch(() => undefined);
+      if (originalPath !== saved.filePath) {
+        await unlink(originalPath).catch(() => undefined);
+      }
+      if (generatedPoster) {
+        await unlink(generatedPoster).catch(() => undefined);
+      }
       throw error;
     }
   });

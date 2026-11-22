@@ -1,3 +1,4 @@
+import { WinterWordmark } from "./WinterWordmark";
 import { Link } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -24,7 +25,7 @@ export function SideNav() {
     <aside className="hidden w-64 shrink-0 border-r border-border lg:block">
       <div className="sticky top-0 flex h-screen flex-col gap-8 p-6">
         <Link to="/" className="text-lg font-bold tracking-tight">
-          {t("app.name")}
+          <WinterWordmark text={t("app.name")} />
         </Link>
         <nav className="flex flex-col gap-1">
           {orderedItems.map(({ to, params, labelKey, icon: Icon }) => (

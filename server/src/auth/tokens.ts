@@ -5,7 +5,7 @@
  * Refresh — случайная строка; в БД лежит только её SHA-256 хеш,
  * поэтому утечка дампа не даёт войти. Любой refresh можно отозвать.
  */
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { SignJWT, jwtVerify } from "jose";
 
 import { query, queryOne } from "../db.ts";
@@ -100,19 +100,27 @@ export async function revokeAllForUser(userId: string, client?: pg.PoolClient): 
 /**
  * Ключ для rate limit: id владельца токена вместо IP.
  *
- * Читаем `sub` из payload без проверки подписи — это сознательно: ключ нужен
- * до авторизации (rate limit работает в onRequest). Подделать чужой sub
- * бессмысленно: запрос с неверной подписью всё равно отклонит requireAuth.
- * Без токена (вход, регистрация, гостевые страницы) считаем по IP.
+ * Подпись HS256, издатель и срок проверяются синхронно (node:crypto): rate limit
+ * работает в onRequest, до авторизации. Токен без валидной подписи считается
+ * по IP, иначе подменой sub можно обнулить счётчик или выбить чужой аккаунт в 429.
  */
 export function rateLimitSubject(authorization: string | undefined, ip: string): string {
-  if (!authorization?.startsWith("Bearer ")) return `ip:${ip}`;
+  const byIp = `ip:${ip}`;
+  if (!authorization?.startsWith("Bearer ")) return byIp;
   try {
-    const payload = authorization.slice("Bearer ".length).trim().split(".")[1];
-    if (!payload) return `ip:${ip}`;
-    const json = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { sub?: string };
-    return json.sub ? `user:${json.sub}` : `ip:${ip}`;
+    const parts = authorization.slice("Bearer ".length).trim().split(".");
+    if (parts.length !== 3) return byIp;
+    const [h, p, s] = parts as [string, string, string];
+    const header = JSON.parse(Buffer.from(h, "base64url").toString("utf8")) as { alg?: string };
+    if (header.alg !== "HS256") return byIp;
+    const expected = createHmac("sha256", accessKey).update(`${h}.${p}`).digest();
+    const given = Buffer.from(s, "base64url");
+    if (given.length !== expected.length || !timingSafeEqual(given, expected)) return byIp;
+    const claims = JSON.parse(Buffer.from(p, "base64url").toString("utf8")) as { sub?: string; iss?: string; exp?: number };
+    if (claims.iss !== "ya-online" || !claims.sub) return byIp;
+    if (typeof claims.exp === "number" && claims.exp * 1000 < Date.now()) return byIp;
+    return `user:${claims.sub}`;
   } catch {
-    return `ip:${ip}`;
+    return byIp;
   }
 }

@@ -1,7 +1,7 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { Loader2 } from "lucide-react";
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, Ref } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -33,6 +33,8 @@ export interface ButtonProps
   extends ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof dsButtonVariants> {
   asChild?: boolean;
   loading?: boolean;
+  /** React 19: ref приходит обычным свойством. */
+  ref?: Ref<HTMLButtonElement> | undefined;
 }
 
 export function Button({
@@ -44,11 +46,13 @@ export function Button({
   loading = false,
   disabled,
   children,
+  ref,
   ...props
 }: ButtonProps) {
   const Comp = asChild ? Slot : "button";
   return (
     <Comp
+      ref={ref as never}
       className={cn(dsButtonVariants({ variant, size, fullWidth }), className)}
       disabled={disabled || loading}
       {...props}

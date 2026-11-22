@@ -1,3 +1,4 @@
+import { registerPrivateMediaGuard } from "./media/private-guard.ts";
 /**
  * Точка входа API «Я Онлайн».
  *
@@ -20,7 +21,10 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 
 import { runSeedRefresh } from "./seed/refresh.ts";
+import { runRegionalDemo } from "./seed/regional-job.ts";
+import { geoRoutes } from "./routes/geo.ts";
 import { runUrgentJobs } from "./listings/urgent-jobs.ts";
+import { runAccountPurge } from "./jobs/purge-deleted-accounts.ts";
 
 
 import { rateLimitSubject } from "./auth/tokens.ts";
@@ -34,6 +38,8 @@ import { adminRoutes } from "./routes/admin.ts";
 import { adminSessionRoutes } from "./routes/admin-session.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { chatRoutes } from "./routes/chat.ts";
+import { storyRoutes } from "./routes/stories.ts";
+import { contactsRoutes } from "./routes/contacts.ts";
 import { confirmRoutes } from "./routes/confirm.ts";
 import { listingRoutes } from "./routes/listings.ts";
 import { matchingRoutes } from "./routes/matching.ts";
@@ -47,6 +53,7 @@ import { pushRoutes } from "./routes/push.ts";
 import { settingsRoutes } from "./routes/settings.ts";
 import { spaceRoutes } from "./routes/spaces.ts";
 import { liveCardRoutes } from "./routes/live-cards.ts";
+import { spaceBoardRoutes } from "./routes/space-board.ts";
 import { supportRoutes } from "./routes/support.ts";
 import { trustRoutes } from "./routes/trust.ts";
 import { chatSocketRoutes } from "./ws/chat.ts";
@@ -61,14 +68,14 @@ const app = Fastify({
     serializers: {
       req(request) {
         const url = String(request.url ?? "");
-        return { method: request.method, url: /\/api\/auth\/(yandex|telegram)\/callback/.test(url) ? url.split("?")[0] : url,
+        return { method: request.method, url: /\/api\/auth\/(yandex|telegram)\/callback|^\/ws\//.test(url) ? url.split("?")[0] : url,
           remoteAddress: request.ip };
       },
     },
   },
   // Nginx стоит впереди: доверяем X-Forwarded-For, иначе rate limit
   // увидит один IP (сам Nginx) на всех пользователей.
-  trustProxy: true,
+  trustProxy: "127.0.0.1",
   // JSON-тело ограничено 1 МБ: обычные запросы намного меньше, а раздутое
   // тело — дешёвый способ загрузить сервер. Файлы идут через multipart и
   // имеют свой лимит (см. регистрацию multipart ниже), 6 МБ нужны только
@@ -92,6 +99,7 @@ await app.register(cors, {
 });
 
 await app.register(cookie, {});
+registerPrivateMediaGuard(app);
 
 // Загрузка фото/видео профиля и видео-селфи верификации.
 await app.register(multipart, {
@@ -153,10 +161,14 @@ app.get("/api/health", async (_request, reply) => {
 
 await app.register(authRoutes, { prefix: "/api/auth" });
 await app.register(profileRoutes, { prefix: "/api/profiles" });
+await app.register(geoRoutes, { prefix: "/api/geo" });
 await app.register(matchingRoutes, { prefix: "/api/matching" });
 await app.register(chatRoutes, { prefix: "/api/chat" });
+await app.register(contactsRoutes, { prefix: "/api/contacts" });
+await app.register(storyRoutes, { prefix: "/api/stories" });
 await app.register(spaceRoutes, { prefix: "/api/spaces" });
 await app.register(liveCardRoutes, { prefix: "/api/spaces" });
+await app.register(spaceBoardRoutes, { prefix: "/api/spaces" });
 await app.register(onboardingRoutes, { prefix: "/api/onboarding" });
 await app.register(trustRoutes, { prefix: "/api/trust" });
 await app.register(mediaRoutes, { prefix: "/api/media" });
@@ -198,6 +210,15 @@ cron.schedule("0 4 * * *", () => {
   void runSeedRefresh(app.log);
 });
 
+
+if (env.REGIONAL_DEMO_ENABLED === "true") {
+  const regionalTask = cron.schedule("*/5 * * * *", () => {
+    void runRegionalDemo(app.log);
+  });
+  void runRegionalDemo(app.log);
+  app.addHook("onClose", async () => { regionalTask.stop(); });
+}
+
 // Дополнительно: одно обновление при старте, если демо-контент не освежался
 // больше суток. Так после деплоя лента сразу выглядит живой, не дожидаясь 04:00.
 // Отметка времени хранится в БД, поэтому частые рестарты PM2 задачу не разгоняют.
@@ -214,6 +235,13 @@ void (async () => {
 })();
 
 
+
+// Окончательное удаление аккаунтов после окна восстановления: каждую ночь в 03:30
+// и один раз через 90 секунд после старта (чтобы результат было видно в логе).
+cron.schedule("30 3 * * *", () => {
+  void runAccountPurge(app.log);
+});
+setTimeout(() => { void runAccountPurge(app.log); }, 90_000).unref();
 
 // Корректное завершение: PM2 присылает SIGINT/SIGTERM при reload.
 const urgentTimer = setInterval(() => { void runUrgentJobs(); }, 15000);

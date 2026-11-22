@@ -1,3 +1,6 @@
+import { captureNotificationActorActivity } from "../notifications/activity-integration.ts";
+import { detectChatMediaType, normalizeChatVideo, removeChatVideoFiles } from "../media/chat-video.ts";
+import { decodeHistoryCursor, encodeHistoryCursor } from "../chat/history-cursor.ts";
 /**
  * GET  /api/chat/conversations
  * GET  /api/chat/conversations/:id
@@ -12,6 +15,7 @@
  * переписку, подставив id в URL.
  */
 import type { FastifyInstance } from "fastify";
+import { noteConversationRoutes } from "./chat-notes.ts";
 import { unlink } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
@@ -157,9 +161,16 @@ async function notifyRecipient(
   message: { id: string; text: string; kind: MessageKind },
 ) {
   try {
-    const recipient = await queryOne<{ user_id: string; is_seed: boolean; sender_name: string }>(
+    const actorActivity = await captureNotificationActorActivity(
+      senderId,
+      { conversationId, messageId: message.id },
+    );
+
+    const recipient = await queryOne<{ user_id: string; is_seed: boolean; sender_name: string; sender_avatar: string | null }>(
       `SELECT cp.user_id, p.is_seed,
-              (SELECT name FROM profiles WHERE user_id = $2) AS sender_name
+              (SELECT name FROM profiles WHERE user_id = $2) AS sender_name,
+              (SELECT url FROM profile_media WHERE user_id = $2 AND kind = 'photo'
+                ORDER BY is_primary DESC, position LIMIT 1) AS sender_avatar
          FROM conversation_participants cp
          JOIN profiles p ON p.user_id = cp.user_id
         WHERE cp.conversation_id = $1 AND cp.user_id <> $2
@@ -188,7 +199,9 @@ async function notifyRecipient(
       messageId: message.id,
       fromId: senderId,
       fromName: recipient.sender_name,
+      fromAvatarUrl: recipient.sender_avatar,
       preview,
+      ...(actorActivity ? { actorActivity } : {}),
     };
     const rows = await query<{ id: string; created_at: Date }>(
       `INSERT INTO notifications (user_id, kind, payload)
@@ -228,10 +241,10 @@ async function notifyRecipient(
 }
 
 const CONVERSATIONS_SELECT = `
-  SELECT c.id,
+  SELECT c.id, c.notes_owner_id, c.created_at AS conversation_created_at,
          pref.pinned_at, COALESCE(pref.is_favorite, false) AS is_favorite,
          other.id            AS participant_id,
-         op.name             AS participant_name,
+         COALESCE(c.notes_title, op.name) AS participant_name,
          op.city             AS participant_city,
          op.trust_level      AS participant_trust,
          other.last_seen_at  AS participant_last_seen,
@@ -246,6 +259,7 @@ const CONVERSATIONS_SELECT = `
             WHERE m.conversation_id = c.id
              AND m.author_id <> $1
              AND m.deleted_at IS NULL
+             AND (me.cleared_at IS NULL OR m.created_at > me.cleared_at)
              AND (me.last_read_at IS NULL OR m.created_at > me.last_read_at)
          )::int AS unread_count,
          ARRAY(
@@ -257,15 +271,17 @@ const CONVERSATIONS_SELECT = `
     FROM conversations c
     JOIN conversation_participants me    ON me.conversation_id = c.id AND me.user_id = $1
     LEFT JOIN conversation_preferences pref ON pref.conversation_id = c.id AND pref.user_id = $1
-    JOIN conversation_participants their ON their.conversation_id = c.id AND their.user_id <> $1
-    JOIN users other    ON other.id = their.user_id
+    LEFT JOIN conversation_participants their ON their.conversation_id = c.id AND their.user_id <> $1
+    JOIN users other    ON other.id = COALESCE(their.user_id, c.notes_owner_id)
     JOIN profiles op    ON op.user_id = other.id
     LEFT JOIN LATERAL (
       SELECT text, created_at, author_id FROM messages
        WHERE conversation_id = c.id AND deleted_at IS NULL
+         AND (me.cleared_at IS NULL OR created_at > me.cleared_at)
        ORDER BY created_at DESC LIMIT 1
     ) last_msg ON true
    WHERE me.archived_at IS NULL
+     AND (c.notes_owner_id IS NULL OR c.notes_owner_id = $1)
      AND other.deleted_at IS NULL
      AND NOT EXISTS (
            SELECT 1 FROM blocks b
@@ -278,6 +294,8 @@ const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
 interface ConversationRow {
   id: string;
+  notes_owner_id: string | null;
+  conversation_created_at: Date;
   pinned_at: Date | null;
   is_favorite: boolean;
   participant_id: string;
@@ -295,25 +313,27 @@ interface ConversationRow {
 }
 
 function toConversationDto(row: ConversationRow, userId: string) {
+  const isNotes = row.notes_owner_id !== null;
   const lastFromMe = row.last_author_id === userId;
   return {
     id: row.id,
+    kind: isNotes ? "notes" as const : "direct" as const,
     participant: {
       id: row.participant_id,
       name: row.participant_name,
       city: row.participant_city ?? undefined,
       trustLevel: row.participant_trust,
-      avatarUrl: row.avatar_url ?? undefined,
-      online: row.participant_last_seen
+      avatarUrl: isNotes ? undefined : row.avatar_url ?? undefined,
+      online: !isNotes && row.participant_last_seen
         ? Date.now() - row.participant_last_seen.getTime() < ONLINE_WINDOW_MS
         : false,
     },
     lastMessage: row.last_message ?? "",
-    lastMessageAt: (row.last_message_at ?? new Date()).toISOString(),
+    lastMessageAt: (row.last_message_at ?? row.conversation_created_at).toISOString(),
     unreadCount: row.unread_count,
     // «Ждёт ответа»: последнее слово за собеседником.
     awaitingReply: Boolean(row.last_message_at) && !lastFromMe,
-    sharedInterests: row.shared_interests ?? [],
+    sharedInterests: isNotes ? [] : row.shared_interests ?? [],
     lastMessageFromMe: lastFromMe,
     // Моё последнее сообщение собеседник уже прочитал — те же данные, что у двойных галочек в диалоге.
     lastMessageRead: lastFromMe && Boolean(row.last_read_by_peer),
@@ -325,11 +345,12 @@ function toConversationDto(row: ConversationRow, userId: string) {
 
 export async function chatRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireAuth);
+  await noteConversationRoutes(app);
 
   app.get("/conversations", async (request) => {
     const userId = currentUserId(request);
     const rows = await query<ConversationRow>(
-      `${CONVERSATIONS_SELECT} ORDER BY pref.pinned_at DESC NULLS LAST, last_msg.created_at DESC NULLS LAST, c.id`,
+      `${CONVERSATIONS_SELECT} AND (me.cleared_at IS NULL OR last_msg.created_at IS NOT NULL) ORDER BY pref.pinned_at DESC NULLS LAST, last_msg.created_at DESC NULLS LAST, c.id`,
       [userId],
     );
     return rows.map((row) => toConversationDto(row, userId));
@@ -346,6 +367,56 @@ export async function chatRoutes(app: FastifyInstance) {
       });
     }
   }
+
+  // Очистить диалог только у меня: собеседник свою историю сохраняет.
+  app.delete<{ Params: { id: string } }>("/conversations/:id", async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    await assertConversationAccess(userId, id);
+    await query(
+      "UPDATE conversation_participants SET cleared_at = now(), last_read_at = now() WHERE conversation_id = $1 AND user_id = $2",
+      [id, userId],
+    );
+    await query("DELETE FROM conversation_preferences WHERE conversation_id = $1 AND user_id = $2", [id, userId]);
+    return { ok: true as const };
+  });
+
+  app.get("/blocks", async (request) => {
+    const userId = currentUserId(request);
+    const rows = await query<{ id: string; name: string; avatar_url: string | null; created_at: Date }>(
+      `SELECT b.blocked_id AS id, p.name,
+              (SELECT url FROM profile_media WHERE user_id = b.blocked_id AND kind = 'photo'
+                ORDER BY is_primary DESC, position LIMIT 1) AS avatar_url,
+              b.created_at
+         FROM blocks b JOIN profiles p ON p.user_id = b.blocked_id
+        WHERE b.user_id = $1
+        ORDER BY b.created_at DESC LIMIT 200`,
+      [userId],
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      avatarUrl: row.avatar_url,
+      blockedAt: row.created_at.toISOString(),
+    }));
+  });
+
+  app.put<{ Params: { id: string } }>("/users/:id/block", async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    if (id === userId) throw badRequest("Нельзя заблокировать себя");
+    const target = await queryOne<{ id: string }>("SELECT id FROM users WHERE id = $1 AND deleted_at IS NULL", [id]);
+    if (!target) throw notFound("Пользователь не найден");
+    await query("INSERT INTO blocks (user_id, blocked_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", [userId, id]);
+    return { ok: true as const };
+  });
+
+  app.delete<{ Params: { id: string } }>("/users/:id/block", async (request) => {
+    const userId = currentUserId(request);
+    const { id } = idParam.parse(request.params);
+    await query("DELETE FROM blocks WHERE user_id = $1 AND blocked_id = $2", [userId, id]);
+    return { ok: true as const };
+  });
 
   app.get<{ Params: { id: string } }>("/conversations/:id", async (request) => {
     const userId = currentUserId(request);
@@ -370,21 +441,28 @@ export async function chatRoutes(app: FastifyInstance) {
     const { id } = idParam.parse(request.params);
     const q = z.object({
       kind: z.enum(["image", "video"]).optional(),
-      before: z.string().datetime({ offset: true }).optional(),
+      before: z.string().max(512).optional(),
       limit: z.coerce.number().int().min(1).max(100).optional(),
     }).parse(request.query ?? {});
     await assertConversationAccess(userId, id);
+    let cursor: ReturnType<typeof decodeHistoryCursor>;
+    try { cursor = decodeHistoryCursor(q.before); }
+    catch { throw badRequest("Некорректный курсор истории"); }
     const limit = q.limit ?? 60;
-    const rows = await query<{ id: string; kind: string; media_url: string; duration_ms: number | null; created_at: Date; author_id: string; author_name: string | null }>(
-      `SELECT m.id, m.kind::text AS kind, m.media_url, m.duration_ms, m.created_at, m.author_id, p.name AS author_name
+    const rows = await query<{ id: string; kind: string; media_url: string; duration_ms: number | null; created_at: Date; cursor_created_at: string; author_id: string; author_name: string | null }>(
+      `SELECT m.id, m.kind::text AS kind, m.media_url, m.duration_ms, m.created_at,
+                to_char(m.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
+                m.author_id, p.name AS author_name
          FROM messages m LEFT JOIN profiles p ON p.user_id = m.author_id
         WHERE m.conversation_id = $1 AND m.kind::text IN ('image', 'video')
           AND m.deleted_at IS NULL AND m.media_url IS NOT NULL
           AND ($2::text IS NULL OR m.kind::text = $2::text)
-          AND ($3::timestamptz IS NULL OR m.created_at < $3::timestamptz)
+          AND ($3::timestamptz IS NULL
+               OR ($5::uuid IS NULL AND m.created_at < $3::timestamptz)
+               OR ($5::uuid IS NOT NULL AND (m.created_at, m.id) < ($3::timestamptz, $5::uuid)))
         ORDER BY m.created_at DESC, m.id DESC
         LIMIT $4`,
-      [id, q.kind ?? null, q.before ?? null, limit + 1],
+      [id, q.kind ?? null, cursor.at, limit + 1, cursor.id],
     );
     const page = rows.slice(0, limit);
     return {
@@ -392,7 +470,7 @@ export async function chatRoutes(app: FastifyInstance) {
         id: r.id, kind: r.kind, mediaUrl: r.media_url, durationMs: r.duration_ms ?? undefined,
         createdAt: r.created_at.toISOString(), authorId: r.author_id, authorName: r.author_name ?? "Участник",
       })),
-      nextCursor: rows.length > limit ? page[page.length - 1]!.created_at.toISOString() : null,
+      nextCursor: rows.length > limit ? encodeHistoryCursor(page[page.length - 1]!.cursor_created_at, page[page.length - 1]!.id) : null,
     };
   });
 
@@ -401,17 +479,21 @@ export async function chatRoutes(app: FastifyInstance) {
     const { id } = idParam.parse(request.params);
     const q = z
       .object({
-        before: z.string().datetime({ offset: true }).optional(),
+        before: z.string().max(512).optional(),
         limit: z.coerce.number().int().min(1).max(200).optional(),
       })
       .parse(request.query ?? {});
     await assertConversationAccess(userId, id);
 
+    let cursor: ReturnType<typeof decodeHistoryCursor>;
+    try { cursor = decodeHistoryCursor(q.before); }
+    catch { throw badRequest("Некорректный курсор истории"); }
     const limit = q.limit ?? 50;
-    const rows = await query<MessageRow>(
+    const rows = await query<MessageRow & { cursor_created_at: string }>(
       `SELECT m.id, m.conversation_id, m.author_id, m.text, m.kind, m.client_temp_id,
               m.file_name, m.file_size, m.media_url, m.media_mime, m.duration_ms, m.created_at, m.edited_at, m.deleted_at,
               m.reply_to_id,
+              to_char(m.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
               (m.author_id = $2 AND their.last_read_at IS NOT NULL
                  AND m.created_at <= their.last_read_at) AS read_by_peer
          FROM messages m
@@ -419,10 +501,14 @@ export async function chatRoutes(app: FastifyInstance) {
            ON their.conversation_id = m.conversation_id AND their.user_id <> $2
         WHERE m.conversation_id = $1
           AND m.deleted_at IS NULL
-          AND ($3::timestamptz IS NULL OR m.created_at < $3::timestamptz)
+          AND m.created_at > COALESCE((SELECT cp.cleared_at FROM conversation_participants cp
+                                        WHERE cp.conversation_id = m.conversation_id AND cp.user_id = $2), '-infinity'::timestamptz)
+          AND ($3::timestamptz IS NULL
+               OR ($5::uuid IS NULL AND m.created_at < $3::timestamptz)
+               OR ($5::uuid IS NOT NULL AND (m.created_at, m.id) < ($3::timestamptz, $5::uuid)))
         ORDER BY m.created_at DESC, m.id DESC
         LIMIT $4`,
-      [id, userId, q.before ?? null, limit + 1],
+      [id, userId, cursor.at, limit + 1, cursor.id],
     );
 
     const hasMore = rows.length > limit;
@@ -437,7 +523,7 @@ export async function chatRoutes(app: FastifyInstance) {
         reactions: reactions.get(row.id) ?? [],
       })),
       hasMore,
-      nextBefore: hasMore && page[0] ? page[0].created_at.toISOString() : null,
+      nextBefore: hasMore && page[0] ? encodeHistoryCursor(page[0].cursor_created_at, page[0].id) : null,
     };
   });
 
@@ -765,9 +851,9 @@ export async function chatRoutes(app: FastifyInstance) {
     }
     if (!buffer || buffer.length < 512) throw badRequest("Файл пустой — выберите другой");
     // Content-Type от клиента не проверяем: тип определяется по содержимому файла.
-    const type = detectMediaType(buffer);
+    const type = detectChatMediaType(buffer);
     if (!type || type.kind === "audio") {
-      throw badRequest("Поддерживаем фото JPEG/PNG/WebP и видео MP4/WebM");
+      throw badRequest("Поддерживаем фото JPEG/PNG/WebP и видео MP4/MOV/WebM/MKV/AVI/3GP");
     }
     assertChatMediaSize(type, buffer.length);
 
@@ -786,15 +872,26 @@ export async function chatRoutes(app: FastifyInstance) {
     if (existing) return toMessageDto(existing, await loadReply(existing.reply_to_id));
 
     const saved = await saveChatMediaFile(userId, buffer, type);
+    const originalPath = saved.filePath;
+    let generatedPoster: string | undefined;
     try {
       let durationMs: number | null = null;
       if (type.kind === "video") {
-        const measured = await mediaDurationMs(saved.filePath).catch(() => 0);
-        if (measured < 200) throw badRequest("Не удалось прочитать видео — попробуйте другой файл");
-        if (measured > MAX_CHAT_VIDEO_MS + 1000) {
-          throw badRequest("Видео длиннее 60 секунд — обрежьте его и отправьте снова");
+        let normalized;
+        try {
+          normalized = await normalizeChatVideo(saved.filePath);
+        } catch (error) {
+          const busy = error instanceof Error && /processor busy/i.test(error.message);
+          throw badRequest(busy
+            ? "Обработка видео занята — повторите отправку через несколько секунд"
+            : "Не удалось обработать видео: проверьте формат, размер и длительность до 60 секунд");
         }
-        durationMs = Math.min(measured, MAX_CHAT_VIDEO_MS + 1000);
+        saved.filePath = normalized.filePath;
+        saved.url = normalized.url;
+        generatedPoster = normalized.posterPath;
+        type.mime = normalized.mime;
+        durationMs = normalized.durationMs;
+        await unlink(originalPath).catch(() => undefined);
       }
       const kind = type.kind === "photo" ? "image" : "video";
       const row = await queryOne<MessageRow>(
@@ -824,6 +921,12 @@ export async function chatRoutes(app: FastifyInstance) {
       return message;
     } catch (error) {
       await unlink(saved.filePath).catch(() => undefined);
+      if (originalPath !== saved.filePath) {
+        await unlink(originalPath).catch(() => undefined);
+      }
+      if (generatedPoster) {
+        await unlink(generatedPoster).catch(() => undefined);
+      }
       throw error;
     }
   });
@@ -918,6 +1021,9 @@ export async function chatRoutes(app: FastifyInstance) {
       }
 
       if (current.kind === "file" && current.media_url) await removeDocument(current.media_url);
+      if (current.kind === "video" && current.media_url) {
+        await removeChatVideoFiles(current.media_url);
+      }
       publishChatEvent(id, { type: "message-deleted", conversationId: id, messageId });
       return { id: messageId, deleted: true as const };
     },

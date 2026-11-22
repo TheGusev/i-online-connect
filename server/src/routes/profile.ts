@@ -129,7 +129,7 @@ export async function profileRoutes(app: FastifyInstance) {
   const patchSchema = z.object({
     name: z.string().min(2).max(80).optional(),
     bio: z.string().max(1000).optional(),
-    city: z.string().max(120).optional(),
+    city: z.string().trim().max(120).optional(),
     age: profileAgeSchema.optional(),
     adultConfirmed: z.boolean().optional(),
     intent: z.enum(["serious", "friends", "projects", "unsure"]).optional(),

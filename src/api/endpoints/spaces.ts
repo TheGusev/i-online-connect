@@ -26,8 +26,8 @@ export async function joinSpace(id: string, answer?: string): Promise<SpaceDetai
   return request<SpaceDetail>(`/spaces/${id}/join`, { method: "POST", body: { answer } });
 }
 
-export async function leaveSpace(id: string): Promise<SpaceDetail> {
-  return request<SpaceDetail>(`/spaces/${id}/leave`, { method: "POST" });
+export async function leaveSpace(id: string): Promise<void> {
+  await request<void>(`/spaces/${id}/leave`, { method: "POST" });
 }
 
 export async function rsvpEvent(

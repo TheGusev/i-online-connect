@@ -8,6 +8,7 @@ import { AccountSection } from "@/features/settings/components/AccountSection";
 import { DangerZoneSection } from "@/features/settings/components/DangerZoneSection";
 import { NeedsSection } from "@/features/settings/components/NeedsSection";
 import { NotificationsSection } from "@/features/settings/components/NotificationsSection";
+import { HapticsRow } from "@/features/settings/components/HapticsRow";
 import { PrivacyPanel } from "@/features/settings/components/PrivacyPanel";
 import { SettingsNav, type SettingsSectionMeta } from "@/features/settings/components/SettingsNav";
 import { SubscriptionSection } from "@/features/settings/components/SubscriptionSection";
@@ -87,7 +88,10 @@ function SettingsPage() {
               {active === "privacy" ? <PrivacyPanel /> : null}
               {active === "needs" ? <NeedsSection /> : null}
               {active === "notifications" ? (
-                <NotificationsSection notifications={data.notifications} />
+                <>
+                  <NotificationsSection notifications={data.notifications} />
+                  <HapticsRow />
+                </>
               ) : null}
               {active === "subscription" ? (
                 <SubscriptionSection subscription={data.subscription} />

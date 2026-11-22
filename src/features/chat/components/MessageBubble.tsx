@@ -109,7 +109,7 @@ export const MessageBubble = memo(function MessageBubble({
   return (
     <li
       id={`message-${message.id}`}
-      className={cn("flex scroll-mt-24 transition-shadow", NO_SELECT, mine ? "justify-end" : "justify-start")}
+      className={cn("flex scroll-mt-24 transition-shadow", entersNow(message) && "msg-in", NO_SELECT, mine ? "justify-end" : "justify-start")}
     >
       {swipe.offset > 4 ? <SwipeHint offset={swipe.offset} side="left" /> : null}
       <div
@@ -256,4 +256,16 @@ function SwipeHint({ offset, side }: { offset: number; side: "left" | "right" })
       <Reply className={cn("size-4", side === "right" && "-scale-x-100")} />
     </span>
   );
+}
+
+const enteredMessages = new Map<string, boolean>();
+/** Плавное появление только у только что пришедших или отправленных сообщений, не у истории. */
+function entersNow(message: { id: string; clientTempId?: string | undefined; createdAt: string }) {
+  const key = message.clientTempId ?? message.id;
+  const known = enteredMessages.get(key);
+  if (known !== undefined) return known;
+  if (enteredMessages.size > 800) enteredMessages.clear();
+  const fresh = Math.abs(Date.now() - Date.parse(message.createdAt)) < 3000;
+  enteredMessages.set(key, fresh);
+  return fresh;
 }

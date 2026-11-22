@@ -5,6 +5,14 @@ import { Button, Modal } from "@/components/ds";
 import { filePreviewKind, fileSizeLabel } from "../file-rules";
 import { loadFileBlob, saveChatFile } from "../file-download";
 
+function isIosDevice() {
+  return (
+    typeof navigator !== "undefined" &&
+    (/iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1))
+  );
+}
+
 export function FileAttachment({ message }: { message: Message }) {
   const [open, setOpen] = useState(false);
   const [content, setContent] = useState("");
@@ -111,8 +119,8 @@ export function FileAttachment({ message }: { message: Message }) {
           <img src={content} alt={name} className="max-h-96 w-full object-contain" />
         ) : (
           <>
-            <iframe title={name} src={content} className="h-96 w-full" />
-            <Button asChild variant="secondary">
+            {isIosDevice() ? null : <iframe title={name} src={content} className="h-96 w-full" />}
+            <Button asChild variant="secondary" className={isIosDevice() ? "w-full" : undefined}>
               <a href={content} target="_blank" rel="noopener">
                 Открыть PDF
               </a>

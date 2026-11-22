@@ -9,7 +9,6 @@ import {
   type NotificationFilter,
   useMarkNotificationsRead,
   useNotificationHistory,
-  useNotificationSocket,
 } from "@/features/notifications/hooks";
 
 export const Route = createFileRoute("/notifications")({
@@ -39,11 +38,11 @@ function NotificationsPage() {
   const navigate = Route.useNavigate();
   const history = useNotificationHistory(type);
   const markRead = useMarkNotificationsRead();
-  useNotificationSocket();
   const unread = history.items.filter((item) => !item.readAt).length;
 
   return (
     <AppShell>
+      <div className="ya-notifications-page-enter min-w-0">
       <PageHeader title="Уведомления" description="Сообщения, встречи и совпадения — без потерянных событий." />
       <div data-no-swipe className="mb-4 flex gap-2 overflow-x-auto pb-1">
         {filters.map((filter) => (
@@ -79,7 +78,7 @@ function NotificationsPage() {
       ) : (
         <ul className="space-y-2">
           {history.items.map((item) => (
-            <li key={item.id} className="rounded-2xl border border-border bg-card shadow-soft">
+            <li key={item.id}>
               <NotificationItem
                 item={item}
                 onPick={() => {
@@ -102,6 +101,7 @@ function NotificationsPage() {
           Показать более ранние
         </Button>
       ) : null}
+      </div>
     </AppShell>
   );
 }

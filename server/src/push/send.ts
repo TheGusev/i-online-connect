@@ -13,6 +13,7 @@ import webpush from "web-push";
 
 import { query } from "../db.ts";
 import { env } from "../env.ts";
+import { isUserInForeground } from "../ws/notifications.ts";
 
 export interface PushPayload {
   title: string;
@@ -54,6 +55,8 @@ interface SubscriptionRow {
 /** Разослать уведомление на все устройства пользователя. */
 export async function sendPushToUser(userId: string, payload: PushPayload): Promise<void> {
   if (!ensureConfigured()) return;
+  // Приложение на экране: человек получит фирменный баннер по сокету, системный push не нужен.
+  if (isUserInForeground(userId)) return;
 
   try {
     const subscriptions = await query<SubscriptionRow>(

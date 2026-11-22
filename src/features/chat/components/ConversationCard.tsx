@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Check, CheckCheck, Pin, Star } from "lucide-react";
+import { Check, CheckCheck, Pin, Star, StickyNote } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import type { Conversation } from "@/api";
@@ -18,8 +18,10 @@ function timeLabel(iso: string) {
 export function ConversationCard({
   conversation,
   onActions,
+  avatarLoading = "lazy",
 }: {
   conversation: Conversation;
+  avatarLoading?: "eager" | "lazy";
   onActions?: (conversation: Conversation) => void;
 }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,7 +38,7 @@ export function ConversationCard({
     [],
   );
   const unread = conversation.unreadCount > 0;
-  const preview = conversation.lastMessage || "Диалог ещё не начат";
+  const preview = conversation.lastMessage || (conversation.kind === "notes" ? "Ваши личные заметки" : "Диалог ещё не начат");
 
   return (
     <Link
@@ -83,13 +85,20 @@ export function ConversationCard({
         unread && "conversation-card-unread min-h-[5.375rem] border-primary/60 bg-card/75 py-3",
       )}
     >
+      {conversation.kind === "notes" ? (
+        <span className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+          <StickyNote className="size-5" aria-label="Личные заметки" />
+        </span>
+      ) : (
       <Avatar
         name={conversation.participant.name}
         src={conversation.participant.avatarUrl ?? null}
+        loading={avatarLoading}
         size={unread ? "md" : "sm"}
         online={conversation.participant.online}
         trust={getTrustLevel(conversation.participant)}
       />
+      )}
       <div className="min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
           <span
@@ -114,13 +123,13 @@ export function ConversationCard({
             unread ? "font-semibold text-foreground" : "text-muted-foreground",
           )}
         >
-          {conversation.lastMessageFromMe && conversation.lastMessage ? "Вы: " : ""}
+          {conversation.kind !== "notes" && conversation.lastMessageFromMe && conversation.lastMessage ? "Вы: " : ""}
           {preview}
         </p>
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1">
         <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
-          {conversation.lastMessageFromMe && conversation.lastMessage ? (
+          {conversation.kind !== "notes" && conversation.lastMessageFromMe && conversation.lastMessage ? (
             conversation.lastMessageRead ? (
               <CheckCheck className="size-3.5 text-primary" aria-label="Прочитано" />
             ) : (

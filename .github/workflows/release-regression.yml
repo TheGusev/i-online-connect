@@ -1,0 +1,207 @@
+name: Release regression
+
+on:
+  pull_request:
+  push:
+    branches: [prod, 'integration/**', 'fix/chat-video-media-20261116', 'fix/chat-compact-notes-20261117']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: audit
+          POSTGRES_PASSWORD: audit_ci_only
+          POSTGRES_DB: ci_schema
+          POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C.UTF-8'
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U audit -d ci_schema"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+
+    env:
+      NODE_ENV: test
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: audit
+      PGPASSWORD: audit_ci_only
+      DATABASE_URL: postgresql://audit:audit_ci_only@127.0.0.1:5432/ci_schema
+      REGIONAL_DEMO_ENABLED: 'false'
+      GEO_LIVE_TEST: '0'
+      VITE_API_URL: https://xn--41a.site/api
+      VITE_WS_URL: wss://xn--41a.site/ws
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+
+      - name: Generate isolated test keys
+        run: |
+          node --input-type=module <<'JS' >> "$GITHUB_ENV"
+          import { randomBytes } from 'node:crypto';
+          for (const key of [
+            'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET',
+            'JWT_ADMIN_SECRET', 'TOTP_ENCRYPTION_KEY'
+          ]) console.log(key + '=' + randomBytes(48).toString('hex'));
+          JS
+
+      - name: Install locked dependencies without lifecycle scripts
+        run: |
+          npm ci --ignore-scripts --include=dev --no-audit --no-fund
+          npm ci --prefix server --ignore-scripts --include=dev --no-audit --no-fund
+
+      - name: Install browser and media test prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg postgresql-client postgresql postgresql-contrib
+          node node_modules/playwright-core/cli.js install --with-deps chromium
+
+      - name: TypeScript and frontend unit tests
+        run: |
+          npm run typecheck
+          npm run typecheck --prefix server
+          npm run test:unit
+
+      - name: Migrate isolated template database
+        run: |
+          npm run migrate --prefix server
+          expected=$(find server/migrations -maxdepth 1 -type f -name '*.sql' | wc -l)
+          actual=$(psql -v ON_ERROR_STOP=1 -d ci_schema -Atc 'SELECT count(*) FROM schema_migrations')
+          echo "Applied migrations: $actual; SQL files: $expected"
+          test "$expected" -gt 0
+          test "$actual" -eq "$expected"
+
+      - name: Video normalization and private poster API
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .test-artifacts/video
+          node --experimental-strip-types --test server/scripts/chat-video.integration.test.mjs \
+            2>&1 | tee .test-artifacts/video/normalization.tap
+          createdb --template=ci_schema video_api_ci
+          DATABASE_URL=postgresql://audit:audit_ci_only@127.0.0.1:5432/video_api_ci \
+            node --experimental-strip-types --test server/scripts/chat-video-api.integration.test.mjs \
+            2>&1 | tee .test-artifacts/video/api.tap
+
+      - name: Private note chats API and authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .test-artifacts/notes
+          createdb --template=ci_schema notes_api_ci
+          DATABASE_URL=postgresql://audit:audit_ci_only@127.0.0.1:5432/notes_api_ci \
+            node --experimental-strip-types --test server/scripts/notes-api.integration.test.mjs \
+            2>&1 | tee .test-artifacts/notes/api.tap
+
+      - name: Existing server tests in separate databases
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .test-artifacts/server
+          i=0
+          failed=0
+          for file in server/tests/*.test.mjs; do
+            i=$((i+1))
+            db="server_unit_${i}"
+            createdb --template=ci_schema "$db"
+            work="$RUNNER_TEMP/server-test-$i"
+            mkdir -p "$work/media" "$work/verification" "$work/tmp"
+            url="postgresql://audit:audit_ci_only@127.0.0.1:5432/$db"
+            if (
+              cd server
+              DATABASE_URL="$url" TRUST_TEST_DATABASE_URL="$url" \
+              MEDIA_DIR="$work/media" VERIFICATION_DIR="$work/verification" \
+              ABUSE_LOG_FILE="$work/abuse.log" ADMIN_LOG_FILE="$work/admin.log" \
+              TMPDIR="$work/tmp" \
+              timeout --kill-after=10s 120s \
+              node --experimental-strip-types --test "${file#server/}"
+            ) > ".test-artifacts/server/$i.tap" 2>&1; then
+              echo "PASS $file"
+            else
+              cat ".test-artifacts/server/$i.tap"
+              failed=1
+            fi
+          done
+          test "$i" -gt 0
+          test "$failed" -eq 0
+
+      - name: Invitations, geography importer and access integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          for db in contacts_ci geo_import_ci geo_routes_ci; do
+            createdb --template=ci_schema "$db"
+          done
+          cd server
+          DATABASE_URL=postgresql://audit:audit_ci_only@127.0.0.1:5432/contacts_ci \
+            node --experimental-strip-types --test scripts/personal-invites.integration.test.mjs
+          DATABASE_URL=postgresql://audit:audit_ci_only@127.0.0.1:5432/geo_import_ci \
+            node --experimental-strip-types --test scripts/geo-import.integration.test.mjs
+          DATABASE_URL=postgresql://audit:audit_ci_only@127.0.0.1:5432/geo_routes_ci \
+            node --experimental-strip-types --test scripts/geo-http.integration.test.mjs
+          DATABASE_URL=postgresql://audit:audit_ci_only@127.0.0.1:5432/geo_routes_ci \
+            node --experimental-strip-types --test scripts/regional-access.integration.test.mjs
+          node --experimental-strip-types --test scripts/regional-policy.test.mjs
+          node --experimental-strip-types --test scripts/chat-search.test.mjs
+
+      - name: Production static build and browser scenarios
+        run: |
+          NODE_ENV=production APP_VERSION="ci-${GITHUB_SHA}" npm run build:static
+          npm run test:browser
+
+      - name: Browser with real API handlers and PostgreSQL
+        run: |
+          createdb --template=ci_schema browser_e2e_ci
+          mkdir -p "$RUNNER_TEMP/real-api/media" "$RUNNER_TEMP/real-api/verification"
+          DATABASE_URL=postgresql://audit:audit_ci_only@127.0.0.1:5432/browser_e2e_ci \
+          MEDIA_DIR="$RUNNER_TEMP/real-api/media" \
+          VERIFICATION_DIR="$RUNNER_TEMP/real-api/verification" \
+          ABUSE_LOG_FILE="$RUNNER_TEMP/real-api/abuse.log" \
+          ADMIN_LOG_FILE="$RUNNER_TEMP/real-api/admin.log" \
+          timeout --kill-after=10s 180s \
+          node --experimental-strip-types server/scripts/browser-real-api.integration.mjs
+
+      - name: Video browser upload, reactions, recipient and gallery
+        shell: bash
+        run: |
+          set -euo pipefail
+          createdb --template=ci_schema browser_e2e_video_ci
+          work="$RUNNER_TEMP/video-browser"
+          mkdir -p "$work/media" "$work/verification" .test-artifacts/video-browser
+          export DATABASE_URL=postgresql://audit:audit_ci_only@127.0.0.1:5432/browser_e2e_video_ci
+          export APP_ROOT="$GITHUB_WORKSPACE" BROWSER_TOOLS="$GITHUB_WORKSPACE"
+          export ARTIFACT_DIR="$GITHUB_WORKSPACE/.test-artifacts/video-browser"
+          export MEDIA_DIR="$work/media" VERIFICATION_DIR="$work/verification"
+          export MEDIA_BASE_URL=/api/media-file PUBLIC_BASE_URL=https://xn--41a.site
+          export ABUSE_LOG_FILE="$work/abuse.log" ADMIN_LOG_FILE="$work/admin.log"
+          export TMPDIR="$(mktemp -d /tmp/ya-pw-XXXXXXXX)"
+          timeout --kill-after=15s 300s \
+            node --experimental-strip-types server/scripts/browser-video.integration.mjs \
+            2>&1 | tee .test-artifacts/video-browser/run.log
+
+      - name: Stories isolated API and browser regression
+        shell: bash
+        run: bash scripts/stories-e2e/run.sh
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-regression-results
+          path: .test-artifacts/
+          include-hidden-files: true
+          if-no-files-found: warn

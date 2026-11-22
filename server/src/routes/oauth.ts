@@ -74,7 +74,25 @@ export async function oauthRoutes(app: FastifyInstance) {
         return reply.redirect(`${publicBase()}/oauth-callback?provider=${provider}&state=${result.state}`);
       } catch (error) {
         const kind = error instanceof HttpError ? error.code ?? `http_${error.statusCode}` : error instanceof Error && /^(oauth_|provider_|telegram_)[\w]+$/.test(error.message) ? error.message : "provider_response_invalid";
-        request.log.warn({ provider, kind }, "[oauth] вход не завершён");
+        const errorClass =
+            error instanceof z.ZodError ? "ZodError" :
+            error instanceof TypeError ? "TypeError" :
+            error instanceof SyntaxError ? "SyntaxError" :
+            error instanceof HttpError ? "HttpError" : "OtherError";
+          const validation = error instanceof z.ZodError
+            ? error.issues.slice(0, 10).map(issue => ({
+                path: issue.path.map(part =>
+                  typeof part === "number" ? part :
+                  /^[A-Za-z_][A-Za-z0-9_]{0,39}$/.test(String(part))
+                    ? String(part) : "[field]"
+                ).join("."),
+                code: issue.code,
+              }))
+            : undefined;
+          request.log.warn(
+            { provider, kind, errorClass, validation },
+            "[oauth] вход не завершён",
+          );
         const reason = error instanceof HttpError && error.statusCode === 409 ? "identity_taken" : error instanceof HttpError && error.statusCode === 403 ? "account_unavailable" : "failed";
         return reply.redirect(`${publicBase()}/${linking ? "settings" : "oauth-callback"}?oauth=${reason}`);
       }
