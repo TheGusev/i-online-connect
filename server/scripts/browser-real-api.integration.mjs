@@ -43,7 +43,8 @@ try {
     ["geo", "/api/geo"], ["profile", "/api/profiles"],
     ["notifications", "/api/notifications"], ["presence", "/api/presence"],
     ["trust", "/api/trust"], ["push", "/api/push"],
-    ["settings", "/api/settings"]
+    ["settings", "/api/settings"],
+    ["stories", "/api/stories"]
   ]) {
     const module = await moduleFromServer("src/routes/" + name + ".ts");
     const routes = Object.entries(module).filter(

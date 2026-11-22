@@ -68,7 +68,7 @@ jobs:
       - name: Install browser and media test prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install -y ffmpeg postgresql-client
+          sudo apt-get install -y ffmpeg postgresql-client postgresql postgresql-contrib
           node node_modules/playwright-core/cli.js install --with-deps chromium
 
       - name: TypeScript and frontend unit tests
@@ -193,6 +193,10 @@ jobs:
           timeout --kill-after=15s 300s \
             node --experimental-strip-types server/scripts/browser-video.integration.mjs \
             2>&1 | tee .test-artifacts/video-browser/run.log
+
+      - name: Stories isolated API and browser regression
+        shell: bash
+        run: bash scripts/stories-e2e/run.sh
 
       - uses: actions/upload-artifact@v4
         if: always()
