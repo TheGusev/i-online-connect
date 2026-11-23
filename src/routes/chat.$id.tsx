@@ -401,7 +401,7 @@ function ConversationPage() {
     <div ref={reading.rootRef} className="keyboard-viewport-fixed flex flex-col overflow-hidden overscroll-none bg-background text-foreground">
       <FloatingPanel edge="top" panelRef={reading.topRef}>
       <header className="border-b border-border bg-card/95 backdrop-blur">
-        <div className="mx-auto flex min-h-[76px] w-full max-w-3xl items-center gap-3 px-3 py-2.5">
+        <div className="mx-auto flex min-h-[60px] w-full max-w-3xl items-center gap-3 px-3 py-2.5">
           <Link
             to="/chat"
             aria-label="К списку диалогов"
@@ -412,7 +412,7 @@ function ConversationPage() {
 
           {isNotes ? (
             <div className="flex min-w-0 flex-1 items-center gap-2.5">
-              <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
                 <StickyNote className="size-5" aria-hidden="true" />
               </span>
               <div className="min-w-0">
@@ -427,6 +427,7 @@ function ConversationPage() {
               className="flex min-w-0 flex-1 items-center gap-2.5"
             >
               <Avatar
+                size="sm"
                 name={participant.name}
                 src={participant.avatarUrl ?? null}
                 online={participant.online}
@@ -447,7 +448,7 @@ function ConversationPage() {
             </Link>
           ) : (
             <span className="flex min-w-0 flex-1 items-center gap-2.5" aria-label="Загружаем диалог">
-              <span className="size-12 shrink-0 animate-pulse rounded-full bg-secondary" />
+              <span className="size-9 shrink-0 animate-pulse rounded-full bg-secondary" />
               <span className="flex flex-col gap-2"><span className="h-4 w-24 animate-pulse rounded bg-secondary" /><span className="h-3 w-16 animate-pulse rounded bg-secondary" /></span>
             </span>
           )}

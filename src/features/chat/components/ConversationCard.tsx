@@ -82,7 +82,7 @@ export function ConversationCard({
       params={{ id: conversation.id }}
       className={cn(
         "flex min-h-[3.75rem] select-none items-center gap-3.5 rounded-[1.25rem] border border-border/60 bg-card/40 px-4 py-2.5 shadow-soft backdrop-blur-md transition-[border-color,background-color,box-shadow] duration-200 hover:border-primary/25 hover:bg-card/60 [-webkit-touch-callout:none]",
-        unread && "conversation-card-unread min-h-[5.375rem] border-primary/60 bg-card/75 py-3",
+        unread && "conversation-card-unread border-primary/60 bg-card/75",
       )}
     >
       {conversation.kind === "notes" ? (
@@ -94,7 +94,7 @@ export function ConversationCard({
         name={conversation.participant.name}
         src={conversation.participant.avatarUrl ?? null}
         loading={avatarLoading}
-        size={unread ? "md" : "sm"}
+        size="sm"
         online={conversation.participant.online}
         trust={getTrustLevel(conversation.participant)}
       />
