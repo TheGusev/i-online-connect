@@ -1,6 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Eye, Pause, Play, Plus, Trash2, Volume2, VolumeX, X, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Pause, Play, Plus, Trash2, Volume2, VolumeX, X, Star } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, PointerEvent } from "react";
 import { Avatar } from "@/components/ds";
@@ -335,7 +335,7 @@ function LiveStories({ ownerId }: { ownerId: string }) {
         <button type="button"
           aria-label={unseen ? "Истории: есть непросмотренные" : "Истории"}
           className="grid size-11 shrink-0 place-items-center rounded-full text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
-          <Zap aria-hidden="true" className={`size-5 ${unseen ? "text-primary" : ""}`}
+          <Star aria-hidden="true" className={`size-5 ${unseen ? "text-primary" : ""}`}
             style={unseen ? { filter: "drop-shadow(0 0 5px currentColor)" } : undefined} />
         </button>
       </Dialog.Trigger>
