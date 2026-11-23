@@ -8,6 +8,7 @@ import {
 import { useCallback, useMemo } from "react";
 
 import { chatApi } from "@/api";
+import { getSessionRevision, isSessionCurrent } from "@/api/client";
 import type { Conversation, MeetingKind, Message, MessageQuote } from "@/api";
 import { rememberPhotoDimensions } from "./photo-dimensions";
 import {
@@ -244,7 +245,14 @@ export function useSendVoiceMessage(conversationId: string) {
       ),
     onMutate: ({ recording, clientTempId, replyTo }) => {
       const id = `tmp-${clientTempId}`;
-      const previewUrl = URL.createObjectURL(recording.blob);
+      const revision = getSessionRevision();
+      const previous = queryClient
+        .getQueryData<MessagesData>(messagesQueryKey(conversationId))
+        ?.pages.flatMap((page) => page.items)
+        .find((item) => item.clientTempId === clientTempId && item.authorId === myId);
+      const previewUrl = previous?.mediaUrl?.startsWith("blob:")
+        ? previous.mediaUrl
+        : URL.createObjectURL(recording.blob);
       cache.upsert({
         id,
         clientTempId,
@@ -259,17 +267,44 @@ export function useSendVoiceMessage(conversationId: string) {
         status: "sending",
         ...(replyTo ? { replyToId: replyTo.id, replyTo } : {}),
       });
-      return { id, previewUrl };
+      return { id, previewUrl, revision };
     },
     onSuccess: (message, _vars, ctx) => {
       if (ctx?.previewUrl) URL.revokeObjectURL(ctx.previewUrl);
-      cache.upsert({ ...message, status: message.status ?? "sent" }, ctx?.id);
+      if (!ctx || !isSessionCurrent(ctx.revision)) return;
+      const current = queryClient
+        .getQueryData<MessagesData>(messagesQueryKey(conversationId))
+        ?.pages.flatMap((page) => page.items)
+        .find((item) => item.id === message.id);
+      cache.upsert({
+        ...message,
+        status: current?.status === "read" ? "read" : (message.status ?? "sent"),
+      }, ctx.id);
       void queryClient.invalidateQueries({ queryKey: ["chat", "conversations"] });
       void queryClient.invalidateQueries({ queryKey: ["gallery", "conversation", conversationId] });
     },
     onError: (error, vars, ctx) => {
       if (!ctx) return;
-      URL.revokeObjectURL(ctx.previewUrl);
+      if (!isSessionCurrent(ctx.revision)) {
+        URL.revokeObjectURL(ctx.previewUrl);
+        return;
+      }
+      const confirmed = queryClient
+        .getQueryData<MessagesData>(messagesQueryKey(conversationId))
+        ?.pages.flatMap((page) => page.items)
+        .find((item) =>
+          item.clientTempId === vars.clientTempId &&
+          item.authorId === myId &&
+          item.kind === "voice" &&
+          item.id !== ctx.id &&
+          item.status !== "sending" &&
+          item.status !== "failed"
+        );
+      if (confirmed) {
+        URL.revokeObjectURL(ctx.previewUrl);
+        cache.upsert(confirmed, ctx.id);
+        return;
+      }
       cache.upsert({
         id: ctx.id,
         clientTempId: vars.clientTempId,
@@ -277,6 +312,8 @@ export function useSendVoiceMessage(conversationId: string) {
         authorId: myId,
         text: "Голосовое сообщение",
         kind: "voice",
+        mediaUrl: ctx.previewUrl,
+        mediaMime: vars.recording.mimeType,
         durationMs: vars.recording.durationMs,
         createdAt: new Date().toISOString(),
         status: "failed",

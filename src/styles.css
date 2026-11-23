@@ -1260,3 +1260,43 @@ textarea,
 .gta-toast__body[data-kind^="urgent_"] .gta-toast__title {
   color: var(--accent);
 }
+
+/* Reconnection: urgent-card palette and rhythm, horizontal sweep. */
+.chat-reconnect-indicator {
+  position: fixed;
+  top: var(--vv-top, 0px);
+  inset-inline: 0;
+  z-index: 100;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.chat-reconnect-indicator::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: 0;
+  width: 40%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    #ff4fa3 45%,
+    #ffd1e8 72%,
+    #ff4fa3 86%,
+    transparent 100%
+  );
+  filter: drop-shadow(0 0 3px rgb(255 79 163 / .6));
+  animation: chat-reconnect-sweep 3.2s linear infinite;
+}
+@keyframes chat-reconnect-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-reconnect-indicator::before {
+    animation: none;
+    width: 100%;
+    transform: none;
+    opacity: .7;
+  }
+}

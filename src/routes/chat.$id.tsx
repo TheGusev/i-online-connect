@@ -7,7 +7,7 @@ import { ScrollToLatestButton } from "@/features/chat/components/ScrollToLatestB
 import { lockBodyScroll } from "@/lib/scroll-lock";
 import { ChatBackground } from "@/features/chat/components/ChatBackground";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarHeart, StickyNote, WifiOff } from "lucide-react";
+import { ArrowLeft, CalendarHeart, StickyNote } from "lucide-react";
 import { RenameNoteChatButton } from "@/features/chat/NoteChatControls";
 import {
   Fragment,
@@ -106,7 +106,7 @@ function ConversationPage() {
   const myId = useSessionStore((s) => s.user?.id);
   const { data: conversation } = useConversation(id);
   const isNotes = conversation?.kind === "notes";
-  const { messages, isPending, hasNextPage, isFetchingNextPage, fetchNextPage } = useMessages(id);
+  const { messages, isPending, isSuccess: messagesReady, hasNextPage, isFetchingNextPage, fetchNextPage } = useMessages(id);
   const cache = useMessagesCache(id);
   const files = useFileUpload<Message>({ authorId: myId ?? "me", conversationId: id,
     upload: (file, tempId, replyId, progress) => chatApi.sendFile(id, file, tempId, replyId, progress),
@@ -148,7 +148,7 @@ function ConversationPage() {
   const [scrollReadyFor, setScrollReadyFor] = useState<string | null>(null);
   const initialScrollReady = scrollReadyFor === id;
 
-  const isEmptyThread = (messages?.length ?? 0) === 0;
+  const isEmptyThread = messagesReady && messages !== undefined && messages.length === 0;
   const chatStarted = Boolean(
     messages?.some((m) => m.authorId === myId) && messages?.some((m) => m.authorId !== myId),
   );
@@ -399,6 +399,16 @@ function ConversationPage() {
   return (
     <ReactionContext.Provider value={toggleReaction}>
     <div ref={reading.rootRef} className="keyboard-viewport-fixed flex flex-col overflow-hidden overscroll-none bg-background text-foreground">
+      {socketStatus !== "open" ? (
+        <div
+          className="chat-reconnect-indicator"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          <span className="sr-only">Восстанавливаем соединение</span>
+        </div>
+      ) : null}
       <FloatingPanel edge="top" panelRef={reading.topRef}>
       <header className="border-b border-border bg-card/95 backdrop-blur">
         <div className="mx-auto flex min-h-[60px] w-full max-w-3xl items-center gap-3 px-3 py-2.5">
@@ -464,12 +474,7 @@ function ConversationPage() {
           )}
           <MediaGallery scope="conversation" id={id} open={galleryOpen} onClose={() => setGalleryOpen(false)} />
         </div>
-        {socketStatus === "closed" ? (
-          <p className="flex items-center justify-center gap-1.5 border-t border-border bg-secondary/60 px-3 py-1 text-[11px] text-muted-foreground">
-            <WifiOff className="size-3" aria-hidden="true" />
-            Нет соединения — переподключаемся…
-          </p>
-        ) : null}
+
       </header>
       </FloatingPanel>
 
@@ -578,7 +583,7 @@ function ConversationPage() {
         className="border-t border-border bg-card/95 backdrop-blur pb-[max(0px,calc(env(safe-area-inset-bottom)_-_14px))] has-[textarea:focus]:pb-0"
       >
         <div className="mx-auto w-full max-w-3xl">
-          {isEmptyThread && !isNotes ? (
+          {isEmptyThread && !isNotes && Boolean(conversation) && socketStatus === "open" ? (
             <StarterChips
               starters={starters ?? []}
               loading={startersPending}
