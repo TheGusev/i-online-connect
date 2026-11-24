@@ -248,9 +248,15 @@ export function ChatComposer({
         onSubmit={(event) => {
           event.preventDefault();
           if (voice.recording || preparing) return;
+          const input = localRef.current;
+          const hadInputFocus = input !== null && document.activeElement === input;
           if (!sendStaged()) onSend();
-          // Поле остаётся в фокусе — клавиатура не закрывается между сообщениями.
-          requestAnimationFrame(() => localRef.current?.focus({ preventScroll: true }));
+          // Сохраняем фокус при наборе, но не включаем его после отправки фото.
+          if (hadInputFocus) {
+            requestAnimationFrame(() => {
+              if (input?.isConnected) input.focus({ preventScroll: true });
+            });
+          }
         }}
       >
         {leading || onMedia || onFile || voice.recording ? (

@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Clock, MapPin, Plus, Search, Sparkles } from "lucide-react";
+import { Clock, Plus, Search, Sparkles } from "lucide-react";
+import { CityPill } from "@/features/geo/CityPill";
 import { useRef, useState } from "react";
 
 import type { NeedCategory } from "@/api";
@@ -51,6 +52,8 @@ function NearbyPage() {
   const { listing } = Route.useSearch();
   const navigate = Route.useNavigate();
   const [city, setCity] = useState("");
+  const [otherCity, setOtherCity] = useState(false);
+  const [cityDraft, setCityDraft] = useState("");
   const [category, setCategory] = useState<NeedCategory | null>(initialCategory);
   const [q, setQRaw] = useState(rememberedQuery);
   const setQ = (value: string) => {
@@ -86,10 +89,20 @@ function NearbyPage() {
   return (
     <AppShell wide public>
       <header className="mb-4 sm:mb-6">
-        <p className="inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-ink">
-          <MapPin className="size-3.5" aria-hidden="true" />
-          РЯДОМ
-        </p>
+        <CityPill
+          onOther={() => {
+            setCityDraft(city);
+            setOtherCity(true);
+          }}
+          selection={{
+            city,
+            onChange: (next) => {
+              setCity(next);
+              setLimit(PAGE);
+              setOtherCity(false);
+            },
+          }}
+        />
         <WaveHeading as="h1" className="mt-2.5 text-2xl font-bold sm:mt-3 sm:text-3xl">
           Быстрые решения рядом с домом
         </WaveHeading>
@@ -102,16 +115,23 @@ function NearbyPage() {
       {(
         <>
           <div className="mb-3 space-y-3 sm:mb-6 sm:space-y-4">
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-start">
-                <Input
-                  label="Город"
-                  value={city}
-                  onChange={(event) => {
-                    setCity(event.target.value);
-                    setLimit(PAGE);
-                  }}
-                  hint={`Сейчас показываем: ${data?.city || "все города"}`}
-                />
+            {otherCity ? (
+              <form data-no-swipe className="flex items-end gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setCity(cityDraft.trim());
+                  setLimit(PAGE);
+                  setOtherCity(false);
+                }}>
+                <div className="min-w-0 flex-1">
+                  <Input label="Название города" value={cityDraft} autoFocus
+                    onChange={(event) => setCityDraft(event.target.value)} />
+                </div>
+                <Button type="submit">Готово</Button>
+              </form>
+            ) : null}
+            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+
                 <Input
                   label="Поиск по объявлениям"
                   value={q}

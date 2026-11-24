@@ -1,0 +1,152 @@
+if (mode === "existing-thread") {
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+
+  const started = Date.now() - 120000;
+  const original = {
+    ...message, createdAt: new Date(started).toISOString(),
+  };
+  const replyId = "99999999-9999-4999-8999-999999999999";
+  const items = [
+    original,
+    ...Array.from({ length: 24 }, (_, i) => ({
+      ...message, id: crypto.randomUUID(),
+      text: "Промежуточное сообщение " + i + " — проверка прокрутки к ответу.",
+      createdAt: new Date(started + (i + 1) * 1000).toISOString(),
+    })),
+    {
+      ...message, id: replyId, authorId: me, text: "AUDIT_REPLY",
+      createdAt: new Date(started + 90000).toISOString(),
+      replyTo: {
+        id: original.id, authorId: peer,
+        kind: "text", text: original.text,
+      },
+    },
+  ];
+
+  await page.route("**/api/chat/conversations/" + cid + "/messages*", route => {
+    if (route.request().method() !== "GET") {
+      throw new Error("Unexpected message mutation in reply test");
+    }
+    return route.fulfill({
+      json: { items, hasMore: false, nextBefore: null },
+    });
+  });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const quote = page.locator("#message-" + replyId)
+    .getByRole("button", { name: /AUDIT_MESSAGE_VISIBLE/ });
+  await quote.waitFor({ state: "visible" });
+  const bubble = page.locator("#message-" + original.id + " [data-bubble]");
+  const before = await bubble.boundingBox();
+  await quote.click();
+  await page.waitForFunction(id =>
+    document.querySelector("#message-" + id + " [data-bubble]")
+      ?.classList.contains("msg-flash"),
+    original.id
+  );
+  const after = await bubble.boundingBox();
+  if (!before || !after ||
+      Math.abs(before.width - after.width) > 1 ||
+      Math.abs(before.height - after.height) > 1) {
+    throw new Error("Reply outline changes bubble dimensions");
+  }
+  const visible = await bubble.evaluate(el => {
+    const box = el.getBoundingClientRect();
+    return box.bottom > 0 && box.top < innerHeight;
+  });
+  if (!visible) throw new Error("Reply target is outside viewport");
+  const animation = await bubble.evaluate(el =>
+    getComputedStyle(el, "::after").animationName
+  );
+  if (!animation.includes("urgent-orbit")) {
+    throw new Error("Reply contour animation missing: " + animation);
+  }
+  await page.screenshot({
+    path: out + "/reply-outline-320.png", fullPage: true,
+  });
+  await page.waitForFunction(id =>
+    !document.querySelector("#message-" + id + " [data-bubble]")
+      ?.classList.contains("msg-flash"),
+    original.id,
+    { timeout: 5000 }
+  );
+  console.log("PASS polish: quote jumps to source; contour animates; geometry unchanged; highlight clears");
+
+  const listingQueries = [];
+  const profileWrites = [];
+  page.on("request", req => {
+    const p = new URL(req.url()).pathname;
+    if (["/api/geo/me", "/api/profiles/me"].includes(p) &&
+        !["GET", "HEAD", "OPTIONS"].includes(req.method())) {
+      profileWrites.push(req.method() + " " + p);
+    }
+  });
+  await page.route("**/api/profiles/me", route => {
+    if (route.request().method() !== "GET") {
+      throw new Error("Nearby filter attempted profile mutation");
+    }
+    return route.fulfill({
+      json: { ...user, completeness: { complete: true } },
+    });
+  });
+  await page.route("**/api/listings**", route => {
+    const req = route.request();
+    const url = new URL(req.url());
+    if (!["/api/listings", "/api/listings/"].includes(url.pathname) ||
+        req.method() !== "GET") {
+      throw new Error("Unexpected listings request: " + req.method() + " " + url.pathname);
+    }
+    const city = url.searchParams.get("city");
+    listingQueries.push({ city, q: url.searchParams.get("q") });
+    return route.fulfill({ json: { city: city || user.city, items: [] } });
+  });
+
+  async function waitQuery(predicate, label) {
+    for (let i = 0; i < 70; i++) {
+      if (listingQueries.some(predicate)) return;
+      await page.waitForTimeout(100);
+    }
+    throw new Error("Missing listings query " + label + ": " +
+      JSON.stringify(listingQueries));
+  }
+
+  await page.goto(origin + "/nearby", { waitUntil: "domcontentloaded" });
+  const cityToggle = page.locator('button[aria-haspopup="listbox"]');
+  await cityToggle.click();
+  const list = page.getByRole("listbox", { name: "Выбор города", exact: true });
+  const option = list.getByRole("option").nth(1);
+  const selectedCity = (await option.locator("span").nth(1).innerText()).trim();
+  await option.click();
+  await waitQuery(x => x.city === selectedCity, "preset city");
+  if (profileWrites.length) throw new Error("Preset city changed profile");
+
+  await cityToggle.click();
+  await page.getByRole("button", { name: "Другой город…", exact: true }).click();
+  await page.getByLabel("Название города", { exact: true }).fill("Audit Filter City");
+  await page.getByRole("button", { name: "Готово", exact: true }).click();
+  await waitQuery(x => x.city === "Audit Filter City", "custom city");
+
+  await cityToggle.click();
+  await page.getByRole("option", { name: "Мой город", exact: true }).click();
+  await page.getByLabel("Поиск по объявлениям", { exact: true })
+    .fill("RESET_CITY_AUDIT");
+  await waitQuery(
+    x => x.city === null && x.q === "RESET_CITY_AUDIT",
+    "profile-city fallback"
+  );
+  if (profileWrites.length) {
+    throw new Error("Independent filter changed profile: " + profileWrites.join(", "));
+  }
+  if (await page.evaluate(() =>
+    document.documentElement.scrollWidth > innerWidth + 1
+  )) throw new Error("Nearby page has horizontal overflow");
+
+  await page.screenshot({
+    path: out + "/nearby-city-320.png", fullPage: true,
+  });
+  console.log("PASS polish: preset/custom city filter independently; reset omits city; no profile writes; fits 320px");
+
+  await page.goto(origin + "/chat/" + cid, { waitUntil: "domcontentloaded" });
+  await page.getByText("AUDIT_MESSAGE_VISIBLE", { exact: true }).first()
+    .waitFor({ state: "visible" });
+}

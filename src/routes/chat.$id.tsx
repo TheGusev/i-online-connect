@@ -1,6 +1,7 @@
 import { ActivityBadge, VoicePing } from "@/features/chat/components/ActivityBadge";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { isNearBottom } from "@/features/chat/scroll";
+import { highlightMessageBubble } from "@/features/chat/message-highlight";
 import { useReadingMode } from "@/features/chat/useReadingMode";
 import { FloatingPanel } from "@/features/chat/components/FloatingPanel";
 import { ScrollToLatestButton } from "@/features/chat/components/ScrollToLatestButton";
@@ -266,7 +267,10 @@ function ConversationPage() {
       Boolean(replyTo) ||
       Boolean(editingMessage) ||
       socketStatus === "closed" ||
-      voiceRecording,
+      voiceRecording ||
+      sendMedia.isPending ||
+      photoBatch.pending.length > 0 ||
+      files.sending,
     lastId,
     lastMine,
   });
@@ -362,19 +366,46 @@ function ConversationPage() {
   }, []);
 
   /** Переход к исходному сообщению с короткой подсветкой. */
+  const quoteJumpFrame = useRef(0);
+  useEffect(() => () => {
+    cancelAnimationFrame(quoteJumpFrame.current);
+  }, [id]);
+
   const jumpToMessage = useCallback((messageId: string) => {
+    cancelAnimationFrame(quoteJumpFrame.current);
     const node = document.getElementById(`message-${messageId}`);
-    if (!node) return;
     const scroller = scrollerRef.current;
-    if (scroller) scroller.scrollTo({ top: scroller.scrollTop + node.getBoundingClientRect().top - scroller.getBoundingClientRect().top - (scroller.clientHeight - node.clientHeight) / 2, behavior: "smooth" });
+    if (!node || !scroller) return;
     const bubble = node.querySelector<HTMLElement>("[data-bubble]") ?? node;
-    // Подсветка по форме пузыря — после того как прокрутка доедет.
-    window.setTimeout(() => {
-      bubble.classList.remove("msg-flash");
-      void bubble.offsetWidth;
-      bubble.classList.add("msg-flash");
-      window.setTimeout(() => bubble.classList.remove("msg-flash"), 1300);
-    }, 350);
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const target = Math.max(0, Math.min(
+      scroller.scrollHeight - scroller.clientHeight,
+      scroller.scrollTop + node.getBoundingClientRect().top -
+        scroller.getBoundingClientRect().top -
+        (scroller.clientHeight - node.clientHeight) / 2,
+    ));
+    const started = performance.now();
+    let previous = scroller.scrollTop;
+    let stable = 0;
+
+    scroller.scrollTo({ top: target, behavior: reduce ? "auto" : "smooth" });
+    const check = (now: number) => {
+      if (!bubble.isConnected || scrollerRef.current !== scroller) return;
+      const position = scroller.scrollTop;
+      stable = Math.abs(position - previous) < 0.5 ? stable + 1 : 0;
+      previous = position;
+      if ((now - started >= 120 && stable >= 3) || now - started >= 2000) {
+        quoteJumpFrame.current = 0;
+        const box = bubble.getBoundingClientRect();
+        const viewport = scroller.getBoundingClientRect();
+        if (box.bottom > viewport.top && box.top < viewport.bottom) {
+          highlightMessageBubble(bubble);
+        }
+        return;
+      }
+      quoteJumpFrame.current = requestAnimationFrame(check);
+    };
+    quoteJumpFrame.current = requestAnimationFrame(check);
   }, []);
 
   const retry = useCallback((message: Message) => {
@@ -580,7 +611,11 @@ function ConversationPage() {
       </div>
 
       <FloatingPanel edge="bottom" panelRef={reading.bottomRef}
-        className="border-t border-border bg-card/95 backdrop-blur pb-[max(0px,calc(env(safe-area-inset-bottom)_-_14px))] has-[textarea:focus]:pb-0"
+        className={`border-t border-border bg-card/95 backdrop-blur ${
+          keyboardInset > 0
+            ? "pb-0"
+            : "pb-[max(0px,calc(env(safe-area-inset-bottom)_-_14px))]"
+        }`}
       >
         <div className="mx-auto w-full max-w-3xl">
           {isEmptyThread && !isNotes && Boolean(conversation) && socketStatus === "open" ? (
