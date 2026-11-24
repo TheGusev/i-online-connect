@@ -13,7 +13,9 @@
     "build:static": "node scripts/check-production-env.mjs && vite build --config vite.config.static.ts && node scripts/build-static.mjs",
     "typecheck": "tsc --noEmit --incremental false",
     "test:unit": "node scripts/test-frontend.mjs",
-    "test:browser": "node scripts/browser-smoke.mjs dist/static .test-artifacts/browser"
+    "test:browser": "node scripts/browser-smoke.mjs dist/static .test-artifacts/browser",
+    "test:browser:stories-posts": "node scripts/ui-regression/stories-runner.mjs && node scripts/ui-regression/posts-runner.mjs",
+    "test:browser:ui": "node scripts/ui-regression/stories-runner.mjs && node scripts/ui-regression/posts-runner.mjs && node scripts/ui-regression/polish-runner.mjs && node scripts/ui-regression/media-panel-runner.mjs"
   },
   "dependencies": {
     "@capacitor/android": "8.6.2",

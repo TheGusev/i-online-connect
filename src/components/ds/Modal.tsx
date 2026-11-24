@@ -86,6 +86,10 @@ export function Modal({
 export interface BottomSheetProps extends ModalProps {
   /** Слой окна поверх полноэкранных экранов (например, эфира). */
   layerClassName?: string;
+  /** Закрепить footer вне прокручиваемого содержимого. */
+  fixedFooter?: boolean;
+  /** Декоративный слой внутри полотна окна. */
+  decoration?: ReactNode;
 }
 
 const MODAL_LEAVE_MS = 260;
@@ -106,6 +110,8 @@ export function BottomSheet({
   footer,
   className,
   layerClassName = "z-50",
+  fixedFooter = false,
+  decoration,
 }: BottomSheetProps) {
   const { mounted, leaving } = useOverlayPresence(open, SHEET_LEAVE_MS);
   const [offset, setOffset] = useState(0);
@@ -183,6 +189,7 @@ export function BottomSheet({
             : { transform: offset ? `translateY(${offset}px)` : undefined }
         }
       >
+        {decoration}
         <div
           className="touch-none px-5 pb-2 pt-3"
           onPointerDown={pointerDown}
@@ -196,8 +203,13 @@ export function BottomSheet({
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-8">
           {children && <div className="mt-2 space-y-4 text-sm">{children}</div>}
-          {footer && <div className="mt-6 flex flex-col gap-2">{footer}</div>}
+          {!fixedFooter && footer && <div className="mt-6 flex flex-col gap-2">{footer}</div>}
         </div>
+        {fixedFooter && footer ? (
+          <div className="shrink-0 border-t border-border bg-card px-3 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))]">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>,
     document.body,

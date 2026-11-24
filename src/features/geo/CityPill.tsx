@@ -17,9 +17,13 @@ interface Place {
 const pillBase =
   "inline-flex items-center gap-2 rounded-full bg-primary-soft px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary-ink";
 
-export function CityPill({ onOther }: { onOther: () => void }) {
+export function CityPill({ onOther, selection }: {
+  onOther: () => void;
+  selection?: { city: string; onChange: (city: string) => void };
+}) {
   const client = useQueryClient();
-  const { city } = useCurrentCity();
+  const { city: profileCity } = useCurrentCity();
+  const city = selection ? selection.city : profileCity;
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -77,7 +81,7 @@ export function CityPill({ onOther }: { onOther: () => void }) {
         onClick={() => setOpen((value) => !value)}
         className={`${pillBase} border border-primary/30 transition active:scale-95 disabled:opacity-60`}
       >
-        {choose.isPending ? "…" : city ? cityCode(city) : "ГОРОД"}
+        {choose.isPending ? "…" : city ? cityCode(city) : selection ? "МОЙ ГОРОД" : "ГОРОД"}
         <ChevronDown
           className={`size-3.5 transition-transform ${open ? "rotate-180" : ""}`}
           aria-hidden="true"
@@ -90,6 +94,20 @@ export function CityPill({ onOther }: { onOther: () => void }) {
           aria-label="Выбор города"
           className="absolute left-0 top-full z-30 mt-2 max-h-72 w-64 overflow-y-auto rounded-2xl border border-border bg-card p-1 shadow-lg"
         >
+          {selection ? (
+            <li role="presentation">
+              <button type="button" role="option"
+                aria-selected={!city}
+                onClick={() => {
+                  selection.onChange("");
+                  setOpen(false);
+                }}
+                className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm hover:bg-secondary">
+                Мой город
+                {!city ? <Check className="size-4 text-primary" aria-hidden="true" /> : null}
+              </button>
+            </li>
+          ) : null}
           {CITY_OPTIONS.map((option) => {
             const active = city !== null && normCity(city) === normCity(option.name);
             return (
@@ -99,7 +117,16 @@ export function CityPill({ onOther }: { onOther: () => void }) {
                   role="option"
                   aria-selected={active}
                   disabled={choose.isPending}
-                  onClick={() => (active ? setOpen(false) : choose.mutate(option.name))}
+                  onClick={() => {
+                    if (selection) {
+                      selection.onChange(option.name);
+                      setOpen(false);
+                    } else if (active) {
+                      setOpen(false);
+                    } else {
+                      choose.mutate(option.name);
+                    }
+                  }}
                   className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm hover:bg-secondary disabled:opacity-60"
                 >
                   <span className="w-10 font-semibold tabular-nums">{option.code}</span>

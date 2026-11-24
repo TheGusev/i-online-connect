@@ -1,0 +1,232 @@
+if (mode === "existing-thread") {
+  const reactionRequests = [];
+  page.on("request", req => {
+    if (new URL(req.url()).pathname.endsWith("/reaction")) {
+      reactionRequests.push({
+        method: req.method(),
+        body: req.postData(),
+      });
+    }
+  });
+
+  async function waitReaction(selector, label) {
+    console.log("TRACE waiting: " + label);
+    try {
+      await page.waitForFunction(selector =>
+        document.querySelector(selector)?.getAttribute("aria-pressed") === "true",
+        selector,
+        { timeout: 10000 }
+      );
+    } catch (error) {
+      const state = await page.evaluate(() => ({
+        dialogs: Array.from(document.querySelectorAll('[role="dialog"]')).map(el => ({
+          text: el.textContent?.slice(0, 350),
+          hidden: el.getAttribute("aria-hidden"),
+          rect: el.getBoundingClientRect().toJSON(),
+        })),
+        buttons: Array.from(document.querySelectorAll(
+          '[data-post-toolbar] button, [data-post-photo-toolbar] button'
+        )).map(el => ({
+          label: el.getAttribute("aria-label") || el.textContent,
+          pressed: el.getAttribute("aria-pressed"),
+          disabled: el.disabled,
+          rect: el.getBoundingClientRect().toJSON(),
+        })),
+        photoToolbarPresent: Boolean(document.querySelector("[data-post-photo-toolbar]")),
+        bodyPointerEvents: getComputedStyle(document.body).pointerEvents,
+      }));
+      console.log("REACTION_REQUESTS=" + JSON.stringify(reactionRequests));
+      console.log("REACTION_DOM=" + JSON.stringify(state));
+      await page.screenshot({
+        path: out + "/post-reaction-failure.png", fullPage: true,
+      });
+      throw error;
+    }
+    console.log("TRACE passed: " + label);
+  }
+
+  const sid = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const pid = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const base = "/api/spaces/" + sid;
+  let host = false;
+  let reaction = null;
+  let deletes = 0;
+  const post = {
+    id: pid, kind: "photo", authorId: peer, authorName: "Audit Author",
+    text: "AUDIT_BOARD_PHOTO", mediaUrl: "/api/audit-board-photo.jpg",
+    mediaMime: "image/jpeg", status: "open", pinned: false,
+    createdAt: now, clientTempId: "audit-board-photo",
+  };
+  const jpeg = Buffer.from(await page.evaluate(() => {
+    const c = document.createElement("canvas");
+    c.width = 240; c.height = 480;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#67324e";
+    ctx.fillRect(0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg").split(",")[1];
+  }), "base64");
+
+  await page.route("**/api/audit-board-photo.jpg", route =>
+    route.fulfill({ contentType: "image/jpeg", body: jpeg })
+  );
+  await page.route("**/api/spaces/" + sid + "**", route => {
+    const req = route.request();
+    const path = new URL(req.url()).pathname;
+    const method = req.method();
+    const json = data => route.fulfill({ json: data });
+    if (path === base && method === "GET") return json({
+      id: sid, title: "Audit Community", description: "Тест",
+      city: "Тест", category: "other", interests: [],
+      coverUrl: "/api/audit-board-photo.jpg",
+      membersCount: 2, members: [], events: [],
+      isMember: true, isHost: host, isPrivate: false,
+      invited: false, verifiedCommunity: false,
+    });
+    if (path === base + "/messages" && method === "GET") return json([]);
+    if (path === base + "/board" && method === "GET") {
+      return json({ posts: [post], retentionDays: 7 });
+    }
+    if (path === base + "/board/read" && method === "POST") {
+      return json({ ok: true });
+    }
+    const postBase = base + "/board/" + pid;
+    if (path === postBase + "/discussion" && method === "GET") {
+      return json({
+        items: Array.from({ length: 12 }, (_, i) => ({
+          id: "audit-comment-" + i, postId: pid, authorId: peer,
+          authorName: "Audit Author", parentId: null,
+          text: "Комментарий " + i, createdAt: now,
+          updatedAt: null, deletedAt: null, clientTempId: "comment-" + i,
+        })),
+        hasMore: false, nextBefore: null, commentsClosed: false,
+        canComment: true, canModerate: host,
+        reactions: ["like", "thanks", "idea", "question"].map(value => ({
+          reaction: value, count: reaction === value ? 1 : 0,
+          mine: reaction === value,
+        })),
+      });
+    }
+    if (path === postBase + "/reaction" && method === "PUT") {
+      reaction = req.postDataJSON().reaction;
+      return json({ ok: true });
+    }
+    if (path === postBase && method === "PATCH") {
+      Object.assign(post, req.postDataJSON());
+      return json(post);
+    }
+    if (path === postBase && method === "DELETE") {
+      deletes++;
+      return json({ ok: true, id: pid });
+    }
+    throw new Error("Unexpected board API: " + method + " " + path);
+  });
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.addInitScript(() => {
+    window.__auditPostProgress = [];
+    new MutationObserver(records => {
+      for (const record of records) {
+        const el = record.target;
+        if (!(el instanceof Element) || !el.closest("[data-post-contour]")) continue;
+        const value = Number(el.getAttribute("data-progress-value"));
+        if (Number.isFinite(value) && window.__auditPostProgress.length < 1000) {
+          window.__auditPostProgress.push(value);
+        }
+      }
+    }).observe(document, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-progress-value"],
+    });
+  });
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto(origin + "/spaces/" + sid, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /AUDIT_BOARD_PHOTO/ }).click();
+
+  const sheet = page.locator('[role="dialog"]').filter({
+    has: page.locator("[data-post-toolbar]"),
+  });
+  const toolbar = sheet.locator("[data-post-toolbar]");
+  const like = toolbar.getByRole("button", { name: "Нравится", exact: true });
+  await like.waitFor({ state: "visible" });
+  if (await toolbar.getByRole("button", { name: "Удалить", exact: true }).count()) {
+    throw new Error("Foreign post exposes delete action");
+  }
+  await like.click();
+  await waitReaction(
+    '[data-post-toolbar] button[aria-label="Нравится"]', "post-like"
+  );
+  const before = await toolbar.boundingBox();
+  await sheet.getByText("Комментарий 11", { exact: true }).scrollIntoViewIfNeeded();
+  const after = await toolbar.boundingBox();
+  if (!before || !after || Math.abs(before.y - after.y) > 1) {
+    throw new Error("Post toolbar scrolls with comments");
+  }
+  console.log("PASS posts: reactions work; footer stays fixed; foreign delete hidden");
+
+  await sheet.getByRole("button", { name: "Раскрыть фото", exact: true }).click();
+  const photo = page.getByRole("dialog", { name: "Audit Author — фото", exact: true });
+  await photo.waitFor({ state: "visible" });
+  const image = photo.getByRole("img", { name: "Фото: Audit Author", exact: true });
+  await image.evaluate(el => {
+    if (!el.complete || !el.naturalWidth) throw new Error("Photo not loaded");
+    if (getComputedStyle(el).objectFit !== "contain") {
+      throw new Error("Expanded photo is cropped");
+    }
+  });
+  const photoToolbar = photo.locator("[data-post-photo-toolbar]");
+  const thanks = photoToolbar.getByRole("button", { name: "Спасибо", exact: true });
+  await thanks.click();
+  await waitReaction(
+    '[data-post-photo-toolbar] button[aria-label="Спасибо"]', "photo-thanks"
+  );
+  if (await photo.locator("[data-post-contour]").count() !== 1) {
+    throw new Error("Photo contour missing");
+  }
+  await page.screenshot({
+    path: out + "/post-photo-320.png", fullPage: true,
+  });
+  await photo.getByRole("button", { name: "Вернуться к посту", exact: true }).click();
+  await photo.waitFor({ state: "hidden" });
+  await toolbar.getByRole("button", { name: "Спасибо", exact: true })
+    .waitFor({ state: "visible" });
+  console.log("PASS posts: photo opens uncropped; reactions work; return preserves post");
+
+  await page.waitForFunction(() => {
+    const values = window.__auditPostProgress || [];
+    return values.some(value => value > 0 && value < 100)
+      && values.some(value => value === 100);
+  }, undefined, { timeout: 5000 });
+  console.log("PASS posts: opening contour advances and completes");
+
+  await sheet.getByRole("button", { name: "Раскрыть фото", exact: true }).click();
+  await photo.waitFor({ state: "visible" });
+  await page.keyboard.press("Escape");
+  await photo.waitFor({ state: "hidden" });
+  await toolbar.getByRole("button", { name: "Спасибо", exact: true })
+    .waitFor({ state: "visible" });
+  if (!await sheet.isVisible()) {
+    throw new Error("Escape closed the post together with the photo");
+  }
+  console.log("PASS posts: Escape closes photo but preserves the post");
+
+  host = true;
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: /AUDIT_BOARD_PHOTO/ }).click();
+  const pin = toolbar.getByRole("button", { name: "Закрепить", exact: true });
+  await pin.click();
+  await toolbar.getByRole("button", { name: "Открепить", exact: true })
+    .waitFor({ state: "visible" });
+  await toolbar.getByRole("button", { name: "Удалить", exact: true }).click();
+  await toolbar.getByRole("button", { name: "Да, удалить", exact: true })
+    .waitFor({ state: "visible" });
+  if (deletes) throw new Error("Post deleted before confirmation");
+  await toolbar.getByRole("button", { name: "Отмена", exact: true }).click();
+  if (deletes) throw new Error("Cancel deleted post");
+  if (await sheet.locator("[data-post-contour]").count() !== 1) {
+    throw new Error("Post contour missing");
+  }
+  await page.screenshot({
+    path: out + "/post-host-toolbar-320.png", fullPage: true,
+  });
+  console.log("PASS posts: host pin works; deletion requires confirmation; cancel is safe");
+}

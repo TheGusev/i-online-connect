@@ -1,5 +1,8 @@
-import { Check, ExternalLink, Pin, PinOff, Trash2 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { Check, ExternalLink, Pin, PinOff, Trash2, Heart, HandHeart, Lightbulb, MessageCircle } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { PostPhotoViewer } from './PostPhotoViewer';
+import { PostContour } from './PostContour';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { mediaUrl } from '@/api';
 import { BottomSheet, Button } from '@/components/ds';
@@ -39,18 +42,43 @@ export function PostDetailSheet({
   onDelete: (post: BoardPost) => void;
 }) {
   const [confirm, setConfirm] = useState(false);
+  const [sheetToolbar, setSheetToolbar] = useState<HTMLDivElement | null>(null);
+  const [photoToolbar, setPhotoToolbar] = useState<HTMLDivElement | null>(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
+  const toolbarTarget = photoOpen ? photoToolbar : sheetToolbar;
+  useEffect(() => {
+    setPhotoOpen(false);
+    setConfirm(false);
+  }, [post?.id]);
   const canManage = Boolean(post && myId && (post.authorId === myId || isHost));
   const close = () => {
+    if (photoOpen) {
+      setPhotoOpen(false);
+      return;
+    }
     setConfirm(false);
     onClose();
   };
   const image = post && post.kind === 'photo' && post.mediaUrl ? mediaUrl(post.mediaUrl) : undefined;
 
   return (
-    <BottomSheet open={Boolean(post)} onClose={close} title={post ? KIND_LABEL[post.kind] : ''}>
+    <>
+    <BottomSheet open={Boolean(post)} onClose={close}
+      title={post ? KIND_LABEL[post.kind] : ''}
+      fixedFooter
+      decoration={post ? <PostContour key={post.id} /> : null}
+      footer={<div ref={setSheetToolbar} data-post-toolbar=""
+        className="flex min-h-11 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" />}>
       {post ? (
         <div className='space-y-3 pb-4'>
-          {image ? <img src={image} alt='Фото карточки' className='max-h-72 w-full rounded-2xl border-2 border-primary object-cover' /> : null}
+          {image ? (
+            <button type='button' aria-label='Раскрыть фото'
+              onClick={() => setPhotoOpen(true)}
+              className='block w-full overflow-hidden rounded-2xl border border-border bg-black/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'>
+              <img src={image} alt='Фото карточки'
+                className='max-h-72 w-full object-contain' />
+            </button>
+          ) : null}
 
           {post.kind === 'link' && post.url ? (
             <div className='space-y-2'>
@@ -74,16 +102,26 @@ export function PostDetailSheet({
             </p>
           ) : null}
 
-          {canManage || isHost ? (
-            <div className='flex flex-wrap gap-2'>
+          <PostDiscussion
+            key={spaceId + ':' + post.id}
+            spaceId={spaceId}
+            postId={post.id}
+            toolbarTarget={toolbarTarget}
+            myId={myId}
+            now={now}
+          />
+          {toolbarTarget ? createPortal(
+            <>
+{canManage || isHost ? (
+            <div className='order-2 flex shrink-0 items-center gap-1'>
               {post.kind === 'question' && canManage ? (
-                <Button size='sm' variant='secondary' onClick={() => onResolve(post, post.status === 'resolved' ? 'open' : 'resolved')}>
-                  <Check aria-hidden='true' /> {post.status === 'resolved' ? 'Снова открыт' : 'Отвечен'}
+                <Button size='sm' variant='secondary' className='size-11 shrink-0 p-0' onClick={() => onResolve(post, post.status === 'resolved' ? 'open' : 'resolved')}>
+                  <Check aria-hidden='true' /><span className='sr-only'>{post.status === 'resolved' ? 'Снова открыт' : 'Отвечен'}</span>
                 </Button>
               ) : null}
               {isHost ? (
-                <Button size='sm' variant='secondary' onClick={() => onPin(post, !post.pinned)}>
-                  {post.pinned ? <PinOff aria-hidden='true' /> : <Pin aria-hidden='true' />} {post.pinned ? 'Открепить' : 'Закрепить'}
+                <Button size='sm' variant='secondary' className='size-11 shrink-0 p-0' onClick={() => onPin(post, !post.pinned)}>
+                  {post.pinned ? <PinOff aria-hidden='true' /> : <Pin aria-hidden='true' />} <span className='sr-only'>{post.pinned ? 'Открепить' : 'Закрепить'}</span>
                 </Button>
               ) : null}
               {canManage ? (
@@ -104,23 +142,27 @@ export function PostDetailSheet({
                     </Button>
                   </>
                 ) : (
-                  <Button size='sm' variant='ghost' className='text-destructive' onClick={() => setConfirm(true)}>
-                    <Trash2 aria-hidden='true' /> Удалить
+                  <Button size='sm' variant='ghost' className='size-11 shrink-0 p-0 text-destructive' onClick={() => setConfirm(true)}>
+                    <Trash2 aria-hidden='true' /><span className='sr-only'>Удалить</span>
                   </Button>
                 )
               ) : null}
             </div>
           ) : null}
-          <PostDiscussion
-            key={spaceId + ':' + post.id}
-            spaceId={spaceId}
-            postId={post.id}
-            myId={myId}
-            now={now}
-          />
+            </>,
+            toolbarTarget,
+          ) : null}
         </div>
       ) : null}
     </BottomSheet>
+    <PostPhotoViewer
+      open={photoOpen && Boolean(post && image)}
+      src={image ?? ""}
+      author={post?.authorName ?? "Автор"}
+      onClose={() => setPhotoOpen(false)}
+      toolbarRef={setPhotoToolbar}
+    />
+    </>
   );
 }
 
@@ -128,11 +170,12 @@ export function PostDetailSheet({
 const REACTION_LABELS: ReadonlyArray<{
   value: BoardReaction;
   label: string;
+  icon: typeof Heart;
 }> = [
-  { value: 'like', label: 'Нравится' },
-  { value: 'thanks', label: 'Спасибо' },
-  { value: 'idea', label: 'Идея' },
-  { value: 'question', label: 'Есть вопрос' },
+  { value: 'like', label: 'Нравится', icon: Heart },
+  { value: 'thanks', label: 'Спасибо', icon: HandHeart },
+  { value: 'idea', label: 'Идея', icon: Lightbulb },
+  { value: 'question', label: 'Есть вопрос', icon: MessageCircle },
 ];
 
 function discussionError(error: unknown): string {
@@ -144,11 +187,13 @@ function discussionError(error: unknown): string {
 function PostDiscussion({
   spaceId,
   postId,
+  toolbarTarget,
   myId,
   now,
 }: {
   spaceId: string;
   postId: string;
+  toolbarTarget: HTMLElement | null;
   myId: string | null;
   now: number;
 }) {
@@ -272,6 +317,36 @@ function PostDiscussion({
     }
   }
 
+  const reactionBar = current ? (
+<div className='order-1 flex shrink-0 items-center gap-1' aria-label='Реакции'>
+            {REACTION_LABELS.map(({ value, label, icon: Icon }) => {
+              const count = current.reactions.find(
+                (item) => item.reaction === value,
+              );
+              return (
+                <button
+                  key={value}
+                  aria-label={label}
+                  title={label}
+                  type='button'
+                  aria-pressed={Boolean(count?.mine)}
+                  disabled={react.isPending}
+                  onClick={() => void setReaction(count?.mine ? null : value)}
+                  className={
+                    'inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1 rounded-full px-2 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 ' +
+                    (count?.mine
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:text-primary')
+                  }
+                >
+                  <Icon className='size-5' aria-hidden='true' />
+                  <span className='text-[10px] tabular-nums'>{count?.count ?? 0}</span>
+                </button>
+              );
+            })}
+          </div>
+  ) : null;
+
   return (
     <section
       aria-label='Обсуждение материала'
@@ -302,30 +377,9 @@ function PostDiscussion({
 
       {current ? (
         <>
-          <div className='flex flex-wrap gap-2' aria-label='Реакции'>
-            {REACTION_LABELS.map(({ value, label }) => {
-              const count = current.reactions.find(
-                (item) => item.reaction === value,
-              );
-              return (
-                <button
-                  key={value}
-                  type='button'
-                  aria-pressed={Boolean(count?.mine)}
-                  disabled={react.isPending}
-                  onClick={() => void setReaction(count?.mine ? null : value)}
-                  className={
-                    'rounded-full border px-3 py-2 text-xs disabled:opacity-50 ' +
-                    (count?.mine
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border text-foreground')
-                  }
-                >
-                  {label} · {count?.count ?? 0}
-                </button>
-              );
-            })}
-          </div>
+          {toolbarTarget
+            ? createPortal(reactionBar, toolbarTarget)
+            : reactionBar}
 
           {current.canModerate ? (
             <Button

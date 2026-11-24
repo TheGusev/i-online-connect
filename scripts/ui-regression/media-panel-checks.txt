@@ -1,0 +1,127 @@
+if (mode === "existing-thread") {
+  await page.setViewportSize({ width: 320, height: 844 });
+  let uploaded = null;
+  let uploads = 0;
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  const mediaId = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+
+  const jpeg = Buffer.from(await page.evaluate(() => {
+    const c = document.createElement("canvas");
+    c.width = 240; c.height = 480;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#67324e";
+    ctx.fillRect(0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg").split(",")[1];
+  }), "base64");
+
+  await page.route("**/api/trust/verification/status", route =>
+    route.fulfill({ json: { id: "audit", status: "verified", reason: "", etaMinutes: 0 } })
+  );
+  await page.route("**/api/audit-chat-photo.jpg", route =>
+    route.fulfill({ contentType: "image/jpeg", body: jpeg })
+  );
+  await page.route("**/api/chat/conversations/" + cid + "/messages*", route => {
+    if (route.request().method() !== "GET") {
+      throw new Error("Unexpected text send in photo-only test");
+    }
+    return route.fulfill({
+      json: {
+        items: [message, ...(uploaded ? [uploaded] : [])],
+        hasMore: false, nextBefore: null,
+      },
+    });
+  });
+  await page.route("**/api/chat/conversations/" + cid + "/media", async route => {
+    if (route.request().method() !== "POST") {
+      throw new Error("Unexpected media request method");
+    }
+    const body = route.request().postDataBuffer()?.toString("utf8") || "";
+    const tempId = body.match(/name="clientTempId"\r\n\r\n([^\r]+)/)?.[1];
+    if (!tempId) throw new Error("Missing photo clientTempId");
+    uploads++;
+    if (uploads !== 1) throw new Error("Duplicate photo upload");
+    await gate;
+    uploaded = {
+      ...message, id: mediaId, authorId: me, text: "Фото",
+      kind: "image", mediaUrl: "/api/audit-chat-photo.jpg",
+      mediaMime: "image/jpeg", clientTempId: tempId,
+      createdAt: new Date().toISOString(),
+    };
+    return route.fulfill({ json: uploaded });
+  });
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const input = page.getByRole("textbox", { name: "Сообщение", exact: true });
+  const picker = page.getByLabel("Выбрать файл", { exact: true });
+  await picker.waitFor({ state: "attached" });
+
+  await input.focus();
+  await input.evaluate(el => el.blur());
+  await picker.setInputFiles({
+    name: "audit-chat-photo.jpg", mimeType: "image/jpeg", buffer: jpeg,
+  });
+  await page.getByRole("list", { name: "Фото к отправке", exact: true })
+    .getByRole("img", { name: "Фото 1", exact: true })
+    .waitFor({ state: "visible" });
+
+  await page.waitForFunction(() =>
+    document.querySelector('button[aria-label="Отправить"]')?.disabled === false
+  );
+  await page.evaluate(() => document.fonts.ready);
+  const baseline = await input.evaluate(el =>
+    el.closest("form").getBoundingClientRect().bottom
+  );
+
+  await page.evaluate(() => {
+    window.__mediaInputFocuses = 0;
+    document.addEventListener("focusin", event => {
+      if (event.target instanceof HTMLTextAreaElement &&
+          event.target.getAttribute("aria-label") === "Сообщение") {
+        window.__mediaInputFocuses++;
+      }
+    });
+  });
+
+  try {
+    await page.getByRole("button", { name: "Отправить", exact: true }).click();
+    for (let i = 0; uploads === 0 && i < 50; i++) {
+      await page.waitForTimeout(100);
+    }
+    if (uploads !== 1) throw new Error("Photo upload did not start");
+
+    for (let i = 0; i < 10; i++) {
+      await page.waitForTimeout(100);
+      const state = await input.evaluate(el => ({
+        bottom: el.closest("form").getBoundingClientRect().bottom,
+        focused: document.activeElement === el,
+        focuses: window.__mediaInputFocuses,
+      }));
+      if (Math.abs(state.bottom - baseline) > 2) {
+        throw new Error("Composer shifted while uploading: " + JSON.stringify({ baseline, ...state }));
+      }
+      if (state.focused || state.focuses) {
+        throw new Error("Photo send unexpectedly focused text input");
+      }
+    }
+    console.log("PASS media-panel: one upload; composer stays anchored; no forced input focus while pending");
+  } finally {
+    release();
+  }
+
+  await page.locator("#message-" + mediaId).waitFor({ state: "visible" });
+  await page.waitForTimeout(700);
+  const final = await input.evaluate(el => ({
+    bottom: el.closest("form").getBoundingClientRect().bottom,
+    focused: document.activeElement === el,
+    focuses: window.__mediaInputFocuses,
+  }));
+  if (Math.abs(final.bottom - baseline) > 2 || final.focused || final.focuses) {
+    throw new Error("Composer changed after photo confirmation: " +
+      JSON.stringify({ baseline, ...final }));
+  }
+  await page.screenshot({
+    path: out + "/photo-panel-320.png", fullPage: true,
+  });
+  console.log("PASS media-panel: photo confirmed; composer position and unfocused state preserved");
+}
