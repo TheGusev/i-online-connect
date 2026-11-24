@@ -1,6 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, Eye, Pause, Play, Plus, Trash2, Volume2, VolumeX, X, Star } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Pause, Play, Plus, Trash2, Volume2, VolumeX, X, Star, SendHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, PointerEvent } from "react";
 import { Avatar } from "@/components/ds";
@@ -9,6 +9,7 @@ import { storiesApi } from "./api";
 import { groupStories } from "./model";
 import type { StoryCursor, StoryItem, StoryPage } from "./model";
 import { StoriesPreview } from "./StoriesPreview";
+import { StoryContour } from "./StoryContour";
 
 type Draft = { file: File; url: string; clientTempId: string; caption: string };
 const message = (error: unknown) => error instanceof Error ? error.message : "Не удалось выполнить действие";
@@ -48,7 +49,7 @@ function LiveStories({ ownerId }: { ownerId: string }) {
   const [order, setOrder] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const progress = useRef({ id: "", value: 0 });
-  const progressBar = useRef<HTMLSpanElement>(null);
+  const progressBar = useRef<SVGPathElement>(null);
   const [finishedId, setFinishedId] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [holding, setHolding] = useState(false);
@@ -86,6 +87,9 @@ function LiveStories({ ownerId }: { ownerId: string }) {
   const current = flat.find(item => item.id === selected) ?? flat[0] ?? null;
   const position = current ? flat.findIndex(item => item.id === current.id) : -1;
   const authorGroup = ordered.find(group => group.id === current?.author.id);
+  const authorPosition = Math.max(0,
+    authorGroup?.items.findIndex(item => item.id === current?.id) ?? 0);
+  const authorTotal = authorGroup?.items.length ?? 1;
   const finished = !!current && finishedId === current.id;
   const stopped = !open || paused || holding || hidden || !!draft || confirmDelete || busy || finished;
   const loaded = !!current && media?.id === current.id && readyId === current.id;
@@ -118,7 +122,7 @@ function LiveStories({ ownerId }: { ownerId: string }) {
     setSelected(id);
     progress.current = { id, value: 0 };
     if (progressBar.current) {
-      progressBar.current.style.transform = "scaleX(0)";
+      progressBar.current.style.strokeDashoffset = "100";
       progressBar.current.dataset["progressValue"] = "0";
     }
     setFinishedId(null);
@@ -202,11 +206,6 @@ function LiveStories({ ownerId }: { ownerId: string }) {
   }, [client, key]);
 
   useEffect(() => {
-    if (!current || stopped || !playable || current.mine || current.seen) return;
-    const timer = window.setTimeout(() => { void markSeen(current); }, 1000);
-    return () => window.clearTimeout(timer);
-  }, [current?.id, current?.seen, stopped, playable, markSeen]);
-  useEffect(() => {
     if (!current || stopped || !playable) return;
     const id = current.id;
     const kind = current.kind;
@@ -231,11 +230,12 @@ function LiveStories({ ownerId }: { ownerId: string }) {
       progress.current = { id, value: amount };
       const bar = progressBar.current;
       if (bar) {
-        bar.style.transform = `scaleX(${amount / 100})`;
+        bar.style.strokeDashoffset = String(100 - amount);
         bar.dataset["progressValue"] = String(amount);
       }
 
       if (kind === "image" && amount >= 100) {
+        void markSeen(current);
         next();
         return;
       }
@@ -244,7 +244,7 @@ function LiveStories({ ownerId }: { ownerId: string }) {
 
     frame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frame);
-  }, [current?.id, current?.kind, stopped, playable, next]);
+  }, [current, stopped, playable, next, markSeen]);
 
   const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (busy || !event.isPrimary || event.button !== 0) return;
@@ -354,16 +354,21 @@ function LiveStories({ ownerId }: { ownerId: string }) {
             Истории ваших контактов. Нажмите слева или справа для переключения,
             удерживайте для паузы, смахните вверх для закрытия.
           </Dialog.Description>
-          <div className={`${draft ? "relative shrink-0" : "absolute inset-x-0 top-0"} z-30 bg-gradient-to-b from-black/80 to-transparent px-3 pb-5 pt-[max(.5rem,env(safe-area-inset-top))]`}>
-            <div className="flex items-start gap-2">
-              <div className="flex min-w-0 flex-1 items-start gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {current && !draft ? (
+            <StoryContour key={current.id} progressRef={progressBar} />
+          ) : null}
+          <div data-story-toolbar=""
+            className={`${draft ? "hidden" : "flex"} absolute inset-x-0 bottom-0 z-30 items-center gap-1 border-t border-white/10 bg-black/75 px-2 pt-1.5 pb-[max(.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl`}>
+            <div data-story-authors=""
+              className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+
                 <button type="button" disabled={busy} aria-label="Добавить историю"
                   onClick={() => { setPaused(true); input.current?.click(); }}
-                  className="flex w-12 shrink-0 flex-col items-center gap-1 text-[10px] disabled:opacity-40">
+                  className="grid size-11 shrink-0 place-items-center rounded-full disabled:opacity-40">
                   <span className="grid size-10 place-items-center rounded-full border border-dashed border-white/50 bg-black/20">
                     <Plus className="size-5" />
                   </span>
-                  <span>Добавить</span>
+                  <span className="sr-only">Добавить</span>
                 </button>
                 {ordered.map(group => <button type="button" key={group.id} disabled={busy}
                   aria-label={group.id === ownerId ? "Ваши истории" : `Истории: ${group.name}`}
@@ -372,11 +377,11 @@ function LiveStories({ ownerId }: { ownerId: string }) {
                     const target = group.items.find(item => !item.seen) ?? group.items[0];
                     if (target) choose(target.id);
                   }}
-                  className="flex w-12 shrink-0 flex-col items-center gap-1 text-[10px] disabled:opacity-40">
+                  className="grid size-11 shrink-0 place-items-center rounded-full disabled:opacity-40">
                   <span className={`rounded-full border-2 p-0.5 ${group.id === current?.author.id ? "border-white" : group.unseen ? "border-primary" : "border-white/30"}`}>
                     <Avatar name={group.name} src={group.avatarUrl} size="sm" />
                   </span>
-                  <span className="w-full truncate text-center text-white/85">
+                  <span className="sr-only">
                     {group.id === ownerId ? "Вы" : group.name}
                   </span>
                 </button>)}
@@ -386,13 +391,59 @@ function LiveStories({ ownerId }: { ownerId: string }) {
                   className="h-10 shrink-0 px-2 text-xs text-white/80">
                   {feed.isFetchingNextPage ? "…" : "Ещё"}
                 </button>}
-              </div>
-              <Dialog.Close disabled={busy} aria-label="Закрыть истории"
-                className="grid size-10 shrink-0 place-items-center rounded-full bg-black/20 text-white disabled:opacity-40">
+
+            </div>
+            {current && !draft ? (
+              <>
+            {confirmDelete ? <div className="absolute inset-x-0 bottom-0 z-40 flex items-center justify-between gap-2 bg-black/90 px-4 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-4 text-xs">
+              <span>Удалить вашу историю?</span>
+              <button type="button" disabled={busy} onClick={() => setConfirmDelete(false)}>Отмена</button>
+              <button type="button" disabled={busy} onClick={() => { void remove(); }} className="text-destructive">
+                {deleting ? "Удаляем…" : "Удалить"}
+              </button>
+            </div> : <div className="flex shrink-0 items-center gap-0.5">
+              <button type="button" aria-label="Предыдущая история" disabled={position <= 0}
+                onClick={previous} className="hidden size-10 place-items-center disabled:opacity-30 sm:grid"><ChevronLeft className="size-5" /></button>
+              <button type="button" aria-label={paused || finished ? "Продолжить просмотр" : "Пауза"}
+                onClick={() => {
+                  if (finished) {
+                    choose(current.id);
+                    if (video.current) video.current.currentTime = 0;
+                  } else setPaused(value => !value);
+                }} className="grid size-11 place-items-center">
+                {paused || finished ? <Play className="size-5" /> : <Pause className="size-5" />}
+              </button>
+              {current.kind === "video" && <button type="button"
+                aria-label={muted ? "Включить звук" : "Выключить звук"}
+                onClick={() => setMuted(value => !value)} className="grid size-11 place-items-center">
+                {muted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
+              </button>}
+              {authorTotal > 1 ? (
+                <span className="shrink-0 px-1 text-[10px] tabular-nums text-white/65"
+                  aria-label={`История ${authorPosition + 1} из ${authorTotal}`}>
+                  {authorPosition + 1} / {authorTotal}
+                </span>
+              ) : null}
+              {current.mine ? (
+                <span className="flex shrink-0 items-center gap-1 px-1 text-[10px] tabular-nums text-white/65"
+                  aria-label={`Просмотры: ${current.viewCount ?? 0}`}>
+                  <Eye aria-hidden="true" className="size-3.5" />
+                  {current.viewCount ?? 0}
+                </span>
+              ) : null}
+              {current.mine && <button type="button" aria-label="Удалить свою историю"
+                onClick={() => setConfirmDelete(true)} className="grid size-11 place-items-center text-white/70"><Trash2 className="size-4" /></button>}
+              <button type="button" aria-label="Следующая история" disabled={position >= flat.length - 1}
+                onClick={next} className="hidden size-10 place-items-center disabled:opacity-30 sm:grid"><ChevronRight className="size-5" /></button>
+            </div>}
+
+              </>
+            ) : null}
+          </div>
+          <Dialog.Close disabled={busy} aria-label="Закрыть истории"
+                className="absolute right-2 top-[max(.5rem,env(safe-area-inset-top))] z-50 grid size-11 place-items-center rounded-full bg-black/40 text-white disabled:opacity-40">
                 <X className="size-5" />
               </Dialog.Close>
-            </div>
-          </div>
           <input ref={input} type="file"
             accept="image/jpeg,image/png,image/webp,video/mp4,video/webm,video/quicktime"
             className="hidden" onChange={pickFile} />
@@ -422,46 +473,35 @@ function LiveStories({ ownerId }: { ownerId: string }) {
             <div className="shrink-0 space-y-2 p-3">
               <label className="block text-xs text-muted-foreground">
                 Подпись
-                <textarea maxLength={280} rows={2} disabled={busy} value={draft.caption}
+                <textarea maxLength={280} rows={1} disabled={busy} value={draft.caption}
                   onChange={event => {
                     const caption = event.target.value;
                     setDraft(old => old ? { ...old, caption, clientTempId: crypto.randomUUID() } : old);
                   }}
-                  className="mt-1 block w-full resize-none rounded-xl border border-border bg-background p-2 text-sm text-foreground" />
+                  className="mt-1 block min-h-11 max-h-20 w-full resize-none overflow-y-auto rounded-2xl border border-border bg-background px-3 py-2.5 text-base leading-5 text-foreground sm:text-sm" />
               </label>
               <p className="text-[11px] text-muted-foreground">
-                Увидят существующие контакты из личных чатов. Заблокированные пользователи не увидят историю.
+                Для контактов из личных чатов. Заблокированные не увидят.
               </p>
               {uploading && <div role="status" className="text-xs text-primary">
                 {uploadProgress >= 99 ? "Обрабатываем и публикуем…" : `Загружаем: ${Math.floor(uploadProgress)}%`}
                 <progress aria-label="Загрузка истории" max={100} value={uploadProgress} className="mt-1 block w-full" />
               </div>}
-              <div className="flex justify-between gap-2">
+              <div className="flex items-center justify-end gap-1">
                 <button type="button" disabled={busy} onClick={() => {
                   setDraft(null); setError(""); setPaused(false);
-                }} className="rounded-xl border border-border px-3 py-2 text-sm disabled:opacity-40">Отмена</button>
+                }} className="grid size-11 place-items-center rounded-full border border-border text-white disabled:opacity-40">
+                  <X className="size-5" aria-hidden="true" />
+                  <span className="sr-only">Отмена</span>
+                </button>
                 <button type="button" disabled={!draftReady || busy} onClick={() => { void publish(); }}
-                  className="rounded-xl bg-primary px-4 py-2 text-sm text-primary-foreground disabled:opacity-40">
-                  {uploading ? "Публикуем…" : "Опубликовать"}
+                  className="grid size-11 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40">
+                  <SendHorizontal className="size-5" aria-hidden="true" />
+                  <span className="sr-only">{uploading ? "Публикуем…" : "Опубликовать"}</span>
                 </button>
               </div>
             </div>
           </> : current ? <>
-            <div className="pointer-events-none absolute inset-x-3 top-[calc(max(.5rem,env(safe-area-inset-top))+4rem)] z-40 flex gap-1" aria-hidden="true">
-              {authorGroup?.items.map(item => <span key={item.id}
-                className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/25">
-                <span
-                  key={item.id === current.id ? `${item.id}:active` : `${item.id}:${item.seen ? "seen" : "pending"}`}
-                  ref={item.id === current.id ? progressBar : undefined}
-                  data-story-progress={item.id === current.id ? "active" : undefined}
-                  data-progress-value={item.id === current.id ? 0 : undefined}
-                  className="block h-full w-full origin-left bg-primary"
-                  style={{
-                    transform: `scaleX(${item.id === current.id ? 0 : item.seen ? 1 : 0})`,
-                  }}
-                />
-              </span>)}
-            </div>
             <div className="relative min-h-0 flex-1 touch-none select-none overflow-hidden bg-black"
               onPointerDown={pointerDown} onPointerMove={pointerMove}
               onPointerUp={event => pointerUp(event, true)}
@@ -481,12 +521,20 @@ function LiveStories({ ownerId }: { ownerId: string }) {
                   onPlaying={() => setPlayingId(current.id)}
                   onPause={() => setPlayingId(null)}
                   onWaiting={() => setPlayingId(null)}
-                  onEnded={() => { void markSeen(current); next(); }}
+                  onEnded={() => {
+                    progress.current = { id: current.id, value: 100 };
+                    if (progressBar.current) {
+                      progressBar.current.style.strokeDashoffset = "0";
+                      progressBar.current.dataset["progressValue"] = "100";
+                    }
+                    void markSeen(current);
+                    next();
+                  }}
                   onError={() => setMediaError("Видео не воспроизводится в этом браузере")} /> :
                 <div role="status" className="grid size-full place-items-center px-5 text-center text-sm text-white">
                   {mediaError || "Загружаем историю…"}
                 </div>}
-              {current.caption && <p className="pointer-events-none absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+3.25rem)] whitespace-pre-wrap break-words bg-gradient-to-t from-black/75 to-transparent px-4 pb-2 pt-8 text-sm text-white">{current.caption}</p>}
+              {current.caption && <p className="pointer-events-none absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+4rem)] whitespace-pre-wrap break-words bg-gradient-to-t from-black/75 to-transparent px-4 pb-2 pt-8 text-sm text-white">{current.caption}</p>}
             </div>
             {mediaError && <div className="absolute inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+4rem)] z-40 rounded-xl bg-black/90 px-3 py-2 text-xs text-destructive">
               {mediaError}
@@ -494,39 +542,6 @@ function LiveStories({ ownerId }: { ownerId: string }) {
                 setMediaRetry(value => value + 1);
                 void feed.refetch();
               }}>Повторить</button>
-            </div>}
-            {confirmDelete ? <div className="absolute inset-x-0 bottom-0 z-40 flex items-center justify-between gap-2 bg-black/90 px-4 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-4 text-xs">
-              <span>Удалить вашу историю?</span>
-              <button type="button" disabled={busy} onClick={() => setConfirmDelete(false)}>Отмена</button>
-              <button type="button" disabled={busy} onClick={() => { void remove(); }} className="text-destructive">
-                {deleting ? "Удаляем…" : "Удалить"}
-              </button>
-            </div> : <div className="absolute inset-x-0 bottom-0 z-30 flex items-center justify-between bg-gradient-to-t from-black/80 to-transparent px-3 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-6">
-              <button type="button" aria-label="Предыдущая история" disabled={position <= 0}
-                onClick={previous} className="hidden size-10 place-items-center disabled:opacity-30 sm:grid"><ChevronLeft className="size-5" /></button>
-              <button type="button" aria-label={paused || finished ? "Продолжить просмотр" : "Пауза"}
-                onClick={() => {
-                  if (finished) {
-                    choose(current.id);
-                    if (video.current) video.current.currentTime = 0;
-                  } else setPaused(value => !value);
-                }} className="grid size-11 place-items-center">
-                {paused || finished ? <Play className="size-5" /> : <Pause className="size-5" />}
-              </button>
-              {current.kind === "video" && <button type="button"
-                aria-label={muted ? "Включить звук" : "Выключить звук"}
-                onClick={() => setMuted(value => !value)} className="grid size-11 place-items-center">
-                {muted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
-              </button>}
-              <span className="flex items-center gap-1.5 text-[11px] text-white/65"
-                aria-label={current.mine ? `Просмотры: ${current.viewCount ?? 0}` : `История ${position + 1} из ${flat.length}`}>
-                {current.mine && <Eye aria-hidden="true" className="size-3.5" />}
-                {current.mine ? current.viewCount ?? 0 : `${position + 1} / ${flat.length}`}
-              </span>
-              {current.mine && <button type="button" aria-label="Удалить свою историю"
-                onClick={() => setConfirmDelete(true)} className="grid size-11 place-items-center text-white/70"><Trash2 className="size-4" /></button>}
-              <button type="button" aria-label="Следующая история" disabled={position >= flat.length - 1}
-                onClick={next} className="hidden size-10 place-items-center disabled:opacity-30 sm:grid"><ChevronRight className="size-5" /></button>
             </div>}
           </> : <div role="status" className="grid min-h-0 flex-1 place-items-center px-6 text-center text-sm text-muted-foreground">
             {feed.isPending ? "Загружаем истории…" :

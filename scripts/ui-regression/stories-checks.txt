@@ -1,0 +1,159 @@
+if (mode === "existing-thread") {
+  const viewed = [];
+  const published = [];
+  const fixture = (id, authorId, name, mine, index) => ({
+    id, author: { id: authorId, name, avatarUrl: null },
+    kind: "image", caption: "Тест истории", durationMs: null,
+    createdAt: new Date(Date.now() - 60000 + index * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + 3600000).toISOString(),
+    seen: false, mine, viewCount: 0, mediaPath: "audit",
+  });
+  const stories = [
+    fixture("audit-own", me, "Audit Owner", true, 0),
+    fixture("audit-first", peer, "Audit Peer", false, 1),
+    fixture("audit-second", peer, "Audit Peer", false, 2),
+    ...Array.from({ length: 6 }, (_, i) =>
+      ({ ...fixture("audit-extra-" + i, "audit-author-" + i, "Автор " + i, false, i + 3), seen: true })),
+  ];
+  const jpeg = Buffer.from(await page.evaluate(() => {
+    const c = document.createElement("canvas");
+    c.width = 160; c.height = 240;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#67324e";
+    ctx.fillRect(0, 0, c.width, c.height);
+    return c.toDataURL("image/jpeg").split(",")[1];
+  }), "base64");
+
+  await page.route("**/api/stories/**", route => {
+    const req = route.request();
+    const path = new URL(req.url()).pathname;
+    if (path === "/api/stories/" && req.method() === "GET") {
+      return route.fulfill({ json: {
+        items: stories, nextCursor: null,
+        unseenCount: stories.filter(s => !s.mine && !s.seen).length,
+      } });
+    }
+    if (path.endsWith("/media") && req.method() === "GET") {
+      return route.fulfill({ contentType: "image/jpeg", body: jpeg });
+    }
+    if (path.endsWith("/view") && req.method() === "POST") {
+      const id = path.split("/").at(-2);
+      viewed.push(id);
+      const item = stories.find(s => s.id === id);
+      if (item) item.seen = true;
+      return route.fulfill({ json: { ok: true } });
+    }
+    if (path === "/api/stories/" && req.method() === "POST") {
+      const body = req.postDataBuffer().toString("utf8");
+      const caption = body.match(/name="caption"\r\n\r\n([^\r]*)/)?.[1];
+      const tempId = body.match(/name="clientTempId"\r\n\r\n([^\r]+)/)?.[1];
+      if (caption !== "AUDIT_STORY_CAPTION" || !tempId) {
+        throw new Error("Invalid story publication payload");
+      }
+      if (published.length) throw new Error("Duplicate publication");
+      published.push({ caption, tempId });
+      stories.push({
+        ...fixture("audit-published", me, "Audit Owner", true, 20),
+        caption,
+      });
+      return route.fulfill({
+        json: { id: "audit-published", created: true },
+      });
+    }
+    throw new Error("Unexpected story request: " + req.method() + " " + path);
+  });
+
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.goto(origin + "/chat", { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", {
+    name: /^Истории(?:: есть непросмотренные)?$/,
+  }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Истории", exact: true });
+  const progress = dialog.locator('[data-story-progress="active"]');
+  await page.waitForFunction(() =>
+    Number(document.querySelector("[data-story-progress]")?.dataset.progressValue) > 5
+  );
+  await dialog.getByRole("button", { name: "Пауза", exact: true }).click();
+  const paused = Number(await progress.getAttribute("data-progress-value"));
+  await page.waitForTimeout(500);
+  const held = Number(await progress.getAttribute("data-progress-value"));
+  if (Math.abs(held - paused) > 1.5 || viewed.length) {
+    throw new Error("Pause or early view failed: " +
+      JSON.stringify({ paused, held, viewed }));
+  }
+  console.log("PASS stories: contour advances; pause freezes it; no early view");
+
+  const toolbar = dialog.locator("[data-story-toolbar]");
+  for (const button of await toolbar.locator("button:visible").all()) {
+    if (await button.evaluate(el => !!el.closest("[data-story-authors]"))) continue;
+    const box = await button.boundingBox();
+    if (!box || box.x < -1 || box.x + box.width > 321) {
+      throw new Error("Story control outside 320px");
+    }
+  }
+  const authors = await dialog.locator("[data-story-authors]").boundingBox();
+  if (!authors || authors.width < 44) throw new Error("No room for author controls");
+  if (await progress.evaluate(el => el.tagName.toLowerCase()) !== "path") {
+    throw new Error("Old progress bar remains");
+  }
+  await page.screenshot({
+    path: out + "/stories-paused-320.png", fullPage: true,
+  });
+  console.log("PASS stories: bottom controls fit 320px; SVG contour replaces bar");
+
+  await dialog.getByRole("button", {
+    name: "Продолжить просмотр", exact: true,
+  }).click();
+  for (let i = 0; !viewed.includes("audit-first") && i < 70; i++) {
+    await page.waitForTimeout(100);
+  }
+  if (viewed.filter(id => id === "audit-first").length !== 1) {
+    throw new Error("Completed story view not recorded exactly once: " +
+      JSON.stringify({ viewed }));
+  }
+  await dialog.getByRole("button", { name: "Пауза", exact: true }).click();
+  console.log("PASS stories: completed contour records view and advances");
+
+  await dialog.getByRole("button", { name: "Ваши истории", exact: true }).click();
+  await dialog.getByRole("button", { name: "Удалить свою историю", exact: true })
+    .waitFor({ state: "visible" });
+  await dialog.getByRole("button", { name: "Пауза", exact: true }).click();
+  await dialog.getByRole("button", { name: "Удалить свою историю", exact: true }).click();
+  await dialog.getByText("Удалить вашу историю?", { exact: true })
+    .waitFor({ state: "visible" });
+  await dialog.getByRole("button", { name: "Отмена", exact: true }).click();
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: "audit-story.jpg", mimeType: "image/jpeg", buffer: jpeg,
+  });
+  const caption = dialog.getByLabel("Подпись", { exact: true });
+  await caption.waitFor({ state: "visible" });
+  if (await caption.getAttribute("rows") !== "1") {
+    throw new Error("Caption field is not compact");
+  }
+  const box = await caption.boundingBox();
+  if (!box || box.height > 64) {
+    throw new Error("Caption field too tall: " + JSON.stringify(box));
+  }
+  await caption.fill("AUDIT_STORY_CAPTION");
+  const publish = dialog.getByRole("button", {
+    name: "Опубликовать", exact: true,
+  });
+  for (let i = 0; await publish.isDisabled() && i < 50; i++) {
+    await page.waitForTimeout(100);
+  }
+  if (await publish.isDisabled()) throw new Error("Draft did not become ready");
+  await page.screenshot({
+    path: out + "/stories-publish-320.png", fullPage: true,
+  });
+  await publish.click();
+  await dialog.getByText("AUDIT_STORY_CAPTION", { exact: true })
+    .waitFor({ state: "visible", timeout: 10000 });
+  if (published.length !== 1) throw new Error("Publication not confirmed");
+  if (await caption.count()) throw new Error("Draft stayed open after publication");
+  console.log("PASS stories: compact caption; icon publishes once; new story opens");
+
+  await dialog.getByRole("button", { name: "Закрыть истории", exact: true }).click();
+  await dialog.waitFor({ state: "hidden" });
+  console.log("PASS stories: author switching, delete confirmation and close work");
+}
