@@ -55,6 +55,44 @@ export async function ensureServiceWorker(): Promise<ServiceWorkerRegistration |
   }
 }
 
+const SYNC_KEY = "ya-push-synced-at";
+const SYNC_TTL_MS = 10 * 60 * 1000;
+
+function sameKey(current: ArrayBuffer | null | undefined, expected: ArrayBuffer): boolean {
+  if (!current || current.byteLength !== expected.byteLength) return false;
+  const a = new Uint8Array(current);
+  const b = new Uint8Array(expected);
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/** Разрешение уже выдано: тихо создаём/чиним подписку и синхронизируем её с сервером. */
+async function syncSubscription(publicKey: string): Promise<boolean> {
+  const registration = await ensureServiceWorker();
+  if (!registration) return false;
+  await navigator.serviceWorker.ready;
+  const expected = urlBase64ToUint8Array(publicKey);
+  let subscription = await registration.pushManager.getSubscription();
+  let created = false;
+  if (subscription && !sameKey(subscription.options?.applicationServerKey, expected)) {
+    await subscription.unsubscribe();
+    subscription = null;
+  }
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: expected,
+    });
+    created = true;
+  }
+  const last = Number(window.sessionStorage.getItem(SYNC_KEY) ?? "0");
+  if (created || Date.now() - last > SYNC_TTL_MS) {
+    await pushApi.subscribePush(subscription.toJSON());
+    window.sessionStorage.setItem(SYNC_KEY, String(Date.now()));
+  }
+  return true;
+}
+
 export function usePushSubscription() {
   const authed = useSessionStore((state) => state.status === "authed");
   const [state, setState] = useState<PushState>("loading");
@@ -96,9 +134,14 @@ export function usePushSubscription() {
       return;
     }
 
-    const registration = await ensureServiceWorker();
-    const existing = await registration?.pushManager.getSubscription();
-    setState(existing ? "on" : "off");
+    try {
+      const { publicKey } = await pushApi.getPushPublicKey();
+      const ok = await syncSubscription(publicKey);
+      setState(ok ? "on" : "unsupported");
+    } catch (error) {
+      console.error("[push] автоподписка не удалась", error);
+      setState("off");
+    }
   }, [authed]);
 
   useEffect(() => {
