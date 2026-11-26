@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import type { Conversation } from "@/api";
 import { BottomSheet, Button, Input, ListItemSkeleton } from "@/components/ds";
 import { navItems } from "@/components/layout/nav-items";
+import { TopBar } from "@/components/layout/TopBar";
 import { ChatContactTools } from "@/features/chat/ChatContactTools";
 import { searchConversations } from "@/features/chat/chat-search";
 import { ChatBackground } from "@/features/chat/components/ChatBackground";
@@ -312,6 +313,7 @@ function ChatStage() {
       className="chat-desk-pane chat-desk-stage relative isolate"
     >
       <ChatBackground />
+      <TopBar />
       <div className="relative min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto flex w-full max-w-xl flex-col gap-8 px-8 py-16">
           <header className="text-center">
