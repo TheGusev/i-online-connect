@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
+import { readVoiceCache, writeVoiceCache } from "../voice-cache";
 
 /** Живая волна во время записи: рисует сглаженный уровень с микрофона. */
 export function LiveVoiceWave({
@@ -139,7 +140,9 @@ function computePeaks(buffer: ArrayBuffer, bars: number): Promise<number[] | nul
 }
 
 async function loadVoiceAudio(src: string, bars: number): Promise<VoiceAudioResult> {
-  const buffer = await fetchWithRetry(src);
+  const stored = await readVoiceCache(src);
+  const buffer = stored ?? (await fetchWithRetry(src));
+  if (!stored) void writeVoiceCache(src, buffer);
   const audioType = src.includes(".webm") ? "audio/webm" : src.includes(".ogg") ? "audio/ogg" : "audio/mp4";
   const blob = new Blob([buffer], { type: audioType });
   const audioUrl = URL.createObjectURL(blob);
