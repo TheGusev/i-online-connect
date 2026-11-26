@@ -1,15 +1,17 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import {
+  Ban,
   MapPin,
   MessageCircle,
   MessagesSquare,
   Pin,
   PinOff,
+  Search,
   Settings,
   Star,
   StarOff,
   Users,
-  Ban,
+  X,
 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -108,6 +110,7 @@ function ChatListPane({ activeId }: { activeId: string | null }) {
   const { data: conversations, isPending } = useConversations();
   const [tab, setTab] = useState<ConversationTab>(DEFAULT_CONVERSATION_TAB);
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [selected, setSelected] = useState<Conversation | null>(null);
   const [blockedOpen, setBlockedOpen] = useState(false);
   const preference = useConversationPreference();
@@ -130,10 +133,29 @@ function ChatListPane({ activeId }: { activeId: string | null }) {
               aria-label="Заблокированные"
               title="Заблокированные"
               aria-haspopup="dialog"
+              aria-expanded={blockedOpen}
               onClick={() => setBlockedOpen(true)}
               className="inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Ban className="size-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              aria-label={searchOpen ? "Закрыть поиск" : "Поиск по чатам"}
+              title={searchOpen ? "Закрыть поиск" : "Поиск по чатам"}
+              aria-expanded={searchOpen}
+              aria-controls="chat-list-search"
+              onClick={() => {
+                setSearchOpen(!searchOpen);
+                if (searchOpen) setSearch("");
+              }}
+              className="inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary aria-expanded:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {searchOpen ? (
+                <X className="size-4" aria-hidden="true" />
+              ) : (
+                <Search className="size-4" aria-hidden="true" />
+              )}
             </button>
             <ChatContactTools />
           </div>
@@ -163,11 +185,22 @@ function ChatListPane({ activeId }: { activeId: string | null }) {
             </button>
           ))}
         </div>
-        <Input
-          label="Поиск по чатам"
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-        />
+        <div id="chat-list-search" hidden={!searchOpen}>
+          {searchOpen ? (
+            <Input
+              label="Поиск по чатам"
+              value={search}
+              autoFocus
+              onChange={(event) => setSearch(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setSearch("");
+                  setSearchOpen(false);
+                }
+              }}
+            />
+          ) : null}
+        </div>
       </div>
 
       {preference.error ? (
@@ -186,7 +219,7 @@ function ChatListPane({ activeId }: { activeId: string | null }) {
         ) : items.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground" role="status">
             {search.trim()
-              ? "В выбранной вкладке чатов с таким именем нет."
+              ? "В выбранной вкладке чатов с таким именем нет. Измените запрос или выберите «Все»."
               : tab === "favorite"
                 ? "Здесь будут важные чаты"
                 : tab === "awaiting"
@@ -267,11 +300,11 @@ function StatTile({ value, label }: { value: number; label: string }) {
   );
 }
 
-/** Пока диалог не выбран: сводка по перепискам и быстрые переходы. */
+/** Пока диалог не выбран: сводка по перепискам и быстрые переходы (без повторов списка слева). */
 function ChatStage() {
   const { data: conversations = [] } = useConversations();
-  const awaiting = filterConversations(conversations, "awaiting");
-  const favorites = filterConversations(conversations, "favorite");
+  const awaiting = filterConversations(conversations, "awaiting").length;
+  const favorites = filterConversations(conversations, "favorite").length;
   const unread = conversations.reduce((sum, item) => sum + item.unreadCount, 0);
 
   return (
@@ -281,46 +314,20 @@ function ChatStage() {
     >
       <ChatBackground />
       <div className="relative min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-8 py-12">
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-8 px-8 py-16">
           <header className="text-center">
             <MessagesSquare className="mx-auto size-10 text-primary" aria-hidden="true" />
             <h2 className="mt-3 text-2xl font-bold tracking-tight">Выберите диалог слева</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Или продолжите с тех, кто ждёт ответа и кого вы отметили.
+              Вкладки «Избранное» и «Неотвеченные» помогут быстро найти нужный чат.
             </p>
           </header>
 
           <div className="grid grid-cols-3 gap-3">
             <StatTile value={unread} label="Непрочитанных" />
-            <StatTile value={awaiting.length} label="Ждут ответа" />
-            <StatTile value={favorites.length} label="В избранном" />
+            <StatTile value={awaiting} label="Ждут ответа" />
+            <StatTile value={favorites} label="В избранном" />
           </div>
-
-          {awaiting.length > 0 ? (
-            <div className="space-y-2.5">
-              <h3 className="hud-label">Ждут вашего ответа</h3>
-              <ul className="space-y-2">
-                {awaiting.slice(0, 5).map((conversation) => (
-                  <li key={conversation.id}>
-                    <ConversationCard conversation={conversation} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {favorites.length > 0 ? (
-            <div className="space-y-2.5">
-              <h3 className="hud-label">Избранные</h3>
-              <ul className="space-y-2">
-                {favorites.slice(0, 5).map((conversation) => (
-                  <li key={conversation.id}>
-                    <ConversationCard conversation={conversation} />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
 
           <div className="flex flex-wrap justify-center gap-3">
             <Button variant="secondary" asChild>
