@@ -1345,3 +1345,17 @@ textarea,
     opacity: 1;
   }
 }
+
+/* ── Рабочее пространство на ПК ─────────────────────────────────────────── */
+.chat-desk-pane, .chat-desk-rail { display: none; }
+@media (min-width: 1024px) {
+  .chat-desk-pane { position: fixed; top: var(--vv-top, 0px); height: var(--vvh, 100dvh); z-index: 15; display: flex; background: var(--background); }
+  .chat-desk-nav { left: 0; width: 4.5rem; flex-direction: column; border-right: 1px solid var(--border); background: var(--sidebar); }
+  .chat-desk-list { left: 4.5rem; width: 21.25rem; flex-direction: column; border-right: 1px solid var(--border); }
+  .chat-desk-stage { left: 25.75rem; right: 0; flex-direction: column; overflow: hidden; }
+  .keyboard-viewport-fixed.chat-desk-frame { inset-inline: 25.75rem 0; }
+}
+@media (min-width: 1280px) {
+  .keyboard-viewport-fixed.chat-desk-frame { inset-inline: 25.75rem 20rem; }
+  .chat-desk-rail { position: fixed; top: var(--vv-top, 0px); right: 0; width: 20rem; height: var(--vvh, 100dvh); z-index: 15; display: flex; flex-direction: column; border-left: 1px solid var(--border); background: var(--sidebar); }
+}

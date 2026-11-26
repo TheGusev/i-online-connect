@@ -10,6 +10,7 @@ import { Reveal } from "@/components/landing/Reveal";
 import { WaveHeading } from "@/components/landing/WaveHeading";
 import { CategoryChips } from "@/features/nearby/components/CategoryChips";
 import { ListingCard } from "@/features/nearby/components/ListingCard";
+import { NearbyRail } from "@/features/nearby/components/NearbyRail";
 import { ListingSheet } from "@/features/nearby/components/ListingSheet";
 import { useListings } from "@/features/nearby/hooks";
 import { useAuthGate } from "@/features/auth/phone/AuthSheet";
@@ -87,7 +88,7 @@ function NearbyPage() {
     );
 
   return (
-    <AppShell wide public>
+    <AppShell wide public rail={<NearbyRail city={city} />}>
       <header className="mb-4 sm:mb-6">
         <CityPill
           onOther={() => {

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Ban, MessageCircle, MessagesSquare, Pin, PinOff, Search, Star, StarOff, X } from "lucide-react";
 import { useState } from "react";
+import { useMinWidth } from "@/hooks/useMinWidth";
 import type { Conversation } from "@/api";
 
 import { AppShell } from "@/components/layout/AppShell";
@@ -34,8 +35,14 @@ export const Route = createFileRoute("/chat/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: ChatListPage,
+  component: ChatListRoute,
 });
+
+/** На ПК список живёт в постоянной боковой панели (chat.tsx), здесь остаётся телефонный вариант. */
+function ChatListRoute() {
+  const desktop = useMinWidth(1024);
+  return desktop ? null : <ChatListPage />;
+}
 
 function ChatListPage() {
   const { data: conversations, isPending } = useConversations();
