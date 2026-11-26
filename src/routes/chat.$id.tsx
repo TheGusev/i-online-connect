@@ -8,17 +8,10 @@ import { ScrollToLatestButton } from "@/features/chat/components/ScrollToLatestB
 import { lockBodyScroll } from "@/lib/scroll-lock";
 import { ChatBackground } from "@/features/chat/components/ChatBackground";
 import { useQueryClient } from "@tanstack/react-query";
+import { overlayMessages, prependOlder, type MessageWindow } from "@/features/chat/message-window";
 import { ArrowLeft, CalendarHeart, StickyNote } from "lucide-react";
 import { RenameNoteChatButton } from "@/features/chat/NoteChatControls";
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { useKeyboardInset } from "@/hooks/useViewportHeight";
 
@@ -107,7 +100,28 @@ function ConversationPage() {
   const myId = useSessionStore((s) => s.user?.id);
   const { data: conversation } = useConversation(id);
   const isNotes = conversation?.kind === "notes";
-  const { messages, isPending, isSuccess: messagesReady, hasNextPage, isFetchingNextPage, fetchNextPage } = useMessages(id);
+  const { messages: liveMessages, isPending, isSuccess: messagesReady, hasNextPage: liveHasNextPage, isFetchingNextPage: liveFetchingNextPage, fetchNextPage: liveFetchNextPage } = useMessages(id);
+  // «Показать в чате» для старых сообщений: окно живёт отдельно от кэша ленты.
+  const [windowState, setWindowState] = useState<MessageWindow | null>(null);
+  const [windowLoading, setWindowLoading] = useState(false);
+  const win = windowState?.conversationId === id ? windowState : null;
+  const messages = useMemo(() => (win ? overlayMessages(win.items, liveMessages) : liveMessages), [win, liveMessages]);
+  const hasNextPage = win ? win.hasMore : liveHasNextPage;
+  const isFetchingNextPage = win ? windowLoading : liveFetchingNextPage;
+  const loadOlderWindow = useCallback(async () => {
+    if (!win || !win.hasMore || !win.nextBefore || windowLoading) return;
+    setWindowLoading(true);
+    try {
+      const page = await chatApi.getMessages(id, win.nextBefore);
+      setWindowState((cur) => (cur && cur.conversationId === id && cur.nextBefore === win.nextBefore ? prependOlder(cur, page) : cur));
+    } finally {
+      setWindowLoading(false);
+    }
+  }, [id, win, windowLoading]);
+  const fetchNextPage = useCallback(async (): Promise<void> => {
+    if (win) { await loadOlderWindow(); return; }
+    await liveFetchNextPage();
+  }, [win, loadOlderWindow, liveFetchNextPage]);
   const cache = useMessagesCache(id);
   const files = useFileUpload<Message>({ authorId: myId ?? "me", conversationId: id,
     upload: (file, tempId, replyId, progress) => chatApi.sendFile(id, file, tempId, replyId, progress),
@@ -277,6 +291,7 @@ function ConversationPage() {
   });
   useEffect(() => {
     if (!initialScrollReady) return;
+    if (win) return;
     if (nearBottomRef.current || lastMine) scrollToBottom(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialScrollReady, lastId, scrollToBottom]);
@@ -311,7 +326,7 @@ function ConversationPage() {
     if (!scroller) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!entries[0]?.isIntersecting || isFetchingNextPage) return;
+        if (!entries[0]?.isIntersecting || isFetchingNextPage || historyLoadingRef.current) return;
         const prevHeight = scroller.scrollHeight;
         const prevTop = scroller.scrollTop;
         historyLoadingRef.current = true;
@@ -429,7 +444,19 @@ function ConversationPage() {
   }, [files.retry, photoBatch.retry, send.isPending, send.mutate, sendVoice.isPending, sendVoice.variables, sendVoice.mutate]);
   const openActions = useCallback((message: Message) => { setActionsAlbum(null); setActionsFor(message); }, []);
 
-  /** «Показать в чате»: догружаем историю, пока сообщение не появится в ленте. */
+  /** Выход из окна истории: возвращаемся к последним сообщениям. */
+  const exitWindow = useCallback(() => {
+    setWindowState(null);
+    nearBottomRef.current = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => scrollToBottom(false)));
+  }, [scrollToBottom]);
+
+  const sendingNow = send.isPending || sendVoice.isPending || sendMedia.isPending || photoBatch.pending.length > 0 || files.pending.length > 0;
+  useEffect(() => {
+    if (win && sendingNow) exitWindow();
+  }, [win, sendingNow, exitWindow]);
+
+  /** «Показать в чате»: если сообщения нет в ленте, открываем окно истории вокруг него. */
   const showMessage = useCallback(async (messageId: string) => {
     const find = () =>
       document.getElementById(`message-${messageId}`) ??
@@ -438,12 +465,18 @@ function ConversationPage() {
     historyLoadingRef.current = true;
     try {
       let node = find();
-      let more = Boolean(hasNextPage);
-      for (let i = 0; !node && more && i < 3; i += 1) {
-        const result = await fetchNextPage();
-        more = Boolean(result.hasNextPage);
+      if (!node) {
+        const page = await chatApi.getMessagesAround(id, messageId).catch(() => null);
+        if (!page) return false;
+        nearBottomRef.current = false;
+        setWindowState({
+          conversationId: id,
+          items: page.items,
+          hasMore: page.hasMore,
+          nextBefore: page.nextBefore,
+          hasNewer: page.hasNewer ?? false,
+        });
         await frame();
-        node = find();
       }
       await frame();
       node = find();
@@ -460,7 +493,7 @@ function ConversationPage() {
     } finally {
       historyLoadingRef.current = false;
     }
-  }, [hasNextPage, fetchNextPage, jumpToMessage]);
+  }, [id, jumpToMessage]);
 
   return (
     <ReactionContext.Provider value={toggleReaction}>
@@ -589,6 +622,15 @@ function ConversationPage() {
                     {isFetchingNextPage ? "Загружаем…" : "Показать более ранние"}
                   </Button>
                 </div>
+              ) : null}
+              {win ? (
+                <button
+                  type="button"
+                  onClick={exitWindow}
+                  className="fixed bottom-[calc(env(safe-area-inset-bottom)+6.5rem)] right-4 z-30 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg"
+                >
+                  К последним ↓
+                </button>
               ) : null}
               <ul className="flex-1 space-y-3">
                 {groupMessages([...withPending(messages ?? [], photoBatch.pending), ...files.pending] as Message[]).map((group, index, groups) => {
