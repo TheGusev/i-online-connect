@@ -16,7 +16,14 @@ export const getRouter = () => {
   // Единая политика кэша: данные свежи 30 с, поэтому возврат на экран не шлёт
   // лишних запросов; хуки с опросом и своим staleTime задают значения сами.
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { staleTime: 30_000, gcTime: 15 * 60_000, retry: 1 } },
+    defaultOptions: {
+      queries: {
+        staleTime: 30_000,
+        // На сервере (prerender) конечный gcTime запускает таймеры и не даёт сборке завершиться.
+        gcTime: typeof window === "undefined" ? Infinity : 15 * 60_000,
+        retry: 1,
+      },
+    },
   });
 
   const router = createRouter({
