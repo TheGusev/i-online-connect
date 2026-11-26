@@ -57,7 +57,7 @@ export function useMediaGallery(scope: Scope, id: string, filter: Filter, enable
     queryFn: ({ pageParam }) =>
       scope === "conversation"
         ? chatApi.getConversationMedia(id, kind, pageParam)
-        : spacesApi.getSpaceMedia(id, kind as "image" | "video" | undefined, pageParam),
+        : spacesApi.getSpaceMedia(id, kind, pageParam),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.nextCursor,
     enabled,
@@ -135,8 +135,12 @@ export function MediaGallery({
       return;
     }
     requestAnimationFrame(() => {
-      const node = document.getElementById(`message-${item.id}`);
+      const node = document.getElementById(`message-${item.id}`)
+        ?? document.querySelector<HTMLElement>(`[data-tile-id="${item.id}"]`);
       node?.scrollIntoView({ block: "center", behavior: "smooth" });
+      const bubble = node?.querySelector("[data-bubble]") ?? node;
+      bubble?.classList.add("msg-flash");
+      window.setTimeout(() => bubble?.classList.remove("msg-flash"), 1300);
     });
   };
 
@@ -157,7 +161,7 @@ export function MediaGallery({
         </Button>
       </header>
       <div className="flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist">
-        {(scope === "conversation" ? FILTERS : FILTERS.slice(0, 3)).map((option) => (
+        {FILTERS.map((option) => (
           <button
             key={option.value}
             type="button"
