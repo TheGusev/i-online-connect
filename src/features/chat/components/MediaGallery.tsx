@@ -21,6 +21,7 @@ import { useOverlayPresence } from "@/lib/useOverlayPresence";
 import { ZoomablePhoto } from "./ZoomablePhoto";
 import { saveChatFile } from "../file-download";
 import { fileSizeLabel } from "../file-rules";
+import { toast } from "sonner";
 
 type Scope = "conversation" | "space";
 type Filter = "all" | "image" | "video" | "file" | "link";
@@ -96,7 +97,7 @@ export function MediaGallery({
   open: boolean;
   onClose: () => void;
   /** Переход к сообщению в ленте; по умолчанию ищем его среди уже загруженных. */
-  onShowInChat?: (messageId: string) => Promise<void> | void;
+  onShowInChat?: (messageId: string) => Promise<boolean | void> | boolean | void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [viewIndex, setViewIndex] = useState<number | null>(null);
@@ -131,7 +132,9 @@ export function MediaGallery({
     setViewIndex(null);
     onClose();
     if (onShowInChat) {
-      void Promise.resolve(onShowInChat(item.id)).catch(() => undefined);
+      void Promise.resolve(onShowInChat(item.id))
+        .then((found) => { if (found === false) toast("Сообщение слишком далеко в истории. Прокрутите чат вверх, чтобы подгрузить старые."); })
+        .catch(() => undefined);
       return;
     }
     requestAnimationFrame(() => {

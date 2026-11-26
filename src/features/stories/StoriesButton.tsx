@@ -353,7 +353,7 @@ function LiveStories({ ownerId }: { ownerId: string }) {
         <Dialog.Content data-no-swipe
           onEscapeKeyDown={event => { if (busy) event.preventDefault(); }}
           onPointerDownOutside={event => { if (busy) event.preventDefault(); }}
-          className="live-stories-sheet fixed inset-0 z-[60] mx-auto flex h-[100dvh] w-full flex-col overflow-hidden bg-black text-white shadow-2xl outline-none sm:inset-y-[3dvh] sm:h-[94dvh] sm:max-w-[520px] sm:rounded-2xl"
+          className="live-stories-sheet fixed inset-0 z-[60] mx-auto flex h-[100dvh] w-full flex-col overflow-hidden bg-black text-white shadow-2xl outline-none sm:inset-y-[3dvh] sm:h-[94dvh] sm:max-w-[520px] max-sm:rounded-[3rem] sm:rounded-2xl"
           style={{
             "--stories-offset": `${offset}px`,
             ...(open && offset ? { transform: `translateY(${offset}px)` } : {}),
