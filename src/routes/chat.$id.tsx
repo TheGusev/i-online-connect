@@ -439,7 +439,7 @@ function ConversationPage() {
     try {
       let node = find();
       let more = Boolean(hasNextPage);
-      for (let i = 0; !node && more && i < 40; i += 1) {
+      for (let i = 0; !node && more && i < 3; i += 1) {
         const result = await fetchNextPage();
         more = Boolean(result.hasNextPage);
         await frame();
@@ -447,15 +447,16 @@ function ConversationPage() {
       }
       await frame();
       node = find();
-      if (!node) return;
+      if (!node) return false;
       if (document.getElementById(`message-${messageId}`)) {
         jumpToMessage(messageId);
       } else {
         const tile = node;
-        tile.scrollIntoView({ block: "center", behavior: "smooth" });
+        tile.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
         tile.classList.add("chat-media-glow");
         window.setTimeout(() => tile.classList.remove("chat-media-glow"), 700);
       }
+      return true;
     } finally {
       historyLoadingRef.current = false;
     }

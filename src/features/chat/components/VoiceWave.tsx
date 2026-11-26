@@ -73,7 +73,7 @@ const inFlight = new Map<string, Promise<VoiceAudioResult>>();
 
 const FETCH_RETRIES = 2;
 const FETCH_TIMEOUT_MS = 15000;
-const RETRY_BASE_MS = 500;
+const RETRY_BASE_MS = 1200;
 
 /** Скачивание с таймаутом и повторными попытками — сеть на VPN/мобильном интернете нестабильна. */
 async function fetchWithRetry(src: string): Promise<ArrayBuffer> {
@@ -150,6 +150,42 @@ async function loadVoiceAudio(src: string, bars: number): Promise<VoiceAudioResu
   return { audioUrl, peaks };
 }
 
+// Очередь загрузок: сотни голосовых в ленте не должны скачиваться одновременно.
+// Иначе nginx отвечает 503 (лимит запросов), а лента подвисает.
+const MAX_PARALLEL_VOICE = 3;
+const wanted = new Map<string, number>();
+const waiting: Array<() => void> = [];
+let running = 0;
+
+function acquireSlot(): Promise<void> {
+  if (running < MAX_PARALLEL_VOICE) {
+    running += 1;
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    waiting.push(() => {
+      running += 1;
+      resolve();
+    });
+  });
+}
+
+function releaseSlot() {
+  running -= 1;
+  waiting.shift()?.();
+}
+
+/** Загрузка через очередь; сообщения, ушедшие с экрана, пропускаем без запроса. */
+async function loadScheduled(src: string, bars: number): Promise<VoiceAudioResult> {
+  await acquireSlot();
+  try {
+    if (!(wanted.get(src) ?? 0)) throw new Error("voice load cancelled");
+    return await loadVoiceAudio(src, bars);
+  } finally {
+    releaseSlot();
+  }
+}
+
 /**
  * Единая загрузка голосового сообщения: один сетевой запрос на файл — из него
  * же строится и Blob-адрес для <audio>, и волна для визуализации. Раньше это
@@ -175,9 +211,10 @@ export function useVoiceAudio(src: string, bars: number) {
       return;
     }
     let alive = true;
+    wanted.set(src, (wanted.get(src) ?? 0) + 1);
     let promise = inFlight.get(src);
     if (!promise) {
-      promise = loadVoiceAudio(src, bars);
+      promise = loadScheduled(src, bars);
       inFlight.set(src, promise);
     }
     promise
@@ -193,6 +230,7 @@ export function useVoiceAudio(src: string, bars: number) {
       });
     return () => {
       alive = false;
+      wanted.set(src, Math.max(0, (wanted.get(src) ?? 1) - 1));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src, bars, reloadToken]);
