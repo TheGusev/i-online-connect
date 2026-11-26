@@ -215,7 +215,8 @@ function ConversationPage() {
   });
 
   // Сокет переподключился — за время обрыва могли прийти сообщения.
-  const wasClosedRef = useRef(false);
+  // true: первое подключение сокета тоже сверяет историю — сообщение могло прийти между загрузкой и подключением.
+  const wasClosedRef = useRef(true);
   useEffect(() => {
     if (socketStatus === "closed") wasClosedRef.current = true;
     if (socketStatus === "open" && wasClosedRef.current) {
@@ -428,6 +429,38 @@ function ConversationPage() {
   }, [files.retry, photoBatch.retry, send.isPending, send.mutate, sendVoice.isPending, sendVoice.variables, sendVoice.mutate]);
   const openActions = useCallback((message: Message) => { setActionsAlbum(null); setActionsFor(message); }, []);
 
+  /** «Показать в чате»: догружаем историю, пока сообщение не появится в ленте. */
+  const showMessage = useCallback(async (messageId: string) => {
+    const find = () =>
+      document.getElementById(`message-${messageId}`) ??
+      document.querySelector<HTMLElement>(`[data-tile-id="${messageId}"]`);
+    const frame = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    historyLoadingRef.current = true;
+    try {
+      let node = find();
+      let more = Boolean(hasNextPage);
+      for (let i = 0; !node && more && i < 40; i += 1) {
+        const result = await fetchNextPage();
+        more = Boolean(result.hasNextPage);
+        await frame();
+        node = find();
+      }
+      await frame();
+      node = find();
+      if (!node) return;
+      if (document.getElementById(`message-${messageId}`)) {
+        jumpToMessage(messageId);
+      } else {
+        const tile = node;
+        tile.scrollIntoView({ block: "center", behavior: "smooth" });
+        tile.classList.add("chat-media-glow");
+        window.setTimeout(() => tile.classList.remove("chat-media-glow"), 700);
+      }
+    } finally {
+      historyLoadingRef.current = false;
+    }
+  }, [hasNextPage, fetchNextPage, jumpToMessage]);
+
   return (
     <ReactionContext.Provider value={toggleReaction}>
     <div ref={reading.rootRef} className="keyboard-viewport-fixed flex flex-col overflow-hidden overscroll-none bg-background text-foreground">
@@ -504,7 +537,7 @@ function ConversationPage() {
               participantId={participant?.id ?? "unknown"}
             />
           )}
-          <MediaGallery scope="conversation" id={id} open={galleryOpen} onClose={() => setGalleryOpen(false)} />
+          <MediaGallery scope="conversation" id={id} open={galleryOpen} onClose={() => setGalleryOpen(false)} onShowInChat={showMessage} />
         </div>
 
       </header>

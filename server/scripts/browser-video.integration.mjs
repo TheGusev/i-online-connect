@@ -405,10 +405,10 @@ try {
 
   stage = "recipient video gallery";
   await second.page.getByRole("button", {
-    name: "Фото и видео", exact: true,
+    name: "Медиа", exact: true,
   }).click();
   const gallery = second.page.getByRole("dialog", {
-    name: "Фото и видео", exact: true,
+    name: "Медиа", exact: true,
   });
   await gallery.waitFor({ state: "visible" });
   await gallery.getByRole("button", {

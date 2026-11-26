@@ -8,7 +8,7 @@ import { videoPosterUrl } from "../video-poster";
  */
 import { useInfiniteQuery } from "@tanstack/react-query";
 import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight, Images, Play, X, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Images, Play, X, Download, FileText, Link2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
@@ -20,15 +20,26 @@ import { lockBodyScroll } from "@/lib/scroll-lock";
 import { useOverlayPresence } from "@/lib/useOverlayPresence";
 import { ZoomablePhoto } from "./ZoomablePhoto";
 import { saveChatFile } from "../file-download";
+import { fileSizeLabel } from "../file-rules";
 
 type Scope = "conversation" | "space";
-type Filter = "all" | "image" | "video";
+type Filter = "all" | "image" | "video" | "file" | "link";
 
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "all", label: "Все" },
   { value: "image", label: "Фото" },
   { value: "video", label: "Видео" },
+  { value: "file", label: "Документы" },
+  { value: "link", label: "Ссылки" },
 ];
+
+const EMPTY_TEXT: Record<Filter, string> = {
+  all: "Здесь появятся фото и видео из переписки",
+  image: "Фото пока нет",
+  video: "Видео пока нет",
+  file: "Документов пока нет",
+  link: "Ссылок пока нет",
+};
 
 function durationLabel(ms: number) {
   const total = Math.round(ms / 1000);
@@ -62,7 +73,7 @@ export function MediaGalleryButton({ onClick, className }: { onClick: () => void
       size="icon"
       variant="ghost"
       onClick={onClick}
-      aria-label="Фото и видео"
+      aria-label="Медиа"
       className={cn(
         "grid size-10 shrink-0 place-items-center rounded-full border border-primary/40 text-primary transition-[background-color,box-shadow] hover:bg-primary/10 active:shadow-glow",
         className,
@@ -78,11 +89,14 @@ export function MediaGallery({
   id,
   open,
   onClose,
+  onShowInChat,
 }: {
   scope: Scope;
   id: string;
   open: boolean;
   onClose: () => void;
+  /** Переход к сообщению в ленте; по умолчанию ищем его среди уже загруженных. */
+  onShowInChat?: (messageId: string) => Promise<void> | void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [viewIndex, setViewIndex] = useState<number | null>(null);
@@ -90,6 +104,7 @@ export function MediaGallery({
   const gallery = useMediaGallery(scope, id, filter, open);
   const items = gallery.data?.pages.flatMap((page) => page.items) ?? [];
   const sentinel = useRef<HTMLDivElement>(null);
+  const isList = filter === "file" || filter === "link";
 
   useEffect(() => {
     const node = sentinel.current;
@@ -112,20 +127,28 @@ export function MediaGallery({
 
   if (!mounted || typeof document === "undefined") return null;
 
-  const showInChat = (item: GalleryItem) => {
+  const showInChat = (item: { id: string }) => {
     setViewIndex(null);
     onClose();
+    if (onShowInChat) {
+      void Promise.resolve(onShowInChat(item.id)).catch(() => undefined);
+      return;
+    }
     requestAnimationFrame(() => {
-      const node = document.getElementById(`message-${item.id}`);
+      const node = document.getElementById(`message-${item.id}`)
+        ?? document.querySelector<HTMLElement>(`[data-tile-id="${item.id}"]`);
       node?.scrollIntoView({ block: "center", behavior: "smooth" });
+      const bubble = node?.querySelector("[data-bubble]") ?? node;
+      bubble?.classList.add("msg-flash");
+      window.setTimeout(() => bubble?.classList.remove("msg-flash"), 1300);
     });
   };
 
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label="Фото и видео" className={cn("fixed inset-0 z-[90] flex flex-col overflow-y-auto overscroll-contain bg-background", leaving ? "layer-leave" : "layer-enter")}>
+    <div role="dialog" aria-modal="true" aria-label="Медиа" className={cn("fixed inset-0 z-[90] flex flex-col overflow-y-auto overscroll-contain bg-background", leaving ? "layer-leave" : "layer-enter")}>
       <div className="sticky top-0 z-10 bg-background">
       <header className="flex items-center gap-3 border-b border-border px-4 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
-        <h2 className="hud-title flex-1">Фото и видео</h2>
+        <h2 className="hud-title flex-1">Медиа</h2>
         <Button
           type="button"
           size="icon"
@@ -137,7 +160,7 @@ export function MediaGallery({
           <X className="size-5" aria-hidden="true" />
         </Button>
       </header>
-      <div className="flex gap-2 px-4 py-3" role="tablist">
+      <div className="flex gap-2 overflow-x-auto px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" role="tablist">
         {FILTERS.map((option) => (
           <button
             key={option.value}
@@ -146,7 +169,7 @@ export function MediaGallery({
             aria-selected={filter === option.value}
             onClick={() => setFilter(option.value)}
             className={cn(
-              "rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors",
+              "shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-colors",
               filter === option.value
                 ? "border-primary bg-primary text-primary-foreground shadow-glow"
                 : "border-border text-muted-foreground hover:text-foreground",
@@ -167,7 +190,9 @@ export function MediaGallery({
         ) : gallery.isError ? (
           <p className="p-6 text-center text-sm text-muted-foreground">Не удалось загрузить галерею.</p>
         ) : items.length === 0 ? (
-          <p className="p-6 text-center text-sm text-muted-foreground">Здесь появятся фото и видео из переписки</p>
+          <p className="p-6 text-center text-sm text-muted-foreground">{EMPTY_TEXT[filter]}</p>
+        ) : isList ? (
+          <GalleryList items={items as unknown as GalleryEntry[]} onShowInChat={showInChat} />
         ) : (
           <div className="grid grid-cols-3 gap-1">
             {items.map((item, index) => {
@@ -409,5 +434,66 @@ function GalleryViewerReady({
         </Button> : null}
       </div> : null}
     </div>
+  );
+}
+
+
+type GalleryEntry = {
+  id: string;
+  kind: "file" | "link";
+  mediaUrl: string;
+  fileName?: string;
+  fileSize?: number;
+  text?: string;
+  createdAt: string;
+  authorName: string;
+};
+
+function hostOf(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+/** Документы и ссылки списком: тап открывает, «В чате» ведёт к сообщению. */
+function GalleryList({ items, onShowInChat }: { items: GalleryEntry[]; onShowInChat: (item: { id: string }) => void }) {
+  return (
+    <ul className="divide-y divide-border px-3" data-no-swipe>
+      {items.map((item) => {
+        const isLink = item.kind === "link";
+        const title = isLink ? hostOf(item.mediaUrl) : (item.fileName ?? "Файл");
+        const subtitle = isLink ? (item.text ?? item.mediaUrl) : fileSizeLabel(item.fileSize ?? 0);
+        const Icon = isLink ? Link2 : FileText;
+        return (
+          <li key={item.id} className="flex items-center gap-3 py-3">
+            <span className="grid size-11 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+              <Icon className="size-5" aria-hidden="true" />
+            </span>
+            <button
+              type="button"
+              className="min-w-0 flex-1 text-left"
+              onClick={() => {
+                if (isLink) window.open(item.mediaUrl, "_blank", "noopener,noreferrer");
+                else void saveChatFile(item.mediaUrl, title);
+              }}
+            >
+              <span className="block truncate text-sm font-semibold text-foreground">{title}</span>
+              <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>
+              <span className="block truncate text-[11px] text-muted-foreground">{item.authorName} · {dateLabel(item.createdAt)}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onShowInChat(item)}
+              aria-label="Показать в чате"
+              className="h-11 shrink-0 rounded-full border border-primary/40 px-3 text-xs font-semibold text-primary hover:bg-primary/10"
+            >
+              В чате
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

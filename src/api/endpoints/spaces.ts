@@ -153,7 +153,7 @@ export async function sendSpaceMediaMessage(
 /** Галерея: фото и видео, новые сверху. */
 export async function getSpaceMedia(
   id: string,
-  kind?: "image" | "video",
+  kind?: "image" | "video" | "file" | "link",
   before?: string | null,
 ): Promise<import("../types").GalleryPage> {
   const params = new URLSearchParams({ limit: "60" });

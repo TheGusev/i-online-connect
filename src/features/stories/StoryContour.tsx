@@ -31,13 +31,16 @@ export function StoryContour({
 
   const w = Math.max(8, size.width);
   const h = Math.max(8, size.height);
-  const r = Math.min(18, w / 4, h / 4);
+  // Историю на телефоне показываем на весь экран: контур повторяет скруглённые углы дисплея.
+  const phone = kind === "story" && w < 640;
+  const r = phone ? Math.min(50, w / 4, h / 4) : Math.min(18, w / 4, h / 4);
+  const i = phone ? 3 : 2;
   const d = [
-    `M ${w / 2} 2 H ${w - r}`,
-    `Q ${w - 2} 2 ${w - 2} ${r}`,
-    `V ${h - r} Q ${w - 2} ${h - 2} ${w - r} ${h - 2}`,
-    `H ${r} Q 2 ${h - 2} 2 ${h - r}`,
-    `V ${r} Q 2 2 ${r} 2 H ${w / 2}`,
+    `M ${w / 2} ${i} H ${w - r}`,
+    `Q ${w - i} ${i} ${w - i} ${r}`,
+    `V ${h - r} Q ${w - i} ${h - i} ${w - r} ${h - i}`,
+    `H ${r} Q ${i} ${h - i} ${i} ${h - r}`,
+    `V ${r} Q ${i} ${i} ${r} ${i} H ${w / 2}`,
   ].join(" ");
 
   return (

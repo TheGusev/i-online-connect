@@ -825,11 +825,46 @@ export async function spaceRoutes(app: FastifyInstance) {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
     const q = z.object({
-      kind: z.enum(["image", "video"]).optional(),
+      kind: z.enum(["image", "video", "file", "link"]).optional(),
       before: z.string().datetime({ offset: true }).optional(),
       limit: z.coerce.number().int().min(1).max(100).optional(),
     }).parse(request.query ?? {});
     await assertSpaceMembership(userId, id);
+    if (q.kind === "file" || q.kind === "link") {
+      const pageSize = q.limit ?? 60;
+      const wantFiles = q.kind === "file";
+      const found = await query<{ id: string; text: string | null; file_name: string | null; file_size: number | null; media_mime: string | null; created_at: Date; author_id: string; author_name: string }>(
+        `SELECT m.id, m.text, m.file_name, m.file_size, m.media_mime, m.created_at, m.author_id, p.name AS author_name
+           FROM space_messages m JOIN profiles p ON p.user_id = m.author_id
+          WHERE m.space_id = $1 AND m.deleted_at IS NULL
+            AND (($2::boolean AND m.kind = 'file')
+                 OR (NOT $2::boolean AND m.kind <> 'file' AND m.media_url IS NULL AND m.text ~* 'https?://'))
+            AND ($3::timestamptz IS NULL OR m.created_at < $3::timestamptz)
+          ORDER BY m.created_at DESC, m.id DESC
+          LIMIT $4`,
+        [id, wantFiles, q.before ?? null, pageSize + 1],
+      );
+      const slice = found.slice(0, pageSize);
+      return {
+        items: slice.map((r) => {
+          const text = r.text ?? "";
+          const link = wantFiles ? undefined : /https?:\/\/[^\s<>"')\]]+/i.exec(text)?.[0];
+          return {
+            id: r.id,
+            kind: wantFiles ? "file" : "link",
+            mediaUrl: wantFiles ? `/api/spaces/${id}/files/${r.id}` : (link ?? ""),
+            fileName: r.file_name ?? undefined,
+            fileSize: r.file_size ?? undefined,
+            mediaMime: r.media_mime ?? undefined,
+            text: wantFiles ? undefined : text.slice(0, 300),
+            createdAt: r.created_at.toISOString(),
+            authorId: r.author_id,
+            authorName: r.author_name,
+          };
+        }),
+        nextCursor: found.length > pageSize ? slice[slice.length - 1]!.created_at.toISOString() : null,
+      };
+    }
     const limit = q.limit ?? 60;
     const rows = await query<{ id: string; kind: string; media_url: string; duration_ms: number | null; created_at: Date; author_id: string; author_name: string }>(
       `SELECT m.id, m.kind, m.media_url, m.duration_ms, m.created_at, m.author_id, p.name AS author_name
