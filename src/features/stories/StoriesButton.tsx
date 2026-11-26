@@ -25,6 +25,11 @@ const css = `
 @media(prefers-reduced-motion:reduce){.live-stories-sheet,.live-stories-backdrop{animation-duration:1ms!important}}
 `;
 
+/** Кнопки панели сторис: тот же вид, что у панели поста сообщества. */
+const TOOL_BASE = "size-11 shrink-0 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40";
+const TOOL = `${TOOL_BASE} grid text-muted-foreground hover:text-primary`;
+const TOOL_ON = "bg-primary/10 text-primary";
+
 export function StoriesButton({ ownerId }: { ownerId: string }) {
   const [preview, setPreview] = useState<boolean | null>(null);
   useEffect(() => {
@@ -358,83 +363,82 @@ function LiveStories({ ownerId }: { ownerId: string }) {
             <StoryContour key={current.id} progressRef={progressBar} />
           ) : null}
           <div data-story-toolbar=""
-            className={`${draft ? "hidden" : "flex"} absolute inset-x-0 bottom-0 z-30 items-center gap-1 border-t border-white/10 bg-black/75 px-2 pt-1.5 pb-[max(.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl`}>
+            className={`${draft ? "hidden" : "flex"} absolute inset-x-0 bottom-0 z-30 items-center gap-1 border-t border-border bg-card/95 px-2 pt-2 pb-[max(.5rem,env(safe-area-inset-bottom))] backdrop-blur-xl`}>
             <div data-story-authors=""
-              className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-
-                <button type="button" disabled={busy} aria-label="Добавить историю"
-                  onClick={() => { setPaused(true); input.current?.click(); }}
-                  className="grid size-11 shrink-0 place-items-center rounded-full disabled:opacity-40">
-                  <span className="grid size-10 place-items-center rounded-full border border-dashed border-white/50 bg-black/20">
-                    <Plus className="size-5" />
-                  </span>
-                  <span className="sr-only">Добавить</span>
-                </button>
-                {ordered.map(group => <button type="button" key={group.id} disabled={busy}
-                  aria-label={group.id === ownerId ? "Ваши истории" : `Истории: ${group.name}`}
-                  onClick={() => {
-                    setDraft(null);
-                    const target = group.items.find(item => !item.seen) ?? group.items[0];
-                    if (target) choose(target.id);
-                  }}
-                  className="grid size-11 shrink-0 place-items-center rounded-full disabled:opacity-40">
-                  <span className={`rounded-full border-2 p-0.5 ${group.id === current?.author.id ? "border-white" : group.unseen ? "border-primary" : "border-white/30"}`}>
-                    <Avatar name={group.name} src={group.avatarUrl} size="sm" />
-                  </span>
-                  <span className="sr-only">
-                    {group.id === ownerId ? "Вы" : group.name}
-                  </span>
-                </button>)}
-                {feed.hasNextPage && <button type="button"
-                  disabled={busy || feed.isFetchingNextPage}
-                  onClick={() => { void feed.fetchNextPage(); }}
-                  className="h-10 shrink-0 px-2 text-xs text-white/80">
-                  {feed.isFetchingNextPage ? "…" : "Ещё"}
-                </button>}
-
+              className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto py-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <button type="button" disabled={busy} aria-label="Добавить историю"
+                onClick={() => { setPaused(true); input.current?.click(); }}
+                className={`${TOOL_BASE} grid border border-primary/40 text-primary hover:bg-primary/10`}>
+                <Plus className="size-5" aria-hidden="true" />
+                <span className="sr-only">Добавить</span>
+              </button>
+              {ordered.map(group => <button type="button" key={group.id} disabled={busy}
+                aria-label={group.id === ownerId ? "Ваши истории" : `Истории: ${group.name}`}
+                aria-current={group.id === current?.author.id ? "true" : undefined}
+                onClick={() => {
+                  setDraft(null);
+                  const target = group.items.find(item => !item.seen) ?? group.items[0];
+                  if (target) choose(target.id);
+                }}
+                className={`grid size-11 shrink-0 place-items-center rounded-full border-2 transition-[border-color,box-shadow] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 ${group.id === current?.author.id ? "border-primary shadow-glow" : group.unseen ? "border-primary/50" : "border-border"}`}>
+                <Avatar name={group.name} src={group.avatarUrl} size="sm" />
+                <span className="sr-only">
+                  {group.id === ownerId ? "Вы" : group.name}
+                </span>
+              </button>)}
+              {feed.hasNextPage && <button type="button"
+                disabled={busy || feed.isFetchingNextPage}
+                onClick={() => { void feed.fetchNextPage(); }}
+                className="h-11 shrink-0 rounded-full px-3 text-xs font-semibold text-muted-foreground hover:text-primary disabled:opacity-40">
+                {feed.isFetchingNextPage ? "…" : "Ещё"}
+              </button>}
             </div>
             {current && !draft ? (
               <>
-            {confirmDelete ? <div className="absolute inset-x-0 bottom-0 z-40 flex items-center justify-between gap-2 bg-black/90 px-4 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-4 text-xs">
-              <span>Удалить вашу историю?</span>
-              <button type="button" disabled={busy} onClick={() => setConfirmDelete(false)}>Отмена</button>
-              <button type="button" disabled={busy} onClick={() => { void remove(); }} className="text-destructive">
-                {deleting ? "Удаляем…" : "Удалить"}
-              </button>
+            {confirmDelete ? <div className="absolute inset-x-0 bottom-0 z-40 flex items-center justify-between gap-2 border-t border-border bg-card px-4 pb-[max(.75rem,env(safe-area-inset-bottom))] pt-3 text-sm">
+              <span className="text-foreground">Удалить вашу историю?</span>
+              <span className="flex items-center gap-1">
+                <button type="button" disabled={busy} onClick={() => setConfirmDelete(false)}
+                  className="h-11 rounded-full px-4 font-semibold text-muted-foreground hover:text-foreground disabled:opacity-40">Отмена</button>
+                <button type="button" disabled={busy} onClick={() => { void remove(); }}
+                  className="h-11 rounded-full px-4 font-semibold text-destructive disabled:opacity-40">
+                  {deleting ? "Удаляем…" : "Удалить"}
+                </button>
+              </span>
             </div> : <div className="flex shrink-0 items-center gap-0.5">
               <button type="button" aria-label="Предыдущая история" disabled={position <= 0}
-                onClick={previous} className="hidden size-10 place-items-center disabled:opacity-30 sm:grid"><ChevronLeft className="size-5" /></button>
+                onClick={previous} className={`${TOOL_BASE} hidden text-muted-foreground hover:text-primary sm:grid`}><ChevronLeft className="size-5" aria-hidden="true" /></button>
               <button type="button" aria-label={paused || finished ? "Продолжить просмотр" : "Пауза"}
                 onClick={() => {
                   if (finished) {
                     choose(current.id);
                     if (video.current) video.current.currentTime = 0;
                   } else setPaused(value => !value);
-                }} className="grid size-11 place-items-center">
-                {paused || finished ? <Play className="size-5" /> : <Pause className="size-5" />}
+                }} className={`${TOOL} ${paused || finished ? TOOL_ON : ""}`}>
+                {paused || finished ? <Play className="size-5" aria-hidden="true" /> : <Pause className="size-5" aria-hidden="true" />}
               </button>
               {current.kind === "video" && <button type="button"
                 aria-label={muted ? "Включить звук" : "Выключить звук"}
-                onClick={() => setMuted(value => !value)} className="grid size-11 place-items-center">
-                {muted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
+                onClick={() => setMuted(value => !value)} className={`${TOOL} ${muted ? "" : TOOL_ON}`}>
+                {muted ? <VolumeX className="size-5" aria-hidden="true" /> : <Volume2 className="size-5" aria-hidden="true" />}
               </button>}
               {authorTotal > 1 ? (
-                <span className="shrink-0 px-1 text-[10px] tabular-nums text-white/65"
+                <span className="shrink-0 px-1 text-xs tabular-nums text-muted-foreground"
                   aria-label={`История ${authorPosition + 1} из ${authorTotal}`}>
                   {authorPosition + 1} / {authorTotal}
                 </span>
               ) : null}
               {current.mine ? (
-                <span className="flex shrink-0 items-center gap-1 px-1 text-[10px] tabular-nums text-white/65"
+                <span className="flex shrink-0 items-center gap-1 px-1 text-xs tabular-nums text-muted-foreground"
                   aria-label={`Просмотры: ${current.viewCount ?? 0}`}>
-                  <Eye aria-hidden="true" className="size-3.5" />
+                  <Eye aria-hidden="true" className="size-4" />
                   {current.viewCount ?? 0}
                 </span>
               ) : null}
               {current.mine && <button type="button" aria-label="Удалить свою историю"
-                onClick={() => setConfirmDelete(true)} className="grid size-11 place-items-center text-white/70"><Trash2 className="size-4" /></button>}
+                onClick={() => setConfirmDelete(true)} className={`${TOOL_BASE} grid text-destructive hover:bg-destructive/10`}><Trash2 className="size-5" aria-hidden="true" /></button>}
               <button type="button" aria-label="Следующая история" disabled={position >= flat.length - 1}
-                onClick={next} className="hidden size-10 place-items-center disabled:opacity-30 sm:grid"><ChevronRight className="size-5" /></button>
+                onClick={next} className={`${TOOL_BASE} hidden text-muted-foreground hover:text-primary sm:grid`}><ChevronRight className="size-5" aria-hidden="true" /></button>
             </div>}
 
               </>

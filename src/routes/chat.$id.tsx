@@ -328,6 +328,7 @@ function ConversationPage() {
   }, [initialScrollReady, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const participant = conversation?.participant;
+  const peerOnline = Boolean(participant?.online || typing);
   const shared = useMemo(() => conversation?.sharedInterests ?? [], [conversation]);
 
   const submit = () => {
@@ -471,7 +472,7 @@ function ConversationPage() {
                 size="sm"
                 name={participant.name}
                 src={participant.avatarUrl ?? null}
-                online={participant.online}
+                online={peerOnline}
                 trust={getTrustLevel(participant)}
               />
               <span className="min-w-0 flex-1">
@@ -481,7 +482,7 @@ function ConversationPage() {
                 <span className="block truncate text-xs text-muted-foreground">
                   {typing
                     ? "печатает…"
-                    : participant.online
+                    : peerOnline
                       ? "в сети"
                       : (participant.city ?? "не в сети")}
                 </span>

@@ -59,6 +59,8 @@ export function useConversation(conversationId: string) {
     queryKey: ["chat", "conversation", conversationId] as const,
     queryFn: () => chatApi.getConversation(conversationId),
     placeholderData: () => queryClient.getQueryData<Conversation[]>(conversationsQueryOptions.queryKey)?.find((item) => item.id === conversationId),
+    // Статус «в сети» в шапке обновляется так же часто, как в списке диалогов.
+    refetchInterval: 20_000,
   });
 }
 

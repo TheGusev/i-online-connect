@@ -46,7 +46,6 @@ export function SpaceCard({ space }: { space: Space }) {
       className="group block h-full min-w-0 overflow-hidden rounded-xl border border-border bg-card shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lift focus-visible:ring-2 focus-visible:ring-community focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
-        {space.isMember ? <SpaceNewsStar spaceId={space.id} /> : null}
         <MediaImage
           src={space.coverUrl}
           alt={space.title}
@@ -66,14 +65,19 @@ export function SpaceCard({ space }: { space: Space }) {
       </div>
 
       <div className="relative space-y-2 p-2.5 sm:p-3">
-        <EventCountdown
-          {...(space.nextEvent ? { startsAt: space.nextEvent.startsAt } : {})}
-          className="pointer-events-none absolute right-2.5 top-3 z-10 text-xs sm:right-3 sm:text-sm"
-        />
         <div>
-          <h3 className="line-clamp-2 min-h-9 break-words pr-12 text-sm font-bold leading-[1.15] text-foreground sm:text-base">
-            {space.title}
-          </h3>
+          <div className="flex items-start gap-1.5">
+            <h3 className="line-clamp-2 min-h-9 min-w-0 flex-1 break-words text-sm font-bold leading-[1.15] text-foreground sm:text-base">
+              {space.title}
+            </h3>
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              {space.isMember ? <SpaceNewsStar spaceId={space.id} variant="inline" /> : null}
+              <EventCountdown
+                {...(space.nextEvent ? { startsAt: space.nextEvent.startsAt } : {})}
+                className="pointer-events-none text-xs sm:text-sm"
+              />
+            </div>
+          </div>
           <p className="mt-1 line-clamp-2 min-h-8 break-words text-[11px] leading-4 text-muted-foreground sm:text-xs">
             {space.description}
           </p>
