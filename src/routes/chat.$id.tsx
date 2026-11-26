@@ -21,6 +21,7 @@ import { MeetingSheet } from "@/features/chat/components/MeetingSheet";
 import { MessageBubble, quotePreview } from "@/features/chat/components/MessageBubble";
 import { MessageActions } from "@/features/chat/components/MessageActions";
 import { ChatComposer } from "@/features/chat/components/ChatComposer";
+import { ChatInfoRail } from "@/features/chat/components/ChatInfoRail";
 import { MediaAlbum } from "@/features/chat/components/MediaAlbum";
 import { groupMessages } from "@/features/chat/albums";
 import { usePhotoBatch, withPending } from "@/features/chat/usePhotoBatch";
@@ -497,7 +498,7 @@ function ConversationPage() {
 
   return (
     <ReactionContext.Provider value={toggleReaction}>
-    <div ref={reading.rootRef} className="keyboard-viewport-fixed flex flex-col overflow-hidden overscroll-none bg-background text-foreground">
+    <div ref={reading.rootRef} className="keyboard-viewport-fixed chat-desk-frame flex flex-col overflow-hidden overscroll-none bg-background text-foreground">
       {socketStatus !== "open" ? (
         <div
           className="chat-reconnect-indicator"
@@ -514,7 +515,7 @@ function ConversationPage() {
           <Link
             to="/chat"
             aria-label="К списку диалогов"
-            className="grid size-10 place-items-center rounded-full border border-primary/40 text-primary transition-[background-color,box-shadow] hover:bg-primary/10 active:shadow-glow"
+            className="grid size-10 place-items-center rounded-full border border-primary/40 text-primary transition-[background-color,box-shadow] hover:bg-primary/10 active:shadow-glow lg:hidden"
           >
             <ArrowLeft className="size-5" aria-hidden="true" />
           </Link>
@@ -627,7 +628,7 @@ function ConversationPage() {
                 <button
                   type="button"
                   onClick={exitWindow}
-                  className="fixed bottom-[calc(env(safe-area-inset-bottom)+6.5rem)] right-4 z-30 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg"
+                  className="fixed bottom-[calc(env(safe-area-inset-bottom)+6.5rem)] right-4 z-30 xl:right-[21rem] rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow-lg"
                 >
                   К последним ↓
                 </button>
@@ -814,6 +815,15 @@ function ConversationPage() {
         }}
       />
     </div>
+    {conversation && !isNotes ? (
+        <ChatInfoRail
+          conversation={conversation}
+          online={peerOnline}
+          typing={Boolean(typing)}
+          onOpenGallery={() => setGalleryOpen(true)}
+          onSuggestMeeting={() => setMeetingOpen(true)}
+        />
+      ) : null}
     </ReactionContext.Provider>
   );
 }

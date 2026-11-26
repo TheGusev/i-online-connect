@@ -37,7 +37,7 @@ export function TopBar() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/90 backdrop-blur">
-      <div className="mx-auto flex h-16 w-full max-w-3xl items-center justify-between gap-3 px-4 lg:max-w-5xl lg:px-8">
+      <div className="mx-auto flex h-16 w-full max-w-3xl items-center justify-between gap-3 px-4 lg:max-w-none lg:px-8">
         <div className="flex min-w-0 items-center gap-2">
           <Link to="/" className="text-base font-bold tracking-tight lg:hidden">
             <WinterWordmark text={t("app.name")} />

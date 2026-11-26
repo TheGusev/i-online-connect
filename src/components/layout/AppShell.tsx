@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { RequireSession } from "@/features/auth/session";
 import { EntryNotices } from "@/features/auth/EntryNotices";
 import { useViewportHeightVar } from "@/hooks/useViewportHeight";
+import { useMinWidth } from "@/hooks/useMinWidth";
 import { useScreenSwipe } from "@/features/navigation/useScreenSwipe";
 import { useTabOrder } from "@/features/navigation/useTabOrder";
 import { useTranslation } from "react-i18next";
@@ -23,15 +24,19 @@ export function AppShell({
   public: isPublic = false,
   focused = false,
   bleed = false,
+  rail,
 }: {
   children: ReactNode;
   wide?: boolean;
   public?: boolean;
   focused?: boolean;
   bleed?: boolean;
+  /** Правая колонка на ПК (от 1280 px): подсказки и быстрые действия экрана. */
+  rail?: ReactNode;
 }) {
   // Держит --app-height/--keyboard-inset актуальными на каждом экране.
   useViewportHeightVar();
+  const showRail = useMinWidth(1280);
   const { t } = useTranslation();
   // Свайпы экранов — только на телефоне/планшете; на компьютере есть боковое меню.
   const { surfaceRef, peek, enterClass, optimisticTab } = useScreenSwipe(true);
@@ -59,12 +64,19 @@ export function AppShell({
         className={`swipe-surface relative z-10 flex min-w-0 flex-1 flex-col bg-background ${enterClass}`}
       >
         {!focused ? <TopBar /> : null}
+        <div className={rail && showRail ? "flex min-w-0 flex-1" : "contents"}>
         <main
-          className={`mx-auto w-full flex-1 ${bleed ? "px-0" : "px-4"} ${focused ? "pb-[env(safe-area-inset-bottom)] pt-3" : "pb-[calc(5.0625rem+env(safe-area-inset-bottom))] pt-6 lg:pb-12"} ${bleed ? "max-w-none lg:px-0" : `lg:px-8 ${wide ? "max-w-6xl" : "max-w-3xl"}`}`}
+          className={`mx-auto w-full min-w-0 flex-1 ${bleed ? "px-0" : "px-4"} ${focused ? "pb-[env(safe-area-inset-bottom)] pt-3" : "pb-[calc(5.0625rem+env(safe-area-inset-bottom))] pt-6 lg:pb-12"} ${bleed ? "max-w-none lg:px-0" : `lg:px-8 ${wide ? "max-w-6xl" : "max-w-3xl"}`}`}
         >
           {children}
           {!isPublic && <EntryNotices />}
         </main>
+        {rail && showRail ? (
+          <aside aria-label="Панель экрана" className="w-80 shrink-0 border-l border-border">
+            <div className="sticky top-16 max-h-[calc(100dvh-4rem)] overflow-y-auto p-5">{rail}</div>
+          </aside>
+        ) : null}
+        </div>
       </div>
 
       {!focused ? (

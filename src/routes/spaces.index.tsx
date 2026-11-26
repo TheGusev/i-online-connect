@@ -14,6 +14,7 @@ import { Reveal } from "@/components/landing/Reveal";
 import { WaveHeading } from "@/components/landing/WaveHeading";
 import { CreateSpaceForm } from "@/features/spaces/components/CreateSpaceForm";
 import { SpaceCard } from "@/features/spaces/components/SpaceCard";
+import { SpacesRail } from "@/features/spaces/components/SpacesRail";
 import { SpacesTabs, type SpacesTab } from "@/features/spaces/components/SpacesTabs";
 import { useCreateSpace, useSpaces } from "@/features/spaces/hooks";
 import { sortSpacesByInterests } from "@/features/spaces/sort";
@@ -81,7 +82,7 @@ function SpacesPage() {
   };
 
   return (
-    <AppShell wide>
+    <AppShell wide rail={<SpacesRail />}>
       <header className="mb-6">
           <CityPill onOther={() => setOtherCity(true)} />
         <WaveHeading as="h1" className="mt-3 text-3xl font-bold tracking-tight">
