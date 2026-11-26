@@ -38,6 +38,9 @@ export interface AvatarProps {
 
 const smallSizes = new Set(["xs", "sm", "list"]);
 
+/** Уже показанные аватары: при возврате на экран грузим сразу, без lazy-мерцания. */
+const loadedAvatars = new Set<string>();
+
 /** Кольцо верификации. Анимация на паузе, пока аватар вне экрана. */
 export function TrustRing({ trust, size, children }: { trust: AvatarTrust; size: keyof typeof sizeMap; children: ReactNode }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -103,7 +106,9 @@ export function Avatar({
           src={resolved}
           alt={name}
           className="size-full object-cover"
-          loading={loading}
+          loading={loadedAvatars.has(resolved) ? "eager" : loading}
+          decoding="async"
+          onLoad={() => loadedAvatars.add(resolved)}
           onError={() => setFailed(true)}
         />
       ) : (

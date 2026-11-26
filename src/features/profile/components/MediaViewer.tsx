@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 
 import type { ProfileMedia } from "@/api";
 import { mediaUrl } from "@/api";
@@ -62,10 +63,11 @@ export function MediaViewer({
     };
   });
 
-  if (!mounted || !item) return null;
+  if (!mounted || !item || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div
+      data-no-swipe
       className={cn(
         "fixed inset-0 z-50 flex flex-col bg-background/97 backdrop-blur",
         leaving ? "layer-leave" : "layer-enter",
@@ -138,6 +140,7 @@ export function MediaViewer({
           </button>
         </div>
       ) : null}
-    </div>
+    </div>,
+    document.body,
   );
 }

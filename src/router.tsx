@@ -13,7 +13,11 @@ installChunkRecovery();
 initI18n();
 
 export const getRouter = () => {
-  const queryClient = new QueryClient();
+  // Единая политика кэша: данные свежи 30 с, поэтому возврат на экран не шлёт
+  // лишних запросов; хуки с опросом и своим staleTime задают значения сами.
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { staleTime: 30_000, gcTime: 15 * 60_000, retry: 1 } },
+  });
 
   const router = createRouter({
     routeTree,
