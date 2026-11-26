@@ -81,6 +81,9 @@ export function useMessages(conversationId: string | null) {
     initialPageParam: null as string | null,
     getNextPageParam: (last) => (last.hasMore ? last.nextBefore : undefined),
     enabled: Boolean(conversationId),
+    // Сообщения могли прийти, пока диалог был закрыт: при входе всегда сверяемся с сервером.
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 
   // Страницы приходят «новые → старые», внутри страницы — по возрастанию.

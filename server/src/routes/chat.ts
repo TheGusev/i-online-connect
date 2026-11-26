@@ -440,7 +440,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const userId = currentUserId(request);
     const { id } = idParam.parse(request.params);
     const q = z.object({
-      kind: z.enum(["image", "video"]).optional(),
+      kind: z.enum(["image", "video", "file", "link"]).optional(),
       before: z.string().max(512).optional(),
       limit: z.coerce.number().int().min(1).max(100).optional(),
     }).parse(request.query ?? {});
@@ -448,6 +448,46 @@ export async function chatRoutes(app: FastifyInstance) {
     let cursor: ReturnType<typeof decodeHistoryCursor>;
     try { cursor = decodeHistoryCursor(q.before); }
     catch { throw badRequest("Некорректный курсор истории"); }
+    if (q.kind === "file" || q.kind === "link") {
+      const pageSize = q.limit ?? 60;
+      const wantFiles = q.kind === "file";
+      const found = await query<{ id: string; text: string; file_name: string | null; file_size: number | null; media_mime: string | null; created_at: Date; cursor_created_at: string; author_id: string; author_name: string | null }>(
+        `SELECT m.id, m.text, m.file_name, m.file_size, m.media_mime, m.created_at,
+                to_char(m.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at,
+                m.author_id, p.name AS author_name
+           FROM messages m LEFT JOIN profiles p ON p.user_id = m.author_id
+          WHERE m.conversation_id = $1 AND m.deleted_at IS NULL
+            AND (($2::boolean AND m.kind::text = 'file')
+                 OR (NOT $2::boolean AND m.kind::text = 'text' AND m.text ~* 'https?://'))
+            AND ($3::timestamptz IS NULL
+                 OR ($5::uuid IS NULL AND m.created_at < $3::timestamptz)
+                 OR ($5::uuid IS NOT NULL AND (m.created_at, m.id) < ($3::timestamptz, $5::uuid)))
+          ORDER BY m.created_at DESC, m.id DESC
+          LIMIT $4`,
+        [id, wantFiles, cursor.at, pageSize + 1, cursor.id],
+      );
+      const slice = found.slice(0, pageSize);
+      return {
+        items: slice.map((r) => {
+          const link = wantFiles ? undefined : /https?:\/\/[^\s<>"')\]]+/i.exec(r.text)?.[0];
+          return {
+            id: r.id,
+            kind: wantFiles ? "file" : "link",
+            mediaUrl: wantFiles ? `/api/chat/conversations/${id}/files/${r.id}` : (link ?? ""),
+            fileName: r.file_name ?? undefined,
+            fileSize: r.file_size ?? undefined,
+            mediaMime: r.media_mime ?? undefined,
+            text: wantFiles ? undefined : r.text.slice(0, 300),
+            createdAt: r.created_at.toISOString(),
+            authorId: r.author_id,
+            authorName: r.author_name ?? "Участник",
+          };
+        }),
+        nextCursor: found.length > pageSize
+          ? encodeHistoryCursor(slice[slice.length - 1]!.cursor_created_at, slice[slice.length - 1]!.id)
+          : null,
+      };
+    }
     const limit = q.limit ?? 60;
     const rows = await query<{ id: string; kind: string; media_url: string; duration_ms: number | null; created_at: Date; cursor_created_at: string; author_id: string; author_name: string | null }>(
       `SELECT m.id, m.kind::text AS kind, m.media_url, m.duration_ms, m.created_at,

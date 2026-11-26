@@ -3,6 +3,7 @@ import { useInfiniteQuery, useQueryClient, type InfiniteData } from "@tanstack/r
 import { ChevronLeft, ChevronRight, Eye, Pause, Play, Plus, Trash2, Volume2, VolumeX, X, Star, SendHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, CSSProperties, PointerEvent } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Avatar } from "@/components/ds";
 import { getSessionRevision, isSessionCurrent } from "@/api/client";
 import { storiesApi } from "./api";
@@ -29,6 +30,8 @@ const css = `
 const TOOL_BASE = "size-11 shrink-0 place-items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40";
 const TOOL = `${TOOL_BASE} grid text-muted-foreground hover:text-primary`;
 const TOOL_ON = "bg-primary/10 text-primary";
+/** Общий вид кнопок управления: круг, розовая иконка на розовой подложке (как «Воспроизвести»). */
+const TOOL_FIRE = `${TOOL_BASE} grid bg-primary/10 text-primary hover:bg-primary/20`;
 
 export function StoriesButton({ ownerId }: { ownerId: string }) {
   const [preview, setPreview] = useState<boolean | null>(null);
@@ -41,6 +44,7 @@ export function StoriesButton({ ownerId }: { ownerId: string }) {
 
 function LiveStories({ ownerId }: { ownerId: string }) {
   const client = useQueryClient();
+  const navigate = useNavigate();
   const key = useMemo(() => ["stories", ownerId, getSessionRevision()] as const, [ownerId]);
   const feed = useInfiniteQuery({
     queryKey: key,
@@ -376,6 +380,13 @@ function LiveStories({ ownerId }: { ownerId: string }) {
                 aria-label={group.id === ownerId ? "Ваши истории" : `Истории: ${group.name}`}
                 aria-current={group.id === current?.author.id ? "true" : undefined}
                 onClick={() => {
+                  if (busy) return;
+                  if (group.id === current?.author.id) {
+                    changeOpen(false);
+                    if (group.id === ownerId) void navigate({ to: "/profile/me" });
+                    else void navigate({ to: "/profile/$id", params: { id: group.id } });
+                    return;
+                  }
                   setDraft(null);
                   const target = group.items.find(item => !item.seen) ?? group.items[0];
                   if (target) choose(target.id);
@@ -407,19 +418,19 @@ function LiveStories({ ownerId }: { ownerId: string }) {
               </span>
             </div> : <div className="flex shrink-0 items-center gap-0.5">
               <button type="button" aria-label="Предыдущая история" disabled={position <= 0}
-                onClick={previous} className={`${TOOL_BASE} hidden text-muted-foreground hover:text-primary sm:grid`}><ChevronLeft className="size-5" aria-hidden="true" /></button>
+                onClick={previous} className={`${TOOL_BASE} hidden bg-primary/10 text-primary hover:bg-primary/20 sm:grid`}><ChevronLeft className="size-5" aria-hidden="true" /></button>
               <button type="button" aria-label={paused || finished ? "Продолжить просмотр" : "Пауза"}
                 onClick={() => {
                   if (finished) {
                     choose(current.id);
                     if (video.current) video.current.currentTime = 0;
                   } else setPaused(value => !value);
-                }} className={`${TOOL} ${paused || finished ? TOOL_ON : ""}`}>
+                }} className={TOOL_FIRE}>
                 {paused || finished ? <Play className="size-5" aria-hidden="true" /> : <Pause className="size-5" aria-hidden="true" />}
               </button>
               {current.kind === "video" && <button type="button"
                 aria-label={muted ? "Включить звук" : "Выключить звук"}
-                onClick={() => setMuted(value => !value)} className={`${TOOL} ${muted ? "" : TOOL_ON}`}>
+                onClick={() => setMuted(value => !value)} className={TOOL_FIRE}>
                 {muted ? <VolumeX className="size-5" aria-hidden="true" /> : <Volume2 className="size-5" aria-hidden="true" />}
               </button>}
               {authorTotal > 1 ? (
@@ -429,16 +440,16 @@ function LiveStories({ ownerId }: { ownerId: string }) {
                 </span>
               ) : null}
               {current.mine ? (
-                <span className="flex shrink-0 items-center gap-1 px-1 text-xs tabular-nums text-muted-foreground"
+                <span className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary/10 px-3 text-sm font-semibold tabular-nums text-primary"
                   aria-label={`Просмотры: ${current.viewCount ?? 0}`}>
-                  <Eye aria-hidden="true" className="size-4" />
+                  <Eye aria-hidden="true" className="size-5" />
                   {current.viewCount ?? 0}
                 </span>
               ) : null}
               {current.mine && <button type="button" aria-label="Удалить свою историю"
-                onClick={() => setConfirmDelete(true)} className={`${TOOL_BASE} grid text-destructive hover:bg-destructive/10`}><Trash2 className="size-5" aria-hidden="true" /></button>}
+                onClick={() => setConfirmDelete(true)} className={TOOL_FIRE}><Trash2 className="size-5" aria-hidden="true" /></button>}
               <button type="button" aria-label="Следующая история" disabled={position >= flat.length - 1}
-                onClick={next} className={`${TOOL_BASE} hidden text-muted-foreground hover:text-primary sm:grid`}><ChevronRight className="size-5" aria-hidden="true" /></button>
+                onClick={next} className={`${TOOL_BASE} hidden bg-primary/10 text-primary hover:bg-primary/20 sm:grid`}><ChevronRight className="size-5" aria-hidden="true" /></button>
             </div>}
 
               </>

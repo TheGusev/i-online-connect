@@ -104,6 +104,8 @@ export function useNotificationSocket() {
           const { title, href, conversationId } = describeNotification(incoming);
           const inThatChat = conversationId && window.location.pathname === `/chat/${conversationId}`;
           const visible = document.visibilityState === "visible";
+          // Диалог закрыт: помечаем историю устаревшей, чтобы вход сразу показал новое сообщение.
+          if (conversationId && !inThatChat) void queryClient.invalidateQueries({ queryKey: ["chat", "messages", conversationId], exact: true });
           if (visible && conversationId) closeSystemNotifications(`chat-${conversationId}`, channel);
           if (!inThatChat && visible) show(title, {
             id: incoming.id, actorActivity: payload["actorActivity"], kind: incoming.kind,
