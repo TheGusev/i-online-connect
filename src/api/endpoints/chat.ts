@@ -35,6 +35,21 @@ export async function getMessages(
   return request<MessagesPage>(`/chat/conversations/${conversationId}/messages?${params}`);
 }
 
+export interface MessagesAroundPage extends MessagesPage {
+  /** Есть ли сообщения новее окна. */
+  hasNewer?: boolean;
+}
+
+/** Окно истории вокруг сообщения: оно само, немного новее и более ранние. */
+export async function getMessagesAround(
+  conversationId: string,
+  messageId: string,
+  limit = 50,
+): Promise<MessagesAroundPage> {
+  const params = new URLSearchParams({ limit: String(limit), around: messageId });
+  return request<MessagesAroundPage>(`/chat/conversations/${conversationId}/messages?${params}`);
+}
+
 /** Сколько диалогов с непрочитанными сообщениями. */
 export async function getUnreadCount(): Promise<{ count: number }> {
   return request<{ count: number }>("/chat/unread-count");
