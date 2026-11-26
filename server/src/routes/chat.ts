@@ -520,6 +520,7 @@ export async function chatRoutes(app: FastifyInstance) {
     const q = z
       .object({
         before: z.string().max(512).optional(),
+        around: z.string().uuid().optional(),
         limit: z.coerce.number().int().min(1).max(200).optional(),
       })
       .parse(request.query ?? {});
@@ -529,6 +530,35 @@ export async function chatRoutes(app: FastifyInstance) {
     try { cursor = decodeHistoryCursor(q.before); }
     catch { throw badRequest("Некорректный курсор истории"); }
     const limit = q.limit ?? 50;
+    // «Показать в чате»: окно вокруг сообщения — половина новее него, остальное старее.
+    let hasNewer = false;
+    if (q.around) {
+      if (q.before) throw badRequest("Параметры around и before несовместимы");
+      const anchor = await queryOne<{ id: string }>(
+        `SELECT m.id FROM messages m
+          WHERE m.id = $1 AND m.conversation_id = $2 AND m.deleted_at IS NULL
+            AND m.created_at > COALESCE((SELECT cp.cleared_at FROM conversation_participants cp
+                                          WHERE cp.conversation_id = m.conversation_id AND cp.user_id = $3), '-infinity'::timestamptz)`,
+        [q.around, id, userId],
+      );
+      if (!anchor) throw notFound("Сообщение не найдено");
+      const ahead = Math.floor(limit / 2);
+      const newer = await query<{ id: string; cursor_created_at: string }>(
+        `SELECT m.id,
+                to_char(m.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_created_at
+           FROM messages m
+          WHERE m.conversation_id = $1 AND m.deleted_at IS NULL
+            AND (m.created_at, m.id) > (SELECT a.created_at, a.id FROM messages a WHERE a.id = $2)
+          ORDER BY m.created_at ASC, m.id ASC
+          LIMIT $3`,
+        [id, q.around, ahead + 1],
+      );
+      const boundary = newer[ahead];
+      if (boundary) {
+        cursor = { at: boundary.cursor_created_at, id: boundary.id };
+        hasNewer = true;
+      }
+    }
     const rows = await query<MessageRow & { cursor_created_at: string }>(
       `SELECT m.id, m.conversation_id, m.author_id, m.text, m.kind, m.client_temp_id,
               m.file_name, m.file_size, m.media_url, m.media_mime, m.duration_ms, m.created_at, m.edited_at, m.deleted_at,
@@ -564,6 +594,7 @@ export async function chatRoutes(app: FastifyInstance) {
       })),
       hasMore,
       nextBefore: hasMore && page[0] ? encodeHistoryCursor(page[0].cursor_created_at, page[0].id) : null,
+      ...(q.around ? { hasNewer } : {}),
     };
   });
 
