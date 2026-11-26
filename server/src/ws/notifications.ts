@@ -15,6 +15,7 @@
 import type { FastifyInstance } from "fastify";
 import type { WebSocket } from "ws";
 
+import { query } from "../db.ts";
 import { verifyAccessToken } from "../auth/tokens.ts";
 
 const userSockets = new Map<string, Set<WebSocket>>();
@@ -22,6 +23,20 @@ const userSockets = new Map<string, Set<WebSocket>>();
 /** Клиент шлёт «приложение видно» раз в ~8 с; без свежего сигнала считаем, что оно не на экране. */
 const FOREGROUND_TTL_MS = 20_000;
 const foregroundAt = new WeakMap<WebSocket, number>();
+
+/**
+ * «В сети» = приложение на экране. Сигнал видимости уже приходит по этому сокету,
+ * поэтому users.last_seen_at обновляем здесь, не чаще раза в 20 с на пользователя.
+ */
+const LAST_SEEN_WRITE_MS = 20_000;
+const lastSeenWrittenAt = new Map<string, number>();
+
+function touchLastSeen(userId: string): void {
+  const now = Date.now();
+  if (now - (lastSeenWrittenAt.get(userId) ?? 0) < LAST_SEEN_WRITE_MS) return;
+  lastSeenWrittenAt.set(userId, now);
+  void query("UPDATE users SET last_seen_at = now() WHERE id = $1", [userId]).catch(() => undefined);
+}
 
 /** Открыто ли приложение на экране прямо сейчас: тогда системный push не нужен. */
 export function isUserInForeground(userId: string): boolean {
@@ -80,7 +95,10 @@ export async function notificationSocketRoutes(app: FastifyInstance) {
       socket.on("message", (raw: Buffer) => {
         try {
           const parsed = JSON.parse(raw.toString()) as { type?: string; visible?: boolean };
-          if (parsed.type === "visibility") foregroundAt.set(socket, parsed.visible ? Date.now() : 0);
+          if (parsed.type === "visibility") {
+            foregroundAt.set(socket, parsed.visible ? Date.now() : 0);
+            if (parsed.visible) touchLastSeen(userId);
+          }
         } catch {
           /* мусорные кадры игнорируем */
         }
@@ -88,7 +106,10 @@ export async function notificationSocketRoutes(app: FastifyInstance) {
 
       socket.on("close", () => {
         sockets.delete(socket);
-        if (sockets.size === 0) userSockets.delete(userId);
+        if (sockets.size === 0) {
+          userSockets.delete(userId);
+          lastSeenWrittenAt.delete(userId);
+        }
       });
     },
   );
