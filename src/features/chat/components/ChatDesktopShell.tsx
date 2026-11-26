@@ -127,7 +127,7 @@ function ChatListPane({ activeId }: { activeId: string | null }) {
       <div className="space-y-3 border-b border-border px-4 pb-3 pt-4">
         <h1 className="text-lg font-bold tracking-tight">Диалоги</h1>
         <div data-no-swipe className="flex items-center justify-between gap-1">
-          <div role="group" aria-label="Выбор чатов" className="flex items-center gap-0.5">
+          <div role="group" aria-label="Выбор чатов" className="flex items-center gap-1">
             {(
               [
                 ["all", "Все", MessagesSquare],
@@ -143,7 +143,7 @@ function ChatListPane({ activeId }: { activeId: string | null }) {
                 aria-pressed={tab === value}
                 onClick={() => setTab(value)}
                 className={cn(
-                  "inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "inline-flex size-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   tab === value ? "text-primary" : "text-muted-foreground hover:text-primary",
                 )}
               >
@@ -157,12 +157,12 @@ function ChatListPane({ activeId }: { activeId: string | null }) {
               aria-haspopup="dialog"
               aria-expanded={blockedOpen}
               onClick={() => setBlockedOpen(true)}
-              className="inline-flex size-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary aria-expanded:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary aria-expanded:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Ban className="size-5" aria-hidden="true" />
             </button>
           </div>
-          <div className="flex shrink-0 items-center gap-0.5">
+          <div className="flex shrink-0 items-center gap-1">
             <button
               type="button"
               aria-label={searchOpen ? "Закрыть поиск" : "Поиск по чатам"}
@@ -173,7 +173,7 @@ function ChatListPane({ activeId }: { activeId: string | null }) {
                 setSearchOpen(!searchOpen);
                 if (searchOpen) setSearch("");
               }}
-              className="inline-flex size-9 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary aria-expanded:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex size-11 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-primary aria-expanded:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               {searchOpen ? (
                 <X className="size-5" aria-hidden="true" />
